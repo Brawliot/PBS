@@ -81,6 +81,14 @@
       <p class="result__meta" id="result-meta"></p>
       <div class="result__bar" aria-hidden="true"><span id="result-bar"></span></div>
     </div>
+    <section class="result__block" id="result-warnings-block" hidden>
+      <h3 class="result__label">Worth checking</h3>
+      <ul class="result__warnings" id="result-warnings"></ul>
+    </section>
+    <section class="result__block" id="result-departments-block" hidden>
+      <h3 class="result__label">Likely departments</h3>
+      <ul class="result__pending" id="result-departments-top"></ul>
+    </section>
     <section class="result__pending-block" id="result-pending-block">
       <h3 class="result__label">Still to define</h3>
       <ul class="result__pending" id="result-pending"></ul>
@@ -150,6 +158,8 @@
       <button class="modal__close" type="button" aria-label="Close" data-close>&times;</button>
       <h2 class="modal__title" id="detail-title">Full detail</h2>
       <dl class="result__list" id="result-detail"></dl>
+      <h3 class="result__label result__label--spaced" id="result-departments-title">Departments</h3>
+      <dl class="result__list" id="result-departments"></dl>
     </div>
   </dialog>
 

@@ -6,10 +6,17 @@ import {
 import { readFile } from "node:fs/promises";
 import { extname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { analyzeWithJev, type PlannerInput } from "./planner/planner-handler.js";
-import { analyzePhase2, type PlannerAnswer } from "./planner/planner-phase2-handler.js";
+import { analyzeWithJev, type JevResponse, type PlannerInput } from "./planner/planner-handler.js";
+import { analyzePhase2, type Phase2Response, type PlannerAnswer } from "./planner/planner-phase2-handler.js";
 import { analyzeProfile } from "./planner/planner-profile-handler.js";
 import { questionLimit, selectQuestions } from "./planner/question-policy.js";
+import {
+  analyzeValidation,
+  claimsFromPhase2,
+  cleanClaims,
+  departmentLevel,
+  type Claims,
+} from "./planner/planner-validation-handler.js";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -90,7 +97,12 @@ function parseAnswers(value: unknown): PlannerAnswer[] {
   });
 }
 
-function parsePlannerRequest(raw: string): { input: PlannerInput; answers: PlannerAnswer[]; final: boolean } {
+function parsePlannerRequest(raw: string): {
+  input: PlannerInput;
+  answers: PlannerAnswer[];
+  final: boolean;
+  claims: Claims;
+} {
   let body: Record<string, unknown>;
   try {
     body = JSON.parse(raw);
@@ -120,7 +132,22 @@ function parsePlannerRequest(raw: string): { input: PlannerInput; answers: Plann
     }
     input[key] = value;
   }
-  return { input, answers: parseAnswers(body.answers), final };
+  return { input, answers: parseAnswers(body.answers), final, claims: cleanClaims(body.analysis) };
+}
+
+/** Last step: classify the profile and validate the analysis, both at once */
+async function buildReport(
+  input: PlannerInput,
+  jev: JevResponse,
+  answers: PlannerAnswer[],
+  claims: Claims,
+  phase2?: Phase2Response,
+) {
+  const [profile, validation] = await Promise.all([
+    analyzeProfile(input, jev, phase2, answers),
+    analyzeValidation(input, jev, claims, answers),
+  ]);
+  return { profile, validation: { ...validation, level: departmentLevel(profile, input) } };
 }
 
 createServer(async (req, res) => {
@@ -133,13 +160,12 @@ createServer(async (req, res) => {
 
   if (path === "/api/planner" && req.method === "POST") {
     try {
-      const { input, answers, final } = parsePlannerRequest(await readBody(req));
+      const { input, answers, final, claims } = parsePlannerRequest(await readBody(req));
       const jev = await analyzeWithJev(input);
 
       // Final request: the questions are answered, so only the profile is left
       if (final) {
-        const profile = await analyzeProfile(input, jev, undefined, answers);
-        return sendJson(res, 200, { jev, profile });
+        return sendJson(res, 200, { jev, ...(await buildReport(input, jev, answers, claims)) });
       }
 
       const phase2 = await analyzePhase2(input, jev, answers);
@@ -149,8 +175,8 @@ createServer(async (req, res) => {
         questionLimit(phase2.maturity, input),
       );
       if (questions.length === 0) {
-        const profile = await analyzeProfile(input, jev, phase2, answers);
-        return sendJson(res, 200, { jev, phase2: { ...phase2, questions }, profile });
+        const report = await buildReport(input, jev, answers, claimsFromPhase2(phase2), phase2);
+        return sendJson(res, 200, { jev, phase2: { ...phase2, questions }, ...report });
       }
       return sendJson(res, 200, {
         jev,

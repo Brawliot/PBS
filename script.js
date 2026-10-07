@@ -249,6 +249,7 @@
   let current = null; // question on screen
   let total = 0;      // number of questions in this session
   let analysis = null; // phase 2 analysis from the first response
+  const CLAIM_KEYS = ['subsector', 'location', 'target_customer', 'value_proposition', 'revenue_model', 'stage', 'competition'];
 
   const nextQuestion = () => {
     current = queue.shift() ?? null;
@@ -264,9 +265,12 @@
       ...Object.fromEntries(ranges.map((range) => [range.id, Number(range.value)])),
       answers,
       final: answers.length > 0,
+      // The final request validates the analysis, so it needs the values the first one produced
+      analysis: Object.fromEntries(CLAIM_KEYS.map((key) => [key, analysis?.[key]?.value])),
     };
     let failed = false;
     let profile = null;
+    let validation = null;
 
     if (!loader) startLoading();
     status.textContent = 'Sending your idea…';
@@ -278,6 +282,7 @@
       ]);
       analysis = result.phase2 ?? analysis;
       profile = result.profile ?? null;
+      validation = result.validation ?? null;
       if (!profile) {
         queue = result.phase2?.questions ?? [];
         total = result.questionTotal ?? queue.length;
@@ -291,7 +296,7 @@
     }
     await stopLoading();
     if (failed) idea.focus();
-    else showResult(analysis, profile);
+    else showResult(analysis, profile, validation);
   };
 
   // --- Result: what we understood, what is still open, and the full detail -------
@@ -329,24 +334,56 @@
   };
 
   // Values come from the models: always inserted as text, never as HTML
-  const showResult = (phase2, profile) => {
+  const WARNINGS = {
+    budget_fit: 'The budget may not be enough for this business.',
+    timeline_realistic: 'The timeline looks tight for the current stage.',
+    team_fit: 'The team or the weekly hours may fall short.',
+    experience_fit: 'The business may need more experience than you have.',
+    model_fit: 'The revenue model may not fit the type of customer.',
+    regulation_fit: 'The regulation may be hard to meet with these resources.',
+    consistency: 'Some details of the description seem to contradict each other.',
+  };
+
+  const showResult = (phase2, profile, validation) => {
     const summary = document.getElementById('result-summary');
     const pending = document.getElementById('result-pending');
     const detail = document.getElementById('result-detail');
-    [summary, pending, detail].forEach((el) => el.replaceChildren());
+    const warnings = document.getElementById('result-warnings');
+    const topDepartments = document.getElementById('result-departments-top');
+    const departmentList = document.getElementById('result-departments');
+    [summary, pending, detail, warnings, topDepartments, departmentList].forEach((el) => el.replaceChildren());
 
+    // A value the description does not back up is never shown as fact: it goes to "still to define"
+    const unsupported = validation?.unsupported ?? [];
     const subsector = phase2?.subsector?.value;
-    if (subsector && subsector.toLowerCase() !== 'unknown') addRow(summary, 'Business', subsector);
+    const subsectorShown = subsector && subsector.toLowerCase() !== 'unknown' && !unsupported.includes('subsector');
+    if (subsectorShown) addRow(summary, 'Business', subsector);
     SUMMARY_KEYS.filter((key) => profile.values[key] !== NOT_DEFINED)
       .forEach((key) => addRow(summary, LABELS[key], profile.values[key]));
     if (!summary.children.length) addRow(summary, 'Business', 'Not enough information yet', true);
 
-    PENDING_KEYS.filter((key) => profile.unknown.includes(key)).slice(0, 5).forEach((key) => {
+    const addItem = (list, text) => {
       const item = document.createElement('li');
-      item.textContent = LABELS[key];
-      pending.append(item);
-    });
+      item.textContent = text;
+      list.append(item);
+    };
+    const pendingLabels = [
+      ...(unsupported.includes('subsector') ? ['Business details'] : []),
+      ...PENDING_KEYS.filter((key) => profile.unknown.includes(key)).map((key) => LABELS[key]),
+    ];
+    pendingLabels.slice(0, 5).forEach((label) => addItem(pending, label));
     document.getElementById('result-pending-block').hidden = !pending.children.length;
+
+    (validation?.warnings ?? []).slice(0, 3).forEach((key) => addItem(warnings, WARNINGS[key]));
+    document.getElementById('result-warnings-block').hidden = !warnings.children.length;
+
+    // Small businesses see the groups, larger ones the departments
+    const areas = validation ? (validation.level === 2 ? validation.departments : validation.groups) : [];
+    areas.slice(0, 3).forEach(({ name, confidence }) => addItem(topDepartments, `${name} \u00b7 ${confidence}%`));
+    document.getElementById('result-departments-block').hidden = !topDepartments.children.length;
+    areas.forEach(({ name, confidence }) => addRow(departmentList, name, `${confidence}%`));
+    document.getElementById('result-departments-title').hidden = !areas.length;
+    document.getElementById('result-departments-title').textContent = validation?.level === 2 ? 'Departments' : 'Areas';
 
     Object.entries(LABELS).forEach(([key, label]) => {
       const value = profile.values[key];
