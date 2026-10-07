@@ -93,12 +93,13 @@ body {
 }
 .giant__track {
   display: flex; width: max-content;
-  animation: giant-scroll 25s linear infinite;
+  animation: giant-scroll 70s linear infinite;
+  will-change: transform; backface-visibility: hidden;
 }
 .giant__group { display: flex; flex-shrink: 0; }
 @keyframes giant-scroll {
-  from { transform: translateX(-50%); }
-  to { transform: translateX(0); }
+  from { transform: translate3d(-50%, 0, 0); }
+  to { transform: translate3d(0, 0, 0); }
 }
 @media (prefers-reduced-motion: reduce) {
   .giant__track { animation: none; }
