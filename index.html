@@ -22,8 +22,13 @@
   </header>
 
   <main class="hero">
-    <h1 class="hero__title">MANDO</h1>
-    <p class="hero__subtitle">Plan &amp; Execute your Business</p>
+    <div class="hero__brand">
+      <div class="hero__text">
+        <h1 class="hero__title">MANDO</h1>
+        <p class="hero__subtitle">Plan &amp; Execute your Business</p>
+      </div>
+      <div class="hero__loader" aria-hidden="true"></div>
+    </div>
 
     <form class="search" action="#" novalidate>
       <div class="search__bar">
@@ -55,6 +60,7 @@
     </form>
   </main>
 
+  <p class="sr-only" id="status" role="status"></p>
   <p class="sr-only" id="slider-hint">Example value shown. Move the slider to set your own.</p>
 
   <div class="backdrop" aria-hidden="true"></div>
@@ -107,6 +113,7 @@
     </div>
   </dialog>
 
+  <script src="tech-text.js" defer></script>
   <script src="script.js" defer></script>
 </body>
 </html>

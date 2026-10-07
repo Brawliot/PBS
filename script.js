@@ -173,11 +173,81 @@
     });
   });
 
-  // TODO: replace with the real session state once there is a backend
-  const isLoggedIn = false;
+  // TODO: replace with the real session state once there is a backend.
+  // Until then, open the page with ?session=demo to try the logged-in flow.
+  const isLoggedIn = new URLSearchParams(location.search).get('session') === 'demo';
+
+  // --- Sending: title leaves, loader runs while the request is pending -------
+  const EXIT_MS = 450;        // title/subtitle exit animation (keep in sync with CSS)
+  const MIN_LOADER_MS = 1500; // visible time of the loader, so it never flashes
+  const FADE_MS = 500;        // loader fade-out (keep in sync with CSS)
+  const status = document.getElementById('status');
+  const loaderSlot = document.querySelector('.hero__loader');
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+  let loader = null;
+  let sending = false;
+
+  // TODO: replace with the real POST (fetch). The mock fails when the idea is "error".
+  const sendIdea = async (payload) => {
+    await wait(2000 + Math.random() * 2000);
+    if (payload.idea.toLowerCase() === 'error') throw new Error('Request failed');
+    return { ok: true };
+  };
+
+  const startLoading = () => {
+    sending = true;
+    search.setAttribute('aria-busy', 'true');
+    search.inert = true;
+    document.body.classList.add('is-loading');
+    loader = window.createTechText(loaderSlot, {
+      text: 'Mando',
+      fontWeight: 600,
+      fontSize: 150,
+      reveal: 'letter',
+      dashLength: 4,
+      dashGap: 2,
+      specks: 15,
+      color: '#000000',
+      accentColor: '#272727',
+    });
+  };
+
+  const stopLoading = async () => {
+    document.body.classList.remove('is-loading');
+    await wait(FADE_MS);
+    loader.destroy();
+    loader = null;
+    search.inert = false;
+    search.removeAttribute('aria-busy');
+    sending = false;
+  };
+
+  const submitIdea = async () => {
+    const payload = {
+      idea: idea.value.trim(),
+      ...Object.fromEntries(ranges.map((range) => [range.id, Number(range.value)])),
+    };
+    let failed = false;
+
+    startLoading();
+    status.textContent = 'Sending your idea…';
+    try {
+      // The request starts right away; the result waits for the animation and the minimum loader time
+      await Promise.all([sendIdea(payload), wait(EXIT_MS + MIN_LOADER_MS)]);
+      status.textContent = 'Your idea was sent.';
+      // TODO: show the result
+    } catch {
+      failed = true;
+      showFieldError(idea, 'Something went wrong. Please try again.');
+      status.textContent = 'Something went wrong. Please try again.';
+    }
+    await stopLoading();
+    if (failed) idea.focus();
+  };
 
   search.addEventListener('submit', (e) => {
     e.preventDefault();
+    if (sending) return;
     const invalid = [];
 
     if (idea.value.trim() === '') {
@@ -198,7 +268,7 @@
       syncModalState();
       return;
     }
-    // TODO: send data
+    submitIdea();
   });
 
   // ---------------------------------------------------------------------------

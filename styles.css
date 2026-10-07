@@ -96,6 +96,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
   display: flex; flex-direction: column; align-items: center;
   text-align: center; padding: 3vh 20px 0;
 }
+.hero__brand { display: grid; width: 100%; max-width: 1070px; }
+.hero__brand > * { grid-area: 1 / 1; }
 .hero__title {
   font-size: clamp(72px, 11vw, 128px); font-weight: 800;
   letter-spacing: -0.08em; line-height: 1;
@@ -103,6 +105,28 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .hero__subtitle {
   font-family: "Open Sans", sans-serif; font-size: clamp(22px, 3vw, 34px);
   color: var(--gray-text); letter-spacing: -0.04em; margin-top: 8px;
+}
+
+/* While the idea is being sent: title and subtitle leave, the loader takes their place */
+.hero__text {
+  transition: opacity 0.45s ease, transform 0.45s ease, filter 0.45s ease;
+}
+body.is-loading .hero__text {
+  opacity: 0; transform: translateY(-24px); filter: blur(6px); pointer-events: none;
+}
+.hero__loader {
+  position: relative; opacity: 0; visibility: hidden;
+  transition: opacity 0.4s ease, visibility 0s 0.4s;
+}
+body.is-loading .hero__loader {
+  opacity: 1; visibility: visible;
+  transition: opacity 0.5s ease 0.35s, visibility 0s;
+}
+.hero__loader.tech-text { height: auto; }
+.hero__loader .tech-text-canvas { position: absolute; inset: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .hero__text, .hero__loader { transition-duration: 0.01s; transition-delay: 0s; }
+  body.is-loading .hero__text { transform: none; filter: none; }
 }
 
 /* ==========================================================================
@@ -154,6 +178,12 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .range:not(.is-set)::-webkit-slider-thumb { background: var(--thumb-unset); }
 .range:not(.is-set)::-moz-range-thumb { background: var(--thumb-unset); }
 .range[aria-invalid="true"] { outline: 2px solid var(--danger); outline-offset: 4px; }
+
+/* ==========================================================================
+   TechText canvas (loader)
+   ========================================================================== */
+.tech-text { position: relative; width: 100%; height: 100%; touch-action: pan-y; user-select: none; }
+.tech-text-canvas { display: block; width: 100%; height: 100%; }
 
 /* ==========================================================================
    Giant wordmark (endless loop to the right)
