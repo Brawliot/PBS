@@ -182,7 +182,7 @@
   const REQUIRE_LOGIN = false;
 
   // --- Sending: title leaves, loader runs while the request is pending -------
-  const EXIT_MS = 450;        // title/subtitle exit animation (keep in sync with CSS)
+  const EXIT_MS = 400;        // subtitle exit + title-to-loader conversion (keep in sync with CSS)
   const MIN_LOADER_MS = 1500; // visible time of the loader, so it never flashes
   const FADE_MS = 500;        // loader fade-out (keep in sync with CSS)
   const status = document.getElementById('status');
@@ -204,6 +204,7 @@
     search.setAttribute('aria-busy', 'true');
     search.inert = true;
     document.body.classList.add('is-loading');
+    // TODO: trigger the search block exit animation here (pending design)
     // Same typography as the page title (not the giant background wordmark)
     const titleStyle = getComputedStyle(document.querySelector('.hero__title'));
     loader = window.createTechText(loaderSlot, {

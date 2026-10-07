@@ -20,6 +20,7 @@
 :root {
   --black: #000;
   --dark: #272727;
+  --dark-hover: #3d3d3d;
   --white: #fff;
   --gray: #919195;            /* decorative (giant letters) */
   --gray-text: #4f4f56;       /* text, AA on white and on the tint */
@@ -79,6 +80,20 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .btn--dark { background: var(--dark); color: var(--white); }
 .btn--outline { background: var(--white); color: var(--dark); border-color: var(--border-strong); }
 
+/* Buttons: soft lift on hover, press-in on click */
+.btn, .nav__login, .modal__close, .auth__link {
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease,
+    border-color 0.15s ease, opacity 0.15s ease, color 0.15s ease;
+}
+.btn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(39, 39, 39, 0.18); }
+.btn--dark:hover { background: var(--dark-hover); }
+.btn--outline:hover { background: #f3f3f7; border-color: var(--dark); }
+.btn:active { transform: translateY(0) scale(0.97); box-shadow: none; }
+.nav__login:hover, .auth__link:hover { opacity: 0.65; }
+.nav__login:active, .auth__link:active { transform: scale(0.96); }
+.modal__close:hover { color: var(--dark); transform: scale(1.12); }
+.modal__close:active { transform: scale(0.92); }
+
 .field-error { color: var(--danger); font-size: 14px; }
 
 /* ==========================================================================
@@ -96,10 +111,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
   display: flex; flex-direction: column; align-items: center;
   text-align: center; padding: 3vh 20px 0;
 }
-.hero__brand { display: grid; width: 100%; max-width: 1070px; }
-.hero__brand > * { grid-area: 1 / 1; }
+.hero__brand { --title-size: clamp(72px, 11vw, 128px); width: 100%; max-width: 1070px; }
+.hero__title-wrap { position: relative; }
 .hero__title {
-  font-size: clamp(72px, 11vw, 128px); font-weight: 800;
+  font-size: var(--title-size); font-weight: 800;
   letter-spacing: -0.08em; line-height: 1;
 }
 .hero__subtitle {
@@ -107,27 +122,27 @@ button { font: inherit; color: inherit; cursor: pointer; }
   color: var(--gray-text); letter-spacing: -0.04em; margin-top: 8px;
 }
 
-/* While the idea is being sent: title and subtitle leave, the loader takes their place */
-.hero__text {
-  transition: opacity 0.45s ease, transform 0.45s ease, filter 0.45s ease;
-}
-body.is-loading .hero__text {
-  opacity: 0; transform: translateY(-24px); filter: blur(6px); pointer-events: none;
-}
+/* While the idea is being sent:
+   - the subtitle fades away,
+   - the title turns into the loader (same typography, drawn exactly on top of it),
+   - TODO: the search block exit animation goes here (pending design). */
+.hero__title { transition: opacity 0.2s ease 0.1s; }
+.hero__subtitle { transition: opacity 0.35s ease, transform 0.35s ease; }
 .hero__loader {
-  position: relative; opacity: 0; visibility: hidden;
+  /* Taller than the title so the canvas does not shrink the text to fit */
+  position: absolute; inset: -20px 0; opacity: 0; visibility: hidden;
+  /* The title's trailing letter-spacing (-0.08em) pushes its ink right by half of it; the canvas centres exact ink */
+  transform: translateX(calc(var(--title-size) * 0.04));
   transition: opacity 0.4s ease, visibility 0s 0.4s;
 }
+body.is-loading .hero__title { opacity: 0; }
+body.is-loading .hero__subtitle { opacity: 0; transform: translateY(10px); }
 body.is-loading .hero__loader {
   opacity: 1; visibility: visible;
-  transition: opacity 0.5s ease 0.35s, visibility 0s;
+  transition: opacity 0.12s ease, visibility 0s;
 }
-.hero__loader.tech-text { height: auto; }
+.hero__loader.tech-text { position: absolute; width: auto; height: auto; }
 .hero__loader .tech-text-canvas { position: absolute; inset: 0; }
-@media (prefers-reduced-motion: reduce) {
-  .hero__text, .hero__loader { transition-duration: 0.01s; transition-delay: 0s; }
-  body.is-loading .hero__text { transform: none; filter: none; }
-}
 
 /* ==========================================================================
    Search bar
@@ -146,6 +161,9 @@ body.is-loading .hero__loader {
 .search__input::placeholder { color: var(--gray-text); }
 .search__bar .field-error { margin-right: 16px; font-size: 15px; }
 .search__submit { border: 0; background: transparent; color: var(--dark); display: flex; }
+.search__submit svg { transition: transform 0.2s ease; }
+.search__submit:hover svg { transform: translateX(4px); }
+.search__submit:active svg { transform: translateX(8px) scale(0.9); }
 
 /* ==========================================================================
    Filters panel (tucked behind the search bar up to its mid-height)
@@ -170,11 +188,17 @@ body.is-loading .hero__loader {
 .range::-webkit-slider-thumb {
   -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%;
   background: var(--dark); cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.2s ease;
 }
 .range::-moz-range-thumb {
   width: 24px; height: 24px; border: 0; border-radius: 50%;
   background: var(--dark); cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.2s ease;
 }
+.range:hover::-webkit-slider-thumb { transform: scale(1.12); }
+.range:hover::-moz-range-thumb { transform: scale(1.12); }
+.range:active::-webkit-slider-thumb { transform: scale(1.25); box-shadow: 0 0 0 6px rgba(39, 39, 39, 0.12); }
+.range:active::-moz-range-thumb { transform: scale(1.25); box-shadow: 0 0 0 6px rgba(39, 39, 39, 0.12); }
 .range:not(.is-set)::-webkit-slider-thumb { background: var(--thumb-unset); }
 .range:not(.is-set)::-moz-range-thumb { background: var(--thumb-unset); }
 .range[aria-invalid="true"] { outline: 2px solid var(--danger); outline-offset: 4px; }
@@ -247,4 +271,14 @@ body.modal-open .header, body.modal-open .hero { filter: blur(2px); }
 .auth__link {
   border: 0; background: transparent; color: var(--dark); font-size: 15px;
   text-decoration: underline; width: fit-content; padding: 0;
+}
+
+/* ==========================================================================
+   Reduced motion: state changes are instant, nothing slides or scales
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition-duration: 0.01ms !important; transition-delay: 0s !important; }
+  .btn:hover, .btn:active, .modal__close:hover, .modal__close:active,
+  .search__submit:hover svg, .search__submit:active svg,
+  body.is-loading .hero__subtitle { transform: none; }
 }
