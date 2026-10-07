@@ -29,14 +29,24 @@ export class HttpError extends Error {
 export function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     let data = "";
+    let bytes = 0;
+    let tooLarge = false;
     req.setEncoding("utf8");
-    req.on("data", (chunk) => {
-      data += chunk;
-      if (data.length > MAX_BODY) {
+    req.on("data", (chunk: string) => {
+      if (tooLarge) return;
+      // Bytes, not characters: a multibyte character counts for its full size
+      bytes += Buffer.byteLength(chunk);
+      if (bytes > MAX_BODY) {
+        tooLarge = true;
+        data = "";
         reject(new HttpError(413, "Request too large"));
+        return;
       }
+      data += chunk;
     });
-    req.on("end", () => resolve(data));
+    req.on("end", () => {
+      if (!tooLarge) resolve(data);
+    });
     req.on("error", reject);
   });
 }
@@ -48,12 +58,16 @@ export function parseAnswers(value: unknown): PlannerAnswer[] {
   }
   return value.map((item) => {
     const { topic, question, answer } = item ?? {};
-    for (const field of [topic, question, answer]) {
-      if (typeof field !== "string" || !field.trim() || field.length > MAX_TEXT) {
+    // Trimmed first, so the length limit applies to the text that is kept
+    const [t, q, a] = [topic, question, answer].map((field) =>
+      typeof field === "string" ? field.trim() : "",
+    );
+    for (const field of [t, q, a]) {
+      if (!field || field.length > MAX_TEXT) {
         throw new HttpError(400, "Each answer needs a topic, a question and an answer");
       }
     }
-    return { topic: topic.trim(), question: question.trim(), answer: answer.trim() };
+    return { topic: t, question: q, answer: a };
   });
 }
 

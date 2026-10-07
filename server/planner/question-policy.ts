@@ -42,7 +42,11 @@ export function questionLimit(maturity: Phase2Response["maturity"], input: Plann
     signals === 0 && input.hours <= POLICY.lowHours && input.budget < POLICY.lowBudget;
   const adjustment = signals >= 2 ? 1 : lowCommitment ? -1 : 0;
 
-  const limit = POLICY.baseByMaturity[maturity] + adjustment;
+  // An unknown maturity falls back to "developing" instead of producing NaN
+  const base = Object.hasOwn(POLICY.baseByMaturity, maturity)
+    ? POLICY.baseByMaturity[maturity]
+    : POLICY.baseByMaturity.developing;
+  const limit = base + adjustment;
   return Math.min(POLICY.max, Math.max(POLICY.min, limit));
 }
 

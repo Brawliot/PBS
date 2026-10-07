@@ -2,6 +2,9 @@
  * Jev handler for the planner's business analysis
  */
 
+import { z } from "zod";
+import { summarizeIssues } from "../schema-summary.js";
+
 interface JevQuestion {
   type: "choice" | "score" | "noul";
   instructions: string;
@@ -22,13 +25,30 @@ interface JevAnswer {
 }
 
 interface JevResponse {
-  model: string;
+  model?: string;
   answers: Record<string, JevAnswer>;
-  usage: {
+  usage?: {
     input_tokens: number;
     output_tokens: number;
   };
 }
+
+const JevAnswerSchema = z.object({
+  type: z.enum(["choice", "score", "noul"]),
+  choice: z.string().optional(),
+  score: z.number().optional(),
+  noul: z.number().optional(),
+});
+
+const JevResponseSchema = z.object({
+  model: z.string().optional(),
+  answers: z.record(z.string(), JevAnswerSchema),
+  usage: z
+    .object({ input_tokens: z.number(), output_tokens: z.number() })
+    .optional(),
+});
+
+const JEV_UNEXPECTED_MESSAGE = "The analysis service returned an unexpected response";
 
 /** Payload sent by the index page (see submitIdea in script.js) */
 export interface PlannerInput {
@@ -147,7 +167,22 @@ export async function callJev(
     throw new Error("The analysis service failed");
   }
 
-  return (await response.json()) as JevResponse;
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    console.error("Jev response is not valid JSON");
+    throw new Error(JEV_UNEXPECTED_MESSAGE);
+  }
+
+  // Only the failure paths and codes are logged, never the values or the body
+  const parsed = JevResponseSchema.safeParse(body);
+  if (!parsed.success) {
+    console.error(`Jev response failed validation: ${summarizeIssues(parsed.error)}`);
+    throw new Error(JEV_UNEXPECTED_MESSAGE);
+  }
+  const result: JevResponse = parsed.data;
+  return result;
 }
 
 export function analyzeWithJev(input: PlannerInput): Promise<JevResponse> {

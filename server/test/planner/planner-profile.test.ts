@@ -38,6 +38,24 @@ function replyWith(choices: Record<string, string>) {
 }
 
 describe("analyzeProfile", () => {
+  test("a choice that is not one of the dimension's options goes to unknown", async () => {
+    replyWith({ customer_segment: "Consumers", revenue_model: "Invented model" });
+    const profile = await analyzeProfile(input, emptyJev, undefined, []);
+
+    assert.equal(profile.values.customer_segment, "Consumers");
+    assert.equal(profile.values.revenue_model, "Not specified");
+    assert.ok(profile.unknown.includes("revenue_model"));
+    assert.equal(profile.known + profile.unknown.length, profile.total);
+  });
+
+  test("an option of another dimension is not accepted for this one", async () => {
+    replyWith({ customer_segment: "Subscription" });
+    const profile = await analyzeProfile(input, emptyJev, undefined, []);
+
+    assert.equal(profile.values.customer_segment, "Not specified");
+    assert.ok(profile.unknown.includes("customer_segment"));
+  });
+
   test("dimensions Jev does not answer, or answers 'Not specified', go to unknown", async () => {
     replyWith({
       customer_segment: "Consumers",

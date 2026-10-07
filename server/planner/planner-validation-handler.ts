@@ -126,7 +126,12 @@ export function cleanClaims(raw: unknown): Claims {
   for (const key of CLAIM_KEYS) {
     const value = (raw as Record<string, unknown>)[key];
     if (typeof value !== "string") continue;
-    const text = value.replace(/\s+/g, " ").trim().slice(0, MAX_CLAIM_LENGTH);
+    // Quotes would break the "..." around the value in the Jev instructions
+    const text = value
+      .replace(/["“”]/g, "'")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, MAX_CLAIM_LENGTH);
     if (text && text.toLowerCase() !== "unknown") claims[key] = text;
   }
   return claims;

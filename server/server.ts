@@ -138,6 +138,11 @@ createServer(async (req, res) => {
       );
       return sendJson(res, 202, { jobId });
     } catch (e) {
+      if (e instanceof HttpError && e.status === 413) {
+        // The rest of the oversized body is not read: close the connection once the 413 is out
+        res.once("finish", () => req.socket.destroy());
+        return sendJson(res, 413, { error: e.message }, { Connection: "close" });
+      }
       if (e instanceof HttpError) return sendJson(res, e.status, { error: e.message });
       console.error(e);
       return sendJson(res, 500, { error: "Internal server error" });

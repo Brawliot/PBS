@@ -42,6 +42,13 @@ describe("questionLimit", () => {
     }
   });
 
+  test("an unknown maturity uses the developing base as an integer, never NaN", () => {
+    const unknown = "unknown" as Maturity;
+    const limit = questionLimit(unknown, neutral);
+    assert.ok(Number.isInteger(limit));
+    assert.equal(limit, questionLimit("developing", neutral));
+  });
+
   test("budget counts as a signal from highBudget on, not one below it", () => {
     // hours = fullTime is one signal; the budget decides whether there is a second
     const base = { hours: POLICY.fullTimeHours, experience: 0 };

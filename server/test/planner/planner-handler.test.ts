@@ -74,6 +74,80 @@ describe("callJev", () => {
     assert.deepEqual(calls[0].body, { state: "the state", model: "test-model", questions });
   });
 
+  describe("response validation", () => {
+    const SENTINEL = "SENTINEL-body-7f3a";
+    const GENERIC = "The analysis service returned an unexpected response";
+    const answersOf = (answers: unknown, extra: Record<string, unknown> = {}) =>
+      ({ model: "test", answers, debug: SENTINEL, ...extra });
+
+    const invalid: [string, () => Response][] = [
+      ["no answers field", () => jsonResponse(200, { model: "test", debug: SENTINEL })],
+      ["answers that is not an object", () => jsonResponse(200, answersOf(SENTINEL))],
+      ["answers that is a list", () => jsonResponse(200, answersOf([SENTINEL]))],
+      [
+        "a noul given as a string",
+        () => jsonResponse(200, answersOf({ check: { type: "noul", noul: SENTINEL } })),
+      ],
+      [
+        "a choice given as a number",
+        () => jsonResponse(200, answersOf({ check: { type: "choice", choice: 42 } })),
+      ],
+      [
+        "an answer type that is not known",
+        () => jsonResponse(200, answersOf({ check: { type: SENTINEL, noul: 0.5 } })),
+      ],
+      ["a body that is not JSON", () => new Response(`<html>${SENTINEL}</html>`, { status: 200 })],
+    ];
+
+    for (const [name, respond] of invalid) {
+      test(`${name} throws the generic error and logs without the body`, async () => {
+        const errorLog = silenceConsoleError();
+        mockFetch(respond);
+
+        await assert.rejects(callJev("state", questions), { message: GENERIC });
+
+        assert.equal(errorLog.mock.callCount(), 1);
+        const logged = String(errorLog.mock.calls[0].arguments.join(" "));
+        assert.ok(!logged.includes(SENTINEL), logged);
+        assert.ok(!logged.includes("<html>"), logged);
+      });
+    }
+
+    test("the log names the failing path and the code, not the value", async () => {
+      const errorLog = silenceConsoleError();
+      mockFetch(() => jsonResponse(200, answersOf({ check: { type: "noul", noul: SENTINEL } })));
+
+      await assert.rejects(callJev("state", questions));
+
+      const logged = String(errorLog.mock.calls[0].arguments.join(" "));
+      assert.ok(logged.includes("answers.check.noul invalid_type"), logged);
+    });
+
+    test("a valid response with extra fields passes and the extra fields are dropped", async () => {
+      const extra = {
+        model: "test",
+        usage: { input_tokens: 3, output_tokens: 4, cost: 0.01 },
+        answers: { check: { type: "noul", noul: 0.9, reason: "because" } },
+        request_id: "abc",
+      };
+      mockFetch(() => jsonResponse(200, extra));
+
+      const result = await callJev("state", questions);
+
+      assert.deepEqual(result, {
+        model: "test",
+        usage: { input_tokens: 3, output_tokens: 4 },
+        answers: { check: { type: "noul", noul: 0.9 } },
+      });
+    });
+
+    test("model and usage are optional", async () => {
+      mockFetch(() => jsonResponse(200, { answers: { check: { type: "noul", noul: 0.1 } } }));
+      const result = await callJev("state", questions);
+      assert.deepEqual(result, { answers: { check: { type: "noul", noul: 0.1 } } });
+    });
+  });
+
   test("analyzeWithJev asks the three context questions about the form data", async () => {
     const calls = mockFetch(() => jsonResponse(200, reply));
     await analyzeWithJev({ idea: "Bakery", budget: 0, experience: 0, team: 0, hours: 0 });

@@ -278,8 +278,10 @@ export async function analyzeProfile(
 
   const values = {} as Record<DimensionKey, string>;
   const unknown: DimensionKey[] = [];
-  for (const { key } of DIMENSIONS) {
-    const choice = response.answers[key]?.choice ?? "Not specified";
+  for (const { key, options } of DIMENSIONS) {
+    // An option Jev invents is not one we offered: treat it as not specified
+    const answer = response.answers[key]?.choice;
+    const choice = answer !== undefined && Object.hasOwn(options, answer) ? answer : "Not specified";
     values[key] = choice;
     if (choice === "Not specified") unknown.push(key);
   }

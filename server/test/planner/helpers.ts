@@ -10,7 +10,12 @@ export interface CapturedRequest {
 export type FetchHandler = (request: CapturedRequest) => Response | Promise<Response>;
 
 // Each test file runs in its own process; these defaults keep every file deterministic
-const TEST_ENV = { TYPESAFE_API_KEY: "test-key", JEV_MODEL: "test-model" } as const;
+const TEST_ENV = {
+  TYPESAFE_API_KEY: "test-key",
+  JEV_MODEL: "test-model",
+  OPENAI_API_KEY: "test-openai-key",
+  OPENAI_MODEL: "test-openai-model",
+} as const;
 // Any call that is not mocked fails loudly instead of reaching the network
 const blockedFetch: typeof fetch = async () => {
   throw new Error("Unexpected fetch in a test: wrap the call in mockFetch()");

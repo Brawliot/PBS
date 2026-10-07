@@ -176,6 +176,14 @@ describe("parseAnswers", () => {
     });
   }
 
+  test("a field of MAX_TEXT characters plus spaces around is accepted, because the length is measured after trimming", () => {
+    for (const field of ["topic", "question", "answer"] as const) {
+      const padded = `   ${"a".repeat(MAX_TEXT)}   `;
+      const result = parseAnswers([{ ...answerOf(0), [field]: padded }]);
+      assert.equal(result[0][field], "a".repeat(MAX_TEXT));
+    }
+  });
+
   test("values are trimmed", () => {
     assert.deepEqual(parseAnswers([{ topic: " scope ", question: " Where? ", answer: " Madrid " }]), [
       { topic: "scope", question: "Where?", answer: "Madrid" },
@@ -184,17 +192,30 @@ describe("parseAnswers", () => {
 });
 
 describe("readBody", () => {
-  test("resolves with a body of MAX_BODY characters", async () => {
+  test("resolves with a body of MAX_BODY bytes", async () => {
     const body = await readBody(streamOf(["a".repeat(MAX_BODY)]));
-    assert.equal(body.length, MAX_BODY);
+    assert.equal(Buffer.byteLength(body), MAX_BODY);
   });
 
-  test("rejects a body of MAX_BODY + 1 characters with a 413 HttpError", async () => {
+  test("rejects a body of MAX_BODY + 1 bytes with a 413 HttpError", async () => {
     await assert.rejects(readBody(streamOf(["a".repeat(MAX_BODY + 1)])), (error: unknown) => {
       assert.ok(error instanceof HttpError);
       assert.equal(error.status, 413);
       return true;
     });
+  });
+
+  test("counts bytes: euro signs over MAX_BODY bytes are rejected though they are under it in characters", async () => {
+    // Each euro sign is 3 bytes, so this many of them is over MAX_BODY bytes but not in characters
+    const count = Math.floor(MAX_BODY / 3) + 1;
+    assert.ok(count <= MAX_BODY);
+    await assert.rejects(readBody(streamOf(["€".repeat(count)])), { status: 413 });
+  });
+
+  test("euro signs that fit in MAX_BODY bytes are accepted", async () => {
+    const count = Math.floor(MAX_BODY / 3);
+    const body = await readBody(streamOf(["€".repeat(count)]));
+    assert.equal(body, "€".repeat(count));
   });
 
   test("decodes a multibyte character split between two chunks", async () => {
