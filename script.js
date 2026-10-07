@@ -17,11 +17,13 @@ const validate = () => {
 };
 
 ranges.forEach((range) => {
-  range.addEventListener('input', () => {
+  const update = () => {
     range.classList.add('is-set');
     range.closest('.filter').querySelector('.filter__head span').textContent = fmt(range);
     validate();
-  });
+  };
+  range.addEventListener('input', update);
+  update();
 });
 input.addEventListener('input', validate);
 

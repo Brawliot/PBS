@@ -33,19 +33,19 @@
       <div class="filters">
         <div class="filter">
           <div class="filter__head"><label for="presupuesto">Presupuesto</label><span>$0-1.000.000</span></div>
-          <input id="presupuesto" class="range" type="range" required min="0" max="1000000" step="10000">
+          <input id="presupuesto" class="range" type="range" required value="500000" min="0" max="1000000" step="10000">
         </div>
         <div class="filter">
           <div class="filter__head"><label for="experiencia">Experiencia</label><span>0-20+ años</span></div>
-          <input id="experiencia" class="range" type="range" required min="0" max="20" step="1">
+          <input id="experiencia" class="range" type="range" required value="5" min="0" max="20" step="1">
         </div>
         <div class="filter">
           <div class="filter__head"><label for="equipo">Tamaño equipo</label><span>Solo - Grande</span></div>
-          <input id="equipo" class="range" type="range" required min="0" max="3" step="1" data-labels="Solo|Pequeño (2-3)|Mediano (4-10)|Grande (+10)">
+          <input id="equipo" class="range" type="range" required value="0" min="0" max="3" step="1" data-labels="Solo|Pequeño (2-3)|Mediano (4-10)|Grande (+10)">
         </div>
         <div class="filter">
           <div class="filter__head"><label for="horas">Horas Disponibles</label><span>&lt;10 h - Completo</span></div>
-          <input id="horas" class="range" type="range" required min="0" max="3" step="1" data-labels="Menos de 10 h|10-20 h|+30 h|Tiempo completo">
+          <input id="horas" class="range" type="range" required value="1" min="0" max="3" step="1" data-labels="Menos de 10 h|10-20 h|+30 h|Tiempo completo">
         </div>
       </div>
     </form>
