@@ -42,9 +42,13 @@ const openModal = (mode) => {
   modal.querySelectorAll('[data-form]').forEach((f) => { f.hidden = f.dataset.form !== mode; });
   title.textContent = titles[mode];
   modal.hidden = false;
+  document.body.classList.add('modal-open');
   modal.querySelector(`[data-form="${mode}"] input`).focus();
 };
-const closeModal = () => { modal.hidden = true; };
+const closeModal = () => {
+  modal.hidden = true;
+  document.body.classList.remove('modal-open');
+};
 
 document.querySelectorAll('[data-auth]').forEach((el) => {
   el.addEventListener('click', (e) => { e.preventDefault(); openModal(el.dataset.auth); });
