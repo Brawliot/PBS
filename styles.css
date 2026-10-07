@@ -42,10 +42,9 @@ body {
   font-family: "Open Sans", sans-serif; font-size: clamp(22px, 3vw, 34px);
   color: var(--gray); letter-spacing: -0.04em; margin-top: 8px;
 }
-.hero__prompt { font-size: clamp(20px, 2.6vw, 30px); margin-top: 6vh; }
 
 /* Search */
-.search { --bar-h: max(11vh, 64px); width: 100%; max-width: 1070px; margin-top: 3vh; }
+.search { --bar-h: max(11vh, 64px); width: 100%; max-width: 1070px; margin-top: 8vh; }
 .search__bar {
   display: flex; align-items: center; height: var(--bar-h); padding: 0 28px 0 24px;
   background: var(--white); border: 1px solid #b9b9c0; border-radius: 62px;
@@ -109,6 +108,5 @@ body {
 @media (max-width: 800px) {
   .filters { grid-template-columns: 1fr; gap: 28px; margin: calc(var(--bar-h) / -2) 8px 0; }
   .search__bar { border-radius: 40px; }
-  .hero__prompt { margin-top: 3vh; }
   .search { --bar-h: max(9vh, 64px); }
 }
