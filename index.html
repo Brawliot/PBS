@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MANDO - Plan & Execute your Business</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=Open+Sans:wght@400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="header">
+    <nav class="nav">
+      <a href="#" class="nav__login">Log In</a>
+      <a href="#" class="btn btn--dark">Register</a>
+    </nav>
+  </header>
+
+  <main class="hero">
+    <h1 class="hero__title">MANDO</h1>
+    <p class="hero__subtitle">Plan &amp; Execute your Business</p>
+
+    <p class="hero__prompt">Barbershop for young people in New York...</p>
+
+    <form class="search" action="#">
+      <div class="search__bar">
+        <input class="search__input" type="text" placeholder="Value" aria-label="Describe tu negocio">
+        <button class="search__submit" type="submit" aria-label="Enviar">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+
+      <div class="filters">
+        <div class="filter">
+          <div class="filter__head"><label for="presupuesto">Presupuesto</label><span>$0-1.000.000</span></div>
+          <input id="presupuesto" class="range" type="range" min="0" max="1000000">
+        </div>
+        <div class="filter">
+          <div class="filter__head"><label for="experiencia">Experiencia</label><span>años0-20+</span></div>
+          <input id="experiencia" class="range" type="range" min="0" max="20">
+        </div>
+        <div class="filter">
+          <div class="filter__head"><label for="equipo">Tamaño equipo</label><span>$0-1.000.000</span></div>
+          <input id="equipo" class="range" type="range" min="0" max="1000000">
+        </div>
+        <div class="filter">
+          <div class="filter__head"><label for="horas">Horas Disponibles</label><span>años0-20+</span></div>
+          <input id="horas" class="range" type="range" min="0" max="20">
+        </div>
+      </div>
+    </form>
+  </main>
+
+  <div class="giant" aria-hidden="true">
+    <span class="giant__letter giant__letter--gray">M</span>
+    <span class="giant__letter">A</span>
+    <span class="giant__letter giant__letter--gray">N</span>
+    <span class="giant__letter">D</span>
+    <span class="giant__letter">O</span>
+  </div>
+</body>
+</html>
