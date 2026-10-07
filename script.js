@@ -246,9 +246,15 @@
     status.textContent = 'Sending your idea…';
     try {
       // The request starts right away; the result waits for the animation and the minimum loader time
-      await Promise.all([sendIdea(payload), wait(EXIT_MS + MIN_LOADER_MS)]);
+      const [result] = await Promise.all([sendIdea(payload), wait(EXIT_MS + MIN_LOADER_MS)]);
+      const next = result?.phase2?.next_question;
+      if (next) {
+        showQuestion(next.question);
+        status.textContent = next.question;
+        return;
+      }
       status.textContent = 'Your idea was sent.';
-      // TODO: show the result
+      // TODO: show the result when there is nothing left to ask
     } catch {
       failed = true;
       showFieldError(idea, 'Something went wrong. Please try again.');
