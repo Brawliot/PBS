@@ -44,6 +44,8 @@ const RANGES = {
 
 const MAX_ANSWERS = 12;
 const MAX_TEXT = 1000; // characters per answer field
+const MAX_IDEA = 2000; // characters for the idea field
+const MAX_BODY = 100_000; // bytes for request body
 
 class HttpError extends Error {
   constructor(
@@ -58,7 +60,12 @@ function readBody(req: IncomingMessage): Promise<string> {
   return new Promise((resolve, reject) => {
     let data = "";
     req.setEncoding("utf8");
-    req.on("data", (chunk) => (data += chunk));
+    req.on("data", (chunk) => {
+      data += chunk;
+      if (data.length > MAX_BODY) {
+        reject(new HttpError(413, "Request too large"));
+      }
+    });
     req.on("end", () => resolve(data));
     req.on("error", reject);
   });
@@ -115,6 +122,7 @@ function parsePlannerRequest(raw: string): {
 
   const idea = typeof body.idea === "string" ? body.idea.trim() : "";
   if (!idea) throw new HttpError(400, "Idea is required");
+  if (idea.length > MAX_IDEA) throw new HttpError(400, "Idea is too long");
 
   if (body.final !== undefined && typeof body.final !== "boolean") {
     throw new HttpError(400, "final must be a boolean");
