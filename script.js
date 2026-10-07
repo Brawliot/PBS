@@ -23,7 +23,7 @@ ranges.forEach((range) => {
   output.classList.add('is-example');
 
   const error = document.createElement('p');
-  error.className = 'filter__error';
+  error.className = 'field-error';
   error.id = `${range.id}-error`;
   error.hidden = true;
   range.after(error);
@@ -106,7 +106,7 @@ authForms.forEach((form) => {
   form.querySelectorAll('input').forEach((input) => {
     const field = input.closest('label');
     const error = document.createElement('p');
-    error.className = 'auth__error';
+    error.className = 'field-error';
     error.id = `${form.dataset.form}-${input.name}-error`;
     error.hidden = true;
     const hint = field.nextElementSibling;
