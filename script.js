@@ -5,7 +5,9 @@ const submit = form.querySelector('.search__submit');
 
 const fmt = (range) => {
   const v = Number(range.value);
-  return range.max >= 1000000 ? '$' + v.toLocaleString('es-ES') : v + ' años';
+  if (range.dataset.labels) return range.dataset.labels.split('|')[v];
+  if (range.id === 'experiencia') return v >= 20 ? '20+ años' : v + (v === 1 ? ' año' : ' años');
+  return '$' + v.toLocaleString('es-ES');
 };
 
 const validate = () => {
