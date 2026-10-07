@@ -34,7 +34,7 @@
       <div class="search__bar">
         <input class="search__input" type="text" name="idea" placeholder="Describe your business" aria-label="Describe your business" aria-describedby="search-error">
         <p class="field-error" id="search-error" role="alert" hidden>Describe your business to continue.</p>
-        <button class="search__submit" type="submit" aria-label="Submit">
+        <button class="arrow-btn search__submit" type="submit" aria-label="Submit">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
         </button>
       </div>
@@ -62,7 +62,12 @@
 
   <form class="question" id="question" aria-labelledby="question-text" novalidate>
     <p class="question__text" id="question-text">Question goes here</p>
-    <input class="question__input" type="text" name="answer" placeholder="Type your answer" aria-labelledby="question-text" autocomplete="off">
+    <div class="question__field">
+      <input class="question__input" type="text" name="answer" placeholder="Type your answer" aria-labelledby="question-text" autocomplete="off">
+      <button class="arrow-btn question__submit" type="submit" aria-label="Send answer">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
+      </button>
+    </div>
   </form>
 
   <p class="sr-only" id="status" role="status"></p>

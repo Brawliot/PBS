@@ -167,10 +167,11 @@ body.is-loading .hero__loader {
 }
 .search__input::placeholder { color: var(--gray-text); }
 .search__bar .field-error { margin-right: 16px; font-size: 15px; }
-.search__submit { border: 0; background: transparent; color: var(--dark); display: flex; }
-.search__submit svg { transition: transform 0.2s ease; }
-.search__submit:hover svg { transform: translateX(4px); }
-.search__submit:active svg { transform: translateX(8px) scale(0.9); }
+/* Send arrow, shared by the search bar and the question popup */
+.arrow-btn { border: 0; background: transparent; color: var(--dark); display: flex; }
+.arrow-btn svg { transition: transform 0.2s ease; }
+.arrow-btn:hover svg { transform: translateX(4px); }
+.arrow-btn:active svg { transform: translateX(8px) scale(0.9); }
 
 /* ==========================================================================
    Filters panel (tucked behind the search bar up to its mid-height)
@@ -276,7 +277,9 @@ body.is-loading .search {
   transition: opacity 0.3s ease, transform 0.3s ease, visibility 0s;
 }
 .question__text { font-size: 18px; color: var(--gray-text); }
-.question__input { height: 46px; font-size: 18px; }
+.question__field { position: relative; }
+.question__input { width: 100%; height: 46px; padding-right: 52px; font-size: 18px; }
+.question__submit { position: absolute; top: 50%; right: 14px; transform: translateY(-50%); }
 
 /* ==========================================================================
    Giant wordmark (endless loop to the right)
@@ -348,7 +351,7 @@ body.modal-open .header, body.modal-open .hero { filter: blur(2px); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; transition-delay: 0s !important; }
   .btn:hover, .btn:active, .modal__close:hover, .modal__close:active,
-  .search__submit:hover svg, .search__submit:active svg,
+  .arrow-btn:hover svg, .arrow-btn:active svg,
   body.is-loading .hero__subtitle, body.is-loading .search,
   body.is-loading .search__input, body.is-loading .search__submit, body.is-loading .filter { transform: none; filter: none; }
 }
