@@ -88,9 +88,20 @@ body {
 /* Giant wordmark */
 .giant {
   flex: 1; min-height: 0; margin-top: 2vh;
-  display: flex; justify-content: center; align-items: flex-start;
   font-size: 40vw; font-weight: 800; line-height: .75;
   letter-spacing: -0.07em; white-space: nowrap; overflow: hidden;
+}
+.giant__track {
+  display: flex; width: max-content;
+  animation: giant-scroll 25s linear infinite;
+}
+.giant__group { display: flex; flex-shrink: 0; }
+@keyframes giant-scroll {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .giant__track { animation: none; }
 }
 .giant__letter { color: var(--black); }
 .giant__letter--gray { color: var(--gray); }
