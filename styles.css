@@ -79,6 +79,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 .btn--dark { background: var(--dark); color: var(--white); }
 .btn--outline { background: var(--white); color: var(--dark); border-color: var(--border-strong); }
+.btn--danger { background: var(--white); color: var(--danger); border-color: var(--danger); }
 
 /* Buttons: soft lift on hover, press-in on click */
 .btn, .nav__login, .modal__close, .auth__link {
@@ -88,6 +89,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(39, 39, 39, 0.18); }
 .btn--dark:hover { background: var(--dark-hover); }
 .btn--outline:hover { background: #f3f3f7; border-color: var(--dark); }
+.btn--danger:hover { background: #fdf0ee; color: #8f1c12; border-color: #8f1c12; }
 .btn:active { transform: translateY(0) scale(0.97); box-shadow: none; }
 .nav__login:hover, .auth__link:hover { opacity: 0.65; }
 .nav__login:active, .auth__link:active { transform: scale(0.96); }
