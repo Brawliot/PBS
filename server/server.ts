@@ -7,7 +7,7 @@ import { readFile } from "node:fs/promises";
 import { extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { analyzeWithJev, type PlannerInput } from "./planner/planner-handler.js";
-import { analyzePhase2 } from "./planner/planner-phase2-handler.js";
+import { analyzePhase2, type PlannerAnswer } from "./planner/planner-phase2-handler.js";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -32,6 +32,9 @@ const RANGES = {
   team: [0, 3],
   hours: [0, 3],
 } as const;
+
+const MAX_ANSWERS = 12;
+const MAX_TEXT = 1000; // characters per answer field
 
 class HttpError extends Error {
   constructor(
@@ -69,7 +72,23 @@ async function sendFile(res: ServerResponse, file: string) {
   }
 }
 
-function parsePlannerInput(raw: string): PlannerInput {
+function parseAnswers(value: unknown): PlannerAnswer[] {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > MAX_ANSWERS) {
+    throw new HttpError(400, "answers must be a short list");
+  }
+  return value.map((item) => {
+    const { topic, question, answer } = item ?? {};
+    for (const field of [topic, question, answer]) {
+      if (typeof field !== "string" || !field.trim() || field.length > MAX_TEXT) {
+        throw new HttpError(400, "Each answer needs a topic, a question and an answer");
+      }
+    }
+    return { topic: topic.trim(), question: question.trim(), answer: answer.trim() };
+  });
+}
+
+function parsePlannerRequest(raw: string): { input: PlannerInput; answers: PlannerAnswer[] } {
   let body: Record<string, unknown>;
   try {
     body = JSON.parse(raw);
@@ -94,7 +113,7 @@ function parsePlannerInput(raw: string): PlannerInput {
     }
     input[key] = value;
   }
-  return input;
+  return { input, answers: parseAnswers(body.answers) };
 }
 
 createServer(async (req, res) => {
@@ -107,9 +126,9 @@ createServer(async (req, res) => {
 
   if (path === "/api/planner" && req.method === "POST") {
     try {
-      const input = parsePlannerInput(await readBody(req));
+      const { input, answers } = parsePlannerRequest(await readBody(req));
       const jev = await analyzeWithJev(input);
-      const phase2 = await analyzePhase2(input, jev);
+      const phase2 = await analyzePhase2(input, jev, answers);
       return sendJson(res, 200, { jev, phase2 });
     } catch (e) {
       if (e instanceof HttpError) return sendJson(res, e.status, { error: e.message });

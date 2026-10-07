@@ -241,24 +241,41 @@
     sending = false;
   };
 
+  // Question flow: the backend returns a list of questions, asked one by one. Once the
+  // list is answered, the answers go back to get refinements (at most MAX_ROUNDS requests).
+  const MAX_ROUNDS = 3;
+  let answers = [];   // { topic, question, answer } given so far
+  let queue = [];     // received questions not asked yet
+  let current = null; // question on screen
+  let rounds = 0;
+
+  const nextQuestion = () => {
+    current = queue.shift() ?? null;
+    if (!current) return false;
+    showQuestion(current.question);
+    status.textContent = current.question;
+    return true;
+  };
+
   const submitIdea = async () => {
     const payload = {
       idea: idea.value.trim(),
       ...Object.fromEntries(ranges.map((range) => [range.id, Number(range.value)])),
+      answers,
     };
     let failed = false;
 
-    startLoading();
+    if (!loader) startLoading();
     status.textContent = 'Sending your idea…';
     try {
-      // The request starts right away; the result waits for the animation and the minimum loader time
-      const [result] = await Promise.all([sendIdea(payload), wait(EXIT_MS + MIN_LOADER_MS)]);
-      const next = result?.phase2?.next_question;
-      if (next) {
-        showQuestion(next.question);
-        status.textContent = next.question;
-        return;
-      }
+      // The first request also waits for the animation and the minimum loader time
+      const [result] = await Promise.all([
+        sendIdea(payload),
+        rounds === 0 ? wait(EXIT_MS + MIN_LOADER_MS) : null,
+      ]);
+      rounds++;
+      queue = rounds < MAX_ROUNDS ? (result?.phase2?.questions ?? []) : [];
+      if (nextQuestion()) return; // the loader stays under the popup
       status.textContent = 'Your idea was sent.';
       // TODO: show the result when there is nothing left to ask
     } catch {
@@ -293,12 +310,16 @@
       syncModalState();
       return;
     }
+    answers = [];
+    queue = [];
+    current = null;
+    rounds = 0;
     submitIdea();
   });
 
   // ---------------------------------------------------------------------------
   // Question popup: a prompt and a text field, centred above the loader.
-  // Not part of the flow yet: nothing calls showQuestion() except the preview below.
+  // Opened by submitIdea (via nextQuestion) with the questions the backend returns.
   // ---------------------------------------------------------------------------
   const question = document.getElementById('question');
   const questionText = document.getElementById('question-text');
@@ -318,7 +339,17 @@
 
   question.addEventListener('submit', (e) => {
     e.preventDefault();
-    // TODO: send the answer
+    const text = answer.value.trim();
+    if (!text || !current) {
+      answer.focus();
+      return;
+    }
+    answers.push({ topic: current.topic, question: current.question, answer: text });
+    current = null;
+    answer.value = '';
+    if (nextQuestion()) return; // the next one is ready: the popup stays open
+    hideQuestion();
+    submitIdea(); // list answered: send the answers and check for more questions
   });
 
   // TESTING ONLY: open the page with ?preview=question to see the popup above the loader.
