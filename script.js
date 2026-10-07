@@ -219,19 +219,10 @@
     return await res.json();
   };
 
-  const startLoading = () => {
-    sending = true;
-    search.setAttribute('aria-busy', 'true');
-    search.inert = true;
-    // Distance from the title to the centre of the screen, where the loader ends up
-    const slot = loaderSlot.getBoundingClientRect();
-    loaderSlot.style.setProperty('--loader-dy', `${innerHeight / 2 - (slot.top + slot.height / 2)}px`);
-    // The search block contracts towards the same point the loader travels to
-    search.style.setProperty('--origin-y', `${innerHeight / 2 - search.getBoundingClientRect().top}px`);
-    document.body.classList.add('is-loading');
-    // Same typography as the page title (not the giant background wordmark)
+  // Same typography as the page title (not the giant background wordmark)
+  const loaderOptions = () => {
     const titleStyle = getComputedStyle(document.querySelector('.hero__title'));
-    loader = window.createTechText(loaderSlot, {
+    return {
       text: document.querySelector('.hero__title').textContent,
       fontWeight: Number(titleStyle.fontWeight),
       fontSize: parseFloat(titleStyle.fontSize),
@@ -242,7 +233,20 @@
       specks: 15,
       color: '#000000',
       accentColor: '#272727',
-    });
+    };
+  };
+
+  const startLoading = () => {
+    sending = true;
+    search.setAttribute('aria-busy', 'true');
+    search.inert = true;
+    // Distance from the title to the centre of the screen, where the loader ends up
+    const slot = loaderSlot.getBoundingClientRect();
+    loaderSlot.style.setProperty('--loader-dy', `${innerHeight / 2 - (slot.top + slot.height / 2)}px`);
+    // The search block contracts towards the same point the loader travels to
+    search.style.setProperty('--origin-y', `${innerHeight / 2 - search.getBoundingClientRect().top}px`);
+    document.body.classList.add('is-loading');
+    loader = window.createTechText(loaderSlot, loaderOptions());
   };
 
   const stopLoading = async () => {
@@ -453,8 +457,26 @@
     detailDialog.showModal();
     syncModalState();
   });
-  document.getElementById('result-plan').addEventListener('click', () => {
-    // TODO: start the planning phase (not built yet)
+  // Build my plan: the loader appears where it always does, then the result leaves
+  const PLAN_LOADER_MS = 500; // loader fades in before the result leaves (keep in sync with CSS)
+  const RESULT_OUT_MS = 400;  // result leaves (keep in sync with CSS)
+  const planLoaderSlot = document.querySelector('.plan-loader');
+  let planning = false;
+
+  document.getElementById('result-plan').addEventListener('click', async () => {
+    if (planning) return;
+    planning = true;
+    resultSection.inert = true;
+    status.textContent = 'Building your plan…';
+
+    window.createTechText(planLoaderSlot, loaderOptions());
+    planLoaderSlot.classList.add('is-visible');
+    await wait(PLAN_LOADER_MS);
+
+    resultSection.classList.add('is-leaving');
+    await wait(RESULT_OUT_MS);
+    resultSection.hidden = true;
+    // TODO: request the plan (phase not built yet); the loader keeps running until it arrives
   });
 
   search.addEventListener('submit', (e) => {

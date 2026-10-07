@@ -371,6 +371,25 @@ body.has-result .hero { display: none; }
 #detail-modal { max-width: 520px; }
 #detail-modal .result__list > div { padding: 9px 0; font-size: 15px; }
 
+/* Result leaving (Build my plan) */
+.result.is-leaving { animation: result-out 0.4s ease forwards; }
+@keyframes result-out {
+  to { opacity: 0; transform: translate(-50%, calc(-50% + 8px)); }
+}
+
+/* Loader shown on its own at the screen centre, same place and size as the sending loader */
+.plan-loader {
+  --title-size: clamp(72px, 11vw, 128px);
+  position: fixed; left: 50%; top: 50%; z-index: 8; pointer-events: none;
+  width: min(1070px, calc(100vw - 40px)); height: calc(var(--title-size) + 40px);
+  transform: translate(calc(-50% + var(--title-size) * 0.04), -50%);
+  opacity: 0; visibility: hidden;
+  transition: opacity 0.4s ease, visibility 0s 0.4s;
+}
+.plan-loader.tech-text { position: fixed; width: min(1070px, calc(100vw - 40px)); height: calc(var(--title-size) + 40px); }
+.plan-loader.is-visible { opacity: 1; visibility: visible; transition: opacity 0.4s ease, visibility 0s; }
+.plan-loader .tech-text-canvas { position: absolute; inset: 0; }
+
 /* ==========================================================================
    Giant wordmark (endless loop to the right)
    ========================================================================== */
@@ -440,7 +459,7 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
    ========================================================================== */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: 0.01ms !important; transition-delay: 0s !important; }
-  .result { animation: none; }
+  .result, .result.is-leaving { animation: none; }
   .btn:hover, .btn:active, .modal__close:hover, .modal__close:active,
   .arrow-btn:hover svg, .arrow-btn:active svg,
   body.is-loading .hero__subtitle, body.is-loading .search,
