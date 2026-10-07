@@ -138,6 +138,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
   transition: opacity 0.4s ease, visibility 0s 0.4s, transform 0.5s ease;
 }
 .hero__loader.tech-text { position: absolute; width: auto; height: auto; }
+/* A loader is a status indicator: ignoring the pointer keeps its automatic sweep running
+   (TechText pauses the sweep and follows the cursor while the pointer is over it) */
+.hero__loader { pointer-events: none; }
 .hero__loader .tech-text-canvas { position: absolute; inset: 0; }
 
 body.is-loading .hero__title { opacity: 0; transition-delay: 0.1s; }
