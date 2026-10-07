@@ -111,6 +111,7 @@ createServer(async (req, res) => {
 
   if (req.method === "GET") {
     if (path === "/") return sendFile(res, "index.html");
+    if (path === "/plan") return sendFile(res, "plan.html");
     if (isPublic(path)) return sendFile(res, path.slice(1));
   }
 
