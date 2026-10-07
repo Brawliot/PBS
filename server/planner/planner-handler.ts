@@ -109,7 +109,7 @@ const JEV_QUESTIONS: Record<string, JevQuestion> = {
 };
 
 /** Turns the form payload into the text state Jev analyzes */
-function buildState(input: PlannerInput): string {
+export function buildState(input: PlannerInput): string {
   return JSON.stringify({
     idea: input.idea,
     budget_usd: input.budget,
