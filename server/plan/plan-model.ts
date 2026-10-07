@@ -57,24 +57,17 @@ const PhaseSchema = z.strictObject({
   order: z.number().int().min(0),
 });
 
-const TaskSchema = z
-  .strictObject({
-    id: IdSchema,
-    phaseId: IdSchema,
-    primaryDepartmentId: IdSchema,
-    secondaryDepartmentIds: z.array(IdSchema),
-    title: text(MAX_TITLE),
-    status: z.enum(["todo", "in_progress", "done"]),
-    origin: OriginSchema,
-    confidence: ConfidenceSchema,
-    feedback: FeedbackSchema.optional(),
-  })
-  .refine(
-    (task) =>
-      new Set(task.secondaryDepartmentIds).size === task.secondaryDepartmentIds.length &&
-      !task.secondaryDepartmentIds.includes(task.primaryDepartmentId),
-    { error: "Secondary departments must be unique and not include the primary one", path: ["secondaryDepartmentIds"] },
-  );
+// Status, mode, effort, elapsed time and secondary departments are not stored: task-rules.ts
+// computes them from the steps, so they can never disagree with them
+const TaskSchema = z.strictObject({
+  id: IdSchema,
+  phaseId: IdSchema,
+  primaryDepartmentId: IdSchema,
+  title: text(MAX_TITLE),
+  origin: OriginSchema,
+  confidence: ConfidenceSchema,
+  feedback: FeedbackSchema.optional(),
+});
 
 export const STEP_EXECUTORS = ["ai", "user", "third_party"] as const;
 // Only the life cycle is stored: "ready" and "blocked" are deduced from the relations

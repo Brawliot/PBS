@@ -5,6 +5,7 @@
  */
 
 import type { Department, Phase, Plan, Step, Task } from "./plan-model.js";
+import { taskDepartments } from "./task-rules.js";
 
 export interface TaskNode {
   task: Task;
@@ -15,7 +16,7 @@ export interface DepartmentNode {
   department: Department;
   /** Tasks where it is the primary department */
   responsible: TaskNode[];
-  /** Tasks where it is a secondary department */
+  /** Tasks where it has a step but is not the primary department (computed from the steps) */
   participates: TaskNode[];
 }
 
@@ -44,8 +45,8 @@ export function departmentNode(plan: Plan, departmentId: string): DepartmentNode
       .filter((task) => task.primaryDepartmentId === departmentId)
       .map((task) => node(plan, task)),
     participates: plan.tasks
-      .filter((task) => task.secondaryDepartmentIds.includes(departmentId))
-      .map((task) => node(plan, task)),
+      .map((task) => node(plan, task))
+      .filter(({ task, steps }) => taskDepartments(task, steps).secondary.includes(departmentId)),
   };
 }
 

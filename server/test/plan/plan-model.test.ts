@@ -23,9 +23,7 @@ const task = (overrides: Record<string, unknown> = {}) => ({
   id: "t1",
   phaseId: "f1",
   primaryDepartmentId: "legal",
-  secondaryDepartmentIds: ["finance"],
   title: "Register the company",
-  status: "todo",
   origin: { kind: "rule" },
   confidence: 100,
   ...overrides,
@@ -158,7 +156,6 @@ describe("text fields", () => {
 describe("enums and numbers", () => {
   test("tier, status and relation type accept only their values", () => {
     rejectedAt(plan({ departments: [{ id: "legal", name: "A", tier: "critical" }] }), "departments.0.tier");
-    rejectedAt(plan({ tasks: [task({ status: "blocked" })] }), "tasks.0.status");
     rejectedAt(plan({ relations: [{ level: "task", from: "a", to: "b", type: "depends" }] }), "relations.0.type");
   });
 
@@ -213,18 +210,16 @@ describe("feedback", () => {
   });
 });
 
-describe("task departments", () => {
-  test("the secondary list may be empty", () => {
-    assert.deepEqual(issues(plan({ tasks: [task({ secondaryDepartmentIds: [] })] })), []);
+describe("what a task stores", () => {
+  test("only id, phase, primary department, title, origin, confidence and feedback", () => {
+    assert.deepEqual(Object.keys(task()).sort(), ["confidence", "id", "origin", "phaseId", "primaryDepartmentId", "title"]);
+    assert.deepEqual(issues(plan({ tasks: [task({ feedback: "accepted" })] })), []);
   });
 
-  test("the primary department cannot also be secondary", () => {
-    rejectedAt(plan({ tasks: [task({ secondaryDepartmentIds: ["legal"] })] }), "tasks.0.secondaryDepartmentIds");
-  });
-
-  test("secondary departments cannot repeat", () => {
-    rejectedAt(plan({ tasks: [task({ secondaryDepartmentIds: ["finance", "finance"] })] }), "tasks.0.secondaryDepartmentIds");
-    assert.deepEqual(issues(plan({ tasks: [task({ secondaryDepartmentIds: ["finance", "hr"] })] })), []);
+  test("what is computed from the steps is not accepted as stored data", () => {
+    for (const extra of [{ status: "todo" }, { status: "done" }, { secondaryDepartmentIds: [] }, { secondaryDepartmentIds: ["finance"] }, { mode: "online" }, { effortHours: 1 }]) {
+      rejectedAt(plan({ tasks: [task(extra)] }), "tasks.0");
+    }
   });
 });
 
@@ -675,11 +670,11 @@ describe("parsePlan", () => {
   test("throws an error that names the paths and codes, never the values", () => {
     const secret = "SECRET-TEXT-FROM-THE-USER";
     assert.throws(
-      () => parsePlan(plan({ tasks: [task({ title: "", status: secret })] })),
+      () => parsePlan(plan({ tasks: [task({ title: "", feedback: secret })] })),
       (error: unknown) => {
         assert.ok(error instanceof Error);
         assert.ok(error.message.startsWith("Invalid plan: "));
-        assert.ok(error.message.includes("tasks.0.status"));
+        assert.ok(error.message.includes("tasks.0.feedback"));
         assert.ok(!error.message.includes(secret));
         return true;
       },
