@@ -80,7 +80,7 @@
   };
 
   const validateAuth = (form) => {
-    const { email, password, password2 } = form.elements;
+    const { email, password, password2, name } = form.elements;
     const register = form.dataset.form === 'register';
     const invalid = [];
     const fail = (input, message) => { showFieldError(input, message); invalid.push(input); };
@@ -90,6 +90,9 @@
     });
     if (email.value && !email.checkValidity()) {
       fail(email, 'Enter a valid email address.');
+    }
+    if (register && name.value.trim() !== '' && name.value.trim().length < 2) {
+      fail(name, 'Name must be at least 2 characters.');
     }
     if (register && password.value && password.value.length < password.minLength) {
       fail(password, `Password must be at least ${password.minLength} characters.`);
