@@ -37,24 +37,26 @@
 
       <div class="filters">
         <div class="filter">
-          <div class="filter__head"><label for="budget">Budget</label><output for="budget">$500,000</output></div>
-          <input id="budget" class="range" type="range" value="500000" min="0" max="1000000" step="10000" data-format="currency">
+          <div class="filter__head"><label for="budget">Budget</label><output for="budget">e.g. $500,000</output></div>
+          <input id="budget" class="range" type="range" value="500000" min="0" max="1000000" step="10000" data-format="currency" aria-describedby="slider-hint">
         </div>
         <div class="filter">
-          <div class="filter__head"><label for="experience">Experience</label><output for="experience">5 years</output></div>
-          <input id="experience" class="range" type="range" value="5" min="0" max="20" step="1" data-format="years">
+          <div class="filter__head"><label for="experience">Experience</label><output for="experience">e.g. 5 years</output></div>
+          <input id="experience" class="range" type="range" value="5" min="0" max="20" step="1" data-format="years" aria-describedby="slider-hint">
         </div>
         <div class="filter">
-          <div class="filter__head"><label for="team">Team size</label><output for="team">Solo</output></div>
-          <input id="team" class="range" type="range" value="0" min="0" max="3" step="1" data-labels="Solo|Small (2-3)|Medium (4-10)|Large (10+)">
+          <div class="filter__head"><label for="team">Team size</label><output for="team">e.g. Solo</output></div>
+          <input id="team" class="range" type="range" value="0" min="0" max="3" step="1" data-labels="Solo|Small (2-3)|Medium (4-10)|Large (10+)" aria-describedby="slider-hint">
         </div>
         <div class="filter">
-          <div class="filter__head"><label for="hours">Weekly hours</label><output for="hours">10-20 h</output></div>
-          <input id="hours" class="range" type="range" value="1" min="0" max="3" step="1" data-labels="Under 10 h|10-20 h|30+ h|Full time">
+          <div class="filter__head"><label for="hours">Weekly hours</label><output for="hours">e.g. 10-20 h</output></div>
+          <input id="hours" class="range" type="range" value="1" min="0" max="3" step="1" data-labels="Under 10 h|10-20 h|30+ h|Full time" aria-describedby="slider-hint">
         </div>
       </div>
     </form>
   </main>
+
+  <p class="sr-only" id="slider-hint">Example value shown. Move the slider to set your own.</p>
 
   <div class="backdrop" aria-hidden="true"></div>
 

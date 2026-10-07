@@ -14,9 +14,27 @@ const search = document.querySelector('.search');
 const idea = search.querySelector('.search__input');
 const ideaError = document.getElementById('search-error');
 
-search.querySelectorAll('.range').forEach((range) => {
+// Sliders always hold a value, so "untouched" is tracked separately (is-set).
+// The first user input marks a slider as set; the initial value is only an example.
+const ranges = [...search.querySelectorAll('.range')];
+
+ranges.forEach((range) => {
+  const output = range.closest('.filter').querySelector('output');
+  output.classList.add('is-example');
+
+  const error = document.createElement('p');
+  error.className = 'filter__error';
+  error.id = `${range.id}-error`;
+  error.hidden = true;
+  range.after(error);
+
   range.addEventListener('input', () => {
-    range.closest('.filter').querySelector('output').value = formatValue(range);
+    range.classList.add('is-set');
+    output.classList.remove('is-example');
+    output.value = formatValue(range);
+    range.removeAttribute('aria-describedby');
+    range.removeAttribute('aria-invalid');
+    error.hidden = true;
   });
 });
 
@@ -30,10 +48,24 @@ const isLoggedIn = false;
 
 search.addEventListener('submit', (e) => {
   e.preventDefault();
+  const invalid = [];
+
   if (idea.value.trim() === '') {
     ideaError.hidden = false;
     idea.setAttribute('aria-invalid', 'true');
-    idea.focus();
+    invalid.push(idea);
+  }
+  ranges.filter((r) => !r.classList.contains('is-set')).forEach((range) => {
+    const error = document.getElementById(`${range.id}-error`);
+    error.textContent = `Select a value for ${range.labels[0].textContent}.`;
+    error.hidden = false;
+    range.setAttribute('aria-invalid', 'true');
+    range.setAttribute('aria-describedby', error.id);
+    invalid.push(range);
+  });
+
+  if (invalid.length) {
+    invalid[0].focus();
     return;
   }
   if (!isLoggedIn) {

@@ -85,6 +85,16 @@ button { font: inherit; color: inherit; cursor: pointer; }
   -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
   background: var(--dark); cursor: pointer;
 }
+.range:not(.is-set)::-webkit-slider-thumb { background: #b9b9c0; }
+.range:not(.is-set)::-moz-range-thumb { background: #b9b9c0; }
+.range[aria-invalid="true"] { outline: 2px solid var(--danger); outline-offset: 4px; }
+.filter__head output.is-example { color: var(--gray-text); font-style: italic; }
+.filter__error { color: var(--danger); font-size: 14px; margin-top: 8px; }
+.filter__error[hidden] { display: none; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip-path: inset(50%); white-space: nowrap;
+}
 .range::-moz-range-thumb {
   width: 22px; height: 22px; border: 0; border-radius: 50%;
   background: var(--dark); cursor: pointer;
