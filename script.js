@@ -25,12 +25,20 @@ idea.addEventListener('input', () => {
   idea.removeAttribute('aria-invalid');
 });
 
+// TODO: replace with the real session state once there is a backend
+const isLoggedIn = false;
+
 search.addEventListener('submit', (e) => {
   e.preventDefault();
   if (idea.value.trim() === '') {
     ideaError.hidden = false;
     idea.setAttribute('aria-invalid', 'true');
     idea.focus();
+    return;
+  }
+  if (!isLoggedIn) {
+    gate.showModal();
+    syncModalState();
     return;
   }
   // TODO: send data
@@ -43,11 +51,23 @@ group.setAttribute('aria-hidden', 'true');
 track.append(group);
 track.classList.add('is-looping');
 
-// Auth dialog
+// Dialogs
 const dialog = document.getElementById('auth-modal');
+const gate = document.getElementById('gate-modal');
 const title = document.getElementById('auth-title');
 const titles = { login: 'Log In', register: 'Register' };
 const authForms = [...dialog.querySelectorAll('.auth')];
+
+// Pause the background loop while any dialog is open
+const syncModalState = () => {
+  document.body.classList.toggle('modal-open', !!document.querySelector('dialog[open]'));
+};
+
+[dialog, gate].forEach((d) => {
+  d.addEventListener('close', syncModalState);
+  d.addEventListener('click', (e) => { if (e.target === d) d.close(); });
+  d.querySelector('[data-close]').addEventListener('click', () => d.close());
+});
 
 const showError = (form, message, fields = []) => {
   const box = form.querySelector('.auth__error');
@@ -79,22 +99,26 @@ const validateAuth = (form) => {
   return true;
 };
 
-document.querySelectorAll('[data-auth]').forEach((button) => {
-  button.addEventListener('click', () => {
-    const mode = button.dataset.auth;
-    authForms.forEach((f) => { f.hidden = f.dataset.form !== mode; });
-    title.textContent = titles[mode];
-    document.body.classList.add('modal-open');
-    dialog.showModal();
-  });
-});
+const openAuth = (mode) => {
+  authForms.forEach((f) => { f.hidden = f.dataset.form !== mode; });
+  title.textContent = titles[mode];
+  dialog.showModal();
+  syncModalState();
+};
 
 dialog.addEventListener('close', () => {
-  document.body.classList.remove('modal-open');
   authForms.forEach((f) => { f.reset(); clearErrors(f); });
 });
-dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.close(); });
-dialog.querySelector('[data-close]').addEventListener('click', () => dialog.close());
+
+document.querySelectorAll('[data-auth]').forEach((button) => {
+  button.addEventListener('click', () => openAuth(button.dataset.auth));
+});
+document.querySelectorAll('[data-gate]').forEach((button) => {
+  button.addEventListener('click', () => {
+    gate.close();
+    openAuth(button.dataset.gate);
+  });
+});
 
 authForms.forEach((form) => {
   form.addEventListener('input', () => clearErrors(form));

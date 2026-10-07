@@ -98,6 +98,16 @@
     </div>
   </dialog>
 
+  <dialog class="modal" id="gate-modal" aria-label="Log in required">
+    <div class="modal__card modal__card--gate">
+      <button class="modal__close" type="button" aria-label="Close" data-close>&times;</button>
+      <div class="auth">
+        <button class="auth__btn" type="button" data-gate="login">Log In</button>
+        <button class="auth__btn auth__btn--outline" type="button" data-gate="register">Register</button>
+      </div>
+    </div>
+  </dialog>
+
   <script src="script.js" defer></script>
 </body>
 </html>
