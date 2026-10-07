@@ -186,6 +186,7 @@
   const EXIT_MS = 850;        // subtitle exit + title-to-loader travel to the centre (keep in sync with CSS)
   const MIN_LOADER_MS = 1500; // visible time of the loader, so it never flashes
   const FADE_MS = 700;        // loader travels back and fades out (keep in sync with CSS)
+  const FINISH_MS = 350;      // loader fades out in place before the result (keep in sync with CSS)
   const status = document.getElementById('status');
   const loaderSlot = document.querySelector('.hero__loader');
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -294,9 +295,12 @@
       showFieldError(idea, 'Something went wrong. Please try again.');
       status.textContent = 'Something went wrong. Please try again.';
     }
-    await stopLoading();
-    if (failed) idea.focus();
-    else showResult(analysis, profile, validation);
+    if (failed) {
+      await stopLoading();
+      idea.focus();
+    } else {
+      await revealResult(analysis, profile, validation);
+    }
   };
 
   // --- Result: what we understood, what is still open, and the full detail -------
@@ -401,6 +405,34 @@
     requestAnimationFrame(() => {
       document.getElementById('result-bar').style.width = `${Math.round((profile.known / profile.total) * 100)}%`;
     });
+  };
+
+  // Loader -> result without going back to the initial page: the loader fades out where it is,
+  // then the hero goes away, the giant wordmark slides up to its new place and the result fades in
+  const revealResult = async (phase2, profile, validation) => {
+    document.body.classList.add('is-finishing');
+    await wait(FINISH_MS);
+
+    const giant = document.querySelector('.giant');
+    const letter = giant.querySelector('.giant__letter');
+    const before = letter.getBoundingClientRect().top;
+
+    showResult(phase2, profile, validation);
+    document.body.classList.remove('is-loading', 'is-finishing');
+    loader.destroy();
+    loader = null;
+    search.inert = false;
+    search.removeAttribute('aria-busy');
+    sending = false;
+
+    // The hero is gone, so the wordmark's box grew and its letters jumped up: slide them instead
+    const shift = before - letter.getBoundingClientRect().top;
+    if (shift && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      giant.animate(
+        [{ transform: `translateY(${shift}px)` }, { transform: 'translateY(0)' }],
+        { duration: 700, easing: 'cubic-bezier(0.65, 0, 0.35, 1)' },
+      );
+    }
   };
 
   document.getElementById('result-restart').addEventListener('click', () => location.reload());

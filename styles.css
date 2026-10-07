@@ -151,6 +151,8 @@ body.is-loading .hero__loader {
   transform: translate(calc(var(--title-size) * 0.04), var(--loader-dy, 0px));
   transition: opacity 0.12s ease, visibility 0s, transform 0.7s cubic-bezier(0.65, 0, 0.35, 1) 0.15s;
 }
+/* Result on its way: the loader fades out where it is (the rest of the page stays as it is) */
+body.is-finishing .hero__loader { opacity: 0; transition: opacity 0.35s ease; }
 /* ==========================================================================
    Search bar
    ========================================================================== */
@@ -297,7 +299,7 @@ body.has-result .hero { display: none; }
   padding: 28px 28px 24px; display: flex; flex-direction: column; gap: 18px; text-align: left;
   background: var(--white); border: 1px solid var(--border-strong); border-radius: 14px;
   box-shadow: var(--shadow);
-  animation: result-in 0.3s ease;
+  animation: result-in 0.45s ease 0.1s both;
 }
 @keyframes result-in {
   from { opacity: 0; transform: translate(-50%, calc(-50% + 8px)); }
