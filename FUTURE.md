@@ -80,6 +80,32 @@ Tres comprobaciones con las APIs reales que se dejaron aparcadas para poder avan
 
 **Qué hay que decidir.** Qué datos recibe (el informe completo, el perfil, la validación y las respuestas del usuario), qué devuelve y cómo se muestra. Encajará con el tiempo de respuesta como un trabajo asíncrono, igual que el análisis actual.
 
+### ¿Guardar el análisis o pasarlo directamente a "Build my plan"?
+
+**Decisión.** En el producto final el análisis se guarda; pero la primera versión de "Build my plan" puede recibirlo directamente, siempre que se diseñe para cambiar después el origen de los datos sin cambiar cómo se usan.
+
+**Pasarlo directamente (sin guardar).** El front ya tiene en memoria el análisis, el perfil y la validación, y los manda en la petición del plan, como ya se hace con las afirmaciones del análisis en la petición final.
+- A favor: no necesita base de datos ni usuarios, y funciona ya.
+- En contra:
+  - Integridad: el servidor recibe datos que vienen del cliente y podrían estar alterados. Solo afecta al plan del propio usuario, pero hay que validarlos con esquema y límites de tamaño.
+  - Se pierde al recargar: el informe vive en la memoria de la página, y repetir el análisis cuesta más de un minuto y varias llamadas de pago.
+  - Impide "View my projects", reanudar, regenerar el plan o comparar versiones.
+
+**Guardarlo.** El servidor guarda el análisis completo con un id de proyecto y "Build my plan" solo manda ese id.
+- A favor: datos de confianza (el servidor lee lo que él mismo calculó); se puede reanudar tras recargar o volver otro día; permite varios planes sobre el mismo análisis, "View my projects" y el desbloqueo de frentes por progreso; ahorra dinero al no repetir un análisis ya pagado; sirve de base para la evaluación de modelos con casos reales.
+- En contra: necesita base de datos y autenticación (para saber de quién es cada proyecto) y obliga a cumplir con la privacidad: las ideas de negocio son información confidencial, hay que pedir consentimiento, fijar cuánto se conservan y permitir borrarlas.
+
+**Opción intermedia.** El servidor ya guarda en memoria el resultado de cada trabajo (`JobStore`, 10 minutos). "Build my plan" podría mandar solo el `jobId` del análisis y el servidor leerlo de ahí: datos de confianza sin base de datos. Es una solución provisional: la caducidad es de 10 minutos y se pierde al reiniciar, así que habría que alargarla.
+
+**Plan recomendado.**
+1. Diseñar ya un "paquete de proyecto" con una versión de esquema (`ProjectSnapshot`): idea, sliders, respuestas, análisis de OpenAI, perfil, validación y resultado de Jev. Es el contrato entre el análisis y el plan.
+2. Primera versión: "Build my plan" recibe ese paquete directamente, validado con Zod y con tope de tamaño.
+3. Con la base de datos: se guarda el mismo paquete y el plan pasa a recibir solo el id. Como el contrato ya es el paquete, el cambio es de dónde sale, no de cómo se usa.
+
+**Señal de que hay que guardarlo.** Hoy el servidor olvida el análisis de OpenAI entre la primera petición y la final, y es el front quien se lo devuelve. Es una pista de que, a medio plazo, ese estado debe vivir en el servidor.
+
+**Pendiente de decidir con la base de datos.** Qué se guarda exactamente (por ejemplo, si se conservan las respuestas en bruto de los proveedores o solo el resultado), cuánto tiempo y con qué consentimiento.
+
 ### Saturación del plan: cuánto mostrar y cuánto hacer a la vez
 
 **Qué es.** Adaptar el plan a la capacidad de la persona. Una persona sola con pocas horas necesita ir poco a poco (por ejemplo, 2 áreas activas y el resto desbloqueándose); un equipo grande con dinero y experiencia prefiere la imagen completa del proyecto. Son dos cosas distintas que hay que separar: cuánto se **muestra** (revelado progresivo) y cuánto se **hace a la vez** (límite de frentes en curso).
