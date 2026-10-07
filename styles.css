@@ -164,7 +164,7 @@ body.is-finishing .hero__loader { opacity: 0; transition: opacity 0.35s ease; }
 /* ==========================================================================
    Search bar
    ========================================================================== */
-.search { --bar-h: max(11vh, 64px); width: 100%; max-width: 1070px; margin-top: 3vh; }
+.search { --bar-h: max(11vh, 64px); position: relative; width: 100%; max-width: 1070px; margin-top: 3vh; }
 .search__bar {
   display: flex; align-items: center; height: var(--bar-h); padding: 0 28px 0 24px;
   background: var(--white); border: 1px solid var(--border-strong); border-radius: 62px;
@@ -182,6 +182,28 @@ body.is-finishing .hero__loader { opacity: 0; transition: opacity 0.35s ease; }
 .arrow-btn svg { transition: transform 0.2s ease; }
 .arrow-btn:hover svg { transform: translateX(4px); }
 .arrow-btn:active svg { transform: translateX(8px) scale(0.9); }
+
+/* Submit error: a box under the search block, styled like the search bar */
+.submit-error {
+  position: absolute; top: calc(100% + 14px); left: 50%; z-index: 7;
+  width: min(100%, 640px); display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 0 14px 0 26px; min-height: 52px;
+  background: var(--white); border: 1px solid var(--border-strong); border-radius: 62px;
+  box-shadow: var(--shadow); text-align: left;
+  opacity: 0; visibility: hidden; transform: translate(-50%, -8px);
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0s 0.3s;
+}
+.submit-error.is-open {
+  opacity: 1; visibility: visible; transform: translate(-50%, 0);
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0s;
+}
+.submit-error__text { color: var(--danger); font-size: 16px; }
+.submit-error__close {
+  flex: none; width: 32px; height: 32px; border: 0; border-radius: 50%; background: transparent;
+  font-size: 24px; line-height: 1; color: var(--gray-text);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.submit-error__close:hover { background: var(--gray-light); color: var(--black); }
 
 /* ==========================================================================
    Filters panel (tucked behind the search bar up to its mid-height)

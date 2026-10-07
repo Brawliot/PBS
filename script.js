@@ -193,6 +193,18 @@
   let loader = null;
   let sending = false;
 
+  // Submit error: a dismissable box under the search block
+  const submitError = document.getElementById('submit-error');
+  const showSubmitError = (message) => {
+    document.getElementById('submit-error-text').textContent = message;
+    submitError.classList.add('is-open');
+  };
+  const hideSubmitError = () => submitError.classList.remove('is-open');
+  document.getElementById('submit-error-close').addEventListener('click', () => {
+    hideSubmitError();
+    idea.focus();
+  });
+
   // Real POST request to the backend planner API
   const sendIdea = async (payload) => {
     const res = await fetch('/api/planner', {
@@ -273,6 +285,7 @@
     let profile = null;
     let validation = null;
 
+    hideSubmitError();
     if (!loader) startLoading();
     status.textContent = 'Sending your idea…';
     try {
@@ -292,11 +305,11 @@
       }
     } catch {
       failed = true;
-      showFieldError(idea, 'Something went wrong. Please try again.');
       status.textContent = 'Something went wrong. Please try again.';
     }
     if (failed) {
       await stopLoading();
+      showSubmitError('Something went wrong. Please try again.');
       idea.focus();
     } else {
       await revealResult(analysis, profile, validation);
