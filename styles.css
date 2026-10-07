@@ -103,7 +103,8 @@ button { font: inherit; color: inherit; cursor: pointer; }
   animation: giant-scroll 70s linear infinite;
   will-change: transform; backface-visibility: hidden;
 }
-body.modal-open .giant__track { animation-play-state: paused; }
+/* Blur the static content (not the moving letters) while a dialog is open */
+body.modal-open .header, body.modal-open .hero { filter: blur(2px); }
 .giant__group { display: flex; flex-shrink: 0; }
 @keyframes giant-scroll {
   from { transform: translate3d(-50%, 0, 0); }
@@ -129,7 +130,6 @@ body.modal-open .giant__track { animation-play-state: paused; }
 }
 .modal::backdrop {
   background: rgba(99, 102, 241, 0.22);
-  -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
 }
 .modal__card {
   position: relative; max-height: calc(100vh - 40px); overflow-y: auto;
@@ -142,7 +142,7 @@ body.modal-open .giant__track { animation-play-state: paused; }
   font-size: 28px; line-height: 1; color: var(--gray-text);
 }
 .auth[hidden] { display: none; }
-.auth { display: flex; flex-direction: column; gap: 16px; }
+.auth, .modal__actions { display: flex; flex-direction: column; gap: 16px; }
 .auth__field { display: flex; flex-direction: column; gap: 8px; font-size: 16px; }
 .auth__field input {
   height: 42px; padding: 0 14px; font: inherit; font-size: 15px;
@@ -152,7 +152,7 @@ body.modal-open .giant__track { animation-play-state: paused; }
 .auth__field input[aria-invalid="true"] { border-color: var(--danger); }
 .auth__field input::placeholder { color: var(--gray-text); }
 .auth__hint { color: var(--gray-text); font-size: 14px; margin-top: -8px; }
-.auth__error { color: var(--danger); font-size: 15px; }
+.auth__error { color: var(--danger); font-size: 14px; margin-top: -8px; }
 .auth__error[hidden] { display: none; }
 .auth__btn {
   display: flex; align-items: center; justify-content: center; gap: 10px;

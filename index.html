@@ -28,7 +28,7 @@
 
     <form class="search" action="#" novalidate>
       <div class="search__bar">
-        <input class="search__input" type="text" name="idea" placeholder="Value" aria-label="Describe your business" aria-describedby="search-error">
+        <input class="search__input" type="text" name="idea" placeholder="Describe your business" aria-label="Describe your business" aria-describedby="search-error">
         <p class="search__error" id="search-error" role="alert" hidden>Describe your business to continue.</p>
         <button class="search__submit" type="submit" aria-label="Submit">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
@@ -78,7 +78,6 @@
       <form class="auth" data-form="login" novalidate>
         <label class="auth__field">Email<input type="email" name="email" autocomplete="email" placeholder="Value" required></label>
         <label class="auth__field">Password<input type="password" name="password" autocomplete="current-password" placeholder="Value" required></label>
-        <p class="auth__error" role="alert" hidden></p>
         <button class="auth__btn" type="submit">Sign In</button>
         <button class="auth__link" type="button">Forgot password?</button>
         <button class="auth__btn auth__btn--google" type="button"><svg width="18" height="18" aria-hidden="true"><use href="#google"/></svg>Sign in with Google</button>
@@ -91,7 +90,6 @@
         <label class="auth__field">Password<input type="password" name="password" autocomplete="new-password" minlength="8" maxlength="64" placeholder="Value" aria-describedby="password-hint" required></label>
         <p class="auth__hint" id="password-hint">At least 8 characters.</p>
         <label class="auth__field">Repeat password<input type="password" name="password2" autocomplete="new-password" maxlength="64" placeholder="Value" required></label>
-        <p class="auth__error" role="alert" hidden></p>
         <button class="auth__btn" type="submit">Register</button>
         <button class="auth__btn auth__btn--google" type="button"><svg width="18" height="18" aria-hidden="true"><use href="#google"/></svg>Sign up with Google</button>
       </form>
@@ -101,7 +99,7 @@
   <dialog class="modal" id="gate-modal" aria-label="Log in required">
     <div class="modal__card modal__card--gate">
       <button class="modal__close" type="button" aria-label="Close" data-close>&times;</button>
-      <div class="auth">
+      <div class="modal__actions">
         <button class="auth__btn" type="button" data-gate="login">Log In</button>
         <button class="auth__btn auth__btn--outline" type="button" data-gate="register">Register</button>
       </div>

@@ -69,34 +69,53 @@ const syncModalState = () => {
   d.querySelector('[data-close]').addEventListener('click', () => d.close());
 });
 
-const showError = (form, message, fields = []) => {
-  const box = form.querySelector('.auth__error');
-  box.textContent = message;
-  box.hidden = false;
-  fields.forEach((f) => f.setAttribute('aria-invalid', 'true'));
-  (fields[0] || form.querySelector('input')).focus();
+// One error message per field, linked to its input with aria-describedby
+authForms.forEach((form) => {
+  form.querySelectorAll('input').forEach((input) => {
+    const field = input.closest('label');
+    const error = document.createElement('p');
+    error.className = 'auth__error';
+    error.id = `${form.dataset.form}-${input.name}-error`;
+    error.hidden = true;
+    const hint = field.nextElementSibling;
+    (hint && hint.classList.contains('auth__hint') ? hint : field).after(error);
+    input.setAttribute('aria-describedby', [input.getAttribute('aria-describedby'), error.id].filter(Boolean).join(' '));
+  });
+});
+
+const errorOf = (input) => document.getElementById(`${input.form.dataset.form}-${input.name}-error`);
+
+const setError = (input, message) => {
+  const error = errorOf(input);
+  error.textContent = message;
+  error.hidden = false;
+  input.setAttribute('aria-invalid', 'true');
 };
 
-const clearErrors = (form) => {
-  form.querySelector('.auth__error').hidden = true;
-  form.querySelectorAll('[aria-invalid]').forEach((f) => f.removeAttribute('aria-invalid'));
+const clearField = (input) => {
+  errorOf(input).hidden = true;
+  input.removeAttribute('aria-invalid');
 };
+
+const clearErrors = (form) => form.querySelectorAll('input').forEach(clearField);
+
+const fieldName = (input) => input.closest('label').firstChild.textContent.trim();
 
 const validateAuth = (form) => {
-  const inputs = [...form.querySelectorAll('input')];
-  const empty = inputs.filter((i) => i.value.trim() === '');
-  if (empty.length) return showError(form, 'Please fill in all fields.', empty), false;
+  const register = form.dataset.form === 'register';
+  const { email, password, password2 } = form.elements;
+  const invalid = [];
+  const fail = (input, message) => { setError(input, message); invalid.push(input); };
 
-  const email = form.elements.email;
-  if (!email.checkValidity()) return showError(form, 'Enter a valid email address.', [email]), false;
+  form.querySelectorAll('input').forEach((input) => {
+    if (input.value.trim() === '') fail(input, `${fieldName(input)} is required.`);
+  });
+  if (email.value && !email.checkValidity()) fail(email, 'Enter a valid email address.');
+  if (register && password.value && password.value.length < 8) fail(password, 'Password must be at least 8 characters.');
+  if (register && password.value && password2.value && password.value !== password2.value) fail(password2, 'Passwords do not match.');
 
-  if (form.dataset.form === 'register' && form.elements.password.value.length < 8) {
-    return showError(form, 'Password must be at least 8 characters.', [form.elements.password]), false;
-  }
-  if (form.dataset.form === 'register' && form.elements.password.value !== form.elements.password2.value) {
-    return showError(form, 'Passwords do not match.', [form.elements.password2]), false;
-  }
-  return true;
+  if (invalid.length) invalid[0].focus();
+  return invalid.length === 0;
 };
 
 const openAuth = (mode) => {
@@ -121,7 +140,7 @@ document.querySelectorAll('[data-gate]').forEach((button) => {
 });
 
 authForms.forEach((form) => {
-  form.addEventListener('input', () => clearErrors(form));
+  form.addEventListener('input', (e) => clearField(e.target));
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     clearErrors(form);
