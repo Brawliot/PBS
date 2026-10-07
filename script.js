@@ -262,6 +262,7 @@
       idea: idea.value.trim(),
       ...Object.fromEntries(ranges.map((range) => [range.id, Number(range.value)])),
       answers,
+      final: rounds + 1 >= MAX_ROUNDS,
     };
     let failed = false;
 
