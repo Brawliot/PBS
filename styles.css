@@ -13,11 +13,14 @@ body {
   font-family: "Inter", sans-serif;
   color: var(--black);
   background: var(--white);
-  overflow-x: hidden;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 /* Header */
-.header { padding: 32px 40px; }
+.header { padding: 2.5vh 40px; }
 .nav { display: flex; justify-content: flex-end; align-items: center; gap: 32px; }
 .nav__login { color: var(--dark); text-decoration: none; font-size: 18px; }
 .btn {
@@ -29,7 +32,7 @@ body {
 /* Hero */
 .hero {
   display: flex; flex-direction: column; align-items: center;
-  text-align: center; padding: 60px 20px 0;
+  text-align: center; padding: 3vh 20px 0;
 }
 .hero__title {
   font-size: clamp(72px, 11vw, 128px); font-weight: 800;
@@ -39,12 +42,12 @@ body {
   font-family: "Open Sans", sans-serif; font-size: clamp(22px, 3vw, 34px);
   color: var(--gray); letter-spacing: -0.04em; margin-top: 8px;
 }
-.hero__prompt { font-size: clamp(20px, 2.6vw, 30px); margin-top: 130px; }
+.hero__prompt { font-size: clamp(20px, 2.6vw, 30px); margin-top: 6vh; }
 
 /* Search */
-.search { width: 100%; max-width: 1070px; margin-top: 50px; }
+.search { width: 100%; max-width: 1070px; margin-top: 3vh; }
 .search__bar {
-  display: flex; align-items: center; height: 124px; padding: 0 28px 0 24px;
+  display: flex; align-items: center; height: 11vh; min-height: 64px; padding: 0 28px 0 24px;
   background: var(--white); border: 1px solid var(--border); border-radius: 62px;
   position: relative; z-index: 1;
 }
@@ -57,8 +60,8 @@ body {
 
 /* Filters */
 .filters {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 40px 195px;
-  margin: -1px 19px 0; padding: 28px 22px 40px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 3vh 195px;
+  margin: -1px 19px 0; padding: 2vh 22px 3vh;
   border: 1px solid var(--border); border-top: 0; border-radius: 0 0 8px 8px;
   text-align: left;
 }
@@ -80,10 +83,10 @@ body {
 
 /* Giant wordmark */
 .giant {
-  display: flex; justify-content: center; margin-top: 60px;
+  flex: 1; min-height: 0; margin-top: 2vh;
+  display: flex; justify-content: center; align-items: flex-start;
   font-size: 40vw; font-weight: 800; line-height: .75;
   letter-spacing: -0.07em; white-space: nowrap; overflow: hidden;
-  height: 30vw;
 }
 .giant__letter { color: var(--black); }
 .giant__letter--gray { color: var(--gray); }
@@ -92,5 +95,6 @@ body {
 @media (max-width: 800px) {
   .filters { grid-template-columns: 1fr; gap: 28px; margin: -1px 8px 0; }
   .search__bar { height: 80px; border-radius: 40px; }
-  .hero__prompt { margin-top: 60px; }
+  .hero__prompt { margin-top: 3vh; }
+  .search__bar { height: 9vh; }
 }
