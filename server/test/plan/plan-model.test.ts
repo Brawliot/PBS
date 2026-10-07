@@ -6,6 +6,7 @@ import {
   MAX_ID,
   MAX_NAME,
   MAX_NOTE,
+  MAX_OUTPUT_QUESTIONS,
   MAX_STEP_TEXT,
   MAX_TITLE,
   PlanSchema,
@@ -29,7 +30,12 @@ const step = (overrides: Record<string, unknown> = {}) => ({
   taskId: "t1",
   departmentId: "legal",
   text: "Choose a legal form",
-  done: false,
+  executor: "user",
+  mode: "online",
+  evidence: { kind: "none" },
+  effortHours: 2,
+  waitDays: 0,
+  status: "pending",
   origin: { kind: "ai" },
   confidence: 60,
   ...overrides,
@@ -229,6 +235,14 @@ describe("relations", () => {
     }
   });
 
+  test("feeds exists only at step level", () => {
+    assert.deepEqual(issues(plan({ relations: [relation({ level: "step", type: "feeds" })] })), []);
+    for (const level of ["task", "phase"]) {
+      rejectedAt(plan({ relations: [relation({ level, type: "feeds" })] }), "relations.0.type");
+    }
+    rejectedAt(plan({ relations: [departmentRelation({ kind: "catalog", id: "data" })].map((r) => ({ ...r, type: "feeds" })) }), "relations.0.type");
+  });
+
   test("an element cannot relate to itself", () => {
     rejectedAt(plan({ relations: [relation({ from: "a", to: "a" })] }), "relations.0.to");
   });
@@ -264,6 +278,122 @@ describe("relations", () => {
       { level: "department", from: "legal", to: "product", type: "blocks", aspect: { kind: "catalog", id: "product-spec" } },
     ];
     assert.deepEqual(issues(plan({ relations })), []);
+  });
+});
+
+describe("step executor, mode and evidence", () => {
+  const ai = (overrides: Record<string, unknown> = {}) =>
+    step({ executor: "ai", mode: undefined, ...overrides });
+  const third = (overrides: Record<string, unknown> = {}) =>
+    step({ executor: "third_party", mode: undefined, ...overrides });
+  const withStep = (value: Record<string, unknown>) => plan({ steps: [value] });
+
+  test("each executor is accepted and any other is rejected", () => {
+    assert.deepEqual(issues(withStep(step())), []);
+    assert.deepEqual(issues(withStep(ai())), []);
+    assert.deepEqual(issues(withStep(third())), []);
+    rejectedAt(withStep(step({ executor: "robot" })), "steps.0.executor");
+  });
+
+  test("a user step needs a mode, online or in_person", () => {
+    assert.deepEqual(issues(withStep(step({ mode: "online" }))), []);
+    assert.deepEqual(issues(withStep(step({ mode: "in_person" }))), []);
+    rejectedAt(withStep(step({ mode: undefined })), "steps.0.mode");
+    rejectedAt(withStep(step({ mode: "phone" })), "steps.0.mode");
+  });
+
+  test("an AI or third-party step cannot have a mode", () => {
+    rejectedAt(withStep(ai({ mode: "online" })), "steps.0.mode");
+    rejectedAt(withStep(third({ mode: "in_person" })), "steps.0.mode");
+  });
+
+  test("evidence accepts its four kinds", () => {
+    for (const kind of ["none", "written_confirmation", "receipt"]) {
+      assert.deepEqual(issues(withStep(step({ evidence: { kind } }))), [], kind);
+    }
+    assert.deepEqual(issues(withStep(ai({ evidence: { kind: "accepted_output" } }))), []);
+    rejectedAt(withStep(step({ evidence: { kind: "photo" } })), "steps.0.evidence.kind");
+    rejectedAt(withStep(step({ evidence: { kind: "none", url: "x" } })), "steps.0.evidence");
+  });
+
+  test("accepted_output is evidence only for AI steps", () => {
+    rejectedAt(withStep(step({ evidence: { kind: "accepted_output" } })), "steps.0.evidence.kind");
+    rejectedAt(withStep(third({ evidence: { kind: "accepted_output" } })), "steps.0.evidence.kind");
+  });
+});
+
+describe("step effort, wait and status", () => {
+  const withStep = (overrides: Record<string, unknown>) => plan({ steps: [step(overrides)] });
+
+  test("effortHours and waitDays are finite numbers from 0, with no upper bound", () => {
+    for (const value of [0, 0.5, 1_000_000]) {
+      assert.deepEqual(issues(withStep({ effortHours: value, waitDays: value })), [], String(value));
+    }
+    for (const value of [-0.1, -1, Number.NaN, Number.POSITIVE_INFINITY, "2", null]) {
+      rejectedAt(withStep({ effortHours: value }), "steps.0.effortHours");
+      rejectedAt(withStep({ waitDays: value }), "steps.0.waitDays");
+    }
+  });
+
+  test("effort and wait are both required and independent", () => {
+    const { effortHours: _e, ...noEffort } = step();
+    const { waitDays: _w, ...noWait } = step();
+    rejectedAt(plan({ steps: [noEffort] }), "steps.0.effortHours");
+    rejectedAt(plan({ steps: [noWait] }), "steps.0.waitDays");
+    const parsed = parsePlan(withStep({ effortHours: 3, waitDays: 7 })).steps[0];
+    assert.deepEqual([parsed.effortHours, parsed.waitDays], [3, 7]);
+  });
+
+  test("status accepts exactly the eight values and the old done flag is gone", () => {
+    const all = ["pending", "ready", "running", "waiting_user", "waiting_third_party", "blocked", "done", "rejected"];
+    for (const status of all) assert.deepEqual(issues(withStep({ status })), [], status);
+    rejectedAt(withStep({ status: "todo" }), "steps.0.status");
+    rejectedAt(withStep({ done: false }), "steps.0");
+  });
+});
+
+describe("step output", () => {
+  const output = (overrides: Record<string, unknown> = {}) => ({
+    state: "draft",
+    summary: "A draft",
+    questions: [],
+    ...overrides,
+  });
+  const aiStep = (value: unknown) =>
+    plan({ steps: [step({ executor: "ai", mode: undefined, output: value })] });
+
+  test("is optional, and an AI step may carry it", () => {
+    assert.deepEqual(issues(aiStep(undefined)), []);
+    assert.deepEqual(issues(aiStep(output())), []);
+    assert.deepEqual(issues(aiStep(output({ state: "confirmed", questions: ["Which city?"], documentRef: "doc1" }))), []);
+  });
+
+  test("only an AI step can have one", () => {
+    rejectedAt(plan({ steps: [step({ output: output() })] }), "steps.0.output");
+    rejectedAt(plan({ steps: [step({ executor: "third_party", mode: undefined, output: output() })] }), "steps.0.output");
+  });
+
+  test("state is draft or confirmed", () => {
+    rejectedAt(aiStep(output({ state: "final" })), "steps.0.output.state");
+  });
+
+  test("summary is required, trimmed text bounded by MAX_STEP_TEXT", () => {
+    assert.deepEqual(issues(aiStep(output({ summary: "a".repeat(MAX_STEP_TEXT) }))), []);
+    rejectedAt(aiStep(output({ summary: "a".repeat(MAX_STEP_TEXT + 1) })), "steps.0.output.summary");
+    rejectedAt(aiStep(output({ summary: "  " })), "steps.0.output.summary");
+  });
+
+  test("questions are bounded in count and each is non-empty text", () => {
+    const many = (count: number) => Array.from({ length: count }, () => "Q");
+    assert.deepEqual(issues(aiStep(output({ questions: many(MAX_OUTPUT_QUESTIONS) }))), []);
+    rejectedAt(aiStep(output({ questions: many(MAX_OUTPUT_QUESTIONS + 1) })), "steps.0.output.questions");
+    rejectedAt(aiStep(output({ questions: [" "] })), "steps.0.output.questions.0");
+    rejectedAt(aiStep(output({ questions: undefined })), "steps.0.output.questions");
+  });
+
+  test("documentRef must be a valid id, and unknown keys are rejected", () => {
+    rejectedAt(aiStep(output({ documentRef: "Not An Id" })), "steps.0.output.documentRef");
+    rejectedAt(aiStep(output({ extra: 1 })), "steps.0.output");
   });
 });
 

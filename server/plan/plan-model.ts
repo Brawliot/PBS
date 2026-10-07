@@ -14,6 +14,8 @@ export const MAX_TITLE = 200;
 export const MAX_STEP_TEXT = 1000;
 export const MAX_NOTE = 500;
 export const MAX_CONFIDENCE = 100;
+// Unmeasured: most questions a draft output can carry, tune with real plans
+export const MAX_OUTPUT_QUESTIONS = 20;
 // Upper bounds per collection: unmeasured estimates, tune with real plans
 export const LIMITS = { departments: 20, phases: 50, tasks: 500, steps: 5000, relations: 10_000 };
 
@@ -66,16 +68,62 @@ const TaskSchema = z
     { error: "Secondary departments must be unique and not include the primary one", path: ["secondaryDepartmentIds"] },
   );
 
-const StepSchema = z.strictObject({
-  id: IdSchema,
-  taskId: IdSchema,
-  departmentId: IdSchema,
-  text: text(MAX_STEP_TEXT),
-  done: z.boolean(),
-  origin: OriginSchema,
-  confidence: ConfidenceSchema,
-  feedback: FeedbackSchema.optional(),
+export const STEP_EXECUTORS = ["ai", "user", "third_party"] as const;
+export const STEP_STATUSES = [
+  "pending",
+  "ready",
+  "running",
+  "waiting_user",
+  "waiting_third_party",
+  "blocked",
+  "done",
+  "rejected",
+] as const;
+
+/** What a person or an AI hands over: a draft stays private to its step until confirmed */
+const OutputSchema = z.strictObject({
+  state: z.enum(["draft", "confirmed"]),
+  summary: text(MAX_STEP_TEXT),
+  questions: z.array(text(MAX_STEP_TEXT)).max(MAX_OUTPUT_QUESTIONS),
+  documentRef: IdSchema.optional(),
 });
+
+const EvidenceSchema = z.strictObject({
+  kind: z.enum(["none", "accepted_output", "written_confirmation", "receipt"]),
+});
+
+const StepSchema = z
+  .strictObject({
+    id: IdSchema,
+    taskId: IdSchema,
+    departmentId: IdSchema,
+    text: text(MAX_STEP_TEXT),
+    executor: z.enum(STEP_EXECUTORS),
+    mode: z.enum(["online", "in_person"]).optional(),
+    evidence: EvidenceSchema,
+    // Work and waiting are kept apart: effort is work, wait is time without work
+    effortHours: z.number().min(0),
+    waitDays: z.number().min(0),
+    status: z.enum(STEP_STATUSES),
+    output: OutputSchema.optional(),
+    origin: OriginSchema,
+    confidence: ConfidenceSchema,
+    feedback: FeedbackSchema.optional(),
+  })
+  .superRefine((step, ctx) => {
+    if (step.executor === "user" && step.mode === undefined) {
+      ctx.addIssue({ code: "custom", message: "A user step needs a mode", path: ["mode"] });
+    }
+    if (step.executor !== "user" && step.mode !== undefined) {
+      ctx.addIssue({ code: "custom", message: "Only a user step has a mode", path: ["mode"] });
+    }
+    if (step.evidence.kind === "accepted_output" && step.executor !== "ai") {
+      ctx.addIssue({ code: "custom", message: "Accepted output is evidence only for AI steps", path: ["evidence", "kind"] });
+    }
+    if (step.output !== undefined && step.executor !== "ai") {
+      ctx.addIssue({ code: "custom", message: "Only an AI step has an output", path: ["output"] });
+    }
+  });
 
 /** What a department depends on another for: a catalog entry, or free text when nothing fits */
 const AspectSchema = z.discriminatedUnion("kind", [
@@ -84,14 +132,16 @@ const AspectSchema = z.discriminatedUnion("kind", [
 ]);
 
 // "A depends on B" is stored as "B blocks A": only one direction is kept
-const link = { from: IdSchema, to: IdSchema, type: z.enum(["blocks", "follows"]) };
+const link = { from: IdSchema, to: IdSchema };
+const ORDER_TYPES = ["blocks", "follows"] as const;
 
 const RelationSchema = z
   .discriminatedUnion("level", [
-    z.strictObject({ ...link, level: z.literal("step") }),
-    z.strictObject({ ...link, level: z.literal("task") }),
-    z.strictObject({ ...link, level: z.literal("phase") }),
-    z.strictObject({ ...link, level: z.literal("department"), aspect: AspectSchema }),
+    // "feeds": the target step uses the result of the source (an AI step). Step level only.
+    z.strictObject({ ...link, level: z.literal("step"), type: z.enum([...ORDER_TYPES, "feeds"]) }),
+    z.strictObject({ ...link, level: z.literal("task"), type: z.enum(ORDER_TYPES) }),
+    z.strictObject({ ...link, level: z.literal("phase"), type: z.enum(ORDER_TYPES) }),
+    z.strictObject({ ...link, level: z.literal("department"), type: z.enum(ORDER_TYPES), aspect: AspectSchema }),
   ])
   .refine((relation) => relation.from !== relation.to, {
     error: "A relation needs two different elements",
@@ -123,6 +173,9 @@ export type Department = Plan["departments"][number];
 export type Phase = Plan["phases"][number];
 export type Task = Plan["tasks"][number];
 export type Step = Plan["steps"][number];
+export type StepStatus = Step["status"];
+export type StepExecutor = Step["executor"];
+export type StepOutput = NonNullable<Step["output"]>;
 export type Relation = Plan["relations"][number];
 export type Origin = Task["origin"];
 export type Aspect = Extract<Relation, { level: "department" }>["aspect"];

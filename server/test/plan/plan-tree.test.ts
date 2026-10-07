@@ -9,7 +9,8 @@ const t = (id: string, phaseId: string, primary: string, secondary: string[] = [
   title: id, status: "todo", origin, confidence: 100,
 });
 const s = (id: string, taskId: string, departmentId: string) => ({
-  id, taskId, departmentId, text: id, done: false, origin, confidence: 100,
+  id, taskId, departmentId, text: id, executor: "third_party", evidence: { kind: "none" }, effortHours: 1, waitDays: 0,
+  status: "pending", origin, confidence: 100,
 });
 
 // legal: t1 (f1), t3 (f2) | product: t2 (f1), t4 (f1) | finance: no task of its own
