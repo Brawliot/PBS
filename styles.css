@@ -142,6 +142,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .hero__loader {
   /* Taller than the title so the canvas does not shrink the text to fit */
   position: absolute; inset: -20px 0; opacity: 0; visibility: hidden;
+  font-size: var(--title-size); font-weight: 800; letter-spacing: -0.08em; /* read by loader.js */
   /* The title's trailing letter-spacing (-0.08em) pushes its ink right by half of it; the canvas centres exact ink */
   transform: translate(calc(var(--title-size) * 0.04), 0);
   transition: opacity 0.4s ease, visibility 0s 0.4s, transform 0.5s ease;
@@ -392,18 +393,20 @@ body.has-result .hero { display: none; }
   to { opacity: 0; transform: translate(-50%, calc(-50% + 8px)); }
 }
 
-/* Loader shown on its own at the screen centre, same place and size as the sending loader */
-.plan-loader {
+/* Shared loader (loader.js), shown on its own at the screen centre, same place and size as the sending loader.
+   Its font settings are what loader.js reads to draw the wordmark. */
+.loader {
   --title-size: clamp(72px, 11vw, 128px);
+  font-size: var(--title-size); font-weight: 800; letter-spacing: -0.08em;
   position: fixed; left: 50%; top: 50%; z-index: 6; pointer-events: none; /* below the result (7) */
   width: min(1070px, calc(100vw - 40px)); height: calc(var(--title-size) + 40px);
   transform: translate(calc(-50% + var(--title-size) * 0.04), -50%);
   opacity: 0; visibility: hidden;
   transition: opacity 0.4s ease, visibility 0s 0.4s;
 }
-.plan-loader.tech-text { position: fixed; width: min(1070px, calc(100vw - 40px)); height: calc(var(--title-size) + 40px); }
-.plan-loader.is-visible { opacity: 1; visibility: visible; transition: opacity 0.4s ease, visibility 0s; }
-.plan-loader .tech-text-canvas { position: absolute; inset: 0; }
+.loader.tech-text { position: fixed; width: min(1070px, calc(100vw - 40px)); height: calc(var(--title-size) + 40px); }
+.loader.is-visible { opacity: 1; visibility: visible; transition: opacity 0.4s ease, visibility 0s; }
+.loader .tech-text-canvas { position: absolute; inset: 0; }
 
 /* ==========================================================================
    Toast notifications
@@ -755,7 +758,7 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
   }
 
   /* Plan loader */
-  .plan-loader {
+  .loader {
     --title-size: clamp(48px, 12vw, 72px);
     width: calc(100vw - 24px);
   }

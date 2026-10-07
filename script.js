@@ -293,23 +293,6 @@
     throw userError('The request took too long. Please try again.', true);
   };
 
-  // Same typography as the page title (not the giant background wordmark)
-  const loaderOptions = () => {
-    const titleStyle = getComputedStyle(document.querySelector('.hero__title'));
-    return {
-      text: document.querySelector('.hero__title').textContent,
-      fontWeight: Number(titleStyle.fontWeight),
-      fontSize: parseFloat(titleStyle.fontSize),
-      letterSpacing: parseFloat(titleStyle.letterSpacing) / parseFloat(titleStyle.fontSize),
-      reveal: 'letter',
-      dashLength: 4,
-      dashGap: 2,
-      specks: 15,
-      color: '#000000',
-      accentColor: '#272727',
-    };
-  };
-
   const startLoading = () => {
     sending = true;
     search.setAttribute('aria-busy', 'true');
@@ -320,7 +303,7 @@
     // The search block contracts towards the same point the loader travels to
     search.style.setProperty('--origin-y', `${innerHeight / 2 - search.getBoundingClientRect().top}px`);
     document.body.classList.add('is-loading');
-    loader = window.createTechText(loaderSlot, loaderOptions());
+    loader = Loader.mount(loaderSlot);
   };
 
   const stopLoading = async () => {
@@ -340,6 +323,9 @@
   let current = null; // question on screen
   let total = 0;      // number of questions in this session
   let analysis = null; // phase 2 analysis from the first response
+  let jevResult = null; // Jev analysis from the latest response
+  let report = null;   // everything the plan page receives (see REPORT_KEY)
+  const REPORT_KEY = 'mando.report'; // sessionStorage key read by plan.html
   const CLAIM_KEYS = ['subsector', 'location', 'target_customer', 'value_proposition', 'revenue_model', 'stage', 'competition'];
 
   const resetFlow = () => {
@@ -358,9 +344,12 @@
   };
 
   const submitIdea = async () => {
-    const payload = {
+    const input = {
       idea: idea.value.trim(),
       ...Object.fromEntries(ranges.map((range) => [range.id, Number(range.value)])),
+    };
+    const payload = {
+      ...input,
       answers,
       final: answers.length > 0,
       // The final request validates the analysis, so it needs the values the first one produced
@@ -381,8 +370,10 @@
         answers.length === 0 ? wait(EXIT_MS + MIN_LOADER_MS) : null,
       ]);
       analysis = result.phase2 ?? analysis;
+      jevResult = result.jev ?? jevResult;
       profile = result.profile ?? null;
       validation = result.validation ?? null;
+      if (profile) report = { input, answers, jev: jevResult, phase2: analysis, profile, validation };
       if (!profile) {
         queue = result.phase2?.questions ?? [];
         total = result.questionTotal ?? queue.length;
@@ -540,42 +531,35 @@
     detailDialog.showModal();
     syncModalState();
   });
-  // Build my plan: the loader appears where it always does, then the result leaves
+  // Build my plan: the loader appears where it always does, the result leaves and the plan page opens
   const PLAN_LOADER_MS = 150; // head start of the loader (it fades in behind the result)
   const RESULT_OUT_MS = 400;  // result leaves (keep in sync with CSS)
-  const PLAN_PLACEHOLDER_MS = 3000; // placeholder time before returning
-  const planLoaderSlot = document.querySelector('.plan-loader');
   let planning = false;
-  let planLoaderInstance = null;
 
   document.getElementById('result-plan').addEventListener('click', async () => {
     if (planning) return;
     planning = true;
     resultSection.inert = true;
+    try {
+      sessionStorage.setItem(REPORT_KEY, JSON.stringify(report));
+    } catch {
+      planning = false;
+      resultSection.inert = false;
+      showToast('Could not open the plan. Please try again.');
+      return;
+    }
     status.textContent = 'Building your plan…';
 
-    planLoaderInstance = window.createTechText(planLoaderSlot, loaderOptions());
-    planLoaderSlot.classList.add('is-visible');
+    Loader.show();
     await wait(PLAN_LOADER_MS);
-
     resultSection.classList.add('is-leaving');
     await wait(RESULT_OUT_MS);
-    resultSection.hidden = true;
-    // TODO: replace this placeholder with the real plan request
-    await wait(PLAN_PLACEHOLDER_MS);
+    location.assign('/plan');
+  });
 
-    // Return sequence: loader fades out and is destroyed, result comes back
-    planLoaderSlot.classList.remove('is-visible');
-    await wait(400); // transition duration
-    if (planLoaderInstance) {
-      planLoaderInstance.destroy();
-      planLoaderInstance = null;
-    }
-    resultSection.classList.remove('is-leaving');
-    resultSection.hidden = false;
-    resultSection.inert = false;
-    planning = false;
-    showToast('Planning is not available yet.');
+  // Coming back with the browser's back button must not show a stale loader
+  window.addEventListener('pageshow', (e) => {
+    if (e.persisted) location.reload();
   });
 
   search.addEventListener('submit', (e) => {

@@ -34,7 +34,7 @@ const MIME: Record<string, string> = {
 };
 
 // Only these front-end files are public (the repo root also holds .git, server/, etc.)
-const STATIC_FILES = new Set(["/plan.html", "/script.js", "/styles.css", "/tech-text.js"]);
+const STATIC_FILES = new Set(["/plan.html", "/loader.js", "/script.js", "/styles.css", "/tech-text.js"]);
 const isPublic = (path: string) =>
   STATIC_FILES.has(path) || /^\/fonts\/[\w.-]+$/.test(path);
 
