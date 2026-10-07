@@ -126,7 +126,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
    - the subtitle fades away,
    - the title turns into the loader (same typography, drawn exactly on top of it),
    - the loader travels to the centre of the screen,
-   - TODO: the search block exit animation goes here (pending design). */
+   - the search block dissolves (see "Search block exit" below). */
 .hero__title-wrap { z-index: 6; } /* the travelling loader stays above the search bar */
 .hero__title { transition: opacity 0.2s ease 0.35s; }
 .hero__subtitle { transition: opacity 0.35s ease, transform 0.35s ease; }
@@ -208,6 +208,48 @@ body.is-loading /* =============================================================
 .range[aria-invalid="true"] { outline: 2px solid var(--danger); outline-offset: 4px; }
 
 /* ==========================================================================
+   Search block exit (while sending): "blueprint dissolve"
+   1. the block loses its fill and its border turns into a dashed outline,
+   2. the contents lift, blur and fade, top to bottom,
+   3. the outline contracts towards the screen centre and fades as the loader arrives.
+   Returning (request failed) plays it backwards; the base rules carry the return timing.
+   ========================================================================== */
+.search__bar, .filters {
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.search__bar::after, .filters::after {
+  content: ""; position: absolute; inset: -1px; border-radius: inherit;
+  border: 1px dashed var(--border-strong); pointer-events: none;
+  opacity: 0; transition: opacity 0.2s ease;
+}
+.filters::after { border-top: 0; border-radius: 0 0 14px 14px; } /* its top edge hides behind the bar */
+
+.search__input, .search__submit, .filter {
+  transition: opacity 0.3s ease 0.3s, transform 0.3s ease 0.3s, filter 0.3s ease 0.3s;
+}
+.search {
+  transform-origin: 50% var(--origin-y, 50%); /* --origin-y is set from script.js: the screen centre */
+  transition: transform 0.5s ease 0.25s, opacity 0.4s ease 0.25s;
+}
+
+body.is-loading .search__bar { background: transparent; border-color: transparent; }
+body.is-loading .filters { background: transparent; border-color: transparent; box-shadow: none; }
+body.is-loading .search__bar::after, body.is-loading .filters::after { opacity: 1; transition-delay: 0.05s; }
+
+body.is-loading .search__input, body.is-loading .search__submit,
+body.is-loading .filter {
+  opacity: 0; transform: translateY(-8px); filter: blur(4px);
+}
+body.is-loading .search__input, body.is-loading .search__submit { transition-delay: 0.1s; }
+body.is-loading .filter:nth-child(-n + 2) { transition-delay: 0.16s; }
+body.is-loading .filter:nth-child(n + 3) { transition-delay: 0.22s; }
+
+body.is-loading .search {
+  transform: scale(0.9); opacity: 0;
+  transition: transform 0.4s cubic-bezier(0.65, 0, 0.35, 1) 0.3s, opacity 0.4s ease 0.3s;
+}
+
+/* ==========================================================================
    TechText canvas (loader)
    ========================================================================== */
 .tech-text { position: relative; width: 100%; height: 100%; touch-action: pan-y; user-select: none; }
@@ -284,5 +326,6 @@ body.modal-open .header, body.modal-open .hero { filter: blur(2px); }
   *, *::before, *::after { transition-duration: 0.01ms !important; transition-delay: 0s !important; }
   .btn:hover, .btn:active, .modal__close:hover, .modal__close:active,
   .search__submit:hover svg, .search__submit:active svg,
-  body.is-loading .hero__subtitle { transform: none; }
+  body.is-loading .hero__subtitle, body.is-loading .search,
+  body.is-loading .search__input, body.is-loading .search__submit, body.is-loading .filter { transform: none; filter: none; }
 }

@@ -206,8 +206,9 @@
     // Distance from the title to the centre of the screen, where the loader ends up
     const slot = loaderSlot.getBoundingClientRect();
     loaderSlot.style.setProperty('--loader-dy', `${innerHeight / 2 - (slot.top + slot.height / 2)}px`);
+    // The search block contracts towards the same point the loader travels to
+    search.style.setProperty('--origin-y', `${innerHeight / 2 - search.getBoundingClientRect().top}px`);
     document.body.classList.add('is-loading');
-    // TODO: trigger the search block exit animation here (pending design)
     // Same typography as the page title (not the giant background wordmark)
     const titleStyle = getComputedStyle(document.querySelector('.hero__title'));
     loader = window.createTechText(loaderSlot, {
