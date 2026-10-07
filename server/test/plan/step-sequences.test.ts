@@ -12,7 +12,7 @@ const BASE = Date.parse("2026-10-07T10:00:00Z");
 
 const ACTIONS: StepAction[] = [
   "launch", "attach_output", "answer", "confirm_output", "reject_output",
-  "submit_proof", "wait_third_party", "third_party_responded", "reopen",
+  "submit_proof", "wait_third_party", "third_party_responded", "reopen", "change_executor",
 ];
 
 const deepFreeze = <T>(value: T): T => {
@@ -61,6 +61,17 @@ function payloadFor(random: Random, action: StepAction, step: Step, counter: num
       return { answers: (step.outputs?.at(-1)?.questions ?? []).map((_, i) => `Answer ${counter}.${i}`) };
     case "submit_proof":
       return { text: `Proof ${counter}` };
+    case "change_executor": {
+      // Mostly a sensible change; now and then the same executor or a wrong mode
+      const target = random.chance(0.1) ? step.executor : random.pick((["ai", "user", "third_party"] as const).filter((e) => e !== step.executor));
+      const modeWrong = random.chance(0.1);
+      const needsEvidence = step.evidence.kind === "accepted_output" && target !== "ai";
+      return {
+        executor: target,
+        ...((target === "user") !== modeWrong && { mode: random.pick(["online", "in_person"]) }),
+        ...((needsEvidence || random.chance(0.2)) && { evidence: { kind: random.pick(target === "ai" ? ["none", "accepted_output", "receipt"] : ["none", "written_confirmation", "receipt"]) } }),
+      };
+    }
     default:
       return undefined;
   }
@@ -74,6 +85,8 @@ describe("random sequences of actions", () => {
     const reached = new Set<string>();
     let counter = 0;
     let finished = 0;
+    let changes = 0;
+    let kept = 0;
 
     for (let sequence = 0; sequence < SEQUENCES; sequence += 1) {
       let step = newStep(random);
@@ -83,13 +96,14 @@ describe("random sequences of actions", () => {
         const action = random.pick(ACTIONS);
         const actor = random.chance(0.85) ? "user" : random.pick(["ai", "system"] as const);
         const readiness = random.pick(["ready", "ready", "blocked", "not_applicable"] as const);
+        const feedsOthers = random.chance(0.3);
         // The clock moves forward, and now and then jumps back
         minutes += random.int(4);
         const at = new Date(BASE + (random.chance(0.05) ? minutes - 30 : minutes) * 60_000).toISOString();
         const payload = payloadFor(random, action, step, counter);
 
         const before = structuredClone(step);
-        const result = applyStepAction(deepFreeze(structuredClone(step)), action, { now: () => at, actor, readiness, payload });
+        const result = applyStepAction(deepFreeze(structuredClone(step)), action, { now: () => at, actor, readiness, feedsOthers, payload });
         assert.deepEqual(step, before, "the step received must not change");
 
         if (!result.ok) {
@@ -106,7 +120,20 @@ describe("random sequences of actions", () => {
         assert.equal(result.step.status, result.event.to, label);
         assert.equal(result.event.from, step.status, label);
         assert.equal(result.event.actor, actor, label);
-        reached.add(`${step.executor} ${result.step.status}`);
+        reached.add(`${result.step.executor} ${result.step.status}`);
+        if (action === "change_executor") {
+          // The change keeps everything but the executor (and the mode that goes with it)
+          const { executor, mode, events, ...restAfter } = result.step;
+          const { executor: oldExecutor, mode: oldMode, events: oldEvents, evidence: oldEvidence, ...restBefore } = step;
+          const { evidence, ...restAfterNoEvidence } = restAfter;
+          assert.deepEqual(restAfterNoEvidence, restBefore, label);
+          assert.notEqual(executor, oldExecutor, label);
+          assert.deepEqual(result.event, { at, actor, action, from: "not_started", to: "not_started", executorFrom: oldExecutor, executorTo: executor }, label);
+          assert.equal(mode !== undefined, executor === "user", label);
+          if (feedsOthers) assert.equal(executor, "ai", `${label}: a step in use stayed AI`);
+          if (step.outputs?.length) kept += 1;
+          changes += 1;
+        }
         step = result.step;
         if (step.status === "done") {
           finished += 1;
@@ -128,6 +155,8 @@ describe("random sequences of actions", () => {
       "third_party waiting_third_party", "third_party done", "third_party rejected", "third_party not_started",
     ];
     for (const key of expectedReached) assert.ok(reached.has(key), `${key} was never reached`);
+    assert.ok(changes > 100, `only ${changes} executor changes`);
+    assert.ok(kept > 0, "no change kept old outputs");
     assert.ok(finished > 50, `only ${finished} steps got to done`);
   });
 

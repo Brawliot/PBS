@@ -1,8 +1,9 @@
 /**
  * Applies one action to a step. Pure: it never changes the step it receives, it returns a
  * new one with the event added, or a closed error code. Status changes go through
- * canTransition, so the table lives in one place. Only the person acts, except for
- * delivering an AI output: a human is always in the loop.
+ * canTransition, so the table lives in one place; changing the executor is the exception,
+ * because it keeps the status. Only the person acts, except for delivering an AI output
+ * to an AI step: a human is always in the loop.
  */
 
 import { z } from "zod";
@@ -14,6 +15,7 @@ import {
   StepSchema,
   type Step,
   type StepEvent,
+  type StepExecutor,
   type StepOutput,
   type StepStatus,
 } from "./plan-model.js";
@@ -29,6 +31,8 @@ export const STEP_ACTION_ERRORS = [
   "output_not_confirmed",
   "invalid_payload",
   "invalid_result",
+  "executor_in_use",
+  "invalid_executor_change",
 ] as const;
 
 export type StepActionError = (typeof STEP_ACTION_ERRORS)[number];
@@ -41,6 +45,8 @@ export interface ActionContext {
   actor: StepActor;
   /** Readiness of the step in its plan, from step-graph */
   readiness: Readiness;
+  /** Whether any step uses this one's result (feedsAnyStep): then it must stay an AI step */
+  feedsOthers: boolean;
   /** What the action carries: see PAYLOADS. Actions without payload take none. */
   payload?: unknown;
 }
@@ -50,7 +56,7 @@ export type ActionResult =
   | { ok: false; code: StepActionError };
 
 /** The status each action leads to */
-const TARGET: Record<StepAction, StepStatus> = {
+const TARGET: Record<Exclude<StepAction, "change_executor">, StepStatus> = {
   launch: "running",
   attach_output: "waiting_user",
   answer: "running",
@@ -73,9 +79,10 @@ const STARTS_FROM: Partial<Record<StepAction, StepStatus>> = {
   confirm_output: "waiting_user",
   third_party_responded: "waiting_third_party",
   reopen: "rejected",
+  change_executor: "not_started",
 };
 
-/** Actions that do not need the person: delivering an AI output. Every other one is theirs. */
+/** Actions that do not need the person: delivering an AI output, and only to an AI step. Every other one is theirs. */
 const AUTOMATIC: readonly StepAction[] = ["attach_output"];
 
 const noPayload = z.undefined();
@@ -94,6 +101,12 @@ const PAYLOADS: Record<StepAction, z.ZodType> = {
   wait_third_party: noPayload,
   third_party_responded: noPayload,
   reopen: noPayload,
+  // Mode only for a user step; evidence only when it should change (or no longer fits)
+  change_executor: z.strictObject({
+    executor: StepSchema.shape.executor,
+    mode: StepSchema.shape.mode,
+    evidence: StepSchema.shape.evidence.optional(),
+  }),
 };
 
 const fail = (code: StepActionError): ActionResult => ({ ok: false, code });
@@ -110,7 +123,7 @@ const withLatest = (outputs: StepOutput[], change: Partial<StepOutput>): StepOut
   outputs.map((output, index) => (index === outputs.length - 1 ? { ...output, ...change } : output));
 
 export function applyStepAction(step: Step, action: StepAction, context: ActionContext): ActionResult {
-  if (context.actor !== "user" && !AUTOMATIC.includes(action)) return fail("wrong_actor");
+  if (context.actor !== "user" && (!AUTOMATIC.includes(action) || step.executor !== "ai")) return fail("wrong_actor");
   if (action === "launch" && context.readiness !== "ready") return fail("not_ready");
 
   const startsFrom = STARTS_FROM[action];
@@ -119,7 +132,16 @@ export function applyStepAction(step: Step, action: StepAction, context: ActionC
   const parsed = PAYLOADS[action].safeParse(context.payload);
   if (!parsed.success) return fail("invalid_payload");
   // Already checked against the schema of this action; each case reads only its own fields
-  const payload = parsed.data as { summary: string; documentRef?: string; questions: string[]; answers: string[]; text: string };
+  const payload = parsed.data as {
+    summary: string;
+    documentRef?: string;
+    questions: string[];
+    answers: string[];
+    text: string;
+    executor: StepExecutor;
+    mode?: Step["mode"];
+    evidence?: Step["evidence"];
+  };
 
   const at = context.now();
   const outputs = step.outputs ?? [];
@@ -165,17 +187,36 @@ export function applyStepAction(step: Step, action: StepAction, context: ActionC
     case "submit_proof":
       candidate = { ...step, proof: { text: payload.text, at, by: "user" } };
       break;
+    case "change_executor": {
+      const { executor, mode, evidence } = payload;
+      // The request must make sense: a real change, a mode for a user step only, evidence that fits
+      if (executor === step.executor) return fail("invalid_executor_change");
+      if ((executor === "user") !== (mode !== undefined)) return fail("invalid_executor_change");
+      if ((evidence ?? step.evidence).kind === "accepted_output" && executor !== "ai") return fail("invalid_executor_change");
+      if (context.feedsOthers && executor !== "ai") return fail("executor_in_use");
+      // The outputs stay as they were: a read-only history
+      const { mode: _previousMode, ...rest } = step;
+      candidate = { ...rest, executor, ...(mode !== undefined && { mode }), evidence: evidence ?? step.evidence };
+      break;
+    }
   }
 
-  // An AI step keeps its status while the person hands in a proof: it is closed by confirming the output
-  const keepsStatus = action === "submit_proof" && isAi && step.status === "waiting_user";
-  const to = keepsStatus ? step.status : TARGET[action];
+  // These keep the status: the executor is not a status, and an AI step with a proof is closed by confirming its output
+  const keepsStatus = action === "change_executor" || (action === "submit_proof" && isAi && step.status === "waiting_user");
+  const to = action === "change_executor" || keepsStatus ? step.status : TARGET[action];
   if (!keepsStatus) {
     const verdict = canTransition(step.status, to, { step: candidate, launchedByUser: context.actor === "user" });
     if (!verdict.allowed) return fail(REFUSALS[verdict.reason](candidate));
   }
 
-  const event: StepEvent = { at, actor: context.actor, action, from: step.status, to };
+  const event: StepEvent = {
+    at,
+    actor: context.actor,
+    action,
+    from: step.status,
+    to,
+    ...(action === "change_executor" && { executorFrom: step.executor, executorTo: payload.executor }),
+  };
   const result = StepSchema.safeParse({ ...candidate, status: to, events: [...step.events, event] });
   if (!result.success) return fail("invalid_result");
   return { ok: true, step: result.data, event };

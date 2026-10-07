@@ -334,7 +334,7 @@ describe("the whole loop with a fake runner", () => {
     let clock = 0;
     const now = () => `2026-10-07T${String(12 + clock++).padStart(2, "0")}:00:00Z`;
     const apply = (action: Parameters<typeof applyStepAction>[1], actor: "user" | "ai", payload?: unknown, readiness: "ready" | "not_applicable" = "not_applicable") => {
-      const result = applyStepAction(current, action, { now, actor, readiness, payload });
+      const result = applyStepAction(current, action, { now, actor, readiness, feedsOthers: false, payload });
       assert.ok(result.ok, `${action}: ${JSON.stringify(result)}`);
       assert.deepEqual(stepProblems(result.step), [], action);
       current = result.step;
@@ -367,7 +367,7 @@ describe("the whole loop with a fake runner", () => {
     const result = await runStep(new FakeStepRunner({ script: () => big }), buildRunnerInput(step("a"), [step("a")], [])!);
     assert.ok(result.ok);
     const running = step("a", { status: "running", events: [{ at: T1, actor: "user", action: "launch", from: "not_started", to: "running" }] });
-    const attached = applyStepAction(running, "attach_output", { now: () => T2, actor: "ai", readiness: "not_applicable", payload: { summary: result.output.summary, questions: result.output.questions } });
+    const attached = applyStepAction(running, "attach_output", { now: () => T2, actor: "ai", readiness: "not_applicable", feedsOthers: false, payload: { summary: result.output.summary, questions: result.output.questions } });
     assert.ok(attached.ok);
   });
 });

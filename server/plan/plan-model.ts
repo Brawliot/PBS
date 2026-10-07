@@ -92,6 +92,7 @@ export const EVENT_ACTIONS = [
   "wait_third_party",
   "third_party_responded",
   "reopen",
+  "change_executor",
 ] as const;
 
 // UTC only ("2026-10-07T10:00:00Z"): the same instant always has the same text
@@ -126,14 +127,37 @@ export const ProofSchema = z.strictObject({
   by: z.literal("user"),
 });
 
-/** One change of status. The history only grows: nothing is edited or removed. */
-const EventSchema = z.strictObject({
-  at: DateTimeSchema,
-  actor: z.enum(["user", "ai", "system"]),
-  action: z.enum(EVENT_ACTIONS),
-  from: StatusSchema,
-  to: StatusSchema,
-});
+/**
+ * One entry of the history. The history only grows: nothing is edited or removed. Most
+ * entries change the status; "change_executor" keeps it and records the executors instead.
+ */
+const EventSchema = z
+  .strictObject({
+    at: DateTimeSchema,
+    actor: z.enum(["user", "ai", "system"]),
+    action: z.enum(EVENT_ACTIONS),
+    from: StatusSchema,
+    to: StatusSchema,
+    executorFrom: z.enum(STEP_EXECUTORS).optional(),
+    executorTo: z.enum(STEP_EXECUTORS).optional(),
+  })
+  .superRefine((event, ctx) => {
+    const isChange = event.action === "change_executor";
+    if (!isChange) {
+      if (event.executorFrom !== undefined) ctx.addIssue({ code: "custom", message: "Only change_executor has executors", path: ["executorFrom"] });
+      if (event.executorTo !== undefined) ctx.addIssue({ code: "custom", message: "Only change_executor has executors", path: ["executorTo"] });
+      return;
+    }
+    if (event.executorFrom === undefined) ctx.addIssue({ code: "custom", message: "change_executor needs the previous executor", path: ["executorFrom"] });
+    if (event.executorTo === undefined) ctx.addIssue({ code: "custom", message: "change_executor needs the new executor", path: ["executorTo"] });
+    if (event.executorFrom !== undefined && event.executorFrom === event.executorTo) {
+      ctx.addIssue({ code: "custom", message: "The executor must change", path: ["executorTo"] });
+    }
+    // The executor can only change before the step starts, and the status stays
+    if (event.from !== "not_started" || event.to !== "not_started") {
+      ctx.addIssue({ code: "custom", message: "The executor changes only before the step starts", path: ["to"] });
+    }
+  });
 
 export const StepSchema = z
   .strictObject({
@@ -164,10 +188,13 @@ export const StepSchema = z
     if (step.evidence.kind === "accepted_output" && step.executor !== "ai") {
       issue("Accepted output is evidence only for AI steps", ["evidence", "kind"]);
     }
-    if (step.outputs !== undefined && step.executor !== "ai") issue("Only an AI step has outputs", ["outputs"]);
 
-    // Versions count 1, 2, 3... and only the latest can still be open (draft) or accepted
+    // Versions count 1, 2, 3... and only the latest can still be open (draft) or accepted.
+    // A step that is not AI may keep the outputs from when it was (read-only history), closed.
     step.outputs?.forEach((output, index) => {
+      if (step.executor !== "ai" && (output.state === "draft" || output.state === "confirmed")) {
+        issue("A step that is not AI cannot have a draft or confirmed output", ["outputs", index, "state"]);
+      }
       if (output.version !== index + 1) issue("Output versions must be consecutive from 1", ["outputs", index, "version"]);
       const isLast = index === step.outputs!.length - 1;
       if (!isLast && (output.state === "draft" || output.state === "confirmed")) {
@@ -188,6 +215,17 @@ export const StepSchema = z
     });
     const expected = step.events.at(-1)?.to ?? "not_started";
     if (step.status !== expected) issue("The status must be where the last event ended", ["status"]);
+
+    // The executors chain too, and the current one is where the last change ended
+    let current: string | undefined;
+    step.events.forEach((event, index) => {
+      if (event.action !== "change_executor") return;
+      if (current !== undefined && event.executorFrom !== current) {
+        issue("A change must start from the executor the previous change ended on", ["events", index, "executorFrom"]);
+      }
+      current = event.executorTo;
+    });
+    if (current !== undefined && step.executor !== current) issue("The executor must be where the last change ended", ["executor"]);
   });
 
 /** What a department depends on another for: a catalog entry, or free text when nothing fits */

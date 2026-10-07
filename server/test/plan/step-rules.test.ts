@@ -383,7 +383,8 @@ describe("stepProblems", () => {
       [...STEP_PROBLEMS],
       [
         "done_without_evidence", "multiple_drafts", "draft_not_last", "versions_not_consecutive", "events_go_back",
-        "events_not_chained", "status_not_last_event", "too_many_rounds", "outputs_on_non_ai", "mode_on_non_user", "user_without_mode",
+        "events_not_chained", "status_not_last_event", "too_many_rounds", "live_output_on_non_ai", "mode_on_non_user", "user_without_mode",
+        "executor_history_broken",
       ],
     );
   });
@@ -445,10 +446,54 @@ describe("stepProblems", () => {
     assert.deepEqual(stepProblems(valid({ outputs: versions(MAX_ROUNDS + 1) })), ["too_many_rounds"]);
   });
 
-  test("outputs_on_non_ai: only an AI step has outputs, even an empty list", () => {
-    assert.deepEqual(stepProblems(step({ outputs: [] })), ["outputs_on_non_ai"]);
-    assert.deepEqual(stepProblems(thirdStep({ outputs: [output(1, "rejected")] })), ["outputs_on_non_ai"]);
-    assert.deepEqual(stepProblems(aiStep({ outputs: [] })), []);
+  test("live_output_on_non_ai: old outputs may stay, but none open or accepted", () => {
+    // A step that is not AI keeps the outputs it had, closed
+    assert.deepEqual(stepProblems(step({ outputs: [] })), []);
+    assert.deepEqual(stepProblems(step({ outputs: [output(1, "superseded"), output(2, "rejected")] })), []);
+    assert.deepEqual(stepProblems(thirdStep({ outputs: [output(1, "rejected")] })), []);
+    for (const state of ["draft", "confirmed"]) {
+      assert.deepEqual(stepProblems(step({ outputs: [output(1, state)] })), ["live_output_on_non_ai"], state);
+      assert.deepEqual(stepProblems(thirdStep({ outputs: [output(1, state)] })), ["live_output_on_non_ai"], state);
+    }
+    // An AI step may have them
+    assert.deepEqual(stepProblems(aiStep({ outputs: [output(1, "draft")] })), []);
+  });
+
+  test("executor_history_broken: changes are recorded only by change_executor and chain up to the executor", () => {
+    const change = (from: string, to: string, overrides: Record<string, unknown> = {}) => ({
+      at: T1, actor: "user", action: "change_executor", from: "not_started", to: "not_started", executorFrom: from, executorTo: to, ...overrides,
+    });
+    const withEvents = (executor: string, events: unknown[]) => make(executor, events);
+    const make = (executor: string, events: unknown[]) => step({ executor, mode: executor === "user" ? "online" : undefined, events });
+    // Valid: no change, one change, two chained changes
+    assert.deepEqual(stepProblems(withEvents("ai", [])), []);
+    assert.deepEqual(stepProblems(withEvents("user", [change("ai", "user")])), []);
+    assert.deepEqual(stepProblems(withEvents("third_party", [change("ai", "user"), change("user", "third_party")])), []);
+    // The current executor is not where the last change ended
+    assert.deepEqual(stepProblems(withEvents("ai", [change("ai", "user")])), ["executor_history_broken"]);
+    assert.deepEqual(stepProblems(withEvents("user", [change("ai", "user"), change("user", "third_party")])), ["executor_history_broken"]);
+    // The chain breaks
+    assert.deepEqual(stepProblems(withEvents("ai", [change("ai", "user"), change("third_party", "ai")])), ["executor_history_broken"]);
+    // Not a change
+    assert.deepEqual(stepProblems(withEvents("user", [change("user", "user")])), ["executor_history_broken"]);
+    // Fields missing
+    assert.deepEqual(stepProblems(withEvents("user", [change("ai", "user", { executorFrom: undefined })])), ["executor_history_broken"]);
+    assert.deepEqual(stepProblems(withEvents("user", [change("ai", "user", { executorTo: undefined })])), ["executor_history_broken"]);
+    // It must not move the status
+    assert.deepEqual(stepProblems(step({ status: "running", events: [change("ai", "user", { from: "not_started", to: "running" })] })), ["executor_history_broken"]);
+    assert.deepEqual(
+      stepProblems(step({ status: "running", events: [{ at: T1, actor: "user", action: "launch", from: "not_started", to: "running" }, change("ai", "user", { from: "running", to: "running" })] })),
+      ["executor_history_broken"],
+    );
+    // It must also start where the step starts, not only end there
+    assert.deepEqual(
+      stepProblems(step({ events: [ev(T1, "not_started", "rejected"), change("ai", "user", { from: "rejected", to: "not_started" })] })),
+      ["executor_history_broken"],
+    );
+    // Other events carry no executors
+    const launch = { at: T1, actor: "user", action: "launch", from: "not_started", to: "running" };
+    assert.deepEqual(stepProblems(step({ status: "running", events: [{ ...launch, executorFrom: "ai" }] })), ["executor_history_broken"]);
+    assert.deepEqual(stepProblems(step({ status: "running", events: [{ ...launch, executorTo: "ai" }] })), ["executor_history_broken"]);
   });
 
   test("mode_on_non_user and user_without_mode: a mode belongs to user steps and only to them", () => {

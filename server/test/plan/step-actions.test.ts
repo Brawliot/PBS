@@ -7,7 +7,7 @@ import {
   type ActionContext,
   type StepAction,
 } from "../../plan/step-actions.js";
-import { TRANSITIONS } from "../../plan/step-rules.js";
+import { TRANSITIONS, stepProblems } from "../../plan/step-rules.js";
 
 const T1 = "2026-10-07T10:00:00Z";
 const NOW = "2026-10-07T12:00:00Z";
@@ -21,6 +21,7 @@ const ACTIONS: StepAction[] = [
   "wait_third_party",
   "third_party_responded",
   "reopen",
+  "change_executor",
 ];
 
 const deepFreeze = <T>(value: T): T => {
@@ -66,6 +67,7 @@ const ctx = (overrides: Partial<ActionContext> = {}): ActionContext => ({
   now: () => NOW,
   actor: "user",
   readiness: "not_applicable",
+  feedsOthers: false,
   ...overrides,
 });
 const run = (step: Step, action: StepAction, overrides: Partial<ActionContext> = {}) => {
@@ -242,7 +244,10 @@ describe("error codes", () => {
   test("the list of codes is closed", () => {
     assert.deepEqual(
       [...STEP_ACTION_ERRORS],
-      ["not_allowed", "not_ready", "wrong_actor", "rounds_exceeded", "missing_proof", "output_not_confirmed", "invalid_payload", "invalid_result"],
+      [
+        "not_allowed", "not_ready", "wrong_actor", "rounds_exceeded", "missing_proof", "output_not_confirmed",
+        "invalid_payload", "invalid_result", "executor_in_use", "invalid_executor_change",
+      ],
     );
   });
 
@@ -257,7 +262,7 @@ describe("error codes", () => {
 
   test("not_allowed: an action that needs a status or an executor it does not have", () => {
     failsWith(user("waiting_third_party"), "launch", "not_allowed", { readiness: "ready" });
-    failsWith(user("running"), "attach_output", "not_allowed", { actor: "ai", payload: attach });
+    failsWith(user("running"), "attach_output", "not_allowed", { actor: "user", payload: attach });
     failsWith(ai("waiting_user"), "attach_output", "not_allowed", { actor: "ai", payload: attach });
     failsWith(user("running"), "answer", "not_allowed", { payload: { answers: [] } });
     failsWith(ai("waiting_user", { outputs: [out(1, "rejected")] }), "answer", "not_allowed", { payload: { answers: ["a", "b"] } });
@@ -268,6 +273,13 @@ describe("error codes", () => {
     failsWith(user("not_started"), "third_party_responded", "not_allowed");
     failsWith(third("waiting_third_party"), "third_party_responded", "not_allowed");
     failsWith(ai("running"), "submit_proof", "not_allowed", { payload: { text: "x" } });
+  });
+
+  test("wrong_actor: an AI or the system cannot deliver an output to a step that is not an AI step", () => {
+    for (const step of [user("running"), third("waiting_third_party"), user("running", { outputs: [out(1, "rejected")] })]) {
+      for (const actor of ["ai", "system"] as const) failsWith(step, "attach_output", "wrong_actor", { actor, payload: attach });
+      failsWith(step, "attach_output", "not_allowed", { actor: "user", payload: attach });
+    }
   });
 
   test("not_ready: launch needs the step to be ready", () => {
@@ -290,6 +302,7 @@ describe("error codes", () => {
       wait_third_party: user("running"),
       third_party_responded: user("waiting_third_party"),
       reopen: user("rejected"),
+      change_executor: user("not_started"),
     };
     for (const actor of ["ai", "system"] as const) {
       for (const [action, step] of Object.entries(steps)) {
@@ -407,19 +420,27 @@ describe("what each action can do, for every executor and status", () => {
     wait_third_party: undefined,
     third_party_responded: undefined,
     reopen: undefined,
+    change_executor: undefined, // depends on the executor: see payloadOf
   };
+  // Any executor can change to another one; the new one needs a mode only if it is "user"
+  const payloadOf = (action: StepAction, executor: string) =>
+    action === "change_executor" ? (executor === "ai" ? { executor: "user", mode: "online" } : { executor: "ai" }) : payloads[action];
+  // An AI step has a draft only while it is running or waiting; before and after, its outputs are closed
+  const sweepStep = (executor: string, status: string) =>
+    make(executor, status, executor === "ai" ? { outputs: [out(1, status === "running" || status === "waiting_user" ? "draft" : "rejected")] } : {});
   const successes = (executor: string) =>
     STEP_STATUSES.flatMap((status) =>
       ACTIONS.filter((action) => {
-        const step = make(executor, status, executor === "ai" ? { outputs: [out(1, "draft")] } : {});
+        const step = sweepStep(executor, status);
         const actor = action === "attach_output" ? "ai" : "user";
-        return run(step, action, { actor, readiness: "ready", payload: payloads[action] }).ok;
+        return run(step, action, { actor, readiness: "ready", payload: payloadOf(action, executor) }).ok;
       }).map((action) => `${status} ${action}`),
     );
 
   test("AI step", () => {
     assert.deepEqual(successes("ai"), [
       "not_started launch",
+      "not_started change_executor",
       "running attach_output",
       "waiting_user answer",
       "waiting_user confirm_output",
@@ -432,6 +453,7 @@ describe("what each action can do, for every executor and status", () => {
   test("user step", () => {
     assert.deepEqual(successes("user"), [
       "not_started launch",
+      "not_started change_executor",
       "running reject_output",
       "running submit_proof",
       "running wait_third_party",
@@ -444,6 +466,7 @@ describe("what each action can do, for every executor and status", () => {
   test("third-party step", () => {
     assert.deepEqual(successes("third_party"), [
       "not_started wait_third_party",
+      "not_started change_executor",
       "waiting_third_party reject_output",
       "waiting_third_party submit_proof",
       "rejected reopen",
@@ -454,12 +477,193 @@ describe("what each action can do, for every executor and status", () => {
     for (const executor of STEP_EXECUTORS) {
       for (const status of STEP_STATUSES) {
         for (const action of ACTIONS) {
-          const step = make(executor, status, executor === "ai" ? { outputs: [out(1, "draft")] } : {});
-          const result = run(step, action, { actor: action === "attach_output" ? "ai" : "user", readiness: "ready", payload: payloads[action] });
+          const step = sweepStep(executor, status);
+          const result = run(step, action, { actor: action === "attach_output" ? "ai" : "user", readiness: "ready", payload: payloadOf(action, executor) });
           if (!result.ok || result.event.to === status) continue;
           assert.ok(TRANSITIONS[executor][status].includes(result.event.to), `${executor} ${status} ${action}`);
         }
       }
     }
+  });
+});
+
+describe("change_executor", () => {
+  const change = (payload: unknown, overrides: Partial<ActionContext> = {}) => ({ actor: "user" as const, payload, ...overrides });
+  const make3 = (executor: string, overrides: Record<string, unknown> = {}) =>
+    executor === "ai" ? ai("not_started", overrides) : executor === "user" ? user("not_started", overrides) : third("not_started", overrides);
+
+  test("works between the three executors, in the six directions, and the status stays", () => {
+    const combos: [string, string, Record<string, unknown>][] = [
+      ["ai", "user", { executor: "user", mode: "in_person" }],
+      ["ai", "third_party", { executor: "third_party" }],
+      ["user", "ai", { executor: "ai" }],
+      ["user", "third_party", { executor: "third_party" }],
+      ["third_party", "ai", { executor: "ai" }],
+      ["third_party", "user", { executor: "user", mode: "online" }],
+    ];
+    for (const [from, to, payload] of combos) {
+      const step = make3(from);
+      const result = succeeds(step, "change_executor", change(payload));
+      const label = `${from} -> ${to}`;
+      assert.equal(result.step.executor, to, label);
+      assert.equal(result.step.status, "not_started", label);
+      assert.equal(result.step.mode, to === "user" ? payload.mode : undefined, label);
+      assert.equal("mode" in result.step, to === "user", label);
+      assert.deepEqual(result.event, {
+        at: NOW, actor: "user", action: "change_executor", from: "not_started", to: "not_started", executorFrom: from, executorTo: to,
+      }, label);
+      assert.deepEqual(result.step.events, [result.event], label);
+      // Nothing else about the step changes
+      const { executor: _a, mode: _b, events: _c, ...restBefore } = step;
+      const { executor: _d, mode: _e, events: _f, ...restAfter } = result.step;
+      assert.deepEqual(restAfter, restBefore, label);
+      assert.deepEqual(stepProblems(result.step), [], label);
+    }
+  });
+
+  test("the readiness of the step does not matter", () => {
+    for (const readiness of ["ready", "blocked", "not_applicable"] as const) {
+      assert.ok(run(user("not_started"), "change_executor", change({ executor: "ai" }, { readiness })).ok, readiness);
+    }
+  });
+
+  test("the history records every change, in order, and the executors chain", () => {
+    const first = succeeds(ai("not_started"), "change_executor", change({ executor: "user", mode: "online" }, { now: () => "2026-10-07T12:00:00Z" }));
+    const second = succeeds(first.step, "change_executor", change({ executor: "third_party" }, { now: () => "2026-10-07T13:00:00Z" }));
+    assert.deepEqual(
+      second.step.events.map((e) => [e.at, e.action, e.executorFrom, e.executorTo]),
+      [["2026-10-07T12:00:00Z", "change_executor", "ai", "user"], ["2026-10-07T13:00:00Z", "change_executor", "user", "third_party"]],
+    );
+    assert.equal(second.step.executor, "third_party");
+    assert.deepEqual(stepProblems(second.step), []);
+  });
+
+  test("other events carry no executors", () => {
+    const changed = succeeds(third("not_started"), "change_executor", change({ executor: "user", mode: "online" })).step;
+    const launched = succeeds(changed, "launch", { readiness: "ready", now: () => "2026-10-07T13:00:00Z" });
+    assert.equal(launched.step.status, "running");
+    assert.equal("executorFrom" in launched.event, false);
+    assert.equal("executorTo" in launched.event, false);
+  });
+
+  test("after the change the step follows the rules of its new executor", () => {
+    // A third-party step turned into a user one can run and be closed by its owner
+    let step = succeeds(third("not_started"), "change_executor", change({ executor: "user", mode: "online" })).step;
+    step = succeeds(step, "launch", { readiness: "ready", now: () => "2026-10-07T13:00:00Z" }).step;
+    assert.equal(succeeds(step, "submit_proof", { payload: { text: "x" }, now: () => "2026-10-07T14:00:00Z" }).step.status, "done");
+    // An AI step turned into a third-party one waits for the third party instead of running
+    const other = succeeds(ai("not_started"), "change_executor", change({ executor: "third_party" })).step;
+    failsWith(other, "launch", "not_allowed", { readiness: "ready", now: () => "2026-10-07T13:00:00Z" });
+    assert.equal(succeeds(other, "wait_third_party", { now: () => "2026-10-07T13:00:00Z" }).step.status, "waiting_third_party");
+  });
+
+  test("the mode of a user step is dropped when the executor stops being user", () => {
+    for (const to of ["ai", "third_party"]) {
+      const result = succeeds(user("not_started", { mode: "in_person" }), "change_executor", change({ executor: to }));
+      assert.equal(result.step.mode, undefined, to);
+      assert.equal("mode" in result.step, false, to);
+    }
+  });
+
+  test("evidence: it can be replaced when it still fits", () => {
+    const result = succeeds(user("not_started"), "change_executor", change({ executor: "third_party", evidence: { kind: "receipt" } }));
+    assert.deepEqual(result.step.evidence, { kind: "receipt" });
+    const keep = succeeds(user("not_started", { evidence: { kind: "written_confirmation" } }), "change_executor", change({ executor: "ai" }));
+    assert.deepEqual(keep.step.evidence, { kind: "written_confirmation" });
+    assert.deepEqual(succeeds(user("not_started"), "change_executor", change({ executor: "ai", evidence: { kind: "accepted_output" } })).step.evidence, { kind: "accepted_output" });
+  });
+
+  test("evidence: accepted_output must be replaced when the new executor is not an AI", () => {
+    const step = ai("not_started", { evidence: { kind: "accepted_output" } });
+    for (const to of [{ executor: "third_party" }, { executor: "user", mode: "online" }]) {
+      failsWith(step, "change_executor", "invalid_executor_change", change(to));
+      failsWith(step, "change_executor", "invalid_executor_change", change({ ...to, evidence: { kind: "accepted_output" } }));
+      const fixed = succeeds(step, "change_executor", change({ ...to, evidence: { kind: "none" } }));
+      assert.deepEqual(fixed.step.evidence, { kind: "none" });
+    }
+  });
+
+  test("the outputs stay as a read-only history, and the proof too", () => {
+    const outputs = [out(1, "superseded"), out(2, "rejected")];
+    const step = ai("not_started", { outputs, proof: proofOf });
+    const asUser = succeeds(step, "change_executor", change({ executor: "user", mode: "online" }));
+    assert.deepEqual(asUser.step.outputs, outputs);
+    assert.deepEqual(asUser.step.proof, proofOf);
+    assert.deepEqual(stepProblems(asUser.step), []);
+    // And they come back as they were when the step goes back to AI
+    const back = succeeds(asUser.step, "change_executor", change({ executor: "ai" }, { now: () => "2026-10-07T13:00:00Z" }));
+    assert.deepEqual(back.step.outputs, outputs);
+  });
+
+  test("a step with old outputs cannot get new ones unless it is an AI step", () => {
+    const changed = succeeds(ai("not_started", { outputs: [out(1, "rejected")] }), "change_executor", change({ executor: "user", mode: "online" })).step;
+    const running = succeeds(changed, "launch", { readiness: "ready", now: () => "2026-10-07T13:00:00Z" }).step;
+    const at = { now: () => "2026-10-07T14:00:00Z", payload: attach };
+    for (const actor of ["ai", "system"] as const) failsWith(running, "attach_output", "wrong_actor", { ...at, actor });
+    failsWith(running, "attach_output", "not_allowed", { ...at, actor: "user" });
+    // Nor can the old ones be confirmed or answered
+    failsWith(running, "confirm_output", "not_allowed");
+    failsWith(running, "answer", "not_allowed", { payload: { answers: [] } });
+  });
+
+  test("not_allowed: only before the step starts", () => {
+    for (const executor of ["ai", "user", "third_party"]) {
+      for (const status of STEP_STATUSES.filter((s) => s !== "not_started")) {
+        const target = executor === "ai" ? { executor: "third_party" } : { executor: "ai" };
+        failsWith(make(executor, status), "change_executor", "not_allowed", change(target));
+      }
+    }
+  });
+
+  test("wrong_actor: the AI and the system cannot change it, whatever else is true", () => {
+    for (const actor of ["ai", "system"] as const) {
+      failsWith(user("not_started"), "change_executor", "wrong_actor", { actor, payload: { executor: "ai" } });
+      failsWith(user("running"), "change_executor", "wrong_actor", { actor, payload: "nonsense", feedsOthers: true });
+    }
+  });
+
+  test("invalid_payload: the shape of what it carries", () => {
+    const bad = (payload: unknown) => failsWith(user("not_started"), "change_executor", "invalid_payload", change(payload));
+    for (const payload of [
+      undefined, null, "ai", {}, { mode: "online" }, { executor: "robot" }, { executor: 5 }, { executor: "ai", mode: "phone" },
+      { executor: "ai", extra: 1 }, { executor: "ai", evidence: { kind: "photo" } }, { executor: "ai", evidence: {} },
+      { executor: "ai", evidence: { kind: "none", extra: 1 } }, { executor: "ai", evidence: "none" },
+    ]) bad(payload);
+  });
+
+  test("invalid_executor_change: it must be a real change that makes sense", () => {
+    const bad = (step: Step, payload: unknown) => failsWith(step, "change_executor", "invalid_executor_change", change(payload));
+    // The same executor is not a change
+    bad(ai("not_started"), { executor: "ai" });
+    bad(user("not_started"), { executor: "user", mode: "online" });
+    bad(third("not_started"), { executor: "third_party" });
+    // A user step needs its mode
+    bad(ai("not_started"), { executor: "user" });
+    bad(third("not_started"), { executor: "user" });
+    // Only a user step has one
+    bad(user("not_started"), { executor: "ai", mode: "online" });
+    bad(ai("not_started"), { executor: "third_party", mode: "in_person" });
+  });
+
+  test("executor_in_use: a step that feeds another must stay an AI step", () => {
+    const feeding = { feedsOthers: true };
+    failsWith(ai("not_started"), "change_executor", "executor_in_use", change({ executor: "user", mode: "online" }, feeding));
+    failsWith(ai("not_started"), "change_executor", "executor_in_use", change({ executor: "third_party" }, feeding));
+    // Without the relation the same change works
+    assert.ok(run(ai("not_started"), "change_executor", change({ executor: "third_party" }, { feedsOthers: false })).ok);
+    // Changing to AI is never blocked by it
+    assert.ok(run(user("not_started"), "change_executor", change({ executor: "ai" }, feeding)).ok);
+  });
+
+  test("a request that makes no sense is refused as such before looking at the relations", () => {
+    const feeding = { feedsOthers: true };
+    failsWith(ai("not_started"), "change_executor", "invalid_executor_change", change({ executor: "ai" }, feeding));
+    failsWith(ai("not_started"), "change_executor", "invalid_executor_change", change({ executor: "user" }, feeding));
+    failsWith(ai("not_started", { evidence: { kind: "accepted_output" } }), "change_executor", "invalid_executor_change", change({ executor: "third_party" }, feeding));
+  });
+
+  test("invalid_result: a clock that goes back is an error, not an exception", () => {
+    const step = user("not_started", { events: [{ at: T1, actor: "user", action: "reopen", from: "not_started", to: "not_started" }] });
+    failsWith(step, "change_executor", "invalid_result", change({ executor: "ai" }, { now: () => "2026-10-07T09:00:00Z" }));
   });
 });

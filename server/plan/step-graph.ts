@@ -36,6 +36,11 @@ export function dependentsOf(step: Step, steps: readonly Step[], relations: Rela
   return pick(steps, stepRelations(relations, "blocks").filter((r) => r.from === step.id).map((r) => r.to));
 }
 
+/** Whether any step uses this one's result: its executor must then stay an AI */
+export function feedsAnyStep(step: Step, relations: Relations): boolean {
+  return stepRelations(relations, "feeds").some((r) => r.from === step.id);
+}
+
 /** Steps whose result this one uses */
 export function feedersOf(step: Step, steps: readonly Step[], relations: Relations): Step[] {
   return pick(steps, stepRelations(relations, "feeds").filter((r) => r.to === step.id).map((r) => r.from));

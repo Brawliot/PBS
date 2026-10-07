@@ -140,12 +140,30 @@ export const STEP_PROBLEMS = [
   "events_not_chained",
   "status_not_last_event",
   "too_many_rounds",
-  "outputs_on_non_ai",
+  "live_output_on_non_ai",
   "mode_on_non_user",
   "user_without_mode",
+  "executor_history_broken",
 ] as const;
 
 export type StepProblem = (typeof STEP_PROBLEMS)[number];
+
+/** The executor changes are recorded only by change_executor, chain, and end on the current executor */
+function executorHistoryBroken(step: Step): boolean {
+  let last: StepExecutor | undefined;
+  for (const event of step.events) {
+    if (event.action !== "change_executor") {
+      if (event.executorFrom !== undefined || event.executorTo !== undefined) return true;
+      continue;
+    }
+    const { executorFrom, executorTo } = event;
+    if (executorFrom === undefined || executorTo === undefined || executorFrom === executorTo) return true;
+    if (event.from !== "not_started" || event.to !== "not_started") return true;
+    if (last !== undefined && executorFrom !== last) return true;
+    last = executorTo;
+  }
+  return last !== undefined && step.executor !== last;
+}
 
 /**
  * The invariants a step must always keep, checked on their own (not through the schema) so
@@ -164,9 +182,11 @@ export function stepProblems(step: Step): StepProblem[] {
     events_not_chained: events.some((event, index) => event.from !== (index === 0 ? "not_started" : events[index - 1].to)),
     status_not_last_event: step.status !== (events.at(-1)?.to ?? "not_started"),
     too_many_rounds: outputs.length > MAX_ROUNDS,
-    outputs_on_non_ai: step.executor !== "ai" && step.outputs !== undefined,
+    // Outputs from when the step was AI stay as history, but none can be open or accepted
+    live_output_on_non_ai: step.executor !== "ai" && outputs.some((output) => output.state === "draft" || output.state === "confirmed"),
     mode_on_non_user: step.executor !== "user" && step.mode !== undefined,
     user_without_mode: step.executor === "user" && step.mode === undefined,
+    executor_history_broken: executorHistoryBroken(step),
   };
   return STEP_PROBLEMS.filter((code) => broken[code]);
 }

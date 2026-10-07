@@ -438,9 +438,15 @@ describe("step outputs", () => {
     assert.deepEqual(parsePlan(aiStep([full])).steps[0].outputs, [full]);
   });
 
-  test("only an AI step can have them", () => {
-    rejectedAt(plan({ steps: [step({ outputs: [out(1)] })] }), "steps.0.outputs");
-    rejectedAt(plan({ steps: [step({ executor: "third_party", mode: undefined, outputs: [out(1)] })] }), "steps.0.outputs");
+  test("a step that is not AI may keep old outputs, as long as none is a draft or confirmed", () => {
+    const notAi = (outputs: unknown) => plan({ steps: [step({ outputs })] });
+    assert.deepEqual(issues(notAi([out(1, { state: "rejected" })])), []);
+    assert.deepEqual(issues(notAi([out(1, { state: "superseded" }), out(2, { state: "rejected" })])), []);
+    assert.deepEqual(issues(notAi([])), []);
+    rejectedAt(notAi([out(1, { state: "draft" })]), "steps.0.outputs.0.state");
+    rejectedAt(notAi([out(1, { state: "confirmed" })]), "steps.0.outputs.0.state");
+    rejectedAt(notAi([out(1, { state: "superseded" }), out(2, { state: "draft" })]), "steps.0.outputs.1.state");
+    rejectedAt(plan({ steps: [step({ executor: "third_party", mode: undefined, outputs: [out(1, { state: "confirmed" })] })] }), "steps.0.outputs.0.state");
   });
 
   test("the old single output is gone", () => {
@@ -571,11 +577,52 @@ describe("step events", () => {
     for (const action of actions) {
       assert.deepEqual(issues(withHistory([ev(T1, "not_started", "running", { action })], "running")), [], action);
     }
+    // change_executor has its own shape: it keeps the status and names the executors
+    const change = ev(T1, "not_started", "not_started", { action: "change_executor", executorFrom: "ai", executorTo: "user" });
+    assert.deepEqual(issues(plan({ steps: [step({ events: [change] })] })), []);
     for (const actor of ["user", "ai", "system"]) {
       assert.deepEqual(issues(withHistory([ev(T1, "not_started", "running", { actor })], "running")), [], actor);
     }
     rejectedAt(withHistory([ev(T1, "not_started", "running", { action: "launch_it" })], "running"), "steps.0.events.0.action");
     rejectedAt(withHistory([ev(T1, "not_started", "running", { actor: "third_party" })], "running"), "steps.0.events.0.actor");
+  });
+
+  test("the executor fields are only for change_executor, and are required there", () => {
+    const change = (overrides: Record<string, unknown> = {}) =>
+      ev(T1, "not_started", "not_started", { action: "change_executor", executorFrom: "ai", executorTo: "user", ...overrides });
+    const history = (event: unknown, executor = "user") => plan({ steps: [step({ events: [event], executor, status: "not_started" })] });
+    assert.deepEqual(issues(history(change())), []);
+    rejectedAt(history(change({ executorFrom: undefined })), "steps.0.events.0.executorFrom");
+    rejectedAt(history(change({ executorTo: undefined })), "steps.0.events.0.executorTo");
+    rejectedAt(history(change({ executorFrom: "user" })), "steps.0.events.0.executorTo");
+    rejectedAt(history(change({ executorTo: "robot" })), "steps.0.events.0.executorTo");
+    // Other actions carry none
+    const launch = ev(T1, "not_started", "running");
+    rejectedAt(plan({ steps: [step({ events: [{ ...launch, executorFrom: "ai" }], status: "running" })] }), "steps.0.events.0.executorFrom");
+    rejectedAt(plan({ steps: [step({ events: [{ ...launch, executorTo: "ai" }], status: "running" })] }), "steps.0.events.0.executorTo");
+  });
+
+  test("a change of executor happens before the step starts and leaves the status where it was", () => {
+    const change = (from: string, to: string) =>
+      ev(T1, from, to, { action: "change_executor", executorFrom: "ai", executorTo: "user" });
+    assert.deepEqual(issues(plan({ steps: [step({ events: [change("not_started", "not_started")], status: "not_started" })] })), []);
+    rejectedAt(plan({ steps: [step({ events: [change("not_started", "running")], status: "running" })] }), "steps.0.events.0.to");
+    // Ending at the start is not enough: it must also begin there
+    const back = [ev(T1, "not_started", "rejected"), change("rejected", "not_started")].map((e, i) => ({ ...e, at: i === 0 ? T1 : T2 }));
+    rejectedAt(plan({ steps: [step({ events: back, status: "not_started" })] }), "steps.0.events.1.to");
+    rejectedAt(plan({ steps: [step({ events: [ev(T1, "not_started", "running"), change("running", "running")], status: "running" })] }), "steps.0.events.1.to");
+  });
+
+  test("the executors of the changes chain, and the step has the last one", () => {
+    const change = (at: string, from: string, to: string) => ev(at, "not_started", "not_started", { action: "change_executor", executorFrom: from, executorTo: to });
+    const two = [change(T1, "ai", "user"), change(T2, "user", "third_party")];
+    assert.deepEqual(issues(plan({ steps: [step({ events: two, executor: "third_party", mode: undefined })] })), []);
+    rejectedAt(plan({ steps: [step({ events: [change(T1, "ai", "user"), change(T2, "third_party", "ai")], executor: "ai", mode: undefined })] }), "steps.0.events.1.executorFrom");
+    // The current executor must be where the last change ended
+    rejectedAt(plan({ steps: [step({ events: two, executor: "user" })] }), "steps.0.executor");
+    rejectedAt(plan({ steps: [step({ events: [change(T1, "ai", "user")], executor: "third_party", mode: undefined })] }), "steps.0.executor");
+    // A step that never changed has no constraint on it
+    assert.deepEqual(issues(plan({ steps: [step({ executor: "ai", mode: undefined })] })), []);
   });
 
   test("from and to must be stored statuses, and the date a valid one", () => {

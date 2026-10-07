@@ -4,6 +4,7 @@ import { STEP_STATUSES, type Plan, type Step } from "../../plan/plan-model.js";
 import {
   blockersOf,
   dependentsOf,
+  feedsAnyStep,
   feedersOf,
   predecessorsOf,
   readiness,
@@ -78,6 +79,26 @@ describe("blockersOf, dependentsOf, feedersOf, predecessorsOf", () => {
   test("a step that is not in the list is left out, and a repeated relation counts once", () => {
     assert.deepEqual(ids(blockersOf(e, [steps[0], steps[2]], [...relations, rel("blocks", "ghost", "e")])), ["a", "c"]);
     assert.deepEqual(ids(blockersOf(e, steps, [rel("blocks", "a", "e"), rel("blocks", "a", "e")])), ["a"]);
+  });
+});
+
+describe("feedsAnyStep", () => {
+  const [a, b, c] = ["a", "b", "c"].map((id) => aiStep(id));
+
+  test("is true for the source of a feeds relation and for no one else", () => {
+    const relations = [rel("feeds", "a", "b")];
+    assert.equal(feedsAnyStep(a, relations), true);
+    assert.equal(feedsAnyStep(b, relations), false);
+    assert.equal(feedsAnyStep(c, relations), false);
+  });
+
+  test("other types and other levels do not count", () => {
+    const relations = [rel("blocks", "a", "b"), rel("follows", "a", "b"), rel("feeds", "a", "b", "task"), rel("feeds", "a", "b", "phase")];
+    assert.equal(feedsAnyStep(a, relations), false);
+  });
+
+  test("with no relations it is false", () => {
+    assert.equal(feedsAnyStep(a, []), false);
   });
 });
 
