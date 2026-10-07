@@ -458,7 +458,7 @@
     syncModalState();
   });
   // Build my plan: the loader appears where it always does, then the result leaves
-  const PLAN_LOADER_MS = 500; // loader fades in before the result leaves (keep in sync with CSS)
+  const PLAN_LOADER_MS = 150; // head start of the loader (it fades in behind the result)
   const RESULT_OUT_MS = 400;  // result leaves (keep in sync with CSS)
   const planLoaderSlot = document.querySelector('.plan-loader');
   let planning = false;
