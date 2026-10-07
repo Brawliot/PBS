@@ -174,8 +174,12 @@
   });
 
   // TODO: replace with the real session state once there is a backend.
-  // Until then, open the page with ?session=demo to try the logged-in flow.
-  const isLoggedIn = new URLSearchParams(location.search).get('session') === 'demo';
+  const isLoggedIn = false;
+
+  // TESTING ONLY: the login requirement is switched off so the send flow (title exit,
+  // loader, request) can be tried without a session. Set to true to bring the
+  // "log in to continue" popup back. Remove this flag when the real login exists.
+  const REQUIRE_LOGIN = false;
 
   // --- Sending: title leaves, loader runs while the request is pending -------
   const EXIT_MS = 450;        // title/subtitle exit animation (keep in sync with CSS)
@@ -187,7 +191,8 @@
   let loader = null;
   let sending = false;
 
-  // TODO: replace with the real POST (fetch). The mock fails when the idea is "error".
+  // TESTING ONLY: simulated request (2-4 s, fails when the idea is "error").
+  // TODO: replace with the real POST (fetch).
   const sendIdea = async (payload) => {
     await wait(2000 + Math.random() * 2000);
     if (payload.idea.toLowerCase() === 'error') throw new Error('Request failed');
@@ -199,10 +204,13 @@
     search.setAttribute('aria-busy', 'true');
     search.inert = true;
     document.body.classList.add('is-loading');
+    // Same typography as the page title (not the giant background wordmark)
+    const titleStyle = getComputedStyle(document.querySelector('.hero__title'));
     loader = window.createTechText(loaderSlot, {
-      text: 'Mando',
-      fontWeight: 600,
-      fontSize: 150,
+      text: document.querySelector('.hero__title').textContent,
+      fontWeight: Number(titleStyle.fontWeight),
+      fontSize: parseFloat(titleStyle.fontSize),
+      letterSpacing: parseFloat(titleStyle.letterSpacing) / parseFloat(titleStyle.fontSize),
       reveal: 'letter',
       dashLength: 4,
       dashGap: 2,
@@ -263,7 +271,7 @@
       invalid[0].focus();
       return;
     }
-    if (!isLoggedIn) {
+    if (REQUIRE_LOGIN && !isLoggedIn) {
       gate.showModal();
       syncModalState();
       return;
