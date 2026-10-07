@@ -23,10 +23,10 @@
 
     <p class="hero__prompt">Barbershop for young people in New York...</p>
 
-    <form class="search" action="#">
+    <form class="search" action="#" novalidate>
       <div class="search__bar">
-        <input class="search__input" type="text" placeholder="Value" aria-label="Describe tu negocio">
-        <button class="search__submit" type="submit" aria-label="Enviar">
+        <input class="search__input" type="text" placeholder="Value" aria-label="Describe tu negocio" required>
+        <button class="search__submit" type="submit" aria-label="Enviar" disabled>
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
         </button>
       </div>
@@ -34,19 +34,19 @@
       <div class="filters">
         <div class="filter">
           <div class="filter__head"><label for="presupuesto">Presupuesto</label><span>$0-1.000.000</span></div>
-          <input id="presupuesto" class="range" type="range" min="0" max="1000000">
+          <input id="presupuesto" class="range" type="range" required min="0" max="1000000">
         </div>
         <div class="filter">
           <div class="filter__head"><label for="experiencia">Experiencia</label><span>años0-20+</span></div>
-          <input id="experiencia" class="range" type="range" min="0" max="20">
+          <input id="experiencia" class="range" type="range" required min="0" max="20">
         </div>
         <div class="filter">
           <div class="filter__head"><label for="equipo">Tamaño equipo</label><span>$0-1.000.000</span></div>
-          <input id="equipo" class="range" type="range" min="0" max="1000000">
+          <input id="equipo" class="range" type="range" required min="0" max="1000000">
         </div>
         <div class="filter">
           <div class="filter__head"><label for="horas">Horas Disponibles</label><span>años0-20+</span></div>
-          <input id="horas" class="range" type="range" min="0" max="20">
+          <input id="horas" class="range" type="range" required min="0" max="20">
         </div>
       </div>
     </form>
@@ -61,5 +61,6 @@
     <span class="giant__letter">D</span>
     <span class="giant__letter">O</span>
   </div>
+  <script src="script.js"></script>
 </body>
 </html>
