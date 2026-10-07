@@ -40,7 +40,7 @@ Read from the environment in `server/.env` (loaded by `--env-file=.env`).
 | Variable | Required | Used in | Purpose |
 | --- | --- | --- | --- |
 | `TYPESAFE_API_KEY` | Yes | `server/planner/planner-handler.ts` | Bearer key for the Typesafe Jev API (`https://api.typesafe.ai/v1/systemone`). |
-| `JEV_MODEL` | Yes | `server/planner/planner-handler.ts` | Jev model name sent with every Jev request. The example uses `jev-latest`. |
+| `JEV_MODEL` | Yes | `server/planner/planner-handler.ts` | Jev model name sent with every Jev request. The example uses `jev-1.13.0`. |
 | `OPENAI_API_KEY` | Yes | `server/planner/planner-phase2-handler.ts` | Bearer key for the OpenAI Chat Completions API. |
 | `OPENAI_MODEL` | Yes | `server/planner/planner-phase2-handler.ts` | OpenAI model name. The example uses `gpt-4o`. |
 | `PORT` | No | `server/server.ts` | HTTP port. Defaults to `3000` when unset or not a number. |
