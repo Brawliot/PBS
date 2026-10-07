@@ -191,12 +191,18 @@
   let loader = null;
   let sending = false;
 
-  // TESTING ONLY: simulated request (2-4 s, fails when the idea is "error").
-  // TODO: replace with the real POST (fetch).
+  // Real POST request to the backend planner API
   const sendIdea = async (payload) => {
-    await wait(2000 + Math.random() * 2000);
-    if (payload.idea.toLowerCase() === 'error') throw new Error('Request failed');
-    return { ok: true };
+    const res = await fetch('/api/planner', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Request failed');
+    }
+    return await res.json();
   };
 
   const startLoading = () => {
@@ -246,8 +252,9 @@
     status.textContent = 'Sending your idea…';
     try {
       // The request starts right away; the result waits for the animation and the minimum loader time
-      await Promise.all([sendIdea(payload), wait(EXIT_MS + MIN_LOADER_MS)]);
+      const [result] = await Promise.all([sendIdea(payload), wait(EXIT_MS + MIN_LOADER_MS)]);
       status.textContent = 'Your idea was sent.';
+      console.log(result);
       // TODO: show the result
     } catch {
       failed = true;
