@@ -316,12 +316,15 @@
   const PENDING_KEYS = ['validation_stage', 'customer_segment', 'revenue_model', 'acquisition_channel', 'regulatory_load', 'money_handling'];
   const NOT_DEFINED = 'Not specified';
 
-  const addRow = (list, term, value) => {
+  const addRow = (list, term, value, empty = false) => {
+    const row = document.createElement('div');
     const dt = document.createElement('dt');
     const dd = document.createElement('dd');
     dt.textContent = term;
     dd.textContent = value;
-    list.append(dt, dd);
+    dd.classList.toggle('is-empty', empty);
+    row.append(dt, dd);
+    list.append(row);
   };
 
   // Values come from the models: always inserted as text, never as HTML
@@ -335,24 +338,30 @@
     if (subsector && subsector.toLowerCase() !== 'unknown') addRow(summary, 'Business', subsector);
     SUMMARY_KEYS.filter((key) => profile.values[key] !== NOT_DEFINED)
       .forEach((key) => addRow(summary, LABELS[key], profile.values[key]));
-    if (!summary.children.length) addRow(summary, 'Business', 'Not enough information yet');
+    if (!summary.children.length) addRow(summary, 'Business', 'Not enough information yet', true);
 
     PENDING_KEYS.filter((key) => profile.unknown.includes(key)).slice(0, 5).forEach((key) => {
       const item = document.createElement('li');
       item.textContent = LABELS[key];
       pending.append(item);
     });
-    pending.previousElementSibling.hidden = !pending.children.length;
+    document.getElementById('result-pending-block').hidden = !pending.children.length;
 
     Object.entries(LABELS).forEach(([key, label]) => {
       const value = profile.values[key];
-      addRow(detail, label, !value || value === NOT_DEFINED ? 'Not defined yet' : value);
+      const defined = value && value !== NOT_DEFINED;
+      addRow(detail, label, defined ? value : 'Not defined yet', !defined);
     });
 
+    document.getElementById('result-meta').textContent = `${profile.known} of ${profile.total} aspects defined`;
+    document.getElementById('result-bar').style.width = '0';
     document.body.classList.add('has-result');
     resultSection.hidden = false;
     status.textContent = 'Your analysis is ready.';
     resultSection.focus({ preventScroll: true });
+    requestAnimationFrame(() => {
+      document.getElementById('result-bar').style.width = `${Math.round((profile.known / profile.total) * 100)}%`;
+    });
   };
 
   document.getElementById('result-restart').addEventListener('click', () => location.reload());

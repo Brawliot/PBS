@@ -72,15 +72,26 @@
   </form>
 
   <section class="result" id="result" aria-labelledby="result-title" tabindex="-1" hidden>
-    <h2 class="result__title" id="result-title">What we understood</h2>
+    <header class="result__head">
+      <p class="result__eyebrow">Business analysis</p>
+      <h2 class="result__title" id="result-title">Your business at a glance</h2>
+    </header>
     <dl class="result__list" id="result-summary"></dl>
-    <h3 class="result__subtitle">Still to define</h3>
-    <ul class="result__pending" id="result-pending"></ul>
+    <div class="result__coverage">
+      <p class="result__meta" id="result-meta"></p>
+      <div class="result__bar" aria-hidden="true"><span id="result-bar"></span></div>
+    </div>
+    <section class="result__pending-block" id="result-pending-block">
+      <h3 class="result__label">Still to define</h3>
+      <ul class="result__pending" id="result-pending"></ul>
+    </section>
     <details class="result__details">
       <summary>See full detail</summary>
       <dl class="result__list" id="result-detail"></dl>
     </details>
-    <button class="btn btn--dark" type="button" id="result-restart">Start over</button>
+    <div class="result__actions">
+      <button class="btn btn--dark" type="button" id="result-restart">Start over</button>
+    </div>
   </section>
 
   <p class="sr-only" id="status" role="status"></p>
