@@ -88,21 +88,33 @@ const GROUPS: { group: string; departments: [name: string, definition: string][]
   },
 ];
 
+// Areas every business needs, whatever its size: they never rank below "important"
+const BASELINE = new Set(["Legal & Compliance", "Finance", "Marketing"]);
+const CORE_MIN = 75; // weight at or above this is "core"
+const IMPORTANT_MIN = 40; // at or above this is "important", below it "light"
+
 const SUPPORT_MIN = 50; // below this a claim is not shown as fact
 const CHECK_MIN = 50; // below this a coherence check becomes a warning
 const MAX_CLAIM_LENGTH = 300;
 
+export type Tier = "core" | "important" | "light";
+
+/** How much effort an area takes in this business (not whether it is needed) */
 interface Scored {
   name: string;
-  confidence: number; // 0-100
+  confidence: number; // 0-100, Jev's confidence that the area is among the most critical
+  tier: Tier;
 }
+
+const tierOf = (confidence: number): Tier =>
+  confidence >= CORE_MIN ? "core" : confidence >= IMPORTANT_MIN ? "important" : "light";
 
 export interface Validation {
   /** Claims the description does not back up: they must not be shown as fact */
   unsupported: ClaimKey[];
   /** Coherence checks that came out below CHECK_MIN */
   warnings: CheckKey[];
-  /** Departments, most likely first, and the same grouped (max of the members) */
+  /** Areas by weight, heaviest first: the departments and the same grouped (max of the members) */
   departments: Scored[];
   groups: Scored[];
 }
@@ -171,7 +183,7 @@ ${given}
     for (const [name, definition] of departments) {
       questions[`dept_${name}`] = {
         type: "noul",
-        instructions: `This business will need a ${name} department (${definition}).`,
+        instructions: `For this business to work right now, ${name} (${definition}) is one of the most critical areas.`,
       };
     }
   }
@@ -189,12 +201,19 @@ ${given}
   });
 
   const byConfidence = (a: Scored, b: Scored) => b.confidence - a.confidence;
+  const scored = (name: string, confidence: number, baseline: boolean): Scored => {
+    const value = baseline ? Math.max(confidence, IMPORTANT_MIN) : confidence;
+    return { name, confidence: value, tier: tierOf(value) };
+  };
+
   const departments: Scored[] = [];
   const groups: Scored[] = [];
   for (const { group, departments: members } of GROUPS) {
-    const scored = members.map(([name]) => ({ name, confidence: score(`dept_${name}`) ?? 0 }));
-    departments.push(...scored);
-    groups.push({ name: group, confidence: Math.max(...scored.map((d) => d.confidence)) });
+    const items = members.map(([name]) =>
+      scored(name, score(`dept_${name}`) ?? 0, BASELINE.has(name)),
+    );
+    departments.push(...items);
+    groups.push(scored(group, Math.max(...items.map((d) => d.confidence)), false));
   }
 
   return {

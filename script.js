@@ -377,13 +377,14 @@
     (validation?.warnings ?? []).slice(0, 3).forEach((key) => addItem(warnings, WARNINGS[key]));
     document.getElementById('result-warnings-block').hidden = !warnings.children.length;
 
-    // Small businesses see the groups, larger ones the departments
+    // Small businesses see the groups, larger ones the departments. Light areas stay in the popup
+    const TIERS = { core: 'Core', important: 'Important', light: 'Light' };
     const areas = validation ? (validation.level === 2 ? validation.departments : validation.groups) : [];
-    areas.slice(0, 3).forEach(({ name, confidence }) => addItem(topDepartments, `${name} \u00b7 ${confidence}%`));
+    areas.filter(({ tier }) => tier !== 'light').slice(0, 4)
+      .forEach(({ name, tier }) => addItem(topDepartments, `${name} \u00b7 ${TIERS[tier]}`));
     document.getElementById('result-departments-block').hidden = !topDepartments.children.length;
-    areas.forEach(({ name, confidence }) => addRow(departmentList, name, `${confidence}%`));
+    areas.forEach(({ name, tier }) => addRow(departmentList, name, TIERS[tier], tier === 'light'));
     document.getElementById('result-departments-title').hidden = !areas.length;
-    document.getElementById('result-departments-title').textContent = validation?.level === 2 ? 'Departments' : 'Areas';
 
     Object.entries(LABELS).forEach(([key, label]) => {
       const value = profile.values[key];
