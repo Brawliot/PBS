@@ -105,7 +105,7 @@ body.modal-open .giant__track { animation-play-state: paused; }
 @media (prefers-reduced-motion: reduce) {
   .giant__track { animation: none; }
 }
-.giant__letter { color: var(--black); }
+.giant__letter { color: var(--black); filter: blur(2px); }
 .giant__letter--gray { color: var(--gray); }
 
 /* Translucent layer between the giant wordmark and the content */
