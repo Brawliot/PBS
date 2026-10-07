@@ -61,6 +61,7 @@
       </div>
       <div class="submit-error" id="submit-error" role="alert">
         <p class="submit-error__text" id="submit-error-text"></p>
+        <button class="submit-error__retry" type="button" id="submit-error-retry">Retry</button>
         <button class="submit-error__close" type="button" id="submit-error-close" aria-label="Dismiss error">&times;</button>
       </div>
     </form>
@@ -70,7 +71,7 @@
     <p class="question__progress" id="question-progress"></p>
     <p class="question__text" id="question-text">Question goes here</p>
     <div class="question__field">
-      <input class="question__input" type="text" name="answer" placeholder="Type your answer" aria-labelledby="question-text" autocomplete="off">
+      <input class="question__input" type="text" name="answer" placeholder="Type your answer" aria-labelledby="question-text" autocomplete="off" maxlength="1000">
       <button class="arrow-btn question__submit" type="submit" aria-label="Send answer">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
       </button>

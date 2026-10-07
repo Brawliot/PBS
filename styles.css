@@ -200,6 +200,12 @@ body.is-finishing .hero__loader { opacity: 0; transition: opacity 0.35s ease; }
   transition: opacity 0.3s ease, transform 0.3s ease, visibility 0s;
 }
 .submit-error__text { color: var(--danger); font-size: 16px; }
+.submit-error__retry {
+  border: 0; background: transparent; color: var(--dark); font-size: 15px;
+  text-decoration: underline; padding: 0; margin-right: 8px;
+  transition: opacity 0.15s ease;
+}
+.submit-error__retry:hover { opacity: 0.65; }
 .submit-error__close {
   flex: none; width: 32px; height: 32px; border: 0; border-radius: 50%; background: transparent;
   font-size: 24px; line-height: 1; color: var(--gray-text);

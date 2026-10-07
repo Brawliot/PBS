@@ -160,7 +160,10 @@
 
   // The idea field uses the error element that already exists in the markup
   errors.set(idea, document.getElementById('search-error'));
-  idea.addEventListener('input', () => clearFieldError(idea));
+  idea.addEventListener('input', () => {
+    clearFieldError(idea);
+    resetFlow();
+  });
 
   // Sliders always hold a value, so "untouched" is tracked separately (is-set).
   // The first user input marks a slider as set; the initial value is only an example.
@@ -174,6 +177,7 @@
       output.value = formatValue(range);
       toggleToken(range, 'aria-describedby', 'slider-hint', false);
       clearFieldError(range);
+      resetFlow();
     });
   });
 
@@ -190,6 +194,7 @@
   const MIN_LOADER_MS = 1500; // visible time of the loader, so it never flashes
   const FADE_MS = 700;        // loader travels back and fades out (keep in sync with CSS)
   const FINISH_MS = 350;      // loader fades out in place before the result (keep in sync with CSS)
+  const REQUEST_TIMEOUT_MS = 90_000;
   const status = document.getElementById('status');
   const loaderSlot = document.querySelector('.hero__loader');
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -198,8 +203,9 @@
 
   // Submit error: a dismissable box under the search block
   const submitError = document.getElementById('submit-error');
-  const showSubmitError = (message) => {
+  const showSubmitError = (message, { retry = false } = {}) => {
     document.getElementById('submit-error-text').textContent = message;
+    document.getElementById('submit-error-retry').hidden = !retry;
     submitError.classList.add('is-open');
   };
   const hideSubmitError = () => submitError.classList.remove('is-open');
@@ -207,19 +213,44 @@
     hideSubmitError();
     idea.focus();
   });
+  document.getElementById('submit-error-retry').addEventListener('click', () => {
+    if (sending) return;
+    hideSubmitError();
+    submitIdea();
+  });
 
   // Real POST request to the backend planner API
   const sendIdea = async (payload) => {
-    const res = await fetch('/api/planner', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || 'Request failed');
+    try {
+      const res = await fetch('/api/planner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        const error = new Error(data.error || 'Something went wrong. Please try again.');
+        error.userMessage = (typeof data.error === 'string' && data.error.trim()) ? data.error : error.message;
+        error.retryable = res.status >= 500;
+        throw error;
+      }
+      return await res.json();
+    } catch (err) {
+      if (err.name === 'TimeoutError' || err.name === 'AbortError') {
+        const error = new Error('The request took too long. Please try again.');
+        error.userMessage = 'The request took too long. Please try again.';
+        error.retryable = true;
+        throw error;
+      }
+      if (err instanceof TypeError) {
+        const error = new Error('Could not reach the server. Check your connection.');
+        error.userMessage = 'Could not reach the server. Check your connection.';
+        error.retryable = true;
+        throw error;
+      }
+      throw err;
     }
-    return await res.json();
   };
 
   // Same typography as the page title (not the giant background wordmark)
@@ -271,6 +302,13 @@
   let analysis = null; // phase 2 analysis from the first response
   const CLAIM_KEYS = ['subsector', 'location', 'target_customer', 'value_proposition', 'revenue_model', 'stage', 'competition'];
 
+  const resetFlow = () => {
+    answers = [];
+    queue = [];
+    current = null;
+    analysis = null;
+  };
+
   const nextQuestion = () => {
     current = queue.shift() ?? null;
     if (!current) return false;
@@ -291,6 +329,7 @@
     let failed = false;
     let profile = null;
     let validation = null;
+    let error = null;
 
     hideSubmitError();
     if (!loader) startLoading();
@@ -310,13 +349,14 @@
         if (nextQuestion()) return; // the loader stays under the popup
         throw new Error('No questions and no profile');
       }
-    } catch {
+    } catch (err) {
       failed = true;
-      status.textContent = 'Something went wrong. Please try again.';
+      error = err;
+      status.textContent = err.userMessage || 'Something went wrong. Please try again.';
     }
     if (failed) {
       await stopLoading();
-      showSubmitError('Something went wrong. Please try again.');
+      showSubmitError(error.userMessage || 'Something went wrong. Please try again.', { retry: error?.retryable });
       idea.focus();
     } else {
       await revealResult(analysis, profile, validation);
@@ -505,10 +545,7 @@
       syncModalState();
       return;
     }
-    answers = [];
-    queue = [];
-    current = null;
-    analysis = null;
+    resetFlow();
     submitIdea();
   });
 
@@ -549,13 +586,6 @@
     hideQuestion();
     submitIdea(); // all answered: the final request returns the profile
   });
-
-  // TESTING ONLY: open the page with ?preview=question to see the popup above the loader.
-  // The loader runs and no request is made, so it stays on screen. Remove when the flow exists.
-  if (new URLSearchParams(location.search).get('preview') === 'question') {
-    startLoading();
-    wait(EXIT_MS).then(() => showQuestion('Question goes here'));
-  }
 
   // ---------------------------------------------------------------------------
   // Giant wordmark: duplicate the group so the loop is seamless
