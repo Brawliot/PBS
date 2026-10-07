@@ -194,7 +194,11 @@
   const MIN_LOADER_MS = 1500; // visible time of the loader, so it never flashes
   const FADE_MS = 700;        // loader travels back and fades out (keep in sync with CSS)
   const FINISH_MS = 350;      // loader fades out in place before the result (keep in sync with CSS)
-  const REQUEST_TIMEOUT_MS = 90_000;
+  const START_TIMEOUT_MS = 15_000; // the POST only starts the job, so it answers fast
+  const POLL_MS = 1500;            // wait between status checks
+  const POLL_TIMEOUT_MS = 15_000;  // one status check
+  const JOB_TIMEOUT_MS = 180_000;  // total time before giving up on the analysis
+  const MAX_NETWORK_ERRORS = 3;    // failed status checks in a row before giving up
   const status = document.getElementById('status');
   const loaderSlot = document.querySelector('.hero__loader');
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -219,38 +223,74 @@
     submitIdea();
   });
 
-  // Real POST request to the backend planner API
-  const sendIdea = async (payload) => {
+  // A user-facing error: the UI shows userMessage, and retryable decides on the Retry button
+  const userError = (message, retryable) => {
+    const error = new Error(message);
+    error.userMessage = message;
+    error.retryable = retryable;
+    return error;
+  };
+
+  // One request with a timeout. Network failures and timeouts become user errors.
+  const requestJson = async (url, options, timeoutMs) => {
+    let res;
     try {
-      const res = await fetch('/api/planner', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        const error = new Error(data.error || 'Something went wrong. Please try again.');
-        error.userMessage = (typeof data.error === 'string' && data.error.trim()) ? data.error : error.message;
-        error.retryable = res.status >= 500;
-        throw error;
-      }
-      return await res.json();
+      res = await fetch(url, { ...options, signal: AbortSignal.timeout(timeoutMs) });
     } catch (err) {
       if (err.name === 'TimeoutError' || err.name === 'AbortError') {
-        const error = new Error('The request took too long. Please try again.');
-        error.userMessage = 'The request took too long. Please try again.';
-        error.retryable = true;
-        throw error;
+        throw userError('The request took too long. Please try again.', true);
       }
       if (err instanceof TypeError) {
-        const error = new Error('Could not reach the server. Check your connection.');
-        error.userMessage = 'Could not reach the server. Check your connection.';
-        error.retryable = true;
-        throw error;
+        throw userError('Could not reach the server. Check your connection.', true);
       }
       throw err;
     }
+    const data = await res.json().catch(() => ({}));
+    return { res, data };
+  };
+
+  // Server error response (4xx, 5xx): 5xx can be retried, 4xx shows the server's message
+  const httpError = (res, data) => {
+    const message = (typeof data.error === 'string' && data.error.trim()) ? data.error : 'Something went wrong. Please try again.';
+    return userError(message, res.status >= 500);
+  };
+
+  // Starts the planner job, then polls it until the result is ready
+  const sendIdea = async (payload) => {
+    const start = await requestJson('/api/planner', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }, START_TIMEOUT_MS);
+    if (!start.res.ok) throw httpError(start.res, start.data);
+    if (start.res.status !== 202 || typeof start.data.jobId !== 'string') {
+      throw userError('Something went wrong. Please try again.', true);
+    }
+
+    const deadline = Date.now() + JOB_TIMEOUT_MS;
+    let networkErrors = 0;
+    while (Date.now() < deadline) {
+      await wait(POLL_MS);
+      let poll;
+      try {
+        poll = await requestJson(`/api/planner/${start.data.jobId}`, {}, POLL_TIMEOUT_MS);
+      } catch {
+        if (++networkErrors >= MAX_NETWORK_ERRORS) {
+          throw userError('Could not reach the server. Check your connection.', true);
+        }
+        continue;
+      }
+      networkErrors = 0;
+
+      // 404: the server restarted or the job expired, so it cannot be recovered
+      if (poll.res.status === 404) throw userError('The analysis was interrupted. Please try again.', true);
+      if (!poll.res.ok) throw httpError(poll.res, poll.data);
+      if (poll.data.status === 'done') return poll.data.result;
+      if (poll.data.status === 'error') {
+        throw userError(poll.data.message || 'Something went wrong. Please try again.', true);
+      }
+    }
+    throw userError('The request took too long. Please try again.', true);
   };
 
   // Same typography as the page title (not the giant background wordmark)

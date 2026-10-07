@@ -12,7 +12,7 @@ import {
   parseAnswers,
   parsePlannerRequest,
   readBody,
-} from "../request.js";
+} from "../../request.js";
 import "./helpers.js";
 
 const validBody = { idea: "A bakery that delivers", budget: 0, experience: 0, team: 0, hours: 0 };

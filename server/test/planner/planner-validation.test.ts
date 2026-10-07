@@ -10,9 +10,9 @@ import {
   cleanClaims,
   departmentLevel,
   type Claims,
-} from "../planner/planner-validation-handler.js";
-import type { JevResponse, PlannerInput } from "../planner/planner-handler.js";
-import type { Profile } from "../planner/planner-profile-handler.js";
+} from "../../planner/planner-validation-handler.js";
+import type { JevResponse, PlannerInput } from "../../planner/planner-handler.js";
+import type { Profile } from "../../planner/planner-profile-handler.js";
 import { mockFetch, jsonResponse } from "./helpers.js";
 import "./helpers.js";
 

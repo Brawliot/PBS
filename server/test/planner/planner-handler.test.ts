@@ -1,6 +1,6 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { buildState, callJev, analyzeWithJev, type JevQuestion } from "../planner/planner-handler.js";
+import { buildState, callJev, analyzeWithJev, type JevQuestion } from "../../planner/planner-handler.js";
 import { mockFetch, jsonResponse, setJevEnv, silenceConsoleError } from "./helpers.js";
 import "./helpers.js";
 

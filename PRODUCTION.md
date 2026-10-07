@@ -74,6 +74,12 @@ Hoy el proyecto funciona en local, sin usuarios y sin estado en el servidor. Cas
 **Hecho cuando.** Hay un número documentado de usuarios simultáneos soportados y se sabe qué falla primero al superarlo.
 **Categoría.** Producción.
 
+### Cola de trabajos persistente
+**Qué es.** Los análisis se ejecutan como trabajos: `POST /api/planner` responde al momento con un id y el front consulta `GET /api/planner/:id` hasta que termina. Hoy los trabajos viven en la memoria de un solo proceso. Hay que pasarlos a una cola de trabajos o a la base de datos, y asociar cada trabajo al usuario que lo creó, de modo que solo él pueda leer su resultado.
+**Por qué.** En memoria, un reinicio o un despliegue pierde los análisis en curso y sus resultados, y con varias instancias el `GET` puede caer en un servidor que no conoce el trabajo. Además, hoy cualquiera que conozca el id puede leer el resultado de otra persona.
+**Hecho cuando.** Un análisis sobrevive a un reinicio del servidor y se puede consultar desde cualquier instancia, y un usuario recibe 404 al pedir el trabajo de otro usuario.
+**Categoría.** Crítico en producción, seguridad. Depende de la autenticación (para asociar cada trabajo a su usuario).
+
 ---
 
 ## Nice to have

@@ -1,8 +1,8 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { POLICY, questionLimit, selectQuestions } from "../planner/question-policy.js";
-import type { PlannerInput } from "../planner/planner-handler.js";
-import type { PlannerAnswer, Phase2Response, Question } from "../planner/planner-phase2-handler.js";
+import { POLICY, questionLimit, selectQuestions } from "../../planner/question-policy.js";
+import type { PlannerInput } from "../../planner/planner-handler.js";
+import type { PlannerAnswer, Phase2Response, Question } from "../../planner/planner-phase2-handler.js";
 import "./helpers.js";
 
 type Maturity = Phase2Response["maturity"];

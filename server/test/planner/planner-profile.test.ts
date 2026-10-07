@@ -1,7 +1,7 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { analyzeProfile } from "../planner/planner-profile-handler.js";
-import type { JevResponse, PlannerInput } from "../planner/planner-handler.js";
+import { analyzeProfile } from "../../planner/planner-profile-handler.js";
+import type { JevResponse, PlannerInput } from "../../planner/planner-handler.js";
 import { mockFetch, jsonResponse } from "./helpers.js";
 import "./helpers.js";
 
