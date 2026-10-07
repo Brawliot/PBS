@@ -325,12 +325,10 @@ body.has-result .hero { display: none; }
 .result__pending { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; }
 .result__pending li { padding: 5px 14px; font-size: 14px; border: 1px solid var(--border-strong); border-radius: 62px; }
 
-.result__details summary { cursor: pointer; width: fit-content; font-size: 15px; color: var(--gray-text); }
-.result__details summary:hover { color: var(--black); }
-.result__details .result__list { margin-top: 10px; }
-.result__details .result__list > div { font-size: 15px; padding: 9px 0; }
-
-.result__actions { display: flex; justify-content: flex-end; }
+.result__actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; }
+.result__actions .btn { padding: 0 22px; }
+#detail-modal { max-width: 520px; }
+#detail-modal .result__list > div { padding: 9px 0; font-size: 15px; }
 
 /* ==========================================================================
    Giant wordmark (endless loop to the right)
@@ -366,7 +364,7 @@ body.has-result .hero { display: none; }
 }
 .modal::backdrop { background: var(--tint); }
 /* Blur the static content (not the moving letters) while a dialog is open */
-body.modal-open .header, body.modal-open .hero { filter: blur(2px); }
+body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter: blur(2px); }
 
 .modal__card {
   position: relative; max-height: calc(100vh - 40px); overflow-y: auto;

@@ -51,6 +51,7 @@
   // ---------------------------------------------------------------------------
   const authDialog = document.getElementById('auth-modal');
   const gate = document.getElementById('gate-modal');
+  const detailDialog = document.getElementById('detail-modal');
   const authTitle = document.getElementById('auth-title');
   const authForms = [...authDialog.querySelectorAll('.auth')];
   const titles = { login: 'Log In', register: 'Register' };
@@ -60,7 +61,7 @@
     document.body.classList.toggle('modal-open', !!document.querySelector('dialog[open]'));
   };
 
-  [authDialog, gate].forEach((dialog) => {
+  [authDialog, gate, detailDialog].forEach((dialog) => {
     // Close on backdrop click, but not when a drag that started inside ends outside
     let pressedOnBackdrop = false;
     dialog.addEventListener('mousedown', (e) => { pressedOnBackdrop = e.target === dialog; });
@@ -365,6 +366,13 @@
   };
 
   document.getElementById('result-restart').addEventListener('click', () => location.reload());
+  document.getElementById('result-detail-open').addEventListener('click', () => {
+    detailDialog.showModal();
+    syncModalState();
+  });
+  document.getElementById('result-plan').addEventListener('click', () => {
+    // TODO: start the planning phase (not built yet)
+  });
 
   search.addEventListener('submit', (e) => {
     e.preventDefault();
