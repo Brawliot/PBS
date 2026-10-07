@@ -122,6 +122,13 @@ button { font: inherit; color: inherit; cursor: pointer; }
   color: var(--gray-text); letter-spacing: -0.04em; margin-top: 8px;
 }
 
+/* Same look as the Register button in the nav */
+.hero__projects {
+  height: auto; margin-top: 3vh; padding: 14px 34px; border-width: 0; font-size: 18px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease,
+    opacity 0.35s ease, visibility 0s;
+}
+
 /* While the idea is being sent:
    - the subtitle fades away,
    - the title turns into the loader (same typography, drawn exactly on top of it),
@@ -145,6 +152,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 body.is-loading .hero__title { opacity: 0; transition-delay: 0.1s; }
 body.is-loading .hero__subtitle { opacity: 0; transform: translateY(10px); }
+body.is-loading .hero__projects { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.35s ease, visibility 0s 0.35s; }
 body.is-loading .hero__loader {
   opacity: 1; visibility: visible;
   /* --loader-dy is set from script.js: distance from the title to the screen centre */
@@ -156,7 +164,7 @@ body.is-finishing .hero__loader { opacity: 0; transition: opacity 0.35s ease; }
 /* ==========================================================================
    Search bar
    ========================================================================== */
-.search { --bar-h: max(11vh, 64px); width: 100%; max-width: 1070px; margin-top: 8vh; }
+.search { --bar-h: max(11vh, 64px); width: 100%; max-width: 1070px; margin-top: 3vh; }
 .search__bar {
   display: flex; align-items: center; height: var(--bar-h); padding: 0 28px 0 24px;
   background: var(--white); border: 1px solid var(--border-strong); border-radius: 62px;
