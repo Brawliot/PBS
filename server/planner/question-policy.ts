@@ -6,7 +6,7 @@
 import type { PlannerInput } from "./planner-handler.js";
 import type { PlannerAnswer, Phase2Response, Question } from "./planner-phase2-handler.js";
 
-const POLICY = {
+export const POLICY = {
   baseByMaturity: { vague: 2, developing: 3, advanced: 4 },
   min: 1,
   max: 5,

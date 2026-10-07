@@ -89,12 +89,12 @@ const GROUPS: { group: string; departments: [name: string, definition: string][]
 ];
 
 // Areas every business needs, whatever its size: they never rank below "important"
-const BASELINE = new Set(["Legal & Compliance", "Finance", "Marketing"]);
-const CORE_MIN = 75; // weight at or above this is "core"
-const IMPORTANT_MIN = 40; // at or above this is "important", below it "light"
+export const BASELINE = new Set(["Legal & Compliance", "Finance", "Marketing"]);
+export const CORE_MIN = 75; // weight at or above this is "core"
+export const IMPORTANT_MIN = 40; // at or above this is "important", below it "light"
 
-const SUPPORT_MIN = 50; // below this a claim is not shown as fact
-const CHECK_MIN = 50; // below this a coherence check becomes a warning
+export const SUPPORT_MIN = 50; // below this a claim is not shown as fact
+export const CHECK_MIN = 50; // below this a coherence check becomes a warning
 const MAX_CLAIM_LENGTH = 300;
 
 export type Tier = "core" | "important" | "light";

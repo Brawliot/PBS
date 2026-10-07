@@ -1,8 +1,4 @@
-import {
-  createServer,
-  type IncomingMessage,
-  type ServerResponse,
-} from "node:http";
+import { createServer, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,10 +9,10 @@ import { questionLimit, selectQuestions } from "./planner/question-policy.js";
 import {
   analyzeValidation,
   claimsFromPhase2,
-  cleanClaims,
   departmentLevel,
   type Claims,
 } from "./planner/planner-validation-handler.js";
+import { HttpError, parsePlannerRequest, readBody } from "./request.js";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -34,43 +30,6 @@ const STATIC_FILES = new Set(["/script.js", "/styles.css", "/tech-text.js"]);
 const isPublic = (path: string) =>
   STATIC_FILES.has(path) || /^\/fonts\/[\w.-]+$/.test(path);
 
-// Slider ranges, same as index.html
-const RANGES = {
-  budget: [0, 1_000_000],
-  experience: [0, 20],
-  team: [0, 3],
-  hours: [0, 3],
-} as const;
-
-const MAX_ANSWERS = 12;
-const MAX_TEXT = 1000; // characters per answer field
-const MAX_IDEA = 2000; // characters for the idea field
-const MAX_BODY = 100_000; // bytes for request body
-
-class HttpError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
-
-function readBody(req: IncomingMessage): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let data = "";
-    req.setEncoding("utf8");
-    req.on("data", (chunk) => {
-      data += chunk;
-      if (data.length > MAX_BODY) {
-        reject(new HttpError(413, "Request too large"));
-      }
-    });
-    req.on("end", () => resolve(data));
-    req.on("error", reject);
-  });
-}
-
 function sendJson(res: ServerResponse, status: number, body: unknown) {
   res.writeHead(status, { "Content-Type": "application/json" });
   res.end(JSON.stringify(body));
@@ -86,61 +45,6 @@ async function sendFile(res: ServerResponse, file: string) {
   } catch {
     sendJson(res, 404, { error: "Not found" });
   }
-}
-
-function parseAnswers(value: unknown): PlannerAnswer[] {
-  if (value === undefined) return [];
-  if (!Array.isArray(value) || value.length > MAX_ANSWERS) {
-    throw new HttpError(400, "answers must be a short list");
-  }
-  return value.map((item) => {
-    const { topic, question, answer } = item ?? {};
-    for (const field of [topic, question, answer]) {
-      if (typeof field !== "string" || !field.trim() || field.length > MAX_TEXT) {
-        throw new HttpError(400, "Each answer needs a topic, a question and an answer");
-      }
-    }
-    return { topic: topic.trim(), question: question.trim(), answer: answer.trim() };
-  });
-}
-
-function parsePlannerRequest(raw: string): {
-  input: PlannerInput;
-  answers: PlannerAnswer[];
-  final: boolean;
-  claims: Claims;
-} {
-  let body: Record<string, unknown>;
-  try {
-    body = JSON.parse(raw);
-  } catch {
-    throw new HttpError(400, "Invalid JSON");
-  }
-  if (typeof body !== "object" || body === null) {
-    throw new HttpError(400, "Invalid JSON");
-  }
-
-  const idea = typeof body.idea === "string" ? body.idea.trim() : "";
-  if (!idea) throw new HttpError(400, "Idea is required");
-  if (idea.length > MAX_IDEA) throw new HttpError(400, "Idea is too long");
-
-  if (body.final !== undefined && typeof body.final !== "boolean") {
-    throw new HttpError(400, "final must be a boolean");
-  }
-  const final = body.final === true;
-
-  const input = { idea } as PlannerInput;
-  for (const [key, [min, max]] of Object.entries(RANGES) as [
-    keyof typeof RANGES,
-    readonly [number, number],
-  ][]) {
-    const value = body[key];
-    if (typeof value !== "number" || !Number.isFinite(value) || value < min || value > max) {
-      throw new HttpError(400, `${key} must be a number between ${min} and ${max}`);
-    }
-    input[key] = value;
-  }
-  return { input, answers: parseAnswers(body.answers), final, claims: cleanClaims(body.analysis) };
 }
 
 /** Last step: classify the profile and validate the analysis, both at once */
