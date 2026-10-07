@@ -84,9 +84,9 @@ THE USER STANDS, not to research the market (later phases do that).
      fixed deadline, what they can do themselves versus what the business needs, the
      differentiator, whether they hold or move other people's money, what documents or
      data they already have, and whether they know what to build.
-   - The number depends on maturity. vague: 1-3 (prefer fewer, the next phases research the
-     rest). developing: 2-3. advanced: 3-4, to understand where they are. Return an empty
-     list if the answers already given are enough.
+   - The number depends on maturity, as a maximum: vague 2 (the next phases research the
+     rest), developing 3, advanced 4, to understand where they are. Questions already
+     answered count toward that total. Return an empty list if the answers are enough.
    - Adapt to the person: use the form data (experience, team, hours, budget) to decide what
      is worth asking. A beginner may need a question about skills; an experienced person may
      need to be asked whether they do the trade themselves or only manage.

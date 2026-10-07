@@ -2,17 +2,14 @@
  * Business profile classification using 15 key dimensions
  */
 
-import type { PlannerInput } from "./planner-handler";
-
-export interface JevResponse {
-  answers: Record<string, { type: "choice" | "score" | "noul"; choice?: string }>;
-}
-
-export interface Phase2Response {
-  subsector: { value: string };
-  location: { value: string };
-  questions: Array<{ question: string; options?: string[] }>;
-}
+import {
+  buildState,
+  callJev,
+  type JevQuestion,
+  type JevResponse,
+  type PlannerInput,
+} from "./planner-handler.js";
+import type { PlannerAnswer, Phase2Response } from "./planner-phase2-handler.js";
 
 export type DimensionKey =
   | "customer_segment"
@@ -238,50 +235,37 @@ const DIMENSIONS: Dimension[] = [
 function buildDimensionState(
   input: PlannerInput,
   jev: JevResponse,
-  phase2: Phase2Response,
-  answers: Array<{ topic: string; question: string; answer: string }> = []
+  phase2: Phase2Response | undefined,
+  answers: PlannerAnswer[],
 ): string {
-  const sector = jev.answers["sector"]?.choice || "unknown";
-  const geographic = jev.answers["geographic_scope"]?.choice || "unknown";
-  const timeline = jev.answers["timeline"]?.choice || "unknown";
+  const choice = (key: string) => jev.answers[key]?.choice ?? "unknown";
+  const given = answers.length
+    ? answers.map((a) => `- [${a.topic}] ${a.question} -> ${a.answer}`).join("\n")
+    : "(none)";
+  // The final request has no phase 2 analysis: the idea and the answers carry the context
+  const details = phase2
+    ? `\n- Subsector/Details: ${phase2.subsector.value}\n- Location: ${phase2.location.value}`
+    : "";
 
-  let state = `Business idea: ${input.idea}
+  return `Business idea and form data: ${buildState(input)}
 
 Key context:
-- Sector: ${sector}
-- Geographic scope: ${geographic}
-- Timeline: ${timeline}
-- Subsector/Details: ${phase2.subsector.value}
-- Location: ${phase2.location.value}
+- Sector: ${choice("sector")}
+- Geographic scope: ${choice("geographic_scope")}
+- Timeline: ${choice("timeline")}${details}
 
+User answers:
+${given}
 `;
-
-  if (answers.length > 0) {
-    state += "User answers:\n";
-    for (const answer of answers) {
-      state += `- [${answer.topic}] ${answer.question} -> ${answer.answer}\n`;
-    }
-  } else {
-    state += "User answers: (none)\n";
-  }
-
-  return state;
 }
 
 export async function analyzeProfile(
   input: PlannerInput,
   jev: JevResponse,
-  phase2: Phase2Response,
-  answers: Array<{ topic: string; question: string; answer: string }> = []
+  phase2: Phase2Response | undefined,
+  answers: PlannerAnswer[] = [],
 ): Promise<Profile> {
-  const apiKey = process.env.TYPESAFE_API_KEY;
-  if (!apiKey) {
-    throw new Error("TYPESAFE_API_KEY is not set");
-  }
-
-  const state = buildDimensionState(input, jev, phase2, answers);
-
-  const questions: Record<string, any> = {};
+  const questions: Record<string, JevQuestion> = {};
   for (const dimension of DIMENSIONS) {
     questions[dimension.key] = {
       type: "choice",
@@ -290,46 +274,20 @@ export async function analyzeProfile(
     };
   }
 
-  const response = await fetch("https://api.typesafe.ai/v1/systemone", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: process.env.JEV_MODEL || "default",
-      state,
-      questions,
-    }),
-    signal: AbortSignal.timeout(30000),
-  });
+  const response = await callJev(buildDimensionState(input, jev, phase2, answers), questions);
 
-  if (!response.ok) {
-    const text = await response.text();
-    console.error(`Jev API error: ${response.status} ${text}`);
-    throw new Error(`Classification service returned ${response.status}`);
-  }
-
-  const profileResponse = (await response.json()) as JevResponse;
-
-  const values: Record<DimensionKey, string> = {} as Record<DimensionKey, string>;
+  const values = {} as Record<DimensionKey, string>;
   const unknown: DimensionKey[] = [];
-
-  for (const dimension of DIMENSIONS) {
-    const choice = profileResponse.answers[dimension.key]?.choice ?? "Not specified";
-    values[dimension.key] = choice;
-    if (choice === "Not specified") {
-      unknown.push(dimension.key);
-    }
+  for (const { key } of DIMENSIONS) {
+    const choice = response.answers[key]?.choice ?? "Not specified";
+    values[key] = choice;
+    if (choice === "Not specified") unknown.push(key);
   }
-
-  const known = DIMENSIONS.length - unknown.length;
-  const total = DIMENSIONS.length;
 
   return {
     values,
     unknown,
-    known,
-    total,
+    known: DIMENSIONS.length - unknown.length,
+    total: DIMENSIONS.length,
   };
 }

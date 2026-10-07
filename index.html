@@ -45,7 +45,7 @@
           <input id="budget" class="range" type="range" value="500000" min="0" max="1000000" step="10000" data-format="currency" aria-describedby="slider-hint">
         </div>
         <div class="filter">
-          <div class="filter__head"><label for="experience">Experience</label><output for="experience">e.g. 5 years</output></div>
+          <div class="filter__head"><label for="experience">Years in this industry</label><output for="experience">e.g. 5 years</output></div>
           <input id="experience" class="range" type="range" value="5" min="0" max="20" step="1" data-format="years" aria-describedby="slider-hint">
         </div>
         <div class="filter">
@@ -61,6 +61,7 @@
   </main>
 
   <form class="question" id="question" aria-labelledby="question-text" novalidate>
+    <p class="question__progress" id="question-progress"></p>
     <p class="question__text" id="question-text">Question goes here</p>
     <div class="question__field">
       <input class="question__input" type="text" name="answer" placeholder="Type your answer" aria-labelledby="question-text" autocomplete="off">
@@ -69,6 +70,18 @@
       </button>
     </div>
   </form>
+
+  <section class="result" id="result" aria-labelledby="result-title" tabindex="-1" hidden>
+    <h2 class="result__title" id="result-title">What we understood</h2>
+    <dl class="result__list" id="result-summary"></dl>
+    <h3 class="result__subtitle">Still to define</h3>
+    <ul class="result__pending" id="result-pending"></ul>
+    <details class="result__details">
+      <summary>See full detail</summary>
+      <dl class="result__list" id="result-detail"></dl>
+    </details>
+    <button class="btn btn--dark" type="button" id="result-restart">Start over</button>
+  </section>
 
   <p class="sr-only" id="status" role="status"></p>
   <p class="sr-only" id="slider-hint">Example value shown. Move the slider to set your own.</p>

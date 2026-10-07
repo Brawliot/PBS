@@ -281,6 +281,30 @@ body.is-loading .search {
 .question__input { width: 100%; height: 46px; padding-right: 52px; font-size: 18px; }
 .question__submit { position: absolute; top: 50%; right: 14px; transform: translateY(-50%); }
 
+.question__progress { font-size: 14px; color: var(--gray-text); }
+.question__progress:empty { display: none; }
+
+/* ==========================================================================
+   Result: replaces the hero once the analysis is done (body.has-result)
+   ========================================================================== */
+.result {
+  position: relative; z-index: 2; flex: 1; min-height: 0; overflow-y: auto;
+  width: min(760px, calc(100vw - 40px)); margin: 0 auto; padding: 24px 0 40px;
+  display: flex; flex-direction: column; gap: 18px; text-align: left;
+}
+body.has-result .hero { display: none; }
+.result__title { font-size: clamp(32px, 5vw, 48px); font-weight: 800; letter-spacing: -0.03em; }
+.result__subtitle { font-size: 20px; }
+.result__list { display: grid; grid-template-columns: max-content 1fr; gap: 10px 24px; font-size: 18px; }
+.result__list dt { color: var(--gray-text); }
+.result__pending { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; }
+.result__pending li {
+  padding: 6px 14px; font-size: 16px; border: 1px solid var(--border-strong); border-radius: 62px;
+}
+.result__details summary { cursor: pointer; font-size: 16px; color: var(--gray-text); }
+.result__details .result__list { margin-top: 14px; font-size: 16px; }
+.result .btn { align-self: flex-start; }
+
 /* ==========================================================================
    Giant wordmark (endless loop to the right)
    ========================================================================== */

@@ -241,18 +241,18 @@
     sending = false;
   };
 
-  // Question flow: the backend returns a list of questions, asked one by one. Once the
-  // list is answered, the answers go back to get refinements (at most MAX_ROUNDS requests).
-  const MAX_ROUNDS = 3;
+  // Question flow: the first response carries the questions, asked one by one. Once they are
+  // all answered, one final request sends the answers and returns the profile.
   let answers = [];   // { topic, question, answer } given so far
   let queue = [];     // received questions not asked yet
   let current = null; // question on screen
-  let rounds = 0;
+  let total = 0;      // number of questions in this session
+  let analysis = null; // phase 2 analysis from the first response
 
   const nextQuestion = () => {
     current = queue.shift() ?? null;
     if (!current) return false;
-    showQuestion(current.question);
+    showQuestion(current.question, `Question ${answers.length + 1} of ${total}`);
     status.textContent = current.question;
     return true;
   };
@@ -262,9 +262,10 @@
       idea: idea.value.trim(),
       ...Object.fromEntries(ranges.map((range) => [range.id, Number(range.value)])),
       answers,
-      final: rounds + 1 >= MAX_ROUNDS,
+      final: answers.length > 0,
     };
     let failed = false;
+    let profile = null;
 
     if (!loader) startLoading();
     status.textContent = 'Sending your idea…';
@@ -272,13 +273,16 @@
       // The first request also waits for the animation and the minimum loader time
       const [result] = await Promise.all([
         sendIdea(payload),
-        rounds === 0 ? wait(EXIT_MS + MIN_LOADER_MS) : null,
+        answers.length === 0 ? wait(EXIT_MS + MIN_LOADER_MS) : null,
       ]);
-      rounds++;
-      queue = rounds < MAX_ROUNDS ? (result?.phase2?.questions ?? []) : [];
-      if (nextQuestion()) return; // the loader stays under the popup
-      status.textContent = 'Your idea was sent.';
-      // TODO: show the result when there is nothing left to ask
+      analysis = result.phase2 ?? analysis;
+      profile = result.profile ?? null;
+      if (!profile) {
+        queue = result.phase2?.questions ?? [];
+        total = result.questionTotal ?? queue.length;
+        if (nextQuestion()) return; // the loader stays under the popup
+        throw new Error('No questions and no profile');
+      }
     } catch {
       failed = true;
       showFieldError(idea, 'Something went wrong. Please try again.');
@@ -286,7 +290,72 @@
     }
     await stopLoading();
     if (failed) idea.focus();
+    else showResult(analysis, profile);
   };
+
+  // --- Result: what we understood, what is still open, and the full detail -------
+  const resultSection = document.getElementById('result');
+  const LABELS = {
+    customer_segment: 'Customers',
+    revenue_model: 'Revenue model',
+    offering_type: 'What you offer',
+    acquisition_channel: 'Getting customers',
+    competition: 'Competition',
+    differentiator: 'What sets you apart',
+    validation_stage: 'Validation',
+    founder_profile: 'Your background',
+    deadline_rigidity: 'Deadline',
+    capital_intensity: 'Capital needed',
+    team_requirement: 'Team needed',
+    time_to_revenue: 'Time to first revenue',
+    regulatory_load: 'Regulation',
+    third_party_dependency: 'Dependence on others',
+    money_handling: 'Handling other people\u2019s money',
+  };
+  const SUMMARY_KEYS = ['customer_segment', 'revenue_model', 'offering_type', 'validation_stage', 'competition', 'differentiator'];
+  const PENDING_KEYS = ['validation_stage', 'customer_segment', 'revenue_model', 'acquisition_channel', 'regulatory_load', 'money_handling'];
+  const NOT_DEFINED = 'Not specified';
+
+  const addRow = (list, term, value) => {
+    const dt = document.createElement('dt');
+    const dd = document.createElement('dd');
+    dt.textContent = term;
+    dd.textContent = value;
+    list.append(dt, dd);
+  };
+
+  // Values come from the models: always inserted as text, never as HTML
+  const showResult = (phase2, profile) => {
+    const summary = document.getElementById('result-summary');
+    const pending = document.getElementById('result-pending');
+    const detail = document.getElementById('result-detail');
+    [summary, pending, detail].forEach((el) => el.replaceChildren());
+
+    const subsector = phase2?.subsector?.value;
+    if (subsector && subsector.toLowerCase() !== 'unknown') addRow(summary, 'Business', subsector);
+    SUMMARY_KEYS.filter((key) => profile.values[key] !== NOT_DEFINED)
+      .forEach((key) => addRow(summary, LABELS[key], profile.values[key]));
+    if (!summary.children.length) addRow(summary, 'Business', 'Not enough information yet');
+
+    PENDING_KEYS.filter((key) => profile.unknown.includes(key)).slice(0, 5).forEach((key) => {
+      const item = document.createElement('li');
+      item.textContent = LABELS[key];
+      pending.append(item);
+    });
+    pending.previousElementSibling.hidden = !pending.children.length;
+
+    Object.entries(LABELS).forEach(([key, label]) => {
+      const value = profile.values[key];
+      addRow(detail, label, !value || value === NOT_DEFINED ? 'Not defined yet' : value);
+    });
+
+    document.body.classList.add('has-result');
+    resultSection.hidden = false;
+    status.textContent = 'Your analysis is ready.';
+    resultSection.focus({ preventScroll: true });
+  };
+
+  document.getElementById('result-restart').addEventListener('click', () => location.reload());
 
   search.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -314,7 +383,7 @@
     answers = [];
     queue = [];
     current = null;
-    rounds = 0;
+    analysis = null;
     submitIdea();
   });
 
@@ -326,8 +395,11 @@
   const questionText = document.getElementById('question-text');
   const answer = question.elements.answer;
 
-  const showQuestion = (text) => {
+  const questionProgress = document.getElementById('question-progress');
+
+  const showQuestion = (text, progress = '') => {
     if (text) questionText.textContent = text;
+    questionProgress.textContent = progress;
     question.classList.add('is-open');
     requestAnimationFrame(() => answer.focus({ preventScroll: true }));
   };
@@ -350,7 +422,7 @@
     answer.value = '';
     if (nextQuestion()) return; // the next one is ready: the popup stays open
     hideQuestion();
-    submitIdea(); // list answered: send the answers and check for more questions
+    submitIdea(); // all answered: the final request returns the profile
   });
 
   // TESTING ONLY: open the page with ?preview=question to see the popup above the loader.

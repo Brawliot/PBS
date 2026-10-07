@@ -9,6 +9,7 @@ import { fileURLToPath } from "node:url";
 import { analyzeWithJev, type PlannerInput } from "./planner/planner-handler.js";
 import { analyzePhase2, type PlannerAnswer } from "./planner/planner-phase2-handler.js";
 import { analyzeProfile } from "./planner/planner-profile-handler.js";
+import { questionLimit, selectQuestions } from "./planner/question-policy.js";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -134,14 +135,28 @@ createServer(async (req, res) => {
     try {
       const { input, answers, final } = parsePlannerRequest(await readBody(req));
       const jev = await analyzeWithJev(input);
-      const phase2 = await analyzePhase2(input, jev, answers);
 
-      if (final || phase2.questions.length === 0) {
-        const profile = await analyzeProfile(input, jev, phase2, answers);
-        return sendJson(res, 200, { jev, phase2, profile });
+      // Final request: the questions are answered, so only the profile is left
+      if (final) {
+        const profile = await analyzeProfile(input, jev, undefined, answers);
+        return sendJson(res, 200, { jev, profile });
       }
 
-      return sendJson(res, 200, { jev, phase2 });
+      const phase2 = await analyzePhase2(input, jev, answers);
+      const questions = selectQuestions(
+        phase2.questions,
+        answers,
+        questionLimit(phase2.maturity, input),
+      );
+      if (questions.length === 0) {
+        const profile = await analyzeProfile(input, jev, phase2, answers);
+        return sendJson(res, 200, { jev, phase2: { ...phase2, questions }, profile });
+      }
+      return sendJson(res, 200, {
+        jev,
+        phase2: { ...phase2, questions },
+        questionTotal: answers.length + questions.length,
+      });
     } catch (e) {
       if (e instanceof HttpError) return sendJson(res, e.status, { error: e.message });
       console.error(e);

@@ -119,17 +119,17 @@ export function buildState(input: PlannerInput): string {
   });
 }
 
-export async function analyzeWithJev(input: PlannerInput): Promise<JevResponse> {
+/** Sends a state and a set of questions to Jev */
+export async function callJev(
+  state: string,
+  questions: Record<string, JevQuestion>,
+): Promise<JevResponse> {
   const apiKey = process.env.TYPESAFE_API_KEY;
   const model = process.env.JEV_MODEL;
   if (!apiKey) throw new Error("TYPESAFE_API_KEY is not set");
   if (!model) throw new Error("JEV_MODEL is not set");
 
-  const request: JevRequest = {
-    state: buildState(input),
-    model,
-    questions: JEV_QUESTIONS,
-  };
+  const request: JevRequest = { state, model, questions };
 
   const response = await fetch("https://api.typesafe.ai/v1/systemone", {
     method: "POST",
@@ -150,4 +150,8 @@ export async function analyzeWithJev(input: PlannerInput): Promise<JevResponse> 
   return (await response.json()) as JevResponse;
 }
 
-export type { JevResponse, JevAnswer };
+export function analyzeWithJev(input: PlannerInput): Promise<JevResponse> {
+  return callJev(buildState(input), JEV_QUESTIONS);
+}
+
+export type { JevQuestion, JevResponse, JevAnswer };
