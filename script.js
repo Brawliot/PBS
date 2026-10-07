@@ -285,6 +285,38 @@
   });
 
   // ---------------------------------------------------------------------------
+  // Question popup: a prompt and a text field, centred above the loader.
+  // Not part of the flow yet: nothing calls showQuestion() except the preview below.
+  // ---------------------------------------------------------------------------
+  const question = document.getElementById('question');
+  const questionText = document.getElementById('question-text');
+  const answer = question.elements.answer;
+
+  const showQuestion = (text) => {
+    if (text) questionText.textContent = text;
+    question.classList.add('is-open');
+    requestAnimationFrame(() => answer.focus({ preventScroll: true }));
+  };
+
+  const hideQuestion = () => {
+    question.classList.remove('is-open');
+    answer.value = '';
+    answer.blur();
+  };
+
+  question.addEventListener('submit', (e) => {
+    e.preventDefault();
+    // TODO: send the answer
+  });
+
+  // TESTING ONLY: open the page with ?preview=question to see the popup above the loader.
+  // The loader runs and no request is made, so it stays on screen. Remove when the flow exists.
+  if (new URLSearchParams(location.search).get('preview') === 'question') {
+    startLoading();
+    wait(EXIT_MS).then(() => showQuestion('Question goes here'));
+  }
+
+  // ---------------------------------------------------------------------------
   // Giant wordmark: duplicate the group so the loop is seamless
   // ---------------------------------------------------------------------------
   const track = document.querySelector('.giant__track');

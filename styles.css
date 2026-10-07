@@ -259,6 +259,26 @@ body.is-loading .search {
 .tech-text-canvas { display: block; width: 100%; height: 100%; }
 
 /* ==========================================================================
+   Question popup: one fixed place, centred above the loader. Styled like the search block.
+   Hidden until script.js opens it (showQuestion).
+   ========================================================================== */
+.question {
+  position: fixed; left: 50%; top: calc(50vh - 100px); z-index: 7;
+  width: min(560px, calc(100vw - 40px)); padding: 20px 24px 24px;
+  display: flex; flex-direction: column; gap: 14px; text-align: left;
+  background: var(--white); border: 1px solid var(--border-strong); border-radius: 14px;
+  box-shadow: var(--shadow);
+  opacity: 0; visibility: hidden; transform: translate(-50%, calc(-100% + 8px));
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0s 0.3s;
+}
+.question.is-open {
+  opacity: 1; visibility: visible; transform: translate(-50%, -100%);
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0s;
+}
+.question__text { font-size: 18px; color: var(--gray-text); }
+.question__input { height: 46px; font-size: 18px; }
+
+/* ==========================================================================
    Giant wordmark (endless loop to the right)
    ========================================================================== */
 .giant {
@@ -308,13 +328,13 @@ body.modal-open .header, body.modal-open .hero { filter: blur(2px); }
 .modal__actions, .auth { display: flex; flex-direction: column; gap: 16px; }
 
 .auth__field { display: flex; flex-direction: column; gap: 8px; font-size: 16px; }
-.auth__field input {
+.auth__field input, .question__input {
   height: 42px; padding: 0 14px; font: inherit; font-size: 15px;
   border: 1px solid var(--border-strong); border-radius: 10px; background: var(--white);
 }
-.auth__field input:focus { border-color: var(--dark); }
+.auth__field input:focus, .question__input:focus { border-color: var(--dark); }
 .auth__field input[aria-invalid="true"] { border-color: var(--danger); }
-.auth__field input::placeholder { color: var(--gray-text); }
+.auth__field input::placeholder, .question__input::placeholder { color: var(--gray-text); }
 .auth__hint { color: var(--gray-text); font-size: 14px; margin-top: -8px; }
 .auth .field-error { margin-top: -8px; }
 .auth__link {
