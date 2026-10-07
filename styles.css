@@ -125,24 +125,42 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* While the idea is being sent:
    - the subtitle fades away,
    - the title turns into the loader (same typography, drawn exactly on top of it),
+   - the loader travels to the centre of the screen, into a block styled like the input block,
    - TODO: the search block exit animation goes here (pending design). */
-.hero__title { transition: opacity 0.2s ease 0.1s; }
+.hero__title-wrap { z-index: 6; } /* above the search bar and the loader block */
+.hero__title { transition: opacity 0.2s ease 0.35s; }
 .hero__subtitle { transition: opacity 0.35s ease, transform 0.35s ease; }
 .hero__loader {
   /* Taller than the title so the canvas does not shrink the text to fit */
   position: absolute; inset: -20px 0; opacity: 0; visibility: hidden;
   /* The title's trailing letter-spacing (-0.08em) pushes its ink right by half of it; the canvas centres exact ink */
-  transform: translateX(calc(var(--title-size) * 0.04));
-  transition: opacity 0.4s ease, visibility 0s 0.4s;
-}
-body.is-loading .hero__title { opacity: 0; }
-body.is-loading .hero__subtitle { opacity: 0; transform: translateY(10px); }
-body.is-loading .hero__loader {
-  opacity: 1; visibility: visible;
-  transition: opacity 0.12s ease, visibility 0s;
+  transform: translate(calc(var(--title-size) * 0.04), 0);
+  transition: opacity 0.4s ease, visibility 0s 0.4s, transform 0.5s ease;
 }
 .hero__loader.tech-text { position: absolute; width: auto; height: auto; }
 .hero__loader .tech-text-canvas { position: absolute; inset: 0; }
+
+.loader-card {
+  position: fixed; left: 50%; top: 50%; z-index: 5;
+  width: min(1070px, calc(100vw - 40px)); height: 240px;
+  background: var(--white); border: 1px solid var(--border-strong); border-radius: 14px;
+  box-shadow: var(--shadow);
+  opacity: 0; visibility: hidden; transform: translate(-50%, -50%) scale(0.98);
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0s 0.3s;
+}
+
+body.is-loading .hero__title { opacity: 0; transition-delay: 0.1s; }
+body.is-loading .hero__subtitle { opacity: 0; transform: translateY(10px); }
+body.is-loading .hero__loader {
+  opacity: 1; visibility: visible;
+  /* --loader-dy is set from script.js: distance from the title to the screen centre */
+  transform: translate(calc(var(--title-size) * 0.04), var(--loader-dy, 0px));
+  transition: opacity 0.12s ease, visibility 0s, transform 0.7s cubic-bezier(0.65, 0, 0.35, 1) 0.15s;
+}
+body.is-loading .loader-card {
+  opacity: 1; visibility: visible; transform: translate(-50%, -50%) scale(1);
+  transition: opacity 0.35s ease 0.5s, transform 0.35s ease 0.5s, visibility 0s 0.5s;
+}
 
 /* ==========================================================================
    Search bar

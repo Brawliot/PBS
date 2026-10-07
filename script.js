@@ -182,9 +182,9 @@
   const REQUIRE_LOGIN = false;
 
   // --- Sending: title leaves, loader runs while the request is pending -------
-  const EXIT_MS = 400;        // subtitle exit + title-to-loader conversion (keep in sync with CSS)
+  const EXIT_MS = 850;        // subtitle exit + title-to-loader travel to the centre (keep in sync with CSS)
   const MIN_LOADER_MS = 1500; // visible time of the loader, so it never flashes
-  const FADE_MS = 500;        // loader fade-out (keep in sync with CSS)
+  const FADE_MS = 700;        // loader travels back and fades out (keep in sync with CSS)
   const status = document.getElementById('status');
   const loaderSlot = document.querySelector('.hero__loader');
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -203,6 +203,9 @@
     sending = true;
     search.setAttribute('aria-busy', 'true');
     search.inert = true;
+    // Distance from the title to the centre of the screen, where the loader ends up
+    const slot = loaderSlot.getBoundingClientRect();
+    loaderSlot.style.setProperty('--loader-dy', `${innerHeight / 2 - (slot.top + slot.height / 2)}px`);
     document.body.classList.add('is-loading');
     // TODO: trigger the search block exit animation here (pending design)
     // Same typography as the page title (not the giant background wordmark)
