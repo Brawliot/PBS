@@ -1,182 +1,212 @@
-const formatters = {
-  currency: (v) => '$' + v.toLocaleString('en-US'),
-  years: (v, max) => (v >= max ? `${max}+ years` : `${v} ${v === 1 ? 'year' : 'years'}`),
-};
+(() => {
+  // ---------------------------------------------------------------------------
+  // Field errors: one helper pair for every form (search, sliders, auth dialogs)
+  // ---------------------------------------------------------------------------
+  const errors = new WeakMap(); // input -> its <p class="field-error">
+  let errorCount = 0;
 
-const formatValue = (range) => {
-  const v = Number(range.value);
-  if (range.dataset.labels) return range.dataset.labels.split('|')[v];
-  return formatters[range.dataset.format](v, Number(range.max));
-};
+  const toggleToken = (el, attr, token, on) => {
+    const tokens = new Set((el.getAttribute(attr) || '').split(' ').filter(Boolean));
+    if (on) tokens.add(token); else tokens.delete(token);
+    if (tokens.size) el.setAttribute(attr, [...tokens].join(' '));
+    else el.removeAttribute(attr);
+  };
 
-// Search form
-const search = document.querySelector('.search');
-const idea = search.querySelector('.search__input');
-const ideaError = document.getElementById('search-error');
+  const getError = (input) => {
+    if (!errors.has(input)) {
+      const error = document.createElement('p');
+      error.className = 'field-error';
+      error.id = `field-error-${++errorCount}`;
+      error.hidden = true;
+      // Right after the label (or its hint) for fields inside a <label>; else after the input
+      const anchor = input.closest('label') ?? input;
+      const hint = anchor.nextElementSibling;
+      (hint?.classList.contains('auth__hint') ? hint : anchor).after(error);
+      errors.set(input, error);
+    }
+    return errors.get(input);
+  };
 
-// Sliders always hold a value, so "untouched" is tracked separately (is-set).
-// The first user input marks a slider as set; the initial value is only an example.
-const ranges = [...search.querySelectorAll('.range')];
-
-ranges.forEach((range) => {
-  const output = range.closest('.filter').querySelector('output');
-  output.classList.add('is-example');
-
-  const error = document.createElement('p');
-  error.className = 'field-error';
-  error.id = `${range.id}-error`;
-  error.hidden = true;
-  range.after(error);
-
-  range.addEventListener('input', () => {
-    range.classList.add('is-set');
-    output.classList.remove('is-example');
-    output.value = formatValue(range);
-    range.removeAttribute('aria-describedby');
-    range.removeAttribute('aria-invalid');
-    error.hidden = true;
-  });
-});
-
-idea.addEventListener('input', () => {
-  ideaError.hidden = true;
-  idea.removeAttribute('aria-invalid');
-});
-
-// TODO: replace with the real session state once there is a backend
-const isLoggedIn = false;
-
-search.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const invalid = [];
-
-  if (idea.value.trim() === '') {
-    ideaError.hidden = false;
-    idea.setAttribute('aria-invalid', 'true');
-    invalid.push(idea);
-  }
-  ranges.filter((r) => !r.classList.contains('is-set')).forEach((range) => {
-    const error = document.getElementById(`${range.id}-error`);
-    error.textContent = `Select a value for ${range.labels[0].textContent}.`;
+  const showFieldError = (input, message) => {
+    const error = getError(input);
+    if (message) error.textContent = message;
     error.hidden = false;
-    range.setAttribute('aria-invalid', 'true');
-    range.setAttribute('aria-describedby', error.id);
-    invalid.push(range);
+    input.setAttribute('aria-invalid', 'true');
+    toggleToken(input, 'aria-describedby', error.id, true);
+  };
+
+  const clearFieldError = (input) => {
+    const error = errors.get(input);
+    if (error) {
+      error.hidden = true;
+      toggleToken(input, 'aria-describedby', error.id, false);
+    }
+    input.removeAttribute('aria-invalid');
+  };
+
+  const labelOf = (input) => input.labels[0].textContent.trim();
+
+  // ---------------------------------------------------------------------------
+  // Dialogs: login / register (auth-modal) and login-required (gate-modal)
+  // ---------------------------------------------------------------------------
+  const authDialog = document.getElementById('auth-modal');
+  const gate = document.getElementById('gate-modal');
+  const authTitle = document.getElementById('auth-title');
+  const authForms = [...authDialog.querySelectorAll('.auth')];
+  const titles = { login: 'Log In', register: 'Register' };
+
+  // The page styles itself differently while any dialog is open (see body.modal-open)
+  const syncModalState = () => {
+    document.body.classList.toggle('modal-open', !!document.querySelector('dialog[open]'));
+  };
+
+  [authDialog, gate].forEach((dialog) => {
+    // Close on backdrop click, but not when a drag that started inside ends outside
+    let pressedOnBackdrop = false;
+    dialog.addEventListener('mousedown', (e) => { pressedOnBackdrop = e.target === dialog; });
+    dialog.addEventListener('click', (e) => {
+      if (e.target === dialog && pressedOnBackdrop) dialog.close();
+    });
+    dialog.addEventListener('close', syncModalState);
+    dialog.querySelector('[data-close]').addEventListener('click', () => dialog.close());
   });
 
-  if (invalid.length) {
-    invalid[0].focus();
-    return;
-  }
-  if (!isLoggedIn) {
-    gate.showModal();
+  const openAuth = (mode) => {
+    authForms.forEach((form) => { form.hidden = form.dataset.form !== mode; });
+    authTitle.textContent = titles[mode];
+    authDialog.showModal();
     syncModalState();
-    return;
-  }
-  // TODO: send data
-});
+  };
 
-// Giant wordmark: duplicate the group so the loop is seamless
-const track = document.querySelector('.giant__track');
-const group = track.firstElementChild.cloneNode(true);
-group.setAttribute('aria-hidden', 'true');
-track.append(group);
-track.classList.add('is-looping');
+  const validateAuth = (form) => {
+    const { email, password, password2 } = form.elements;
+    const register = form.dataset.form === 'register';
+    const invalid = [];
+    const fail = (input, message) => { showFieldError(input, message); invalid.push(input); };
 
-// Dialogs
-const dialog = document.getElementById('auth-modal');
-const gate = document.getElementById('gate-modal');
-const title = document.getElementById('auth-title');
-const titles = { login: 'Log In', register: 'Register' };
-const authForms = [...dialog.querySelectorAll('.auth')];
+    form.querySelectorAll('input').forEach((input) => {
+      if (input.value.trim() === '') fail(input, `${labelOf(input)} is required.`);
+    });
+    if (email.value && !email.checkValidity()) {
+      fail(email, 'Enter a valid email address.');
+    }
+    if (register && password.value && password.value.length < password.minLength) {
+      fail(password, `Password must be at least ${password.minLength} characters.`);
+    }
+    if (register && password.value && password2.value && password.value !== password2.value) {
+      fail(password2, 'Passwords do not match.');
+    }
 
-// Pause the background loop while any dialog is open
-const syncModalState = () => {
-  document.body.classList.toggle('modal-open', !!document.querySelector('dialog[open]'));
-};
+    invalid[0]?.focus();
+    return invalid.length === 0;
+  };
 
-[dialog, gate].forEach((d) => {
-  d.addEventListener('close', syncModalState);
-  d.addEventListener('click', (e) => { if (e.target === d) d.close(); });
-  d.querySelector('[data-close]').addEventListener('click', () => d.close());
-});
-
-// One error message per field, linked to its input with aria-describedby
-authForms.forEach((form) => {
-  form.querySelectorAll('input').forEach((input) => {
-    const field = input.closest('label');
-    const error = document.createElement('p');
-    error.className = 'field-error';
-    error.id = `${form.dataset.form}-${input.name}-error`;
-    error.hidden = true;
-    const hint = field.nextElementSibling;
-    (hint && hint.classList.contains('auth__hint') ? hint : field).after(error);
-    input.setAttribute('aria-describedby', [input.getAttribute('aria-describedby'), error.id].filter(Boolean).join(' '));
+  authForms.forEach((form) => {
+    form.addEventListener('input', (e) => {
+      clearFieldError(e.target);
+      // Fixing the first password should re-check an existing "do not match" error
+      const { password, password2 } = form.elements;
+      if (e.target === password && password2?.hasAttribute('aria-invalid') && password2.value) {
+        if (password.value === password2.value) clearFieldError(password2);
+        else showFieldError(password2, 'Passwords do not match.');
+      }
+    });
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      form.querySelectorAll('input').forEach(clearFieldError);
+      if (!validateAuth(form)) return;
+      // TODO: send data
+    });
   });
-});
 
-const errorOf = (input) => document.getElementById(`${input.form.dataset.form}-${input.name}-error`);
-
-const setError = (input, message) => {
-  const error = errorOf(input);
-  error.textContent = message;
-  error.hidden = false;
-  input.setAttribute('aria-invalid', 'true');
-};
-
-const clearField = (input) => {
-  errorOf(input).hidden = true;
-  input.removeAttribute('aria-invalid');
-};
-
-const clearErrors = (form) => form.querySelectorAll('input').forEach(clearField);
-
-const fieldName = (input) => input.closest('label').firstChild.textContent.trim();
-
-const validateAuth = (form) => {
-  const register = form.dataset.form === 'register';
-  const { email, password, password2 } = form.elements;
-  const invalid = [];
-  const fail = (input, message) => { setError(input, message); invalid.push(input); };
-
-  form.querySelectorAll('input').forEach((input) => {
-    if (input.value.trim() === '') fail(input, `${fieldName(input)} is required.`);
+  authDialog.addEventListener('close', () => {
+    authForms.forEach((form) => {
+      form.reset();
+      form.querySelectorAll('input').forEach(clearFieldError);
+    });
   });
-  if (email.value && !email.checkValidity()) fail(email, 'Enter a valid email address.');
-  if (register && password.value && password.value.length < 8) fail(password, 'Password must be at least 8 characters.');
-  if (register && password.value && password2.value && password.value !== password2.value) fail(password2, 'Passwords do not match.');
 
-  if (invalid.length) invalid[0].focus();
-  return invalid.length === 0;
-};
-
-const openAuth = (mode) => {
-  authForms.forEach((f) => { f.hidden = f.dataset.form !== mode; });
-  title.textContent = titles[mode];
-  dialog.showModal();
-  syncModalState();
-};
-
-dialog.addEventListener('close', () => {
-  authForms.forEach((f) => { f.reset(); clearErrors(f); });
-});
-
-document.querySelectorAll('[data-auth]').forEach((button) => {
-  button.addEventListener('click', () => openAuth(button.dataset.auth));
-});
-document.querySelectorAll('[data-gate]').forEach((button) => {
-  button.addEventListener('click', () => {
-    gate.close();
-    openAuth(button.dataset.gate);
+  document.querySelectorAll('[data-auth]').forEach((button) => {
+    button.addEventListener('click', () => openAuth(button.dataset.auth));
   });
-});
+  document.querySelectorAll('[data-gate]').forEach((button) => {
+    button.addEventListener('click', () => {
+      gate.close();
+      openAuth(button.dataset.gate);
+    });
+  });
 
-authForms.forEach((form) => {
-  form.addEventListener('input', (e) => clearField(e.target));
-  form.addEventListener('submit', (e) => {
+  // ---------------------------------------------------------------------------
+  // Search form: idea text + four sliders, all required
+  // ---------------------------------------------------------------------------
+  const formatters = {
+    currency: (v) => '$' + v.toLocaleString('en-US'),
+    years: (v, max) => (v >= max ? `${max}+ years` : `${v} ${v === 1 ? 'year' : 'years'}`),
+  };
+
+  const formatValue = (range) => {
+    const v = Number(range.value);
+    if (range.dataset.labels) return range.dataset.labels.split('|')[v] ?? String(v);
+    return formatters[range.dataset.format](v, Number(range.max));
+  };
+
+  const search = document.querySelector('.search');
+  const idea = search.querySelector('.search__input');
+  const ranges = [...search.querySelectorAll('.range')];
+
+  // The idea field uses the error element that already exists in the markup
+  errors.set(idea, document.getElementById('search-error'));
+  idea.addEventListener('input', () => clearFieldError(idea));
+
+  // Sliders always hold a value, so "untouched" is tracked separately (is-set).
+  // The first user input marks a slider as set; the initial value is only an example.
+  ranges.forEach((range) => {
+    const output = range.closest('.filter').querySelector('output');
+    output.classList.add('is-example');
+
+    range.addEventListener('input', () => {
+      range.classList.add('is-set');
+      output.classList.remove('is-example');
+      output.value = formatValue(range);
+      toggleToken(range, 'aria-describedby', 'slider-hint', false);
+      clearFieldError(range);
+    });
+  });
+
+  // TODO: replace with the real session state once there is a backend
+  const isLoggedIn = false;
+
+  search.addEventListener('submit', (e) => {
     e.preventDefault();
-    clearErrors(form);
-    if (!validateAuth(form)) return;
+    const invalid = [];
+
+    if (idea.value.trim() === '') {
+      showFieldError(idea);
+      invalid.push(idea);
+    }
+    ranges.filter((range) => !range.classList.contains('is-set')).forEach((range) => {
+      showFieldError(range, `Select a value for ${labelOf(range)}.`);
+      invalid.push(range);
+    });
+
+    if (invalid.length) {
+      invalid[0].focus();
+      return;
+    }
+    if (!isLoggedIn) {
+      gate.showModal();
+      syncModalState();
+      return;
+    }
     // TODO: send data
   });
-});
+
+  // ---------------------------------------------------------------------------
+  // Giant wordmark: duplicate the group so the loop is seamless
+  // ---------------------------------------------------------------------------
+  const track = document.querySelector('.giant__track');
+  const copy = track.firstElementChild.cloneNode(true);
+  copy.setAttribute('aria-hidden', 'true');
+  track.append(copy);
+  track.classList.add('is-looping');
+})();
