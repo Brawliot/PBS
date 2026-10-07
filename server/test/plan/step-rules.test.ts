@@ -1,17 +1,22 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { parsePlan, STEP_STATUSES, type Plan, type Step, type StepStatus } from "../../plan/plan-model.js";
+import { MAX_ROUNDS, parsePlan, STEP_EXECUTORS, STEP_STATUSES, type Plan, type Step, type StepStatus } from "../../plan/plan-model.js";
 import {
   TRANSITIONS,
   canTransition,
   feedsFromNonAi,
   findStepCycle,
   readableOutput,
-  stepContext,
+  STEP_PROBLEMS,
+  stepProblems,
+  cycleIn,
+  orderEdges,
   type StepContext,
 } from "../../plan/step-rules.js";
 
 const origin = { kind: "rule" } as const;
+const T1 = "2026-10-07T10:00:00Z";
+const T2 = "2026-10-07T11:00:00Z";
 const step = (overrides: Record<string, unknown> = {}): Step => ({
   id: "s1",
   taskId: "t1",
@@ -22,205 +27,263 @@ const step = (overrides: Record<string, unknown> = {}): Step => ({
   evidence: { kind: "none" },
   effortHours: 1,
   waitDays: 0,
-  status: "pending",
+  status: "not_started",
+  events: [],
   origin,
   confidence: 100,
   ...overrides,
 }) as Step;
 const aiStep = (overrides: Record<string, unknown> = {}) =>
   step({ executor: "ai", mode: undefined, ...overrides });
-const output = (state: "draft" | "confirmed") => ({ state, summary: "S", questions: [] });
-
-const context = (overrides: Partial<StepContext> = {}): StepContext => ({
-  step: step(),
-  blockers: [],
-  feeders: [],
-  launchedByUser: false,
-  evidenceProvided: false,
+const thirdStep = (overrides: Record<string, unknown> = {}) =>
+  step({ executor: "third_party", mode: undefined, ...overrides });
+const output = (version: number, state: string, overrides: Record<string, unknown> = {}) => ({
+  version,
+  state,
+  summary: "S",
+  questions: [],
+  createdAt: T1,
   ...overrides,
 });
-const check = (from: StepStatus, to: StepStatus, ctx: Partial<StepContext> = {}) =>
-  canTransition(from, to, context(ctx));
+const proof = { text: "Receipt no. 42", at: T1, by: "user" };
+
+const check = (from: StepStatus, to: StepStatus, s: Step, launchedByUser = true) =>
+  canTransition(from, to, { step: s, launchedByUser } satisfies StepContext);
+const ok = { allowed: true };
+const refused = (reason: string) => ({ allowed: false, reason });
 
 describe("transition table", () => {
-  const expected: Record<string, string[]> = {
-    pending: ["ready", "blocked", "rejected"],
-    ready: ["running", "waiting_user", "waiting_third_party", "blocked", "done", "rejected"],
-    running: ["waiting_user", "waiting_third_party", "blocked", "done", "rejected"],
-    waiting_user: ["running", "blocked", "done", "rejected"],
-    waiting_third_party: ["running", "blocked", "done", "rejected"],
-    blocked: ["ready", "rejected"],
-    done: [],
-    rejected: [],
+  // Written out in full on purpose: it is the contract, so it is not derived from the code
+  const expected: Record<string, Record<string, string[]>> = {
+    ai: {
+      not_started: ["running"],
+      running: ["waiting_user"],
+      waiting_user: ["running", "done", "rejected"],
+      waiting_third_party: [],
+      done: [],
+      rejected: ["not_started"],
+    },
+    user: {
+      not_started: ["running"],
+      running: ["done", "waiting_third_party", "rejected"],
+      waiting_user: [],
+      waiting_third_party: ["running", "rejected"],
+      done: [],
+      rejected: ["not_started"],
+    },
+    third_party: {
+      not_started: ["waiting_third_party"],
+      running: [],
+      waiting_user: [],
+      waiting_third_party: ["done", "rejected"],
+      done: [],
+      rejected: ["not_started"],
+    },
   };
 
-  test("lists every status exactly once", () => {
-    assert.deepEqual(Object.keys(TRANSITIONS).sort(), [...STEP_STATUSES].sort());
+  test("is exactly the agreed one, for every executor and status", () => {
+    assert.deepEqual(TRANSITIONS, expected);
   });
 
-  test("every pair is allowed or refused exactly as the table says", () => {
-    // A context that satisfies every other rule, so only the table decides
-    const free = context({ launchedByUser: true, evidenceProvided: true });
-    for (const from of STEP_STATUSES) {
-      for (const to of STEP_STATUSES) {
-        const result = canTransition(from, to, free);
-        if (expected[from].includes(to)) {
-          assert.deepEqual(result, { allowed: true }, `${from} -> ${to}`);
-        } else {
-          assert.deepEqual(result, { allowed: false, reason: "not_allowed" }, `${from} -> ${to}`);
+  test("stored statuses are the six of the life cycle", () => {
+    assert.deepEqual([...STEP_STATUSES], ["not_started", "running", "waiting_user", "waiting_third_party", "done", "rejected"]);
+  });
+
+  // The agreed list, one entry per allowed change and written by hand. It is not read from the
+  // code: the 108 pairs (3 executors x 6 x 6) are checked against it, in both directions.
+  const ALLOWED = new Set([
+    "ai not_started->running",
+    "ai running->waiting_user",
+    "ai waiting_user->running",
+    "ai waiting_user->done",
+    "ai waiting_user->rejected",
+    "ai rejected->not_started",
+    "user not_started->running",
+    "user running->done",
+    "user running->waiting_third_party",
+    "user running->rejected",
+    "user waiting_third_party->running",
+    "user waiting_third_party->rejected",
+    "user rejected->not_started",
+    "third_party not_started->waiting_third_party",
+    "third_party waiting_third_party->done",
+    "third_party waiting_third_party->rejected",
+    "third_party rejected->not_started",
+  ]);
+  const EXECUTORS = ["ai", "user", "third_party"] as const;
+  const STATUSES = ["not_started", "running", "waiting_user", "waiting_third_party", "done", "rejected"] as const;
+
+  test("the list has the agreed size and the lists of the code have the same", () => {
+    assert.equal(ALLOWED.size, 17);
+    assert.equal(Object.values(TRANSITIONS).flatMap(Object.values).flat().length, 17);
+  });
+
+  test("all 108 pairs are allowed if and only if they are in the list", () => {
+    // A step and context that satisfy every other rule, so only the table decides
+    const free: Record<string, Step> = {
+      ai: aiStep({ outputs: [output(1, "confirmed", { confirmedAt: T2 })] }),
+      user: step({ proof }),
+      third_party: thirdStep({ proof }),
+    };
+    let checked = 0;
+    for (const executor of EXECUTORS) {
+      for (const from of STATUSES) {
+        for (const to of STATUSES) {
+          const label = `${executor} ${from}->${to}`;
+          const allowed = check(from, to, free[executor]);
+          if (ALLOWED.has(label)) assert.deepEqual(allowed, ok, label);
+          else assert.deepEqual(allowed, refused("not_allowed"), label);
+          checked += 1;
         }
       }
     }
+    assert.equal(checked, 108);
   });
 
-  test("done and rejected are final", () => {
-    for (const to of STEP_STATUSES) {
-      assert.equal(check("done", to).allowed, false, `done -> ${to}`);
-      assert.equal(check("rejected", to).allowed, false, `rejected -> ${to}`);
-    }
-  });
-});
-
-describe("to ready", () => {
-  const blocker = (status: StepStatus) => step({ id: "b", status });
-  const feeder = (state: "draft" | "confirmed" | undefined) =>
-    aiStep({ id: "f", output: state && output(state) });
-
-  test("with no blockers and no feeders it is allowed", () => {
-    assert.deepEqual(check("pending", "ready"), { allowed: true });
-  });
-
-  test("needs every blocker done: one that is not done refuses", () => {
-    assert.deepEqual(check("pending", "ready", { blockers: [blocker("done"), blocker("done")] }), { allowed: true });
-    for (const status of STEP_STATUSES.filter((s) => s !== "done")) {
-      assert.deepEqual(
-        check("pending", "ready", { blockers: [blocker("done"), blocker(status)] }),
-        { allowed: false, reason: "blockers_not_done" },
-        status,
-      );
+  test("done is final for every executor", () => {
+    for (const s of [aiStep(), step(), thirdStep()]) {
+      for (const to of STEP_STATUSES) assert.equal(check("done", to, s).allowed, false, `${s.executor} -> ${to}`);
     }
   });
 
-  test("needs every feeder to have a confirmed output", () => {
-    assert.deepEqual(check("pending", "ready", { feeders: [feeder("confirmed"), feeder("confirmed")] }), { allowed: true });
-    for (const state of ["draft", undefined] as const) {
-      assert.deepEqual(
-        check("pending", "ready", { feeders: [feeder("confirmed"), feeder(state)] }),
-        { allowed: false, reason: "feeders_not_confirmed" },
-        String(state),
-      );
-    }
-  });
-
-  test("blocked steps coming back to ready follow the same rules", () => {
-    assert.deepEqual(check("blocked", "ready", { blockers: [blocker("running")] }), { allowed: false, reason: "blockers_not_done" });
-    assert.deepEqual(check("blocked", "ready", { blockers: [blocker("done")] }), { allowed: true });
-  });
-
-  test("the blockers and feeders do not matter for other targets", () => {
-    const open = { blockers: [blocker("pending")], feeders: [feeder("draft")] };
-    assert.deepEqual(check("pending", "blocked", open), { allowed: true });
-    assert.deepEqual(check("ready", "waiting_user", open), { allowed: true });
+  test("a step that was rejected can be reopened by any executor", () => {
+    for (const s of [aiStep(), step(), thirdStep()]) assert.deepEqual(check("rejected", "not_started", s), ok, s.executor);
   });
 });
 
-describe("to running", () => {
-  test("an AI step runs only when the person launched it", () => {
-    const ai = aiStep();
-    assert.deepEqual(check("ready", "running", { step: ai, launchedByUser: false }), { allowed: false, reason: "not_launched_by_user" });
-    assert.deepEqual(check("ready", "running", { step: ai, launchedByUser: true }), { allowed: true });
+describe("AI step to running", () => {
+  test("the first launch needs the person", () => {
+    assert.deepEqual(check("not_started", "running", aiStep(), false), refused("not_launched_by_user"));
+    assert.deepEqual(check("not_started", "running", aiStep(), true), ok);
   });
 
-  test("resuming an AI step from a waiting status needs the launch too", () => {
-    const ai = aiStep();
-    assert.deepEqual(check("waiting_user", "running", { step: ai }), { allowed: false, reason: "not_launched_by_user" });
-    assert.deepEqual(check("waiting_user", "running", { step: ai, launchedByUser: true }), { allowed: true });
+  test("another round needs the person too", () => {
+    const s = aiStep({ outputs: [output(1, "draft")] });
+    assert.deepEqual(check("waiting_user", "running", s, false), refused("not_launched_by_user"));
+    assert.deepEqual(check("waiting_user", "running", s, true), ok);
   });
 
-  test("user and third-party steps do not need a launch", () => {
-    assert.deepEqual(check("ready", "running", { step: step() }), { allowed: true });
-    assert.deepEqual(check("ready", "running", { step: step({ executor: "third_party", mode: undefined }) }), { allowed: true });
+  test("another round is allowed while the versions are below MAX_ROUNDS", () => {
+    const versions = (count: number) =>
+      aiStep({
+        outputs: Array.from({ length: count }, (_, i) => output(i + 1, i === count - 1 ? "draft" : "superseded")),
+      });
+    assert.deepEqual(check("waiting_user", "running", versions(MAX_ROUNDS - 1)), ok);
+    assert.deepEqual(check("waiting_user", "running", versions(MAX_ROUNDS)), refused("rounds_exceeded"));
+    assert.deepEqual(check("waiting_user", "running", versions(MAX_ROUNDS + 1)), refused("rounds_exceeded"));
+  });
+
+  test("the first launch needs room for another version too, so a reopened step cannot exceed the limit", () => {
+    const versions = (count: number) => aiStep({ outputs: Array.from({ length: count }, (_, i) => output(i + 1, "rejected")) });
+    assert.deepEqual(check("not_started", "running", versions(MAX_ROUNDS - 1)), ok);
+    assert.deepEqual(check("not_started", "running", versions(MAX_ROUNDS)), refused("rounds_exceeded"));
+  });
+
+  test("the person is asked before the round limit", () => {
+    const full = aiStep({ outputs: Array.from({ length: MAX_ROUNDS }, (_, i) => output(i + 1, "draft")) });
+    assert.deepEqual(check("waiting_user", "running", full, false), refused("not_launched_by_user"));
+  });
+
+  test("the AI delivering a draft needs no launch", () => {
+    assert.deepEqual(check("running", "waiting_user", aiStep(), false), ok);
   });
 });
 
-describe("to done", () => {
-  test("evidence none: done is allowed without anything", () => {
-    assert.deepEqual(check("running", "done", { step: step({ evidence: { kind: "none" } }) }), { allowed: true });
+describe("user and third-party steps to running", () => {
+  test("need no launch", () => {
+    assert.deepEqual(check("not_started", "running", step(), false), ok);
+    assert.deepEqual(check("waiting_third_party", "running", step(), false), ok);
+  });
+});
+
+describe("to done: the evidence", () => {
+  test("evidence none asks for nothing, for every executor", () => {
+    assert.deepEqual(check("waiting_user", "done", aiStep()), ok);
+    assert.deepEqual(check("running", "done", step()), ok);
+    assert.deepEqual(check("waiting_third_party", "done", thirdStep()), ok);
   });
 
-  test("written confirmation and receipt need the person to have provided it", () => {
+  test("written confirmation and receipt need the proof, with its text", () => {
     for (const kind of ["written_confirmation", "receipt"]) {
-      const s = step({ evidence: { kind } });
-      assert.deepEqual(check("running", "done", { step: s, evidenceProvided: false }), { allowed: false, reason: "evidence_missing" }, kind);
-      assert.deepEqual(check("running", "done", { step: s, evidenceProvided: true }), { allowed: true }, kind);
+      const evidence = { kind };
+      assert.deepEqual(check("running", "done", step({ evidence })), refused("evidence_missing"), kind);
+      assert.deepEqual(check("running", "done", step({ evidence, proof })), ok, kind);
+      assert.deepEqual(check("waiting_third_party", "done", thirdStep({ evidence })), refused("evidence_missing"), kind);
+      assert.deepEqual(check("waiting_third_party", "done", thirdStep({ evidence, proof })), ok, kind);
+      assert.deepEqual(check("waiting_user", "done", aiStep({ evidence })), refused("evidence_missing"), kind);
+      assert.deepEqual(check("waiting_user", "done", aiStep({ evidence, proof })), ok, kind);
     }
   });
 
-  test("accepted output needs a confirmed output, and the provided flag does not replace it", () => {
+  test("accepted output needs the current output confirmed with its date", () => {
     const evidence = { kind: "accepted_output" };
-    const missing = { reason: "evidence_missing", allowed: false };
-    assert.deepEqual(check("running", "done", { step: aiStep({ evidence }), evidenceProvided: true }), missing);
-    assert.deepEqual(check("running", "done", { step: aiStep({ evidence, output: output("draft") }), evidenceProvided: true }), missing);
-    assert.deepEqual(check("running", "done", { step: aiStep({ evidence, output: output("confirmed") }) }), { allowed: true });
+    const done = (outputs?: unknown[]) => check("waiting_user", "done", aiStep({ evidence, outputs }));
+    assert.deepEqual(done(), refused("evidence_missing"));
+    assert.deepEqual(done([]), refused("evidence_missing"));
+    assert.deepEqual(done([output(1, "draft")]), refused("evidence_missing"));
+    assert.deepEqual(done([output(1, "rejected")]), refused("evidence_missing"));
+    assert.deepEqual(done([output(1, "confirmed")]), refused("evidence_missing"));
+    assert.deepEqual(done([output(1, "confirmed", { confirmedAt: T2 })]), ok);
+  });
+
+  test("accepted output looks at the latest version, not at an old confirmed one", () => {
+    const evidence = { kind: "accepted_output" };
+    const outputs = [output(1, "superseded", { confirmedAt: T1 }), output(2, "draft")];
+    assert.deepEqual(check("waiting_user", "done", aiStep({ evidence, outputs })), refused("evidence_missing"));
+  });
+
+  test("a proof does not replace a confirmed output", () => {
+    const evidence = { kind: "accepted_output" };
+    assert.deepEqual(check("waiting_user", "done", aiStep({ evidence, proof })), refused("evidence_missing"));
   });
 
   test("the table is checked before the evidence", () => {
-    assert.deepEqual(
-      check("pending", "done", { step: step({ evidence: { kind: "receipt" } }) }),
-      { allowed: false, reason: "not_allowed" },
-    );
+    assert.deepEqual(check("not_started", "done", step({ evidence: { kind: "receipt" } })), refused("not_allowed"));
   });
 });
 
 describe("readableOutput", () => {
-  test("a confirmed output of an AI step is returned as is", () => {
-    const confirmed = { state: "confirmed", summary: "S", questions: ["Q?"], documentRef: "doc1" } as const;
-    assert.deepEqual(readableOutput(aiStep({ output: confirmed })), confirmed);
+  test("the confirmed current output of an AI step is returned as is", () => {
+    const confirmed = output(2, "confirmed", { confirmedAt: T2, documentRef: "doc1", questions: [{ question: "Q?", answer: "A" }] });
+    assert.deepEqual(readableOutput(aiStep({ outputs: [output(1, "superseded"), confirmed] })), confirmed);
   });
 
-  test("a draft, a missing output and a non-AI step give undefined", () => {
-    assert.equal(readableOutput(aiStep({ output: output("draft") })), undefined);
+  test("a draft, a rejected output, no output and a non-AI step give undefined", () => {
+    assert.equal(readableOutput(aiStep({ outputs: [output(1, "draft")] })), undefined);
+    assert.equal(readableOutput(aiStep({ outputs: [output(1, "rejected")] })), undefined);
+    assert.equal(readableOutput(aiStep({ outputs: [] })), undefined);
     assert.equal(readableOutput(aiStep()), undefined);
     // Not valid in a plan, but the rule must not depend on the schema having run
-    assert.equal(readableOutput(step({ output: output("confirmed") })), undefined);
+    assert.equal(readableOutput(step({ outputs: [output(1, "confirmed")] })), undefined);
+  });
+
+  test("an old confirmed version that was replaced is not readable", () => {
+    assert.equal(readableOutput(aiStep({ outputs: [output(1, "confirmed"), output(2, "draft")] })), undefined);
   });
 });
 
-describe("stepContext", () => {
-  const plan: Plan = parsePlan({
-    departments: [{ id: "legal", name: "Legal", tier: "core" }],
-    phases: [{ id: "f1", name: "Set up", order: 0 }],
-    tasks: [{ id: "t1", phaseId: "f1", primaryDepartmentId: "legal", secondaryDepartmentIds: [], title: "T", status: "todo", origin, confidence: 100 }],
-    steps: [
-      step({ id: "a" }),
-      step({ id: "b" }),
-      aiStep({ id: "c" }),
-      step({ id: "d" }),
-    ],
-    relations: [
-      { level: "step", from: "a", to: "d", type: "blocks" },
-      { level: "step", from: "b", to: "d", type: "follows" },
-      { level: "step", from: "c", to: "d", type: "feeds" },
-      { level: "step", from: "d", to: "a", type: "follows" },
-      { level: "task", from: "b", to: "d", type: "blocks" },
-    ],
-  });
-  const d = plan.steps[3];
-  const flags = { launchedByUser: true, evidenceProvided: false };
+describe("orderEdges", () => {
+  const rel = (level: string, type: string, from: string, to: string) => ({ level, type, from, to }) as Plan["relations"][number];
 
-  test("blockers are the sources of blocks into the step; feeders those of feeds", () => {
-    const ctx = stepContext(plan, d, flags);
-    assert.deepEqual(ctx.blockers.map((x) => x.id), ["a"]);
-    assert.deepEqual(ctx.feeders.map((x) => x.id), ["c"]);
-    assert.equal(ctx.step, d);
-    assert.equal(ctx.launchedByUser, true);
-    assert.equal(ctx.evidenceProvided, false);
+  test("blocks and feeds keep their direction, follows is reversed, other levels are left out", () => {
+    assert.deepEqual(
+      orderEdges([
+        rel("step", "blocks", "a", "b"),
+        rel("step", "feeds", "c", "d"),
+        rel("step", "follows", "e", "f"),
+        rel("task", "blocks", "g", "h"),
+        rel("phase", "follows", "i", "j"),
+      ]),
+      [["a", "b"], ["c", "d"], ["f", "e"]],
+    );
   });
+});
 
-  test("the direction matters: a step blocking others has no blockers of its own", () => {
-    const ctx = stepContext(plan, plan.steps[0], flags);
-    assert.deepEqual(ctx.blockers, []);
-    assert.deepEqual(ctx.feeders, []);
+describe("cycleIn", () => {
+  test("works on plain edges", () => {
+    assert.equal(cycleIn([]), undefined);
+    assert.equal(cycleIn([["a", "b"], ["b", "c"]]), undefined);
+    assert.deepEqual(cycleIn([["a", "b"], ["b", "a"]]), ["a", "b"]);
   });
 });
 
@@ -291,5 +354,122 @@ describe("findStepCycle", () => {
     const chain = Array.from({ length }, (_, i) => rel(`n${i}`, `n${(i + 1) % length}`));
     assert.equal(findStepCycle(chain)?.length, length);
     assert.equal(findStepCycle(chain.slice(0, -1)), undefined);
+  });
+});
+
+describe("stepProblems", () => {
+  const valid = (overrides: Record<string, unknown> = {}) =>
+    aiStep({
+      status: "waiting_user",
+      events: [
+        { at: T1, actor: "user", action: "launch", from: "not_started", to: "running" },
+        { at: T2, actor: "ai", action: "attach_output", from: "running", to: "waiting_user" },
+      ],
+      outputs: [output(1, "draft")],
+      ...overrides,
+    });
+  const ev = (at: string, from: string, to: string) => ({ at, actor: "user", action: "launch", from, to });
+  const T3 = "2026-10-07T12:00:00Z";
+
+  test("a valid step has no problems, whatever its executor", () => {
+    assert.deepEqual(stepProblems(valid()), []);
+    assert.deepEqual(stepProblems(step()), []);
+    assert.deepEqual(stepProblems(thirdStep()), []);
+    assert.deepEqual(stepProblems(aiStep()), []);
+  });
+
+  test("the list of codes is the agreed one", () => {
+    assert.deepEqual(
+      [...STEP_PROBLEMS],
+      [
+        "done_without_evidence", "multiple_drafts", "draft_not_last", "versions_not_consecutive", "events_go_back",
+        "events_not_chained", "status_not_last_event", "too_many_rounds", "outputs_on_non_ai", "mode_on_non_user", "user_without_mode",
+      ],
+    );
+  });
+
+  test("done_without_evidence: done needs the evidence of the step", () => {
+    const doneAt = (overrides: Record<string, unknown>) =>
+      step({ status: "done", events: [ev(T1, "not_started", "done")], ...overrides });
+    assert.deepEqual(stepProblems(doneAt({})), []);
+    for (const kind of ["written_confirmation", "receipt"]) {
+      assert.deepEqual(stepProblems(doneAt({ evidence: { kind } })), ["done_without_evidence"], kind);
+      assert.deepEqual(stepProblems(doneAt({ evidence: { kind }, proof })), [], kind);
+    }
+    const aiDone = (outputs: unknown[]) =>
+      aiStep({ status: "done", events: [ev(T1, "not_started", "done")], evidence: { kind: "accepted_output" }, outputs });
+    assert.deepEqual(stepProblems(aiDone([output(1, "draft")])), ["done_without_evidence"]);
+    assert.deepEqual(stepProblems(aiDone([output(1, "confirmed")])), ["done_without_evidence"]);
+    assert.deepEqual(stepProblems(aiDone([output(1, "confirmed", { confirmedAt: T2 })])), []);
+    // Evidence is only asked of a step that is done
+    assert.deepEqual(stepProblems(step({ evidence: { kind: "receipt" } })), []);
+  });
+
+  test("multiple_drafts and draft_not_last are told apart", () => {
+    assert.deepEqual(stepProblems(valid({ outputs: [output(1, "draft"), output(2, "draft")] })), ["multiple_drafts", "draft_not_last"]);
+    assert.deepEqual(stepProblems(valid({ outputs: [output(1, "draft"), output(2, "rejected")] })), ["draft_not_last"]);
+    assert.deepEqual(stepProblems(valid({ outputs: [output(1, "superseded"), output(2, "draft")] })), []);
+    assert.deepEqual(stepProblems(valid({ outputs: [output(1, "rejected"), output(2, "draft")] })), []);
+  });
+
+  test("versions_not_consecutive: they count 1, 2, 3 in order", () => {
+    assert.deepEqual(stepProblems(valid({ outputs: [output(2, "draft")] })), ["versions_not_consecutive"]);
+    assert.deepEqual(stepProblems(valid({ outputs: [output(1, "superseded"), output(3, "draft")] })), ["versions_not_consecutive"]);
+    assert.deepEqual(stepProblems(valid({ outputs: [output(1, "superseded"), output(1, "draft")] })), ["versions_not_consecutive"]);
+    assert.deepEqual(stepProblems(valid({ outputs: [output(1, "superseded"), output(2, "draft")] })), []);
+  });
+
+  test("events_go_back: dates never go back, but may repeat", () => {
+    const events = (second: string) => [ev(T2, "not_started", "running"), { ...ev(second, "running", "waiting_user"), actor: "ai" }];
+    assert.deepEqual(stepProblems(valid({ events: events(T1) })), ["events_go_back"]);
+    assert.deepEqual(stepProblems(valid({ events: events(T2) })), []);
+    assert.deepEqual(stepProblems(valid({ events: events("2026-10-07T10:59:59.999Z") })), ["events_go_back"]);
+  });
+
+  test("events_not_chained: the first starts at the beginning and each one where the last ended", () => {
+    assert.deepEqual(stepProblems(valid({ events: [ev(T1, "running", "waiting_user")] })), ["events_not_chained"]);
+    assert.deepEqual(stepProblems(valid({ events: [ev(T1, "not_started", "running"), ev(T2, "waiting_user", "waiting_user")] })), ["events_not_chained"]);
+    assert.deepEqual(stepProblems(valid({ events: [ev(T1, "not_started", "running"), ev(T2, "running", "rejected"), ev(T3, "running", "waiting_user")] })), ["events_not_chained"]);
+  });
+
+  test("status_not_last_event: the status is where the last event ended", () => {
+    assert.deepEqual(stepProblems(valid({ status: "running" })), ["status_not_last_event"]);
+    assert.deepEqual(stepProblems(step({ status: "running" })), ["status_not_last_event"]);
+    assert.deepEqual(stepProblems(step({ events: [ev(T1, "not_started", "running")] })), ["status_not_last_event"]);
+    assert.deepEqual(stepProblems(step({ status: "running", events: [ev(T1, "not_started", "running")] })), []);
+  });
+
+  test("too_many_rounds: at most MAX_ROUNDS versions", () => {
+    const versions = (count: number) => Array.from({ length: count }, (_, i) => output(i + 1, i === count - 1 ? "draft" : "superseded"));
+    assert.deepEqual(stepProblems(valid({ outputs: versions(MAX_ROUNDS) })), []);
+    assert.deepEqual(stepProblems(valid({ outputs: versions(MAX_ROUNDS + 1) })), ["too_many_rounds"]);
+  });
+
+  test("outputs_on_non_ai: only an AI step has outputs, even an empty list", () => {
+    assert.deepEqual(stepProblems(step({ outputs: [] })), ["outputs_on_non_ai"]);
+    assert.deepEqual(stepProblems(thirdStep({ outputs: [output(1, "rejected")] })), ["outputs_on_non_ai"]);
+    assert.deepEqual(stepProblems(aiStep({ outputs: [] })), []);
+  });
+
+  test("mode_on_non_user and user_without_mode: a mode belongs to user steps and only to them", () => {
+    assert.deepEqual(stepProblems(aiStep({ mode: "online" })), ["mode_on_non_user"]);
+    assert.deepEqual(stepProblems(thirdStep({ mode: "in_person" })), ["mode_on_non_user"]);
+    assert.deepEqual(stepProblems(step({ mode: undefined })), ["user_without_mode"]);
+    assert.deepEqual(stepProblems(step({ mode: "in_person" })), []);
+  });
+
+  test("several broken rules are all reported, once each and in the fixed order", () => {
+    const broken = stepProblems(
+      aiStep({ mode: "online", status: "done", events: [], outputs: [output(2, "draft"), output(2, "draft")] }),
+    );
+    assert.deepEqual(broken, ["multiple_drafts", "draft_not_last", "versions_not_consecutive", "status_not_last_event", "mode_on_non_user"]);
+  });
+
+  test("the answer is only codes: no content of the step is ever in it", () => {
+    const secret = "SECRET-TEXT-FROM-THE-USER";
+    const result = stepProblems(aiStep({ text: secret, mode: "online", outputs: [output(5, "draft", { summary: secret })], proof: { text: secret, at: T1, by: "user" } }));
+    assert.ok(result.length > 0);
+    assert.ok(result.every((code) => (STEP_PROBLEMS as readonly string[]).includes(code)));
+    assert.ok(!JSON.stringify(result).includes(secret));
   });
 });

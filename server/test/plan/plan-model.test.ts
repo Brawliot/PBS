@@ -5,14 +5,19 @@ import {
   MAX_CONFIDENCE,
   MAX_ID,
   MAX_NAME,
+  MAX_EVENTS,
   MAX_NOTE,
   MAX_OUTPUT_QUESTIONS,
+  MAX_ROUNDS,
   MAX_STEP_TEXT,
   MAX_TITLE,
   PlanSchema,
   parsePlan,
   type Plan,
 } from "../../plan/plan-model.js";
+
+const T1 = "2026-10-07T10:00:00Z";
+const T2 = "2026-10-07T11:00:00Z";
 
 const task = (overrides: Record<string, unknown> = {}) => ({
   id: "t1",
@@ -35,7 +40,8 @@ const step = (overrides: Record<string, unknown> = {}) => ({
   evidence: { kind: "none" },
   effortHours: 2,
   waitDays: 0,
-  status: "pending",
+  status: "not_started",
+  events: [],
   origin: { kind: "ai" },
   confidence: 60,
   ...overrides,
@@ -344,56 +350,249 @@ describe("step effort, wait and status", () => {
     assert.deepEqual([parsed.effortHours, parsed.waitDays], [3, 7]);
   });
 
-  test("status accepts exactly the eight values and the old done flag is gone", () => {
-    const all = ["pending", "ready", "running", "waiting_user", "waiting_third_party", "blocked", "done", "rejected"];
-    for (const status of all) assert.deepEqual(issues(withStep({ status })), [], status);
-    rejectedAt(withStep({ status: "todo" }), "steps.0.status");
+  test("status accepts exactly the six stored values: ready and blocked are deduced, not stored", () => {
+    // Only the empty history matches "not_started", so the other statuses are checked on their own
+    for (const status of ["running", "waiting_user", "waiting_third_party", "done", "rejected"]) {
+      const events = [{ at: T1, actor: "user", action: "launch", from: "not_started", to: status }];
+      assert.deepEqual(issues(withStep({ status, events })), [], status);
+    }
+    assert.deepEqual(issues(withStep({ status: "not_started" })), []);
+    for (const status of ["pending", "ready", "blocked", "todo"]) {
+      rejectedAt(withStep({ status }), "steps.0.status");
+    }
     rejectedAt(withStep({ done: false }), "steps.0");
   });
 });
 
-describe("step output", () => {
-  const output = (overrides: Record<string, unknown> = {}) => ({
+describe("step proof", () => {
+  const proof = (overrides: Record<string, unknown> = {}) => ({ text: "Receipt no. 42", at: T1, by: "user", ...overrides });
+  const withProof = (value: unknown) => plan({ steps: [step({ proof: value })] });
+
+  test("is optional and carries text, a date and who handed it in", () => {
+    assert.deepEqual(issues(withProof(undefined)), []);
+    assert.deepEqual(issues(withProof(proof())), []);
+    assert.deepEqual(parsePlan(withProof(proof())).steps[0].proof, proof());
+  });
+
+  test("text is trimmed, non-empty and bounded by MAX_STEP_TEXT", () => {
+    assert.deepEqual(issues(withProof(proof({ text: "a".repeat(MAX_STEP_TEXT) }))), []);
+    rejectedAt(withProof(proof({ text: "a".repeat(MAX_STEP_TEXT + 1) })), "steps.0.proof.text");
+    rejectedAt(withProof(proof({ text: "  " })), "steps.0.proof.text");
+  });
+
+  test("only the user hands it in, it needs a valid date, and unknown keys are rejected", () => {
+    for (const by of ["ai", "system", "third_party"]) rejectedAt(withProof(proof({ by })), "steps.0.proof.by");
+    rejectedAt(withProof(proof({ at: "yesterday" })), "steps.0.proof.at");
+    rejectedAt(withProof(proof({ file: "a.pdf" })), "steps.0.proof");
+  });
+});
+
+describe("dates", () => {
+  const withProofAt = (at: unknown) => plan({ steps: [step({ proof: { text: "x", at, by: "user" } })] });
+
+  test("accept ISO 8601 in UTC, with or without fractions of a second", () => {
+    for (const at of ["2026-10-07T10:00:00Z", "2026-10-07T10:00:00.123Z", "2024-02-29T23:59:59Z"]) {
+      assert.deepEqual(issues(withProofAt(at)), [], at);
+    }
+  });
+
+  test("reject what is not a real UTC instant", () => {
+    const invalid = [
+      "2026-10-07", // no time
+      "2026-10-07T10:00:00", // no zone
+      "2026-10-07T10:00:00+02:00", // offsets are not stored: one instant, one text
+      "2026-02-30T10:00:00Z", // day that does not exist
+      "2025-02-29T10:00:00Z", // not a leap year
+      "2026-10-07T25:00:00Z",
+      "2026-13-07T10:00:00Z",
+      "",
+      "now",
+      20261007,
+    ];
+    for (const at of invalid) rejectedAt(withProofAt(at), "steps.0.proof.at");
+  });
+});
+
+describe("step outputs", () => {
+  const out = (version: number, overrides: Record<string, unknown> = {}) => ({
+    version,
     state: "draft",
     summary: "A draft",
     questions: [],
+    createdAt: T1,
     ...overrides,
   });
-  const aiStep = (value: unknown) =>
-    plan({ steps: [step({ executor: "ai", mode: undefined, output: value })] });
+  const aiStep = (outputs: unknown) =>
+    plan({ steps: [step({ executor: "ai", mode: undefined, outputs })] });
 
-  test("is optional, and an AI step may carry it", () => {
+  test("are optional, and an AI step may carry them", () => {
     assert.deepEqual(issues(aiStep(undefined)), []);
-    assert.deepEqual(issues(aiStep(output())), []);
-    assert.deepEqual(issues(aiStep(output({ state: "confirmed", questions: ["Which city?"], documentRef: "doc1" }))), []);
+    assert.deepEqual(issues(aiStep([])), []);
+    assert.deepEqual(issues(aiStep([out(1)])), []);
+    const full = out(1, {
+      state: "confirmed",
+      documentRef: "doc1",
+      confirmedAt: T2,
+      questions: [{ question: "Which city?", answer: "Madrid", answeredAt: T2 }, { question: "Open?" }],
+    });
+    assert.deepEqual(parsePlan(aiStep([full])).steps[0].outputs, [full]);
   });
 
-  test("only an AI step can have one", () => {
-    rejectedAt(plan({ steps: [step({ output: output() })] }), "steps.0.output");
-    rejectedAt(plan({ steps: [step({ executor: "third_party", mode: undefined, output: output() })] }), "steps.0.output");
+  test("only an AI step can have them", () => {
+    rejectedAt(plan({ steps: [step({ outputs: [out(1)] })] }), "steps.0.outputs");
+    rejectedAt(plan({ steps: [step({ executor: "third_party", mode: undefined, outputs: [out(1)] })] }), "steps.0.outputs");
   });
 
-  test("state is draft or confirmed", () => {
-    rejectedAt(aiStep(output({ state: "final" })), "steps.0.output.state");
+  test("the old single output is gone", () => {
+    rejectedAt(plan({ steps: [step({ executor: "ai", mode: undefined, output: out(1) })] }), "steps.0");
+  });
+
+  test("state is one of draft, confirmed, rejected and superseded", () => {
+    for (const state of ["draft", "confirmed", "rejected", "superseded"]) {
+      assert.deepEqual(issues(aiStep([out(1, { state })])), [], state);
+    }
+    rejectedAt(aiStep([out(1, { state: "final" })]), "steps.0.outputs.0.state");
+  });
+
+  test("versions are consecutive integers from 1", () => {
+    const old = { state: "superseded" };
+    assert.deepEqual(issues(aiStep([out(1, old), out(2, old), out(3)])), []);
+    rejectedAt(aiStep([out(0)]), "steps.0.outputs.0.version");
+    rejectedAt(aiStep([out(2)]), "steps.0.outputs.0.version");
+    rejectedAt(aiStep([out(1.5)]), "steps.0.outputs.0.version");
+    rejectedAt(aiStep([out(1, old), out(3)]), "steps.0.outputs.1.version");
+    rejectedAt(aiStep([out(1, old), out(1)]), "steps.0.outputs.1.version");
+  });
+
+  test("there are at most MAX_ROUNDS versions", () => {
+    const versions = (count: number) => Array.from({ length: count }, (_, i) => out(i + 1, { state: i === count - 1 ? "draft" : "superseded" }));
+    assert.deepEqual(issues(aiStep(versions(MAX_ROUNDS))), []);
+    rejectedAt(aiStep(versions(MAX_ROUNDS + 1)), "steps.0.outputs");
+  });
+
+  test("only the latest version can be a draft or confirmed", () => {
+    for (const state of ["draft", "confirmed"]) {
+      rejectedAt(aiStep([out(1, { state }), out(2)]), "steps.0.outputs.0.state");
+    }
+    for (const state of ["rejected", "superseded"]) {
+      assert.deepEqual(issues(aiStep([out(1, { state }), out(2)])), [], state);
+    }
+    // The latest may also be closed
+    assert.deepEqual(issues(aiStep([out(1, { state: "rejected" })])), []);
   });
 
   test("summary is required, trimmed text bounded by MAX_STEP_TEXT", () => {
-    assert.deepEqual(issues(aiStep(output({ summary: "a".repeat(MAX_STEP_TEXT) }))), []);
-    rejectedAt(aiStep(output({ summary: "a".repeat(MAX_STEP_TEXT + 1) })), "steps.0.output.summary");
-    rejectedAt(aiStep(output({ summary: "  " })), "steps.0.output.summary");
+    assert.deepEqual(issues(aiStep([out(1, { summary: "a".repeat(MAX_STEP_TEXT) })])), []);
+    rejectedAt(aiStep([out(1, { summary: "a".repeat(MAX_STEP_TEXT + 1) })]), "steps.0.outputs.0.summary");
+    rejectedAt(aiStep([out(1, { summary: "  " })]), "steps.0.outputs.0.summary");
   });
 
-  test("questions are bounded in count and each is non-empty text", () => {
-    const many = (count: number) => Array.from({ length: count }, () => "Q");
-    assert.deepEqual(issues(aiStep(output({ questions: many(MAX_OUTPUT_QUESTIONS) }))), []);
-    rejectedAt(aiStep(output({ questions: many(MAX_OUTPUT_QUESTIONS + 1) })), "steps.0.output.questions");
-    rejectedAt(aiStep(output({ questions: [" "] })), "steps.0.output.questions.0");
-    rejectedAt(aiStep(output({ questions: undefined })), "steps.0.output.questions");
+  test("questions are bounded in count; question text is required, the answer is not", () => {
+    const many = (count: number) => Array.from({ length: count }, () => ({ question: "Q" }));
+    assert.deepEqual(issues(aiStep([out(1, { questions: many(MAX_OUTPUT_QUESTIONS) })])), []);
+    rejectedAt(aiStep([out(1, { questions: many(MAX_OUTPUT_QUESTIONS + 1) })]), "steps.0.outputs.0.questions");
+    rejectedAt(aiStep([out(1, { questions: [{ question: " " }] })]), "steps.0.outputs.0.questions.0.question");
+    rejectedAt(aiStep([out(1, { questions: [{}] })]), "steps.0.outputs.0.questions.0.question");
+    rejectedAt(aiStep([out(1, { questions: undefined })]), "steps.0.outputs.0.questions");
+    rejectedAt(aiStep([out(1, { questions: ["plain text"] })]), "steps.0.outputs.0.questions.0");
+    rejectedAt(aiStep([out(1, { questions: [{ question: "Q", answer: " " }] })]), "steps.0.outputs.0.questions.0.answer");
+  });
+
+  test("createdAt is required; confirmedAt and answeredAt are dates", () => {
+    rejectedAt(aiStep([out(1, { createdAt: undefined })]), "steps.0.outputs.0.createdAt");
+    rejectedAt(aiStep([out(1, { createdAt: "2026-10-07" })]), "steps.0.outputs.0.createdAt");
+    rejectedAt(aiStep([out(1, { confirmedAt: "soon" })]), "steps.0.outputs.0.confirmedAt");
+    rejectedAt(aiStep([out(1, { questions: [{ question: "Q", answeredAt: "soon" }] })]), "steps.0.outputs.0.questions.0.answeredAt");
   });
 
   test("documentRef must be a valid id, and unknown keys are rejected", () => {
-    rejectedAt(aiStep(output({ documentRef: "Not An Id" })), "steps.0.output.documentRef");
-    rejectedAt(aiStep(output({ extra: 1 })), "steps.0.output");
+    rejectedAt(aiStep([out(1, { documentRef: "Not An Id" })]), "steps.0.outputs.0.documentRef");
+    rejectedAt(aiStep([out(1, { extra: 1 })]), "steps.0.outputs.0");
+    rejectedAt(aiStep([out(1, { questions: [{ question: "Q", extra: 1 }] })]), "steps.0.outputs.0.questions.0");
+  });
+});
+
+describe("step events", () => {
+  const ev = (at: string, from: string, to: string, overrides: Record<string, unknown> = {}) => ({
+    at,
+    actor: "user",
+    action: "launch",
+    from,
+    to,
+    ...overrides,
+  });
+  const withHistory = (events: unknown[], status: string) => plan({ steps: [step({ events, status })] });
+  const T3 = "2026-10-07T12:00:00Z";
+
+  test("an empty history leaves the step not started", () => {
+    assert.deepEqual(issues(withHistory([], "not_started")), []);
+    rejectedAt(withHistory([], "running"), "steps.0.status");
+  });
+
+  test("a valid chain is accepted and kept as given", () => {
+    const events = [ev(T1, "not_started", "running"), ev(T2, "running", "done", { actor: "system", action: "submit_proof" })];
+    assert.deepEqual(issues(withHistory(events, "done")), []);
+    assert.deepEqual(parsePlan(withHistory(events, "done")).steps[0].events, events);
+  });
+
+  test("the first event must start from not_started", () => {
+    rejectedAt(withHistory([ev(T1, "running", "done")], "done"), "steps.0.events.0.from");
+  });
+
+  test("each event starts where the previous one ended", () => {
+    const broken = [ev(T1, "not_started", "running"), ev(T2, "waiting_user", "done")];
+    rejectedAt(withHistory(broken, "done"), "steps.0.events.1.from");
+    const third = [ev(T1, "not_started", "running"), ev(T2, "running", "rejected"), ev(T3, "running", "done")];
+    rejectedAt(withHistory(third, "done"), "steps.0.events.2.from");
+    assert.deepEqual(issues(withHistory([...third.slice(0, 2), ev(T3, "rejected", "not_started")], "not_started")), []);
+  });
+
+  test("the status must be the 'to' of the last event", () => {
+    const events = [ev(T1, "not_started", "running"), ev(T2, "running", "done")];
+    rejectedAt(withHistory(events, "running"), "steps.0.status");
+    rejectedAt(withHistory(events, "not_started"), "steps.0.status");
+    // A reopened step is back at the start even though its history is not empty
+    const reopened = [...events.slice(0, 1), ev(T2, "running", "rejected"), ev(T2, "rejected", "not_started")];
+    assert.deepEqual(issues(withHistory(reopened, "not_started")), []);
+  });
+
+  test("events never go back in time, but may share an instant", () => {
+    const back = [ev(T2, "not_started", "running"), ev(T1, "running", "done")];
+    rejectedAt(withHistory(back, "done"), "steps.0.events.1.at");
+    const same = [ev(T1, "not_started", "running"), ev(T1, "running", "done")];
+    assert.deepEqual(issues(withHistory(same, "done")), []);
+    // Compared as instants, not as text: 9:59:59.9 is before 10:00:00
+    const fraction = [ev("2026-10-07T10:00:00Z", "not_started", "running"), ev("2026-10-07T09:59:59.900Z", "running", "done")];
+    rejectedAt(withHistory(fraction, "done"), "steps.0.events.1.at");
+  });
+
+  test("actor and action accept only their values", () => {
+    const actions = ["launch", "attach_output", "answer", "confirm_output", "reject_output", "submit_proof", "wait_third_party", "third_party_responded", "reopen"];
+    for (const action of actions) {
+      assert.deepEqual(issues(withHistory([ev(T1, "not_started", "running", { action })], "running")), [], action);
+    }
+    for (const actor of ["user", "ai", "system"]) {
+      assert.deepEqual(issues(withHistory([ev(T1, "not_started", "running", { actor })], "running")), [], actor);
+    }
+    rejectedAt(withHistory([ev(T1, "not_started", "running", { action: "launch_it" })], "running"), "steps.0.events.0.action");
+    rejectedAt(withHistory([ev(T1, "not_started", "running", { actor: "third_party" })], "running"), "steps.0.events.0.actor");
+  });
+
+  test("from and to must be stored statuses, and the date a valid one", () => {
+    rejectedAt(withHistory([ev(T1, "not_started", "ready")], "ready"), "steps.0.events.0.to");
+    rejectedAt(withHistory([ev(T1, "blocked", "running")], "running"), "steps.0.events.0.from");
+    rejectedAt(withHistory([ev("today", "not_started", "running")], "running"), "steps.0.events.0.at");
+  });
+
+  test("the history has a maximum size", () => {
+    // not_started -> running -> rejected -> not_started -> ... keeps every link valid
+    const chain = (count: number) => {
+      const cycle = ["not_started", "running", "rejected"];
+      return Array.from({ length: count }, (_, i) => ev(T1, cycle[i % 3], cycle[(i + 1) % 3]));
+    };
+    const statusAfter = (count: number) => ["not_started", "running", "rejected"][count % 3];
+    assert.deepEqual(issues(withHistory(chain(MAX_EVENTS), statusAfter(MAX_EVENTS))), []);
+    rejectedAt(withHistory(chain(MAX_EVENTS + 1), statusAfter(MAX_EVENTS + 1)), "steps.0.events");
   });
 });
 

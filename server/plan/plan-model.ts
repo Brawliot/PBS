@@ -1,7 +1,8 @@
 /**
  * The plan: departments, phases, tasks, steps and the relations between them.
  * This module only defines the shape of each record and of the whole document.
- * References between records and the dependency graphs are checked in a separate module.
+ * The rules of a step (transitions, invariants, graph, actions) live in step-*.ts;
+ * the checks of references between records are not written yet.
  */
 
 import { z } from "zod";
@@ -14,8 +15,11 @@ export const MAX_TITLE = 200;
 export const MAX_STEP_TEXT = 1000;
 export const MAX_NOTE = 500;
 export const MAX_CONFIDENCE = 100;
-// Unmeasured: most questions a draft output can carry, tune with real plans
+// Unmeasured limits of the step level, tune with real plans
 export const MAX_OUTPUT_QUESTIONS = 20;
+// Most output versions an AI step may ever produce (the first draft plus the refinements), reopened or not
+export const MAX_ROUNDS = 3;
+export const MAX_EVENTS = 200;
 // Upper bounds per collection: unmeasured estimates, tune with real plans
 export const LIMITS = { departments: 20, phases: 50, tasks: 500, steps: 5000, relations: 10_000 };
 
@@ -69,30 +73,69 @@ const TaskSchema = z
   );
 
 export const STEP_EXECUTORS = ["ai", "user", "third_party"] as const;
+// Only the life cycle is stored: "ready" and "blocked" are deduced from the relations
 export const STEP_STATUSES = [
-  "pending",
-  "ready",
+  "not_started",
   "running",
   "waiting_user",
   "waiting_third_party",
-  "blocked",
   "done",
   "rejected",
 ] as const;
+export const EVENT_ACTIONS = [
+  "launch",
+  "attach_output",
+  "answer",
+  "confirm_output",
+  "reject_output",
+  "submit_proof",
+  "wait_third_party",
+  "third_party_responded",
+  "reopen",
+] as const;
 
-/** What a person or an AI hands over: a draft stays private to its step until confirmed */
-const OutputSchema = z.strictObject({
-  state: z.enum(["draft", "confirmed"]),
+// UTC only ("2026-10-07T10:00:00Z"): the same instant always has the same text
+const DateTimeSchema = z.iso.datetime();
+const StatusSchema = z.enum(STEP_STATUSES);
+
+export const QuestionSchema = z.strictObject({
+  question: text(MAX_STEP_TEXT),
+  answer: text(MAX_STEP_TEXT).optional(),
+  answeredAt: DateTimeSchema.optional(),
+});
+
+/** One version of what an AI step delivers: a draft stays private to its step until confirmed */
+export const OutputSchema = z.strictObject({
+  version: z.number().int().min(1),
+  state: z.enum(["draft", "confirmed", "rejected", "superseded"]),
   summary: text(MAX_STEP_TEXT),
-  questions: z.array(text(MAX_STEP_TEXT)).max(MAX_OUTPUT_QUESTIONS),
   documentRef: IdSchema.optional(),
+  questions: z.array(QuestionSchema).max(MAX_OUTPUT_QUESTIONS),
+  createdAt: DateTimeSchema,
+  confirmedAt: DateTimeSchema.optional(),
 });
 
 const EvidenceSchema = z.strictObject({
   kind: z.enum(["none", "accepted_output", "written_confirmation", "receipt"]),
 });
 
-const StepSchema = z
+/** What the person handed in to close the step. For now only text; a file comes later. */
+export const ProofSchema = z.strictObject({
+  text: text(MAX_STEP_TEXT),
+  at: DateTimeSchema,
+  by: z.literal("user"),
+});
+
+/** One change of status. The history only grows: nothing is edited or removed. */
+const EventSchema = z.strictObject({
+  at: DateTimeSchema,
+  actor: z.enum(["user", "ai", "system"]),
+  action: z.enum(EVENT_ACTIONS),
+  from: StatusSchema,
+  to: StatusSchema,
+});
+
+export const StepSchema = z
   .strictObject({
     id: IdSchema,
     taskId: IdSchema,
@@ -101,28 +144,50 @@ const StepSchema = z
     executor: z.enum(STEP_EXECUTORS),
     mode: z.enum(["online", "in_person"]).optional(),
     evidence: EvidenceSchema,
+    proof: ProofSchema.optional(),
     // Work and waiting are kept apart: effort is work, wait is time without work
     effortHours: z.number().min(0),
     waitDays: z.number().min(0),
-    status: z.enum(STEP_STATUSES),
-    output: OutputSchema.optional(),
+    status: StatusSchema,
+    outputs: z.array(OutputSchema).max(MAX_ROUNDS).optional(),
+    events: z.array(EventSchema).max(MAX_EVENTS),
     origin: OriginSchema,
     confidence: ConfidenceSchema,
     feedback: FeedbackSchema.optional(),
   })
   .superRefine((step, ctx) => {
-    if (step.executor === "user" && step.mode === undefined) {
-      ctx.addIssue({ code: "custom", message: "A user step needs a mode", path: ["mode"] });
-    }
-    if (step.executor !== "user" && step.mode !== undefined) {
-      ctx.addIssue({ code: "custom", message: "Only a user step has a mode", path: ["mode"] });
-    }
+    const issue = (message: string, path: (string | number)[]) =>
+      ctx.addIssue({ code: "custom", message, path });
+
+    if (step.executor === "user" && step.mode === undefined) issue("A user step needs a mode", ["mode"]);
+    if (step.executor !== "user" && step.mode !== undefined) issue("Only a user step has a mode", ["mode"]);
     if (step.evidence.kind === "accepted_output" && step.executor !== "ai") {
-      ctx.addIssue({ code: "custom", message: "Accepted output is evidence only for AI steps", path: ["evidence", "kind"] });
+      issue("Accepted output is evidence only for AI steps", ["evidence", "kind"]);
     }
-    if (step.output !== undefined && step.executor !== "ai") {
-      ctx.addIssue({ code: "custom", message: "Only an AI step has an output", path: ["output"] });
-    }
+    if (step.outputs !== undefined && step.executor !== "ai") issue("Only an AI step has outputs", ["outputs"]);
+
+    // Versions count 1, 2, 3... and only the latest can still be open (draft) or accepted
+    step.outputs?.forEach((output, index) => {
+      if (output.version !== index + 1) issue("Output versions must be consecutive from 1", ["outputs", index, "version"]);
+      const isLast = index === step.outputs!.length - 1;
+      if (!isLast && (output.state === "draft" || output.state === "confirmed")) {
+        issue("Only the latest output can be a draft or confirmed", ["outputs", index, "state"]);
+      }
+    });
+
+    // The history never goes back in time, each event starts where the previous ended,
+    // and the current status is where the last one ended
+    step.events.forEach((event, index) => {
+      const previous = step.events[index - 1];
+      if (previous && Date.parse(event.at) < Date.parse(previous.at)) {
+        issue("Events cannot go back in time", ["events", index, "at"]);
+      }
+      if (event.from !== (previous ? previous.to : "not_started")) {
+        issue("An event must start where the previous one ended", ["events", index, "from"]);
+      }
+    });
+    const expected = step.events.at(-1)?.to ?? "not_started";
+    if (step.status !== expected) issue("The status must be where the last event ended", ["status"]);
   });
 
 /** What a department depends on another for: a catalog entry, or free text when nothing fits */
@@ -175,7 +240,8 @@ export type Task = Plan["tasks"][number];
 export type Step = Plan["steps"][number];
 export type StepStatus = Step["status"];
 export type StepExecutor = Step["executor"];
-export type StepOutput = NonNullable<Step["output"]>;
+export type StepOutput = NonNullable<Step["outputs"]>[number];
+export type StepEvent = Step["events"][number];
 export type Relation = Plan["relations"][number];
 export type Origin = Task["origin"];
 export type Aspect = Extract<Relation, { level: "department" }>["aspect"];
