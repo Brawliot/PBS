@@ -148,7 +148,7 @@ body.is-loading .hero__loader {
   transform: translate(calc(var(--title-size) * 0.04), var(--loader-dy, 0px));
   transition: opacity 0.12s ease, visibility 0s, transform 0.7s cubic-bezier(0.65, 0, 0.35, 1) 0.15s;
 }
-body.is-loading /* ==========================================================================
+/* ==========================================================================
    Search bar
    ========================================================================== */
 .search { --bar-h: max(11vh, 64px); width: 100%; max-width: 1070px; margin-top: 8vh; }
