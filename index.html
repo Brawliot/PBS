@@ -1,9 +1,12 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="MANDO helps you plan and execute your business: describe your idea and set your budget, experience, team size and weekly hours.">
+  <meta name="theme-color" content="#ffffff">
   <title>MANDO - Plan &amp; Execute your Business</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23272727'/%3E%3Ctext x='16' y='23' font-size='20' font-weight='800' text-anchor='middle' fill='%23fff' font-family='Arial'%3EM%3C/text%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;800&family=Open+Sans:wght@400&display=swap" rel="stylesheet">
@@ -14,8 +17,8 @@
 
   <header class="header">
     <nav class="nav">
-      <a href="#" class="nav__login" data-auth="login">Log In</a>
-      <a href="#" class="btn btn--dark" data-auth="register">Register</a>
+      <button type="button" class="nav__login" data-auth="login">Log In</button>
+      <button type="button" class="btn btn--dark" data-auth="register">Register</button>
     </nav>
   </header>
 
@@ -25,28 +28,29 @@
 
     <form class="search" action="#" novalidate>
       <div class="search__bar">
-        <input class="search__input" type="text" placeholder="Value" aria-label="Describe tu negocio" required>
-        <button class="search__submit" type="submit" aria-label="Enviar" disabled>
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
+        <input class="search__input" type="text" name="idea" placeholder="Value" aria-label="Describe your business" aria-describedby="search-error">
+        <p class="search__error" id="search-error" role="alert" hidden>Describe your business to continue.</p>
+        <button class="search__submit" type="submit" aria-label="Submit">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
         </button>
       </div>
 
       <div class="filters">
         <div class="filter">
-          <div class="filter__head"><label for="presupuesto">Presupuesto</label><output for="presupuesto">$0-1.000.000</output></div>
-          <input id="presupuesto" class="range" type="range" value="500000" min="0" max="1000000" step="10000">
+          <div class="filter__head"><label for="budget">Budget</label><output for="budget">$500,000</output></div>
+          <input id="budget" class="range" type="range" value="500000" min="0" max="1000000" step="10000" data-format="currency">
         </div>
         <div class="filter">
-          <div class="filter__head"><label for="experiencia">Experiencia</label><output for="experiencia">0-20+ años</output></div>
-          <input id="experiencia" class="range" type="range" value="5" min="0" max="20" step="1">
+          <div class="filter__head"><label for="experience">Experience</label><output for="experience">5 years</output></div>
+          <input id="experience" class="range" type="range" value="5" min="0" max="20" step="1" data-format="years">
         </div>
         <div class="filter">
-          <div class="filter__head"><label for="equipo">Tamaño equipo</label><output for="equipo">Solo - Grande</output></div>
-          <input id="equipo" class="range" type="range" value="0" min="0" max="3" step="1" data-labels="Solo|Pequeño (2-3)|Mediano (4-10)|Grande (+10)">
+          <div class="filter__head"><label for="team">Team size</label><output for="team">Solo</output></div>
+          <input id="team" class="range" type="range" value="0" min="0" max="3" step="1" data-labels="Solo|Small (2-3)|Medium (4-10)|Large (10+)">
         </div>
         <div class="filter">
-          <div class="filter__head"><label for="horas">Horas Disponibles</label><output for="horas">&lt;10 h - Completo</output></div>
-          <input id="horas" class="range" type="range" value="1" min="0" max="3" step="1" data-labels="Menos de 10 h|10-20 h|+30 h|Tiempo completo">
+          <div class="filter__head"><label for="hours">Weekly hours</label><output for="hours">10-20 h</output></div>
+          <input id="hours" class="range" type="range" value="1" min="0" max="3" step="1" data-labels="Under 10 h|10-20 h|30+ h|Full time">
         </div>
       </div>
     </form>
@@ -63,27 +67,20 @@
         <span class="giant__letter">D</span>
         <span class="giant__letter">O</span>
       </div>
-      <div class="giant__group">
-        <span class="giant__letter giant__letter--gray">M</span>
-        <span class="giant__letter">A</span>
-        <span class="giant__letter giant__letter--gray">N</span>
-        <span class="giant__letter">D</span>
-        <span class="giant__letter">O</span>
-      </div>
     </div>
   </div>
 
-  <div class="modal" id="auth-modal" hidden>
-    <div class="modal__backdrop" data-close></div>
-    <div class="modal__card" role="dialog" aria-modal="true" aria-labelledby="auth-title">
-      <button class="modal__close" type="button" aria-label="Cerrar" data-close>&times;</button>
-      <h2 class="modal__title" id="auth-title"></h2>
+  <dialog class="modal" id="auth-modal" aria-labelledby="auth-title">
+    <div class="modal__card">
+      <button class="modal__close" type="button" aria-label="Close" data-close>&times;</button>
+      <h2 class="modal__title" id="auth-title">Log In</h2>
 
       <form class="auth" data-form="login" novalidate>
         <label class="auth__field">Email<input type="email" name="email" autocomplete="email" placeholder="Value" required></label>
         <label class="auth__field">Password<input type="password" name="password" autocomplete="current-password" placeholder="Value" required></label>
+        <p class="auth__error" role="alert" hidden></p>
         <button class="auth__btn" type="submit">Sign In</button>
-        <a href="#" class="auth__link">Forgot password?</a>
+        <button class="auth__link" type="button">Forgot password?</button>
         <button class="auth__btn auth__btn--google" type="button"><svg width="18" height="18" aria-hidden="true"><use href="#google"/></svg>Sign in with Google</button>
       </form>
 
@@ -93,11 +90,12 @@
         <label class="auth__field">Date of birth<input type="date" name="birthdate" autocomplete="bday" required></label>
         <label class="auth__field">Password<input type="password" name="password" autocomplete="new-password" placeholder="Value" required></label>
         <label class="auth__field">Repeat password<input type="password" name="password2" autocomplete="new-password" placeholder="Value" required></label>
+        <p class="auth__error" role="alert" hidden></p>
         <button class="auth__btn" type="submit">Register</button>
         <button class="auth__btn auth__btn--google" type="button"><svg width="18" height="18" aria-hidden="true"><use href="#google"/></svg>Sign up with Google</button>
       </form>
     </div>
-  </div>
+  </dialog>
 
   <script src="script.js"></script>
 </body>

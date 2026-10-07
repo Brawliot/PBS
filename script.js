@@ -1,58 +1,104 @@
-const form = document.querySelector('.search');
-const input = form.querySelector('.search__input');
-const ranges = [...form.querySelectorAll('.range')];
-const submit = form.querySelector('.search__submit');
+const formatters = {
+  currency: (v) => '$' + v.toLocaleString('en-US'),
+  years: (v, max) => (v >= max ? `${max}+ years` : `${v} ${v === 1 ? 'year' : 'years'}`),
+};
 
-const fmt = (range) => {
+const formatValue = (range) => {
   const v = Number(range.value);
   if (range.dataset.labels) return range.dataset.labels.split('|')[v];
-  if (range.id === 'experiencia') return v >= 20 ? '20+ años' : v + (v === 1 ? ' año' : ' años');
-  return '$' + v.toLocaleString('es-ES');
+  return formatters[range.dataset.format](v, Number(range.max));
 };
 
-const validate = () => {
-  const ok = input.value.trim() !== '' && ranges.every((r) => r.classList.contains('is-set'));
-  submit.disabled = !ok;
-  return ok;
-};
+// Search form
+const search = document.querySelector('.search');
+const idea = search.querySelector('.search__input');
+const ideaError = document.getElementById('search-error');
 
-ranges.forEach((range) => {
-  const update = () => {
-    range.classList.add('is-set');
-    range.closest('.filter').querySelector('output').value = fmt(range);
-    validate();
-  };
-  range.addEventListener('input', update);
-  update();
+search.querySelectorAll('.range').forEach((range) => {
+  range.addEventListener('input', () => {
+    range.closest('.filter').querySelector('output').value = formatValue(range);
+  });
 });
-input.addEventListener('input', validate);
 
-form.addEventListener('submit', (e) => {
+idea.addEventListener('input', () => {
+  ideaError.hidden = true;
+  idea.removeAttribute('aria-invalid');
+});
+
+search.addEventListener('submit', (e) => {
   e.preventDefault();
-  if (!validate()) return;
-  // TODO: enviar datos
+  if (idea.value.trim() === '') {
+    ideaError.hidden = false;
+    idea.setAttribute('aria-invalid', 'true');
+    idea.focus();
+    return;
+  }
+  // TODO: send data
 });
 
-// Auth modal
-const modal = document.getElementById('auth-modal');
+// Giant wordmark: duplicate the group so the loop is seamless
+const track = document.querySelector('.giant__track');
+const group = track.firstElementChild.cloneNode(true);
+group.setAttribute('aria-hidden', 'true');
+track.append(group);
+track.classList.add('is-looping');
+
+// Auth dialog
+const dialog = document.getElementById('auth-modal');
 const title = document.getElementById('auth-title');
 const titles = { login: 'Log In', register: 'Register' };
+const authForms = [...dialog.querySelectorAll('.auth')];
 
-const openModal = (mode) => {
-  modal.querySelectorAll('[data-form]').forEach((f) => { f.hidden = f.dataset.form !== mode; });
-  title.textContent = titles[mode];
-  modal.hidden = false;
-  document.body.classList.add('modal-open');
-  modal.querySelector(`[data-form="${mode}"] input`).focus();
-};
-const closeModal = () => {
-  modal.hidden = true;
-  document.body.classList.remove('modal-open');
+const showError = (form, message, fields = []) => {
+  const box = form.querySelector('.auth__error');
+  box.textContent = message;
+  box.hidden = false;
+  fields.forEach((f) => f.setAttribute('aria-invalid', 'true'));
+  (fields[0] || form.querySelector('input')).focus();
 };
 
-document.querySelectorAll('[data-auth]').forEach((el) => {
-  el.addEventListener('click', (e) => { e.preventDefault(); openModal(el.dataset.auth); });
+const clearErrors = (form) => {
+  form.querySelector('.auth__error').hidden = true;
+  form.querySelectorAll('[aria-invalid]').forEach((f) => f.removeAttribute('aria-invalid'));
+};
+
+const validateAuth = (form) => {
+  const inputs = [...form.querySelectorAll('input')];
+  const empty = inputs.filter((i) => i.value.trim() === '');
+  if (empty.length) return showError(form, 'Please fill in all fields.', empty), false;
+
+  const email = form.elements.email;
+  if (!email.checkValidity()) return showError(form, 'Enter a valid email address.', [email]), false;
+
+  if (form.dataset.form === 'register' && form.elements.password.value !== form.elements.password2.value) {
+    return showError(form, 'Passwords do not match.', [form.elements.password2]), false;
+  }
+  return true;
+};
+
+document.querySelectorAll('[data-auth]').forEach((button) => {
+  button.addEventListener('click', () => {
+    const mode = button.dataset.auth;
+    authForms.forEach((f) => { f.hidden = f.dataset.form !== mode; });
+    title.textContent = titles[mode];
+    document.body.classList.add('modal-open');
+    dialog.showModal();
+  });
 });
-modal.querySelectorAll('[data-close]').forEach((el) => el.addEventListener('click', closeModal));
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !modal.hidden) closeModal(); });
-modal.querySelectorAll('.auth').forEach((f) => f.addEventListener('submit', (e) => e.preventDefault()));
+
+dialog.addEventListener('close', () => {
+  document.body.classList.remove('modal-open');
+  authForms.forEach((f) => { f.reset(); clearErrors(f); });
+});
+dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.close(); });
+dialog.querySelector('[data-close]').addEventListener('click', () => dialog.close());
+
+authForms.forEach((form) => {
+  form.addEventListener('input', () => clearErrors(form));
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    clearErrors(form);
+    if (!validateAuth(form)) return;
+    // TODO: send data
+  });
+});
