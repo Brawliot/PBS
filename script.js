@@ -19,7 +19,7 @@ const validate = () => {
 ranges.forEach((range) => {
   const update = () => {
     range.classList.add('is-set');
-    range.closest('.filter').querySelector('.filter__head span').textContent = fmt(range);
+    range.closest('.filter').querySelector('output').value = fmt(range);
     validate();
   };
   range.addEventListener('input', update);

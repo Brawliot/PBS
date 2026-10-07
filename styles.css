@@ -70,7 +70,7 @@ body {
   text-align: left;
 }
 .filter__head { display: flex; justify-content: space-between; font-size: 22px; }
-.filter__head span { font-size: 18px; }
+.filter__head output { font-size: 18px; }
 
 .range {
   -webkit-appearance: none; appearance: none; width: 100%; height: 12px;

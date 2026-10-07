@@ -3,13 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MANDO - Plan & Execute your Business</title>
+  <title>MANDO - Plan &amp; Execute your Business</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&family=Open+Sans:wght@400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;800&family=Open+Sans:wght@400&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <svg hidden><symbol id="google" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.2.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></symbol></svg>
+
   <header class="header">
     <nav class="nav">
       <a href="#" class="nav__login" data-auth="login">Log In</a>
@@ -21,7 +23,6 @@
     <h1 class="hero__title">MANDO</h1>
     <p class="hero__subtitle">Plan &amp; Execute your Business</p>
 
-
     <form class="search" action="#" novalidate>
       <div class="search__bar">
         <input class="search__input" type="text" placeholder="Value" aria-label="Describe tu negocio" required>
@@ -32,20 +33,20 @@
 
       <div class="filters">
         <div class="filter">
-          <div class="filter__head"><label for="presupuesto">Presupuesto</label><span>$0-1.000.000</span></div>
-          <input id="presupuesto" class="range" type="range" required value="500000" min="0" max="1000000" step="10000">
+          <div class="filter__head"><label for="presupuesto">Presupuesto</label><output for="presupuesto">$0-1.000.000</output></div>
+          <input id="presupuesto" class="range" type="range" value="500000" min="0" max="1000000" step="10000">
         </div>
         <div class="filter">
-          <div class="filter__head"><label for="experiencia">Experiencia</label><span>0-20+ años</span></div>
-          <input id="experiencia" class="range" type="range" required value="5" min="0" max="20" step="1">
+          <div class="filter__head"><label for="experiencia">Experiencia</label><output for="experiencia">0-20+ años</output></div>
+          <input id="experiencia" class="range" type="range" value="5" min="0" max="20" step="1">
         </div>
         <div class="filter">
-          <div class="filter__head"><label for="equipo">Tamaño equipo</label><span>Solo - Grande</span></div>
-          <input id="equipo" class="range" type="range" required value="0" min="0" max="3" step="1" data-labels="Solo|Pequeño (2-3)|Mediano (4-10)|Grande (+10)">
+          <div class="filter__head"><label for="equipo">Tamaño equipo</label><output for="equipo">Solo - Grande</output></div>
+          <input id="equipo" class="range" type="range" value="0" min="0" max="3" step="1" data-labels="Solo|Pequeño (2-3)|Mediano (4-10)|Grande (+10)">
         </div>
         <div class="filter">
-          <div class="filter__head"><label for="horas">Horas Disponibles</label><span>&lt;10 h - Completo</span></div>
-          <input id="horas" class="range" type="range" required value="1" min="0" max="3" step="1" data-labels="Menos de 10 h|10-20 h|+30 h|Tiempo completo">
+          <div class="filter__head"><label for="horas">Horas Disponibles</label><output for="horas">&lt;10 h - Completo</output></div>
+          <input id="horas" class="range" type="range" value="1" min="0" max="3" step="1" data-labels="Menos de 10 h|10-20 h|+30 h|Tiempo completo">
         </div>
       </div>
     </form>
@@ -79,21 +80,21 @@
       <h2 class="modal__title" id="auth-title"></h2>
 
       <form class="auth" data-form="login" novalidate>
-        <label class="auth__field">Email<input type="email" placeholder="Value" required></label>
-        <label class="auth__field">Password<input type="password" placeholder="Value" required></label>
+        <label class="auth__field">Email<input type="email" name="email" autocomplete="email" placeholder="Value" required></label>
+        <label class="auth__field">Password<input type="password" name="password" autocomplete="current-password" placeholder="Value" required></label>
         <button class="auth__btn" type="submit">Sign In</button>
         <a href="#" class="auth__link">Forgot password?</a>
-        <button class="auth__btn auth__btn--google" type="button"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.2.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>Sign in with Google</button>
+        <button class="auth__btn auth__btn--google" type="button"><svg width="18" height="18" aria-hidden="true"><use href="#google"/></svg>Sign in with Google</button>
       </form>
 
       <form class="auth" data-form="register" novalidate hidden>
-        <label class="auth__field">Name<input type="text" placeholder="Value" required></label>
-        <label class="auth__field">Email<input type="email" placeholder="Value" required></label>
-        <label class="auth__field">Date of birth<input type="date" required></label>
-        <label class="auth__field">Password<input type="password" placeholder="Value" required></label>
-        <label class="auth__field">Repeat password<input type="password" placeholder="Value" required></label>
+        <label class="auth__field">Name<input type="text" name="name" autocomplete="name" placeholder="Value" required></label>
+        <label class="auth__field">Email<input type="email" name="email" autocomplete="email" placeholder="Value" required></label>
+        <label class="auth__field">Date of birth<input type="date" name="birthdate" autocomplete="bday" required></label>
+        <label class="auth__field">Password<input type="password" name="password" autocomplete="new-password" placeholder="Value" required></label>
+        <label class="auth__field">Repeat password<input type="password" name="password2" autocomplete="new-password" placeholder="Value" required></label>
         <button class="auth__btn" type="submit">Register</button>
-        <button class="auth__btn auth__btn--google" type="button"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.2.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>Sign up with Google</button>
+        <button class="auth__btn auth__btn--google" type="button"><svg width="18" height="18" aria-hidden="true"><use href="#google"/></svg>Sign up with Google</button>
       </form>
     </div>
   </div>
