@@ -8,7 +8,7 @@ import {
   MAX_EVENTS,
   MAX_NOTE,
   MAX_OUTPUT_QUESTIONS,
-  MAX_ROUNDS,
+  MAX_OUTPUTS,
   MAX_STEP_TEXT,
   MAX_TITLE,
   PlanSchema,
@@ -470,10 +470,10 @@ describe("step outputs", () => {
     rejectedAt(aiStep([out(1, old), out(1)]), "steps.0.outputs.1.version");
   });
 
-  test("there are at most MAX_ROUNDS versions", () => {
+  test("there are at most MAX_OUTPUTS versions in the whole life of the step", () => {
     const versions = (count: number) => Array.from({ length: count }, (_, i) => out(i + 1, { state: i === count - 1 ? "draft" : "superseded" }));
-    assert.deepEqual(issues(aiStep(versions(MAX_ROUNDS))), []);
-    rejectedAt(aiStep(versions(MAX_ROUNDS + 1)), "steps.0.outputs");
+    assert.deepEqual(issues(aiStep(versions(MAX_OUTPUTS))), []);
+    rejectedAt(aiStep(versions(MAX_OUTPUTS + 1)), "steps.0.outputs");
   });
 
   test("only the latest version can be a draft or confirmed", () => {

@@ -1,6 +1,6 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { StepSchema, type Step } from "../../plan/plan-model.js";
+import { MAX_ROUNDS, StepSchema, type Step } from "../../plan/plan-model.js";
 import { STEP_ACTION_ERRORS, applyStepAction, type StepAction } from "../../plan/step-actions.js";
 import { stepProblems } from "../../plan/step-rules.js";
 import { prng } from "./prng.js";
@@ -87,13 +87,21 @@ describe("random sequences of actions", () => {
     let finished = 0;
     let changes = 0;
     let kept = 0;
+    let beyondOneAttempt = 0;
+    let capped = 0;
 
     for (let sequence = 0; sequence < SEQUENCES; sequence += 1) {
       let step = newStep(random);
+      // Independent count of the rule: attach_output events since the last reopen or change_executor
+      let rounds = 0;
       let minutes = 0;
       for (let turn = 0; turn < ACTIONS_PER_SEQUENCE; turn += 1) {
         counter += 1;
-        const action = random.pick(ACTIONS);
+        // Half of the time an AI step is pushed along its loop, so that it reaches the round limit and a reopen
+        const driven: Partial<Record<Step["status"], StepAction[]>> = {
+          not_started: ["launch"], running: ["attach_output"], waiting_user: ["answer", "answer", "reject_output"], rejected: ["reopen"],
+        };
+        const action = step.executor === "ai" && random.chance(0.5) ? random.pick(driven[step.status] ?? ACTIONS) : random.pick(ACTIONS);
         const actor = random.chance(0.85) ? "user" : random.pick(["ai", "system"] as const);
         const readiness = random.pick(["ready", "ready", "blocked", "not_applicable"] as const);
         const feedsOthers = random.chance(0.3);
@@ -109,9 +117,20 @@ describe("random sequences of actions", () => {
         if (!result.ok) {
           assert.ok((STEP_ACTION_ERRORS as readonly string[]).includes(result.code), result.code);
           refused.set(result.code, (refused.get(result.code) ?? 0) + 1);
+          if (result.code === "rounds_exceeded") {
+            assert.ok(rounds >= MAX_ROUNDS, `sequence ${sequence} turn ${turn}: refused with ${rounds} rounds used`);
+            capped += 1;
+          }
           continue;
         }
         accepted.set(action, (accepted.get(action) ?? 0) + 1);
+        if (step.executor === "ai" && (action === "launch" || action === "answer")) {
+          assert.ok(rounds < MAX_ROUNDS, `sequence ${sequence} turn ${turn}: ${action} accepted with ${rounds} rounds used`);
+        }
+        if (action === "attach_output") rounds += 1;
+        if (action === "reopen" || action === "change_executor") rounds = 0;
+        assert.ok(rounds <= MAX_ROUNDS, `sequence ${sequence} turn ${turn}: ${rounds} rounds in one attempt`);
+        if ((result.step.outputs?.length ?? 0) > MAX_ROUNDS) beyondOneAttempt += 1;
         const label = `sequence ${sequence} turn ${turn} (${step.executor} ${step.status} ${action})`;
         assert.deepEqual(stepProblems(result.step), [], label);
         assert.ok(StepSchema.safeParse(result.step).success, label);
@@ -139,6 +158,7 @@ describe("random sequences of actions", () => {
           finished += 1;
           step = newStep(random);
           minutes = 0;
+          rounds = 0;
         }
       }
     }
@@ -157,6 +177,8 @@ describe("random sequences of actions", () => {
     for (const key of expectedReached) assert.ok(reached.has(key), `${key} was never reached`);
     assert.ok(changes > 100, `only ${changes} executor changes`);
     assert.ok(kept > 0, "no change kept old outputs");
+    assert.ok(capped > 20, `the round limit was reached only ${capped} times`);
+    assert.ok(beyondOneAttempt > 20, `only ${beyondOneAttempt} steps went past MAX_ROUNDS versions by reopening`);
     assert.ok(finished > 50, `only ${finished} steps got to done`);
   });
 

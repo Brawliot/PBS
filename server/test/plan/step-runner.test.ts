@@ -42,6 +42,14 @@ const out = (version: number, state: string, overrides: Record<string, unknown> 
   ...(state === "confirmed" && { confirmedAt: T2 }),
   ...overrides,
 });
+/** Events of an attempt with n rounds: a launch, then attach_output, and for each more round an answer and attach_output */
+const attempt = (rounds: number) =>
+  Array.from({ length: rounds }, (_, i) => [
+    i === 0
+      ? { at: T1, actor: "user", action: "launch", from: "not_started", to: "running" }
+      : { at: T1, actor: "user", action: "answer", from: "waiting_user", to: "running" },
+    { at: T1, actor: "ai", action: "attach_output", from: "running", to: "waiting_user" },
+  ]).flat();
 const feeds = (from: string, to: string) => ({ level: "step", type: "feeds", from, to }) as Plan["relations"][number];
 const deepFreeze = <T>(value: T): T => {
   if (value && typeof value === "object") {
@@ -122,12 +130,30 @@ describe("buildRunnerInput", () => {
     });
   });
 
-  test("the round is the number of versions plus one", () => {
+  test("the round is the rounds used in the current attempt plus one", () => {
     for (let versions = 0; versions < MAX_ROUNDS; versions += 1) {
       const outputs = Array.from({ length: versions }, (_, i) => out(i + 1, "superseded"));
-      const a = step("a", { outputs });
+      const a = step("a", { outputs, events: attempt(versions) });
       assert.equal(buildRunnerInput(a, [a], [])?.round, versions + 1, String(versions));
     }
+  });
+
+  test("after a reopen the round starts again at 1, versions go on, and the answers of every attempt are kept (assumption)", () => {
+    const answered = (version: number) => out(version, "rejected", { questions: [{ question: `Q${version}`, answer: `A${version}`, answeredAt: T1 }] });
+    const outputs = Array.from({ length: MAX_ROUNDS }, (_, i) => answered(i + 1));
+    const reopened = step("a", {
+      outputs,
+      events: [
+        ...attempt(MAX_ROUNDS),
+        { at: T1, actor: "user", action: "reject_output", from: "waiting_user", to: "rejected" },
+        { at: T1, actor: "user", action: "reopen", from: "rejected", to: "not_started" },
+      ],
+    });
+    const input = buildRunnerInput(reopened, [reopened], [])!;
+    assert.equal(input.round, 1);
+    assert.deepEqual(input.answers.map((a) => a.version), outputs.map((o) => o.version));
+    const second = step("a", { outputs: [...outputs, out(MAX_ROUNDS + 1, "draft")], events: [...reopened.events, ...attempt(1)] });
+    assert.equal(buildRunnerInput(second, [second], [])!.round, 2);
   });
 
   test("the answers already given, from every version and in order; unanswered questions are left out", () => {
@@ -306,7 +332,7 @@ describe("runStep", () => {
 describe("FakeStepRunner", () => {
   test("is deterministic: the same input gives the same output, and the calls are kept", async () => {
     const f = step("f", { outputs: [out(1, "confirmed")] });
-    const a = step("a", { outputs: [out(1, "draft", { questions: [{ question: "Q", answer: "A", answeredAt: T1 }] })] });
+    const a = step("a", { events: attempt(1), outputs: [out(1, "draft", { questions: [{ question: "Q", answer: "A", answeredAt: T1 }] })] });
     const runnerInput = buildRunnerInput(a, [a, f], [feeds("f", "a")])!;
     const runner = new FakeStepRunner({ questionsByRound: [["First?"], ["Second?", "Third?"]] });
     const first = await runner.run(runnerInput);

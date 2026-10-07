@@ -61,6 +61,14 @@ const out = (version: number, state: string, overrides: Record<string, unknown> 
 const ai = (status: string, overrides: Record<string, unknown> = {}) => make("ai", status, overrides);
 const user = (status: string, overrides: Record<string, unknown> = {}) => make("user", status, overrides);
 const third = (status: string, overrides: Record<string, unknown> = {}) => make("third_party", status, overrides);
+/** Events of an attempt with n rounds: a launch, then attach_output, and for each more round an answer and attach_output */
+const attempt = (rounds: number) =>
+  Array.from({ length: rounds }, (_, i) => [
+    i === 0
+      ? { at: T1, actor: "user", action: "launch", from: "not_started", to: "running" }
+      : { at: T1, actor: "user", action: "answer", from: "waiting_user", to: "running" },
+    { at: T1, actor: "ai", action: "attach_output", from: "running", to: "waiting_user" },
+  ]).flat();
 const proofOf = { text: "Receipt no. 42", at: T1, by: "user" };
 
 const ctx = (overrides: Partial<ActionContext> = {}): ActionContext => ({
@@ -156,7 +164,7 @@ describe("a successful action", () => {
 
   test("answer: the last allowed round is the one before MAX_ROUNDS versions exist", () => {
     const versions = Array.from({ length: MAX_ROUNDS - 1 }, (_, i) => out(i + 1, i === MAX_ROUNDS - 2 ? "draft" : "superseded"));
-    assert.equal(succeeds(ai("waiting_user", { outputs: versions }), "answer", { payload: { answers: ["a", "b"] } }).step.status, "running");
+    assert.equal(succeeds(ai("waiting_user", { outputs: versions, events: attempt(MAX_ROUNDS - 1) }), "answer", { payload: { answers: ["a", "b"] } }).step.status, "running");
   });
 
   test("confirm_output: the output is confirmed with its date and the step is done", () => {
@@ -321,16 +329,39 @@ describe("error codes", () => {
   test("rounds_exceeded: no more rounds once MAX_ROUNDS versions exist", () => {
     const versions = (count: number) =>
       Array.from({ length: count }, (_, i) => out(i + 1, i === count - 1 ? "draft" : "superseded"));
-    failsWith(ai("waiting_user", { outputs: versions(MAX_ROUNDS) }), "answer", "rounds_exceeded", { payload: { answers: ["a", "b"] } });
-    failsWith(ai("waiting_user", { outputs: versions(MAX_ROUNDS + 1) }), "answer", "rounds_exceeded", { payload: { answers: ["a", "b"] } });
+    failsWith(ai("waiting_user", { outputs: versions(MAX_ROUNDS), events: attempt(MAX_ROUNDS) }), "answer", "rounds_exceeded", { payload: { answers: ["a", "b"] } });
+    failsWith(ai("waiting_user", { outputs: versions(MAX_ROUNDS + 1), events: attempt(MAX_ROUNDS + 1) }), "answer", "rounds_exceeded", { payload: { answers: ["a", "b"] } });
   });
 
-  test("rounds_exceeded: a reopened step with MAX_ROUNDS versions cannot be launched again", () => {
-    const rejected = (count: number) =>
-      ai("rejected", { outputs: Array.from({ length: count }, (_, i) => out(i + 1, "rejected")) });
-    const reopened = (count: number) => succeeds(rejected(count), "reopen").step;
-    assert.equal(succeeds(reopened(MAX_ROUNDS - 1), "launch", { readiness: "ready" }).step.status, "running");
-    failsWith(reopened(MAX_ROUNDS), "launch", "rounds_exceeded", { readiness: "ready" });
+  test("the failure chain: MAX_ROUNDS rejected rounds, reopen, and the step can be launched again", () => {
+    let step = ai("not_started");
+    const feed = { readiness: "ready" } as const;
+    for (let round = 1; round <= MAX_ROUNDS; round += 1) {
+      step = succeeds(step, round === 1 ? "launch" : "answer", { ...feed, payload: round === 1 ? undefined : { answers: ["a", "b"] } }).step;
+      step = succeeds(step, "attach_output", { actor: "ai", payload: { summary: `S${round}`, questions: ["Q1", "Q2"] } }).step;
+    }
+    failsWith(step, "answer", "rounds_exceeded", { payload: { answers: ["a", "b"] } });
+    step = succeeds(succeeds(step, "reject_output").step, "reopen").step;
+    assert.equal(step.outputs?.length, MAX_ROUNDS);
+    step = succeeds(step, "launch", feed).step;
+    step = succeeds(step, "attach_output", { actor: "ai", payload: { summary: "Again", questions: ["Q1", "Q2"] } }).step;
+    // Versions keep counting over the whole life of the step; the rounds start again
+    assert.deepEqual(step.outputs?.map((output) => output.version), Array.from({ length: MAX_ROUNDS + 1 }, (_, i) => i + 1));
+    assert.deepEqual(stepProblems(step), []);
+    // ...and the limit applies again inside the new attempt
+    for (let round = 2; round <= MAX_ROUNDS; round += 1) {
+      step = succeeds(step, "answer", { payload: { answers: ["a", "b"] } }).step;
+      step = succeeds(step, "attach_output", { actor: "ai", payload: { summary: `T${round}`, questions: ["Q1", "Q2"] } }).step;
+    }
+    failsWith(step, "answer", "rounds_exceeded", { payload: { answers: ["a", "b"] } });
+    assert.equal(succeeds(step, "confirm_output").step.status, "done");
+  });
+
+  test("a step whose attempt used all its rounds can be reopened, change executor and come back to AI to be launched", () => {
+    let step = succeeds(succeeds(ai("waiting_user", { outputs: [out(1, "draft")], events: attempt(MAX_ROUNDS) }), "reject_output").step, "reopen").step;
+    step = succeeds(step, "change_executor", { payload: { executor: "user", mode: "online" } }).step;
+    step = succeeds(step, "change_executor", { payload: { executor: "ai" } }).step;
+    assert.equal(succeeds(step, "launch", { readiness: "ready" }).step.status, "running");
   });
 
   test("rounds_exceeded does not stop the person from confirming or rejecting the last draft", () => {

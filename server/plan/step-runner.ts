@@ -7,7 +7,7 @@
 import { z } from "zod";
 import { MAX_OUTPUT_QUESTIONS, MAX_STEP_TEXT, type Plan, type Step } from "./plan-model.js";
 import { feedersOf } from "./step-graph.js";
-import { readableOutput } from "./step-rules.js";
+import { readableOutput, roundsUsed } from "./step-rules.js";
 
 // Unmeasured limits, tune with real runs. The first two must fit what an output can store.
 export const MAX_QUESTIONS_PER_ROUND = 5;
@@ -17,9 +17,9 @@ export const MAX_DOCUMENT_TEXT = 20_000;
 /** What the runner is allowed to see: nothing but this, and only text */
 export interface RunnerInput {
   step: { id: string; text: string; taskId: string; departmentId: string };
-  /** 1 for the first run, 2 after the first answers, and so on */
+  /** The round within the current attempt: 1 for the first run, 2 after the first answers, and so on */
   round: number;
-  /** Every question the person has answered so far, oldest first */
+  /** Every question the person has answered so far, oldest first, across attempts (assumption: earlier attempts' answers still count) */
   answers: { version: number; question: string; answer: string }[];
   /** The confirmed output of each step that feeds this one */
   feeds: { stepId: string; stepText: string; version: number; summary: string; documentRef?: string }[];
@@ -52,7 +52,7 @@ export function buildRunnerInput(step: Step, steps: readonly Step[], relations: 
   const outputs = step.outputs ?? [];
   return {
     step: { id: step.id, text: step.text, taskId: step.taskId, departmentId: step.departmentId },
-    round: outputs.length + 1,
+    round: roundsUsed(step) + 1,
     answers: outputs.flatMap((output) =>
       output.questions.flatMap((question) =>
         question.answer === undefined ? [] : [{ version: output.version, question: question.question, answer: question.answer }],

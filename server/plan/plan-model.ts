@@ -17,9 +17,13 @@ export const MAX_NOTE = 500;
 export const MAX_CONFIDENCE = 100;
 // Unmeasured limits of the step level, tune with real plans
 export const MAX_OUTPUT_QUESTIONS = 20;
-// Most output versions an AI step may ever produce (the first draft plus the refinements), reopened or not
+// Most rounds an AI step may use in one attempt (the first draft plus the refinements); see roundsUsed
 export const MAX_ROUNDS = 3;
 export const MAX_EVENTS = 200;
+// Most output versions over the whole life of a step, across attempts. Unmeasured: every version costs
+// at least two events (a launch or an answer, then attach_output), so MAX_EVENTS / 2 is the most that
+// can ever exist; MAX_EVENTS already bounds the total, this only keeps the schema honest about it.
+export const MAX_OUTPUTS = MAX_EVENTS / 2;
 // Upper bounds per collection: unmeasured estimates, tune with real plans
 export const LIMITS = { departments: 20, phases: 50, tasks: 500, steps: 5000, relations: 10_000 };
 
@@ -173,7 +177,7 @@ export const StepSchema = z
     effortHours: z.number().min(0),
     waitDays: z.number().min(0),
     status: StatusSchema,
-    outputs: z.array(OutputSchema).max(MAX_ROUNDS).optional(),
+    outputs: z.array(OutputSchema).max(MAX_OUTPUTS).optional(),
     events: z.array(EventSchema).max(MAX_EVENTS),
     origin: OriginSchema,
     confidence: ConfidenceSchema,

@@ -49,6 +49,19 @@ export interface StepContext {
 
 const refuse = (reason: TransitionRefusal): TransitionResult => ({ allowed: false, reason });
 
+/**
+ * Rounds used in the current attempt: the attach_output events since the last reopen or
+ * change_executor (or since the start). Counted from the event history, never from dates.
+ */
+export function roundsUsed(step: Step): number {
+  let used = 0;
+  for (const event of step.events) {
+    if (event.action === "reopen" || event.action === "change_executor") used = 0;
+    else if (event.action === "attach_output") used += 1;
+  }
+  return used;
+}
+
 /** The current output of an AI step, if it is the one the person confirmed: other steps may read it */
 export function readableOutput(step: Step): StepOutput | undefined {
   const current = step.outputs?.at(-1);
@@ -72,8 +85,8 @@ export function canTransition(from: StepStatus, to: StepStatus, context: StepCon
   if (!TRANSITIONS[step.executor][from].includes(to)) return refuse("not_allowed");
   if (step.executor === "ai" && to === "running") {
     if (!context.launchedByUser) return refuse("not_launched_by_user");
-    // Every run ends in a new version of the output: the existing versions are the rounds used
-    if ((step.outputs?.length ?? 0) >= MAX_ROUNDS) return refuse("rounds_exceeded");
+    // Every run ends in a new version of the output: the rounds used are those of this attempt
+    if (roundsUsed(step) >= MAX_ROUNDS) return refuse("rounds_exceeded");
   }
   if (to === "done" && !hasEvidence(step)) return refuse("evidence_missing");
   return { allowed: true };
@@ -181,7 +194,7 @@ export function stepProblems(step: Step): StepProblem[] {
     events_go_back: events.some((event, index) => index > 0 && Date.parse(event.at) < Date.parse(events[index - 1].at)),
     events_not_chained: events.some((event, index) => event.from !== (index === 0 ? "not_started" : events[index - 1].to)),
     status_not_last_event: step.status !== (events.at(-1)?.to ?? "not_started"),
-    too_many_rounds: outputs.length > MAX_ROUNDS,
+    too_many_rounds: roundsUsed(step) > MAX_ROUNDS,
     // Outputs from when the step was AI stay as history, but none can be open or accepted
     live_output_on_non_ai: step.executor !== "ai" && outputs.some((output) => output.state === "draft" || output.state === "confirmed"),
     mode_on_non_user: step.executor !== "user" && step.mode !== undefined,

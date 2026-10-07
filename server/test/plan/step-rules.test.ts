@@ -45,6 +45,15 @@ const output = (version: number, state: string, overrides: Record<string, unknow
   createdAt: T1,
   ...overrides,
 });
+/** Events of an attempt with n rounds: a launch, then attach_output, and for each more round an answer and attach_output */
+const attempt = (rounds: number) =>
+  Array.from({ length: rounds }, (_, i) => [
+    ...(i === 0
+      ? [{ at: T1, actor: "user", action: "launch", from: "not_started", to: "running" }]
+      : [{ at: T1, actor: "user", action: "answer", from: "waiting_user", to: "running" }]),
+    { at: T1, actor: "ai", action: "attach_output", from: "running", to: "waiting_user" },
+  ]).flat();
+const ev2 = (action: string, from: string, to: string) => ({ at: T1, actor: "user", action, from, to });
 const proof = { text: "Receipt no. 42", at: T1, by: "user" };
 
 const check = (from: StepStatus, to: StepStatus, s: Step, launchedByUser = true) =>
@@ -166,6 +175,7 @@ describe("AI step to running", () => {
   test("another round is allowed while the versions are below MAX_ROUNDS", () => {
     const versions = (count: number) =>
       aiStep({
+        events: attempt(count),
         outputs: Array.from({ length: count }, (_, i) => output(i + 1, i === count - 1 ? "draft" : "superseded")),
       });
     assert.deepEqual(check("waiting_user", "running", versions(MAX_ROUNDS - 1)), ok);
@@ -173,10 +183,37 @@ describe("AI step to running", () => {
     assert.deepEqual(check("waiting_user", "running", versions(MAX_ROUNDS + 1)), refused("rounds_exceeded"));
   });
 
-  test("the first launch needs room for another version too, so a reopened step cannot exceed the limit", () => {
-    const versions = (count: number) => aiStep({ outputs: Array.from({ length: count }, (_, i) => output(i + 1, "rejected")) });
-    assert.deepEqual(check("not_started", "running", versions(MAX_ROUNDS - 1)), ok);
-    assert.deepEqual(check("not_started", "running", versions(MAX_ROUNDS)), refused("rounds_exceeded"));
+  test("a reopened step starts a new attempt: its old rounds do not count", () => {
+    const reopened = (count: number) =>
+      aiStep({
+        events: [...attempt(count), ev2("reject_output", "waiting_user", "rejected"), ev2("reopen", "rejected", "not_started")],
+        outputs: Array.from({ length: count }, (_, i) => output(i + 1, "rejected")),
+      });
+    for (const count of [MAX_ROUNDS - 1, MAX_ROUNDS, MAX_ROUNDS + 2]) assert.deepEqual(check("not_started", "running", reopened(count)), ok, String(count));
+  });
+
+  test("the limit still applies inside the new attempt", () => {
+    const events = (count: number) => [
+      ...attempt(MAX_ROUNDS),
+      ev2("reject_output", "waiting_user", "rejected"),
+      ev2("reopen", "rejected", "not_started"),
+      ...attempt(count),
+    ];
+    assert.deepEqual(check("waiting_user", "running", aiStep({ events: events(MAX_ROUNDS - 1) })), ok);
+    assert.deepEqual(check("waiting_user", "running", aiStep({ events: events(MAX_ROUNDS) })), refused("rounds_exceeded"));
+  });
+
+  test("a change of executor starts a new attempt too", () => {
+    const events = [...attempt(MAX_ROUNDS), ev2("change_executor", "not_started", "not_started")];
+    assert.deepEqual(check("not_started", "running", aiStep({ events })), ok);
+    assert.deepEqual(check("not_started", "running", aiStep({ events: attempt(MAX_ROUNDS) })), refused("rounds_exceeded"));
+  });
+
+  test("the rounds are counted from the events, not from the outputs or the dates", () => {
+    const outputs = Array.from({ length: MAX_ROUNDS }, (_, i) => output(i + 1, "superseded"));
+    assert.deepEqual(check("not_started", "running", aiStep({ outputs, events: [] })), ok);
+    const late = attempt(MAX_ROUNDS).map((event) => ({ ...event, at: "2030-01-01T00:00:00Z" }));
+    assert.deepEqual(check("waiting_user", "running", aiStep({ events: [...late, { ...ev2("reopen", "rejected", "not_started"), at: T1 }] })), ok);
   });
 
   test("the person is asked before the round limit", () => {
@@ -440,10 +477,20 @@ describe("stepProblems", () => {
     assert.deepEqual(stepProblems(step({ status: "running", events: [ev(T1, "not_started", "running")] })), []);
   });
 
-  test("too_many_rounds: at most MAX_ROUNDS versions", () => {
+  test("too_many_rounds: more than MAX_ROUNDS rounds in one attempt", () => {
     const versions = (count: number) => Array.from({ length: count }, (_, i) => output(i + 1, i === count - 1 ? "draft" : "superseded"));
-    assert.deepEqual(stepProblems(valid({ outputs: versions(MAX_ROUNDS) })), []);
-    assert.deepEqual(stepProblems(valid({ outputs: versions(MAX_ROUNDS + 1) })), ["too_many_rounds"]);
+    assert.deepEqual(stepProblems(valid({ events: attempt(MAX_ROUNDS), outputs: versions(MAX_ROUNDS) })), []);
+    assert.deepEqual(stepProblems(valid({ events: attempt(MAX_ROUNDS + 1), outputs: versions(MAX_ROUNDS + 1) })), ["too_many_rounds"]);
+  });
+
+  test("too_many_rounds: MAX_ROUNDS in each of two attempts is fine, and so is a change of executor in between", () => {
+    const total = 2 * MAX_ROUNDS;
+    const outputs = Array.from({ length: total }, (_, i) => output(i + 1, i === total - 1 ? "draft" : "rejected"));
+    const first = attempt(MAX_ROUNDS);
+    const between = [ev2("reject_output", "waiting_user", "rejected"), ev2("reopen", "rejected", "not_started")];
+    assert.deepEqual(stepProblems(valid({ events: [...first, ...between, ...attempt(MAX_ROUNDS)], outputs })), []);
+    const changed = [ev2("reject_output", "waiting_user", "rejected"), ev2("reopen", "rejected", "not_started"), { ...ev2("change_executor", "not_started", "not_started"), executorFrom: "ai", executorTo: "user" }, { ...ev2("change_executor", "not_started", "not_started"), executorFrom: "user", executorTo: "ai" }];
+    assert.deepEqual(stepProblems(valid({ events: [...first, ...changed, ...attempt(MAX_ROUNDS)], outputs })), []);
   });
 
   test("live_output_on_non_ai: old outputs may stay, but none open or accepted", () => {
