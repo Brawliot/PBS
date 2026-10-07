@@ -7,6 +7,7 @@ import { readFile } from "node:fs/promises";
 import { extname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { analyzeWithJev, type PlannerInput } from "./planner/planner-handler.js";
+import { analyzePhase2 } from "./planner/planner-phase2-handler.js";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -107,7 +108,9 @@ createServer(async (req, res) => {
   if (path === "/api/planner" && req.method === "POST") {
     try {
       const input = parsePlannerInput(await readBody(req));
-      return sendJson(res, 200, await analyzeWithJev(input));
+      const jev = await analyzeWithJev(input);
+      const phase2 = await analyzePhase2(input, jev);
+      return sendJson(res, 200, { jev, phase2 });
     } catch (e) {
       if (e instanceof HttpError) return sendJson(res, e.status, { error: e.message });
       console.error(e);
