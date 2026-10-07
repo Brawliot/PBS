@@ -70,6 +70,9 @@ const validateAuth = (form) => {
   const email = form.elements.email;
   if (!email.checkValidity()) return showError(form, 'Enter a valid email address.', [email]), false;
 
+  if (form.dataset.form === 'register' && form.elements.password.value.length < 8) {
+    return showError(form, 'Password must be at least 8 characters.', [form.elements.password]), false;
+  }
   if (form.dataset.form === 'register' && form.elements.password.value !== form.elements.password2.value) {
     return showError(form, 'Passwords do not match.', [form.elements.password2]), false;
   }

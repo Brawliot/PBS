@@ -2,10 +2,11 @@
   --black: #000;
   --dark: #272727;
   --gray: #919195;
-  --gray-text: #6b6b72;
+  --gray-text: #4f4f56;
   --danger: #b42318;
   --gray-light: #e6e6e6;
   --border: #dcdcdc;
+  --border-strong: #8f8f98;
   --white: #fff;
 }
 
@@ -51,7 +52,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .search { --bar-h: max(11vh, 64px); width: 100%; max-width: 1070px; margin-top: 8vh; }
 .search__bar {
   display: flex; align-items: center; height: var(--bar-h); padding: 0 28px 0 24px;
-  background: var(--white); border: 1px solid #b9b9c0; border-radius: 62px;
+  background: var(--white); border: 1px solid var(--border-strong); border-radius: 62px;
   position: relative; z-index: 3;
 }
 .search__input {
@@ -69,7 +70,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
   display: grid; grid-template-columns: 1fr 1fr; gap: 3vh 195px;
   margin: calc(var(--bar-h) / -2) 0 0; padding: calc(var(--bar-h) / 2 + 2vh) 22px 3vh;
   background: var(--white); position: relative; z-index: 2;
-  border: 1px solid #b9b9c0; border-radius: 14px;
+  border: 1px solid var(--border-strong); border-radius: 14px;
   box-shadow: 0 18px 40px rgba(39, 39, 39, 0.18);
   text-align: left;
 }
@@ -145,11 +146,12 @@ body.modal-open .giant__track { animation-play-state: paused; }
 .auth__field { display: flex; flex-direction: column; gap: 8px; font-size: 16px; }
 .auth__field input {
   height: 42px; padding: 0 14px; font: inherit; font-size: 15px;
-  border: 1px solid var(--border); border-radius: 10px; background: var(--white);
+  border: 1px solid var(--border-strong); border-radius: 10px; background: var(--white);
 }
 .auth__field input:focus { border-color: var(--dark); outline: 0; }
 .auth__field input[aria-invalid="true"] { border-color: var(--danger); }
 .auth__field input::placeholder { color: var(--gray-text); }
+.auth__hint { color: var(--gray-text); font-size: 14px; margin-top: -8px; }
 .auth__error { color: var(--danger); font-size: 15px; }
 .auth__error[hidden] { display: none; }
 .auth__btn {
@@ -157,7 +159,7 @@ body.modal-open .giant__track { animation-play-state: paused; }
   height: 44px; border: 0; border-radius: 10px; font-size: 16px;
   background: var(--dark); color: var(--white);
 }
-.auth__btn--google { background: var(--white); color: var(--dark); border: 1px solid var(--border); }
+.auth__btn--google { background: var(--white); color: var(--dark); border: 1px solid var(--border-strong); }
 .auth__link {
   border: 0; background: transparent; color: var(--dark); font-size: 15px;
   text-decoration: underline; width: fit-content; padding: 0;
