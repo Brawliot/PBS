@@ -324,6 +324,15 @@ body.is-loading .search {
 .question__progress { font-size: 14px; color: var(--gray-text); }
 .question__progress:empty { display: none; }
 
+.question__options { display: flex; flex-wrap: wrap; gap: 8px; }
+.question__option {
+  border: 0; background: var(--white); padding: 6px 14px; font-size: 15px;
+  border: 1px solid var(--border-strong); border-radius: 62px;
+  transition: border-color 0.15s ease, color 0.15s ease;
+  cursor: pointer;
+}
+.question__option:hover, .question__option:focus { border-color: var(--dark); }
+
 /* ==========================================================================
    Result: a card styled like the popups, replaces the hero once the analysis is done
    (body.has-result). Centred on the screen, a little above the middle (--result-lift).
@@ -395,6 +404,31 @@ body.has-result .hero { display: none; }
 .plan-loader.tech-text { position: fixed; width: min(1070px, calc(100vw - 40px)); height: calc(var(--title-size) + 40px); }
 .plan-loader.is-visible { opacity: 1; visibility: visible; transition: opacity 0.4s ease, visibility 0s; }
 .plan-loader .tech-text-canvas { position: absolute; inset: 0; }
+
+/* ==========================================================================
+   Toast notifications
+   ========================================================================== */
+.toast {
+  position: fixed; bottom: 28px; left: 50%; z-index: 9;
+  width: min(100%, 640px); display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 0 14px 0 26px; min-height: 52px;
+  background: var(--white); border: 1px solid var(--border-strong); border-radius: 62px;
+  box-shadow: var(--shadow);
+  opacity: 0; visibility: hidden; transform: translate(-50%, 8px);
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0s 0.3s;
+}
+.toast.is-open {
+  opacity: 1; visibility: visible; transform: translate(-50%, 0);
+  transition: opacity 0.3s ease, transform 0.3s ease, visibility 0s;
+}
+.toast__text { color: var(--dark); font-size: 16px; }
+.toast__close {
+  flex: none; width: 32px; height: 32px; border: 0; border-radius: 50%; background: transparent;
+  font-size: 24px; line-height: 1; color: var(--gray-text);
+  transition: background-color 0.15s ease, color 0.15s ease;
+  cursor: pointer;
+}
+.toast__close:hover { background: var(--gray-light); color: var(--black); }
 
 /* ==========================================================================
    Giant wordmark (endless loop to the right)

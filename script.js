@@ -312,7 +312,7 @@
   const nextQuestion = () => {
     current = queue.shift() ?? null;
     if (!current) return false;
-    showQuestion(current.question, `Question ${answers.length + 1} of ${total}`);
+    showQuestion(current.question, `Question ${answers.length + 1} of ${total}`, current.options ?? []);
     status.textContent = current.question;
     return true;
   };
@@ -503,8 +503,10 @@
   // Build my plan: the loader appears where it always does, then the result leaves
   const PLAN_LOADER_MS = 150; // head start of the loader (it fades in behind the result)
   const RESULT_OUT_MS = 400;  // result leaves (keep in sync with CSS)
+  const PLAN_PLACEHOLDER_MS = 3000; // placeholder time before returning
   const planLoaderSlot = document.querySelector('.plan-loader');
   let planning = false;
+  let planLoaderInstance = null;
 
   document.getElementById('result-plan').addEventListener('click', async () => {
     if (planning) return;
@@ -512,14 +514,28 @@
     resultSection.inert = true;
     status.textContent = 'Building your plan…';
 
-    window.createTechText(planLoaderSlot, loaderOptions());
+    planLoaderInstance = window.createTechText(planLoaderSlot, loaderOptions());
     planLoaderSlot.classList.add('is-visible');
     await wait(PLAN_LOADER_MS);
 
     resultSection.classList.add('is-leaving');
     await wait(RESULT_OUT_MS);
     resultSection.hidden = true;
-    // TODO: request the plan (phase not built yet); the loader keeps running until it arrives
+    // TODO: replace this placeholder with the real plan request
+    await wait(PLAN_PLACEHOLDER_MS);
+
+    // Return sequence: loader fades out and is destroyed, result comes back
+    planLoaderSlot.classList.remove('is-visible');
+    await wait(400); // transition duration
+    if (planLoaderInstance) {
+      planLoaderInstance.destroy();
+      planLoaderInstance = null;
+    }
+    resultSection.classList.remove('is-leaving');
+    resultSection.hidden = false;
+    resultSection.inert = false;
+    planning = false;
+    showToast('Planning is not available yet.');
   });
 
   search.addEventListener('submit', (e) => {
@@ -559,9 +575,29 @@
 
   const questionProgress = document.getElementById('question-progress');
 
-  const showQuestion = (text, progress = '') => {
+  const showQuestion = (text, progress = '', options = []) => {
     if (text) questionText.textContent = text;
     questionProgress.textContent = progress;
+
+    const optionsContainer = document.getElementById('question-options');
+    optionsContainer.replaceChildren();
+    if (options.length > 0) {
+      options.slice(0, 4).forEach((option) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'question__option';
+        button.textContent = option;
+        button.addEventListener('click', () => {
+          answer.value = option;
+          question.requestSubmit();
+        });
+        optionsContainer.append(button);
+      });
+      optionsContainer.hidden = false;
+    } else {
+      optionsContainer.hidden = true;
+    }
+
     question.classList.add('is-open');
     requestAnimationFrame(() => answer.focus({ preventScroll: true }));
   };
@@ -570,6 +606,9 @@
     question.classList.remove('is-open');
     answer.value = '';
     answer.blur();
+    const optionsContainer = document.getElementById('question-options');
+    optionsContainer.replaceChildren();
+    optionsContainer.hidden = true;
   };
 
   question.addEventListener('submit', (e) => {
@@ -588,6 +627,31 @@
   });
 
   // ---------------------------------------------------------------------------
+  // Toast notifications
+  // ---------------------------------------------------------------------------
+  const toast = document.getElementById('toast');
+  const toastText = document.getElementById('toast-text');
+  let toastTimeout = null;
+
+  const showToast = (message) => {
+    if (toastTimeout) clearTimeout(toastTimeout);
+    toastText.textContent = message;
+    toast.classList.add('is-open');
+    toastTimeout = setTimeout(() => {
+      toast.classList.remove('is-open');
+    }, 4000);
+  };
+
+  document.getElementById('toast-close').addEventListener('click', () => {
+    if (toastTimeout) clearTimeout(toastTimeout);
+    toast.classList.remove('is-open');
+  });
+
+  // View my projects: show coming soon notice
+  document.querySelector('.hero__projects').addEventListener('click', () => {
+    showToast('Projects are not available yet.');
+  });
+
   // Giant wordmark: duplicate the group so the loop is seamless
   // ---------------------------------------------------------------------------
   const track = document.querySelector('.giant__track');

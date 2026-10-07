@@ -70,6 +70,7 @@
   <form class="question" id="question" aria-labelledby="question-text" novalidate>
     <p class="question__progress" id="question-progress"></p>
     <p class="question__text" id="question-text">Question goes here</p>
+    <div class="question__options" id="question-options" role="group" aria-label="Suggested answers" hidden></div>
     <div class="question__field">
       <input class="question__input" type="text" name="answer" placeholder="Type your answer" aria-labelledby="question-text" autocomplete="off" maxlength="1000">
       <button class="arrow-btn question__submit" type="submit" aria-label="Send answer">
@@ -113,6 +114,8 @@
   <p class="sr-only" id="slider-hint">Example value shown. Move the slider to set your own.</p>
 
   <div class="backdrop" aria-hidden="true"></div>
+
+  <div class="toast" id="toast" role="status"><p class="toast__text" id="toast-text"></p><button class="toast__close" type="button" id="toast-close" aria-label="Dismiss">&times;</button></div>
 
   <div class="giant" aria-hidden="true">
     <div class="giant__track">
