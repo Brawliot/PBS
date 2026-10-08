@@ -47,6 +47,8 @@ const CHECKS = {
   consistency: "The description and the answers are consistent, with no contradictions.",
 } as const;
 export type CheckKey = keyof typeof CHECKS;
+/** The coherence checks, as a list (for the plan, see plan/plan-skeleton.ts) */
+export const CHECK_KEYS = Object.keys(CHECKS) as CheckKey[];
 
 /** Two levels: small businesses see the groups, larger ones the departments */
 export const GROUPS: { group: string; departments: [name: string, definition: string][] }[] = [

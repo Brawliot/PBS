@@ -232,6 +232,12 @@ const DIMENSIONS: Dimension[] = [
   },
 ];
 
+// Read-only views of the dimensions, for the plan (plan/plan-skeleton.ts): keys and the real option labels
+export const DIMENSION_KEYS: readonly DimensionKey[] = DIMENSIONS.map((dimension) => dimension.key);
+export const DIMENSION_OPTIONS: Readonly<Record<DimensionKey, Readonly<Record<string, string>>>> = Object.fromEntries(
+  DIMENSIONS.map((dimension) => [dimension.key, dimension.options]),
+) as Record<DimensionKey, Record<string, string>>;
+
 function buildDimensionState(
   input: PlannerInput,
   jev: JevResponse,
