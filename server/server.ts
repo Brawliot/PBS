@@ -91,7 +91,15 @@ async function planRoute(req: IncomingMessage, res: ServerResponse, path: string
 }
 
 export const server = createServer(async (req, res) => {
-  const path = new URL(req.url ?? "/", "http://localhost").pathname;
+  // A target that does not parse (or has a broken percent-encoding) is a bad request, not a crash
+  let path: string;
+  try {
+    path = new URL(req.url ?? "/", "http://localhost").pathname;
+    decodeURIComponent(path);
+  } catch {
+    res.writeHead(400, { ...securityHeaders(), "Content-Length": "0" });
+    return res.end();
+  }
   if (isPlanPath(path)) return planRoute(req, res, path);
 
   if (req.method === "GET") {
