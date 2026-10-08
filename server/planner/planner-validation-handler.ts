@@ -49,7 +49,7 @@ const CHECKS = {
 export type CheckKey = keyof typeof CHECKS;
 
 /** Two levels: small businesses see the groups, larger ones the departments */
-const GROUPS: { group: string; departments: [name: string, definition: string][] }[] = [
+export const GROUPS: { group: string; departments: [name: string, definition: string][] }[] = [
   {
     group: "Legal & Compliance",
     departments: [["Legal & Compliance", "contracts, licenses, regulation and data protection"]],
