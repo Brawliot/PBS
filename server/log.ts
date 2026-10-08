@@ -6,8 +6,10 @@
 
 import { HttpError } from "./request.js";
 
-/** A code that is safe to log: lowercase letters and underscores only, at most 40 characters */
-const SAFE_CODE = /^[a-z_]{1,40}$/;
+/** The longest code that is safe to log: a code is lowercase letters and underscores only */
+export const MAX_CODE_LENGTH = 40;
+/** A code that is safe to log: lowercase letters and underscores only, at most MAX_CODE_LENGTH characters */
+const SAFE_CODE = new RegExp(`^[a-z_]{1,${MAX_CODE_LENGTH}}$`);
 
 /** The code of an error, if it has one that is safe to write: an HttpError's status, or a short code */
 function safeCode(error: unknown): string | undefined {
