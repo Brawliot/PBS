@@ -50,7 +50,7 @@ describe("timelineUnit", () => {
   test("each answer of the timeline question has its unit", () => {
     assert.equal(timelineUnit("Ultra-fast (0-3m)"), "day");
     assert.equal(timelineUnit("Fast (3-6m)"), "week");
-    assert.equal(timelineUnit("Normal (6-12m)"), "week");
+    assert.equal(timelineUnit("Normal (6-12m)"), "month");
     assert.equal(timelineUnit("Long (12-18m)"), "month");
     assert.equal(timelineUnit("Very long (18+m)"), "month");
     assert.equal(timelineUnit("Not specified"), "week");
@@ -169,12 +169,42 @@ describe("phaseStatus: blocked", () => {
     assert.equal(phaseStatus(twoPhases([rel("ghost", "f2", "blocks")]), "f2"), "blocked");
   });
 
-  test("a phase without tasks that blocks another is not done, so it blocks it", () => {
+  test("a blocking phase with no tasks counts as done, so it blocks nothing", () => {
     const plan = planOf({
       phases: [phase("f1", 0), phase("f2", 1)],
       tasks: [task("b", "f2")],
       steps: [step("s2", "b", "not_started")],
       relations: [rel("f1", "f2", "blocks")],
+    });
+    assert.equal(phaseStatus(plan, "f2"), "not_started");
+  });
+
+  test("a blocking phase whose tasks are not finished still blocks, even with no step started", () => {
+    const plan = planOf({
+      phases: [phase("f1", 0), phase("f2", 1)],
+      tasks: [task("a", "f1"), task("b", "f2")],
+      steps: [step("s1", "a", "not_started"), step("s2", "b", "not_started")],
+      relations: [rel("f1", "f2", "blocks")],
+    });
+    assert.equal(phaseStatus(plan, "f2"), "blocked");
+  });
+
+  test("a blocking phase with only some tasks done still blocks", () => {
+    const plan = planOf({
+      phases: [phase("f1", 0), phase("f2", 1)],
+      tasks: [task("a", "f1"), task("c", "f1"), task("b", "f2")],
+      steps: [step("s1", "a", "done"), step("s3", "c", "not_started"), step("s2", "b", "not_started")],
+      relations: [rel("f1", "f2", "blocks")],
+    });
+    assert.equal(phaseStatus(plan, "f2"), "blocked");
+  });
+
+  test("a blocking id that is not a phase still blocks, even though it has no tasks", () => {
+    const plan = planOf({
+      phases: [phase("f2", 1)],
+      tasks: [task("b", "f2")],
+      steps: [step("s2", "b", "not_started")],
+      relations: [rel("ghost", "f2", "blocks")],
     });
     assert.equal(phaseStatus(plan, "f2"), "blocked");
   });

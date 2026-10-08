@@ -109,6 +109,24 @@ describe("checkPlan: steps", () => {
   });
 });
 
+describe("checkPlan: duplicate step relations", () => {
+  test("a step relation repeated (same from, to and type) is a duplicate, reported at the second one", () => {
+    const problems = checkPlan(changed((plan) => plan.relations.push({ level: "step", from: "s-menu", to: "s-permits", type: "blocks" } as never)));
+    assert.deepEqual(problems, [{ code: "duplicate_relation", level: "step", index: 6 }]);
+  });
+
+  test("the same step pair with another type is not a duplicate", () => {
+    const problems = checkPlan(changed((plan) => plan.relations.push({ level: "step", from: "s-menu", to: "s-permits", type: "feeds" } as never)));
+    assert.equal(problems.some((problem) => problem.code === "duplicate_relation"), false);
+  });
+
+  test("the same step pair in the other direction is not a duplicate (it is a cycle)", () => {
+    const problems = checkPlan(changed((plan) => plan.relations.push({ level: "step", from: "s-permits", to: "s-menu", type: "blocks" } as never)));
+    assert.equal(problems.some((problem) => problem.code === "duplicate_relation"), false);
+    assert.equal(problems.some((problem) => problem.code === "cycle" && problem.level === "step"), true);
+  });
+});
+
 describe("checkPlan: tasks", () => {
   test("a task relation repeated is a duplicate, reported at the second one", () => {
     const problems = checkPlan(changed((plan) => plan.relations.push({ level: "task", from: "t-permits", to: "t-menu", type: "follows" } as never)));

@@ -14,14 +14,15 @@ export type PhaseStatus = "not_started" | "in_progress" | "blocked" | "done";
 
 /**
  * The unit of the timeline for each answer of the planner's "timeline" question (planner-handler.ts).
- * Rule: a term of a year or more in months, about six months or less in weeks, shorter in days.
- * ASSUMPTION to review: this table is a proposal, not measured; "Normal (6-12m)" in weeks goes
- * against the rule's wording, and it was kept as proposed. A Map, so no answer can reach a prototype.
+ * Rule: a term of a year or more in months, about six months or less in weeks, shorter in days. So a
+ * term above six months (Normal, Long, Very long) is in months. The keys are exactly the criteria of
+ * the "timeline" question: a test checks it. A Map, so no answer can reach a prototype.
+ * ASSUMPTION to review: this table is a proposal, not measured.
  */
-const TIMELINE_UNIT_BY_CHOICE = new Map<string, TimelineUnit>([
+export const TIMELINE_UNIT_BY_CHOICE = new Map<string, TimelineUnit>([
   ["Ultra-fast (0-3m)", "day"],
   ["Fast (3-6m)", "week"],
-  ["Normal (6-12m)", "week"],
+  ["Normal (6-12m)", "month"],
   ["Long (12-18m)", "month"],
   ["Very long (18+m)", "month"],
   ["Not specified", "week"],
@@ -53,9 +54,19 @@ export function intrinsicPhaseStatus(plan: Plan, phaseId: string): PhaseStatus {
 }
 
 /**
+ * Whether a phase counts as done when it blocks another: it is done, or it has no tasks at all (a
+ * phase with nothing to do holds nothing back). An id that is not a phase counts as not done, as an
+ * unknown source does for steps, so a missing phase keeps blocking.
+ */
+function countsAsDone(plan: Plan, phaseId: string): boolean {
+  if (!plan.phases.some((phase) => phase.id === phaseId)) return false;
+  return phaseTaskStatuses(plan, phaseId).length === 0 || intrinsicPhaseStatus(plan, phaseId) === "done";
+}
+
+/**
  * The intrinsic status, except that a phase not started yet is blocked while a phase that blocks
- * it is not done. A phase already started or done is never blocked. An id that is not a phase
- * counts as not done, as an unknown source does for steps. "follows" never blocks.
+ * it does not count as done (see countsAsDone). A phase already started or done is never blocked.
+ * "follows" never blocks.
  * Assumption: "blocked" only applies to phases that have not started yet.
  */
 export function phaseStatus(plan: Plan, phaseId: string): PhaseStatus {
@@ -66,7 +77,7 @@ export function phaseStatus(plan: Plan, phaseId: string): PhaseStatus {
       relation.level === "phase" &&
       relation.type === "blocks" &&
       relation.to === phaseId &&
-      intrinsicPhaseStatus(plan, relation.from) !== "done",
+      !countsAsDone(plan, relation.from),
   );
   return blocked ? "blocked" : "not_started";
 }

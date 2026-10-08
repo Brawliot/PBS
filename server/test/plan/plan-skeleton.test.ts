@@ -52,11 +52,11 @@ describe("the Madrid restaurant report, exactly", () => {
     ]);
   });
 
-  test("three phases in order: Prepare 0-8, Set up 8-18, Launch 18-26 (weeks)", () => {
+  test("three phases in order, overlapping: Prepare 0-10, Set up 8-19, Launch 19-26 (weeks)", () => {
     assert.deepEqual(plan.phases, [
-      { id: "prepare", name: "Prepare", order: 0, startUnit: 0, lengthUnits: 8 },
-      { id: "set-up", name: "Set up", order: 1, startUnit: 8, lengthUnits: 10 },
-      { id: "launch", name: "Launch", order: 2, startUnit: 18, lengthUnits: 8 },
+      { id: "prepare", name: "Prepare", order: 0, startUnit: 0, lengthUnits: 10 },
+      { id: "set-up", name: "Set up", order: 1, startUnit: 8, lengthUnits: 11 },
+      { id: "launch", name: "Launch", order: 2, startUnit: 19, lengthUnits: 7 },
     ]);
     assert.deepEqual(plan.relations.filter((relation) => relation.level === "phase"), [
       { level: "phase", from: "set-up", to: "prepare", type: "follows" },
@@ -170,7 +170,7 @@ describe("the timeline: each term, at its upper end", () => {
     const expected: Record<string, [unit: string, total: number]> = {
       "Ultra-fast (0-3m)": ["day", 90],
       "Fast (3-6m)": ["week", 26],
-      "Normal (6-12m)": ["week", 52],
+      "Normal (6-12m)": ["month", 12],
       "Long (12-18m)": ["month", 18],
       "Very long (18+m)": ["month", 24],
       "Not specified": ["week", 26],
@@ -181,24 +181,56 @@ describe("the timeline: each term, at its upper end", () => {
     }
   });
 
-  test("the phases split the total at 30 % and 70 %, in days for the shortest term", () => {
+  test("the phases overlap: Prepare 0 + 35 %, Set up at 30 % + 40 %, Launch from the end of Set up to the total (in days)", () => {
     const plan = skeleton(reportWith({ timeline: "Ultra-fast (0-3m)" }));
     assert.deepEqual(plan.timeline, { unit: "day" });
     assert.deepEqual(plan.phases.map((phase) => [phase.id, phase.startUnit, phase.lengthUnits]), [
-      ["prepare", 0, 27],
+      ["prepare", 0, 32],
       ["set-up", 27, 36],
       ["launch", 63, 27],
     ]);
     assertValid(plan);
   });
 
-  test("in months, the split rounds to whole months", () => {
-    const plan = skeleton(reportWith({ timeline: "Long (12-18m)" }));
+  test("in weeks (Fast, and Not specified): Prepare 0-10, Set up 8-19, Launch 19-26", () => {
+    const plan = skeleton(reportWith({ timeline: "Fast (3-6m)" }));
+    assert.deepEqual(plan.phases.map((phase) => [phase.id, phase.startUnit, phase.lengthUnits]), [
+      ["prepare", 0, 10],
+      ["set-up", 8, 11],
+      ["launch", 19, 7],
+    ]);
+    assertValid(plan);
+  });
+
+  test("in months (Normal, 12): Prepare 0-5, Set up 4-9, Launch 9-12", () => {
+    const plan = skeleton(reportWith({ timeline: "Normal (6-12m)" }));
+    assert.deepEqual(plan.timeline, { unit: "month" });
     assert.deepEqual(plan.phases.map((phase) => [phase.id, phase.startUnit, phase.lengthUnits]), [
       ["prepare", 0, 5],
-      ["set-up", 5, 8],
-      ["launch", 13, 5],
+      ["set-up", 4, 5],
+      ["launch", 9, 3],
     ]);
+    assertValid(plan);
+  });
+
+  test("in months (Long, 18): Prepare 0-7, Set up 6-14, Launch 14-18", () => {
+    const plan = skeleton(reportWith({ timeline: "Long (12-18m)" }));
+    assert.deepEqual(plan.phases.map((phase) => [phase.id, phase.startUnit, phase.lengthUnits]), [
+      ["prepare", 0, 7],
+      ["set-up", 6, 8],
+      ["launch", 14, 4],
+    ]);
+    assertValid(plan);
+  });
+
+  test("in months (Very long, 24): Prepare 0-9, Set up 8-18, Launch 18-24", () => {
+    const plan = skeleton(reportWith({ timeline: "Very long (18+m)" }));
+    assert.deepEqual(plan.phases.map((phase) => [phase.id, phase.startUnit, phase.lengthUnits]), [
+      ["prepare", 0, 9],
+      ["set-up", 8, 10],
+      ["launch", 18, 6],
+    ]);
+    assertValid(plan);
   });
 
   test("a missing term uses the default: weeks, 26 in total", () => {

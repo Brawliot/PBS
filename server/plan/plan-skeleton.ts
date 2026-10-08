@@ -23,14 +23,19 @@ export type SkeletonResult = { ok: true; plan: Plan } | { ok: false; code: Skele
 export const TIMELINE_TOTAL: Readonly<Record<string, number>> = {
   "Ultra-fast (0-3m)": 90, // 3 months, in days
   "Fast (3-6m)": 26, // 6 months, in weeks
-  "Normal (6-12m)": 52, // 12 months, in weeks
+  "Normal (6-12m)": 12, // 12 months, in months
   "Long (12-18m)": 18, // 18 months, in months
   "Very long (18+m)": 24, // ASSUMPTION: 18+ read as 24 months
   "Not specified": 26, // ASSUMPTION: 6 months, in weeks
 };
-// Where the phases start, as a share of the total (PROPOSAL): Set up at 30 %, Launch when Set up ends (70 %)
-export const SET_UP_AT = 0.3;
-export const LAUNCH_AT = 0.7;
+// The phases on the total (PROPOSAL), as percentages, rounded up to whole units. Prepare starts at 0 and
+// lasts 35 %; Set up starts at 30 % and lasts 40 %, so it overlaps Prepare; Launch starts when Set up
+// ends and runs to the total (at least 1 unit). Integer arithmetic, so no float rounding moves a unit.
+export const PREPARE_PERCENT = 35;
+export const SET_UP_START_PERCENT = 30;
+export const SET_UP_PERCENT = 40;
+/** A share of the total, in whole units, rounded up */
+const share = (total: number, percent: number): number => Math.ceil((total * percent) / 100);
 // Days a licence authority takes to answer (PROPOSAL)
 export const LICENCE_REVIEW_DAYS = 30;
 
@@ -272,12 +277,13 @@ export function buildPlanSkeleton(report: Report): SkeletonResult {
 
   const total = TIMELINE_TOTAL[report.jev.answers.timeline?.choice ?? ""] ?? TIMELINE_TOTAL["Not specified"];
   const unit = timelineUnit(report.jev.answers.timeline?.choice ?? "");
-  const setUpStart = Math.round(total * SET_UP_AT);
-  const launchStart = Math.round(total * LAUNCH_AT);
+  const setUpStart = share(total, SET_UP_START_PERCENT);
+  const setUpLength = share(total, SET_UP_PERCENT);
+  const launchStart = setUpStart + setUpLength;
   const phases: Plan["phases"] = [
-    { id: PHASE_ID.prepare, name: PHASE_NAME.prepare, order: 0, startUnit: 0, lengthUnits: setUpStart },
-    { id: PHASE_ID.setUp, name: PHASE_NAME.setUp, order: 1, startUnit: setUpStart, lengthUnits: launchStart - setUpStart },
-    { id: PHASE_ID.launch, name: PHASE_NAME.launch, order: 2, startUnit: launchStart, lengthUnits: total - launchStart },
+    { id: PHASE_ID.prepare, name: PHASE_NAME.prepare, order: 0, startUnit: 0, lengthUnits: share(total, PREPARE_PERCENT) },
+    { id: PHASE_ID.setUp, name: PHASE_NAME.setUp, order: 1, startUnit: setUpStart, lengthUnits: setUpLength },
+    { id: PHASE_ID.launch, name: PHASE_NAME.launch, order: 2, startUnit: launchStart, lengthUnits: Math.max(1, total - launchStart) },
   ];
 
   const parts = partsOf(report);

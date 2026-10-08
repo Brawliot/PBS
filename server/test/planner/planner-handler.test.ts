@@ -1,8 +1,15 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { buildState, callJev, analyzeWithJev, type JevQuestion } from "../../planner/planner-handler.js";
+import { buildState, callJev, analyzeWithJev, JEV_QUESTIONS, type JevQuestion } from "../../planner/planner-handler.js";
+import { TIMELINE_UNIT_BY_CHOICE } from "../../plan/phase-rules.js";
 import { mockFetch, jsonResponse, setJevEnv, silenceConsoleError } from "./helpers.js";
 import "./helpers.js";
+
+describe("the timeline question and its unit table", () => {
+  test("the criteria of the timeline question are exactly the keys of the unit table", () => {
+    assert.deepEqual(Object.keys(JEV_QUESTIONS.timeline.criteria!).sort(), [...TIMELINE_UNIT_BY_CHOICE.keys()].sort());
+  });
+});
 
 const questions: Record<string, JevQuestion> = {
   check: { type: "noul", instructions: "Something is true." },

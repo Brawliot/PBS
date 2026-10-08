@@ -65,7 +65,7 @@ const JEV_TIMEOUT_MS = 30_000;
 const TEAM_LABELS = ["Solo", "Small (2-3)", "Medium (4-10)", "Large (10+)"];
 const HOURS_LABELS = ["Under 10 h", "10-20 h", "30+ h", "Full time"];
 
-const JEV_QUESTIONS: Record<string, JevQuestion> = {
+export const JEV_QUESTIONS: Record<string, JevQuestion> = {
   sector: {
     type: "choice",
     instructions: "What is the business sector?",

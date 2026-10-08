@@ -185,6 +185,14 @@ export function checkPlan(plan: Plan): PlanProblem[] {
   const stepCycle = findStepCycle(plan.relations);
   if (stepCycle) problems.push({ code: "cycle", level: "step", ids: stepCycle });
   for (const index of feedsFromNonAi(plan)) problems.push({ code: "feeds_from_non_ai", level: "step", index });
+  // The same from, to and type twice: the second one is reported
+  const seenStep = new Set<string>();
+  plan.relations.forEach((relation, index) => {
+    if (relation.level !== "step") return;
+    const key = JSON.stringify([relation.from, relation.to, relation.type]);
+    if (seenStep.has(key)) problems.push({ code: "duplicate_relation", level: "step", index });
+    seenStep.add(key);
+  });
 
   // Tasks: the same relation twice, and loops among the stored ones
   const seen = new Set<string>();
