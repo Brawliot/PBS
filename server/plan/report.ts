@@ -32,7 +32,8 @@ const InputSchema = z.strictObject({
   hours: num(RANGES.hours[0], RANGES.hours[1]),
 });
 
-const AnswerSchema = z.strictObject({ topic: text(100), question: text(MAX_TEXT), answer: text(MAX_TEXT) });
+// Same limits as the request (request.ts parseAnswers): a valid answer is always a valid report answer
+const AnswerSchema = z.strictObject({ topic: text(MAX_TEXT), question: text(MAX_TEXT), answer: text(MAX_TEXT) });
 
 const JevAnswerSchema = z.strictObject({
   type: z.enum(["choice", "score", "noul"]),

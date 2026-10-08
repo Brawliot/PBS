@@ -268,13 +268,10 @@ describe("the development routes", () => {
 });
 
 describe("the other routes", () => {
-  test("POST /api/plan is 501 with a clear message, whatever the body", async () => {
-    const repo = new InMemoryPlanRepository();
-    assert.deepEqual(await call(repo, "POST", "/api/plan", { title: "x" }), {
-      status: 501,
-      body: { error: "Plan generation is not available yet", code: "not_implemented" },
-    });
-    assert.equal((await call(undefined, "POST", "/api/plan", "not json")).status, 501);
+  test("POST /api/plan without a database is 503: the plans are not available, whatever the body", async () => {
+    const storage = { error: "Plan storage is not configured", code: "storage_unavailable" };
+    assert.deepEqual(await call(undefined, "POST", "/api/plan", { reportId: "00000000-0000-4000-8000-000000000000" }), { status: 503, body: storage });
+    assert.equal((await call(undefined, "POST", "/api/plan", "not json")).status, 503);
   });
 
   test("any other path or method is 404", async () => {

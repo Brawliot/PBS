@@ -30,6 +30,8 @@ export interface PlanRepository {
   create(userId: string, title: string, plan: Plan): Promise<StoredPlan>;
   get(id: string, userId: string): Promise<StoredPlan | undefined>;
   update(id: string, userId: string, expectedVersion: number, plan: Plan, events: PlanEventRecord[]): Promise<UpdateResult>;
+  /** Removes a plan that was created and never handed out: the loser of two requests for the same report */
+  remove(id: string, userId: string): Promise<void>;
 }
 
 /** A stored row that cannot be read. The message is fixed: the code says why, and nothing from the row goes in. */

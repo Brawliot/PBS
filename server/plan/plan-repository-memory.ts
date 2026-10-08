@@ -59,6 +59,11 @@ export class InMemoryPlanRepository implements PlanRepository {
     return { ok: true, stored: this.stored(row) };
   }
 
+  async remove(id: string, userId: string): Promise<void> {
+    const row = this.rows.get(id);
+    if (row && row.userId === userId) this.rows.delete(id);
+  }
+
   private stored(row: MemoryRow): StoredPlan {
     return {
       id: row.id,

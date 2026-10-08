@@ -8,9 +8,11 @@ import { z } from "zod";
 import { restaurantPlan } from "./plan/demo-plan.js";
 import { applyPlanAction, type PlanActionError } from "./plan/plan-actions.js";
 import { derivePlan } from "./plan/plan-derived.js";
+import { buildPlanSkeleton } from "./plan/plan-skeleton.js";
 import { EVENT_ACTIONS, IdSchema } from "./plan/plan-model.js";
 import type { PlanRepository, StoredPlan } from "./plan/plan-repository.js";
 import { StoredPlanError } from "./plan/plan-repository.js";
+import type { ReportRepository } from "./plan/report-repository.js";
 import type { StepAction, StepActor } from "./plan/step-actions.js";
 
 /** The one user until authentication exists. Every repository call is scoped to it, and only this file names it. */
@@ -25,6 +27,8 @@ export interface PlanRequest {
   body: string;
   /** Undefined when DATABASE_URL is not set: the plan routes then answer 503 */
   repo: PlanRepository | undefined;
+  /** The reports the planner kept. Undefined together with repo when there is no database. */
+  reports?: ReportRepository | undefined;
   /** Injected clock: an ISO 8601 UTC instant */
   now: () => string;
   env: Record<string, string | undefined>;
@@ -41,7 +45,8 @@ type ErrorCode =
   | "invalid_body"
   | "version_conflict"
   | "not_found"
-  | "not_implemented"
+  | "report_not_found"
+  | "skeleton_failed"
   | "storage_unavailable"
   | "internal_error";
 
@@ -61,7 +66,8 @@ const FAILURE: Record<ErrorCode, { status: number; error: string }> = {
   output_not_confirmed: { status: 409, error: "The output must be confirmed first" },
   executor_in_use: { status: 409, error: "Another step uses this step's result, so its executor cannot change" },
   invalid_result: { status: 500, error: "Internal server error" },
-  not_implemented: { status: 501, error: "Plan generation is not available yet" },
+  report_not_found: { status: 404, error: "Report not found" },
+  skeleton_failed: { status: 500, error: "Could not build the plan" },
   storage_unavailable: { status: 503, error: "Plan storage is not configured" },
   internal_error: { status: 500, error: "Internal server error" },
 };
@@ -103,7 +109,7 @@ async function route(request: PlanRequest): Promise<PlanResponse> {
   const isDev = path.startsWith("/api/dev/");
   if (isDev && env.ENABLE_DEV_ROUTES !== "1") return NOT_FOUND;
 
-  if (method === "POST" && path === "/api/plan") return fail("not_implemented");
+  if (method === "POST" && path === "/api/plan") return createPlan(request);
 
   const plan = path.match(/^\/api\/plan\/([^/]+)$/);
   if (method === "GET" && plan) return getPlan(request, plan[1]);
@@ -139,6 +145,45 @@ async function userAction(request: PlanRequest, id: string, stepId: string): Pro
     payload: parsed.data.payload,
     expectedVersion: parsed.data.expectedVersion,
   });
+}
+
+// The plan is made from a report the server kept: the body names the report and nothing else
+const CreatePlanBody = z.strictObject({ reportId: z.string().regex(UUID) });
+/** The title is the idea, cut to this many characters */
+const TITLE_CHARS = 80;
+
+/**
+ * POST /api/plan: one plan per report. A report that has a plan gives that plan back (200). Otherwise the
+ * plan is built from the report by the fixed rules and linked to it (201). Two requests at once for the
+ * same report may both build a plan, but only one is linked; the other removes its own and answers with
+ * the linked one (200), so the user never ends up with two plans.
+ */
+async function createPlan(request: PlanRequest): Promise<PlanResponse> {
+  if (!request.repo || !request.reports) return fail("storage_unavailable");
+  const parsed = CreatePlanBody.safeParse(parseJson(request.body));
+  if (!parsed.success) return fail("invalid_body");
+  const { reportId } = parsed.data;
+
+  const stored = await request.reports.get(reportId, LOCAL_USER);
+  if (!stored) return fail("report_not_found");
+  if (stored.planId !== null) return { status: 200, body: { id: stored.planId } };
+
+  let skeleton: ReturnType<typeof buildPlanSkeleton>;
+  try {
+    skeleton = buildPlanSkeleton(stored.report);
+  } catch {
+    return fail("skeleton_failed");
+  }
+  if (!skeleton.ok) return fail("skeleton_failed");
+
+  const title = [...stored.report.input.idea].slice(0, TITLE_CHARS).join("");
+  const plan = await request.repo.create(LOCAL_USER, title, skeleton.plan);
+  const linked = await request.reports.attachPlan(reportId, LOCAL_USER, plan.id);
+  if (!linked.ok) return fail("report_not_found");
+  if (linked.attached) return { status: 201, body: { id: plan.id } };
+
+  await request.repo.remove(plan.id, LOCAL_USER);
+  return { status: 200, body: { id: linked.planId } };
 }
 
 async function createDemoPlan(request: PlanRequest): Promise<PlanResponse> {

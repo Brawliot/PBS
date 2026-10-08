@@ -9,7 +9,8 @@ import { runPlanner } from "./planner/planner-run.js";
 import { JobStore } from "./jobs.js";
 import { HttpError, parsePlannerRequest, readBody } from "./request.js";
 import { createPool, PgPlanRepository } from "./db/pg-plan-repository.js";
-import { handlePlanRequest, isPlanPath } from "./plan-routes.js";
+import { PgReportRepository } from "./db/pg-report-repository.js";
+import { handlePlanRequest, isPlanPath, LOCAL_USER } from "./plan-routes.js";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -21,10 +22,10 @@ const NO_STORE = { "Cache-Control": "no-store" };
 const jobs = new JobStore({ ttlMs: JOB_TTL_MS, maxJobs: MAX_JOBS });
 setInterval(() => jobs.sweep(), 60_000).unref();
 
-// Without DATABASE_URL the planner still works; only the plan routes answer 503
-const planRepository = process.env.DATABASE_URL
-  ? new PgPlanRepository(createPool(process.env.DATABASE_URL))
-  : undefined;
+// Without DATABASE_URL the planner still works; the plan routes answer 503 and no report is kept
+const pool = process.env.DATABASE_URL ? createPool(process.env.DATABASE_URL) : undefined;
+const planRepository = pool && new PgPlanRepository(pool);
+const reportRepository = pool && new PgReportRepository(pool);
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -70,6 +71,7 @@ async function planRoute(req: IncomingMessage, res: ServerResponse, path: string
       path,
       body,
       repo: planRepository,
+      reports: reportRepository,
       now: () => new Date().toISOString(),
       env: process.env,
     });
@@ -111,7 +113,7 @@ export const server = createServer(async (req, res) => {
       const { input, answers, final, claims } = parsePlannerRequest(await readBody(req));
       // Planner errors can carry internal details: only HttpError messages reach the client
       const jobId = jobs.start(() =>
-        runPlanner(input, answers, final, claims).catch((e) => {
+        runPlanner(input, answers, final, claims, { reports: reportRepository, owner: LOCAL_USER }).catch((e) => {
           if (e instanceof HttpError) throw e;
           throw new Error("Internal server error", { cause: e });
         }),

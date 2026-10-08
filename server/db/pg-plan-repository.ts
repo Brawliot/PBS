@@ -61,6 +61,10 @@ export class PgPlanRepository implements PlanRepository {
     return rows[0] && storedFrom(rows[0]);
   }
 
+  async remove(id: string, userId: string): Promise<void> {
+    await this.pool.query("DELETE FROM plans WHERE id = $1 AND user_id = $2", [id, userId]);
+  }
+
   async update(id: string, userId: string, expectedVersion: number, plan: Plan, events: PlanEventRecord[]): Promise<UpdateResult> {
     const document = JSON.stringify(parsePlan(plan));
     const client = await this.pool.connect();
