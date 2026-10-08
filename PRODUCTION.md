@@ -86,6 +86,12 @@ Hoy el proyecto funciona en local, sin usuarios y sin estado en el servidor. Cas
 **Hecho cuando.** Un usuario recibe 404 al pedir un informe o un plan que no es suyo, y no hay ninguna consulta a la base de datos sin el usuario.
 **Categoría.** Crítico, seguridad. Depende de la autenticación.
 
+### Afirmaciones del análisis enviadas por el navegador
+**Qué es.** La petición final del planner toma las afirmaciones del análisis (`analysis`) del navegador, que las devuelve tal como las recibió. De ellas salen las tareas "Verify X" del informe guardado. El servidor no las calcula ni las compara con la fase 2 que guardó.
+**Por qué.** Una persona puede cambiar sus propias afirmaciones y el plan que se construye con ellas cambia. Solo afecta al plan de quien lo hace, pero el informe no es lo que el servidor produjo.
+**Hecho cuando.** El informe guarda las afirmaciones que el servidor produjo (no las del navegador), o el navegador deja de enviarlas, y `server/plan/report.ts` y `server/planner/planner-run.ts` no lo describen como un valor del cliente.
+**Categoría.** Producción, integridad. Afecta solo al propio plan de la persona.
+
 ### Retención de los informes
 **Qué es.** La tabla `reports` (migración `002_reports.sql`) guarda el informe completo de cada análisis que termina con uno, y no se borra nunca. Hace falta una política: cuánto tiempo se guardan, cómo se borran los informes que no tienen plan, y cómo se borra todo lo de un usuario cuando lo pida.
 **Por qué.** Cada análisis crece la tabla, y el informe contiene la idea del usuario y sus respuestas: datos personales que no deberían quedarse para siempre.
@@ -100,6 +106,8 @@ Hoy el proyecto funciona en local, sin usuarios y sin estado en el servidor. Cas
 - **Tiempos del pool de PostgreSQL**: máximo de conexiones (10), espera para conectar (5 s), inactividad (30 s) y tiempo máximo por consulta (10 s), todos ajustables por variable (`DB_POOL_MAX`, `DB_CONNECT_TIMEOUT_MS`, `DB_IDLE_TIMEOUT_MS`, `DB_STATEMENT_TIMEOUT_MS`). Probado contra PostgreSQL real: una consulta que excede el tiempo se cancela.
 - **Registros sin contenido**: una sola función (`server/log.ts`) escribe contexto, nombre del error y un código seguro, nunca el mensaje, la pila, la causa ni el cuerpo de un proveedor. Probado con textos secretos en cada uno de esos sitios.
 - **Modo de desarrollo**: el servidor no arranca con `ENABLE_DEV_ROUTES=1` y `NODE_ENV=production`, y las rutas de desarrollo responden 404 en producción.
+- **Datos que la base de datos acepta**: un texto con el carácter NUL (U+0000) o con caracteres de control (U+0001 a U+001F salvo tabulador y salto de línea, y U+007F) se rechaza antes de llegar a PostgreSQL, en la idea, en las respuestas, en los textos del plan y en los del informe. Un documento de plan de más de 5 MiB de JSON no se guarda (`MAX_DOCUMENT_BYTES`, sin calibrar). Un paso con 200 eventos no admite más acciones (`events_full`).
+- **Una URL mal formada no tumba el servidor**: una petición con un destino que no se puede interpretar recibe `400` con las cabeceras de seguridad y sin contenido, y el servidor sigue atendiendo.
 
 **Pendiente de la infraestructura** (no es código de la aplicación):
 

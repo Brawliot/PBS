@@ -67,11 +67,13 @@ Run from `server/`:
 | --- | --- | --- |
 | `npm run dev` | `tsx watch --env-file=.env server.ts` | Starts the server and restarts on changes. |
 | `npm start` | `tsx --env-file=.env server.ts` | Starts the server without watching. |
+
+`npm run dev`, `npm start` and `npm run migrate` read `server/.env` with `--env-file`, and that flag stops the command when the file is missing, even if `DATABASE_URL` is already set in the environment. Create `server/.env` (copy `.env.example`) before running them. The `--env-file-if-exists` flag would skip the check, but it was added in Node 22.9 and this project declares Node 22 or later, so the scripts keep `--env-file`.
 | `npm run typecheck` | `tsc` | Type-checks the TypeScript sources. |
 | `npm run migrate` | `tsx --env-file=.env db/migrate-cli.ts` | Applies the pending migrations in `server/db/migrations` to `DATABASE_URL`. Safe to run again: applied migrations are skipped. |
 | `npm test` | `tsx --test "test/**/*.test.ts"` | Runs all the tests. The PostgreSQL tests run only when `TEST_DATABASE_URL` is set, in their own temporary schema. |
 | `npm run perf` | `tsx test/perf/perf.ts` | Times the plan rules on synthetic plans of four sizes (parsing, checks, derived values, one step action). It is not part of `npm test`. |
-| `npm run test:e2e` | `node test/e2e/build-my-plan.mjs && tsx test/e2e/plan-decisions.e2e.ts` | Runs the browser checks in Chromium: "Build my plan" (with the planner answered by `page.route`) and the Decisions page (with the real plan routes answering the API). Needs Playwright: set `PLAYWRIGHT_MODULE` to its path if it is not installed here, and `CHROMIUM_PATH` to a Chromium binary if the default one is missing. `SCREENSHOTS` sets where the Decisions screenshots go. |
+| `npm run test:e2e` | `node test/e2e/build-my-plan.mjs && tsx test/e2e/plan-decisions.e2e.ts && node test/e2e/loader.e2e.mjs` | Runs the browser checks in Chromium: "Build my plan" (with the planner answered by `page.route`) and the Decisions page (with the real plan routes answering the API). Needs Playwright: set `PLAYWRIGHT_MODULE` to its path if it is not installed here, and `CHROMIUM_PATH` to a Chromium binary if the default one is missing. `SCREENSHOTS` sets where the Decisions screenshots go. |
 
 ## Security
 
@@ -210,7 +212,7 @@ A gap is a task that waits for facts (`placeholder`). When its facts are confirm
 | `POST /api/plan/:id/proposals/:proposalId/accept` | `{ expectedVersion }` | `200`. The tasks are added and the gap no longer waits. |
 | `POST /api/plan/:id/proposals/:proposalId/reject` | `{ expectedVersion }` | `200` |
 
-The success body is the one of a step action: `{ id, version, plan, derived }`. Errors use the same shape as the step actions, `{ error, code }`, with one fixed text per code. A stale `expectedVersion` gives `409 version_conflict`; the page then reloads the plan.
+The success body is the one of a step action: `{ id, version, plan, derived }`. Errors use the same shape as the step actions, `{ error, code }`, with one fixed text per code. A stale `expectedVersion` gives `409 version_conflict`; the page then reloads the plan. A step whose history has reached its limit (200 events) answers `409 events_full` to every action, and a change that would take the plan's document over 5 MiB of JSON (`MAX_DOCUMENT_BYTES`, not calibrated yet) answers `409 plan_too_large`. Both leave the plan as it was.
 
 Every write adds its entries to `plan_log` in the same write as the plan: `fact_proposed`, `fact_confirmed`, `fact_rejected`, `proposal_created`, `proposal_accepted` and `proposal_rejected`, with the actor and the id of the fact or proposal. The log only grows: the database refuses any change to it.
 
@@ -260,5 +262,6 @@ server/
 - **Suggestions only from templates.** A gap is expanded only for the `mobile_game` and `web_app` product types. Other values answer `needs_ai` until the AI is built. A rejected suggestion can be asked again: the new one takes the next free id (`-2`, `-3`...), up to 20 tries, and then `id_taken`. A pending suggestion whose decision has changed is marked obsolete (`derived.proposals[id].obsolete`): it can only be rejected, and accepting it gives `409 not_confirmed`.
 - **Uncalibrated thresholds.** The question-policy numbers (`POLICY` in `question-policy.ts`) and the validation thresholds (`SUPPORT_MIN`, `CHECK_MIN`, `CORE_MIN`, `IMPORTANT_MIN` in `planner-validation-handler.ts`) are estimates and have not been tuned on real data.
 - **Little stored state.** Reports and plans are saved only when `DATABASE_URL` is set. Jobs are kept only in memory: a server restart interrupts the analyses in progress, and the front end shows an interrupted message with Retry. The front end must send back the answers and the analysis claims for the final request.
+- **The analysis claims come from the browser.** The final request takes the analysis claims (`analysis`) from the browser, as sent back, and the "Verify X" tasks of the saved report come from them. A person can change their own plan that way; no other user is affected. The claims are checked for shape, not for truth. See `PRODUCTION.md`.
 - **Reports are not tied to users yet.** Every report and plan belongs to the one local user (`LOCAL_USER` in `server/plan-routes.ts`). See `PRODUCTION.md`.
 - **A final request keeps a report without `phase2`.** The final request does not run phase 2 again, so its stored report has no `phase2` field; the report from the first round without questions has it.
