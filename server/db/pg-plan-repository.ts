@@ -12,6 +12,7 @@ import {
   preparePlan,
   readStoredPlan,
   type PlanEventRecord,
+  type PlanLogRecord,
   type PlanRepository,
   type StoredPlan,
   type UpdateResult,
@@ -65,7 +66,7 @@ export class PgPlanRepository implements PlanRepository {
     await this.pool.query("DELETE FROM plans WHERE id = $1 AND user_id = $2", [id, userId]);
   }
 
-  async update(id: string, userId: string, expectedVersion: number, plan: Plan, events: PlanEventRecord[]): Promise<UpdateResult> {
+  async update(id: string, userId: string, expectedVersion: number, plan: Plan, events: PlanEventRecord[], logs: PlanLogRecord[] = []): Promise<UpdateResult> {
     const document = JSON.stringify(parsePlan(plan));
     const client = await this.pool.connect();
     try {
@@ -84,6 +85,7 @@ export class PgPlanRepository implements PlanRepository {
         return { ok: false, code: exists.rowCount === 0 ? "not_found" : "version_conflict" };
       }
       await insertEvents(client, id, events);
+      await insertLog(client, id, logs);
       await client.query("COMMIT");
       return { ok: true, stored: storedFrom(rows[0]) };
     } catch (error) {
@@ -92,6 +94,15 @@ export class PgPlanRepository implements PlanRepository {
     } finally {
       client.release();
     }
+  }
+}
+
+async function insertLog(client: PoolClient, planId: string, logs: PlanLogRecord[]): Promise<void> {
+  for (const entry of logs) {
+    await client.query(
+      "INSERT INTO plan_log (plan_id, at, actor, kind, ref_id) VALUES ($1, $2, $3, $4, $5)",
+      [planId, entry.at, entry.actor, entry.kind, entry.refId],
+    );
   }
 }
 

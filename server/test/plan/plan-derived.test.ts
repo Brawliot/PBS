@@ -61,6 +61,7 @@ describe("derivePlan on the restaurant plan", () => {
       placeholders: {},
       confirmedFacts: {},
       stale: { taskIds: [], stepIds: [] },
+      proposals: {},
     });
   });
 

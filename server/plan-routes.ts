@@ -9,8 +9,11 @@ import { restaurantPlan } from "./plan/demo-plan.js";
 import { applyPlanAction, type PlanActionError } from "./plan/plan-actions.js";
 import { derivePlan } from "./plan/plan-derived.js";
 import { buildPlanSkeleton } from "./plan/plan-skeleton.js";
-import { EVENT_ACTIONS, IdSchema } from "./plan/plan-model.js";
-import type { PlanRepository, StoredPlan } from "./plan/plan-repository.js";
+import { EVENT_ACTIONS, FactTermSchema, IdSchema, type Plan } from "./plan/plan-model.js";
+import { applyProposalAction, createProposal, proposeExpansion, type ProposalError } from "./plan/proposals.js";
+import { confirmFact, proposeFact, rejectFact, type FactActionError } from "./plan/fact-actions.js";
+import { FACT_KEYS, PRODUCT_TYPES } from "./plan/fact-catalog.js";
+import type { PlanLogRecord, PlanRepository, StoredPlan } from "./plan/plan-repository.js";
 import { StoredPlanError } from "./plan/plan-repository.js";
 import type { ReportRepository } from "./plan/report-repository.js";
 import type { StepAction, StepActor } from "./plan/step-actions.js";
@@ -42,7 +45,10 @@ export interface PlanResponse {
 /** Every failure a route can answer with: the storage codes of the plan, plus the ones of the request itself */
 type ErrorCode =
   | PlanActionError
+  | FactActionError
+  | ProposalError
   | "invalid_body"
+  | "unknown_task"
   | "version_conflict"
   | "not_found"
   | "report_not_found"
@@ -70,6 +76,22 @@ const FAILURE: Record<ErrorCode, { status: number; error: string }> = {
   skeleton_failed: { status: 500, error: "Could not build the plan" },
   storage_unavailable: { status: 503, error: "Plan storage is not configured" },
   internal_error: { status: 500, error: "Internal server error" },
+  // Facts and proposals: the same table, one HTTP status and one fixed text per code
+  not_proposed: { status: 409, error: "This fact is not waiting for a decision" },
+  unknown_fact: { status: 404, error: "Fact not found" },
+  invalid_fact: { status: 400, error: "The fact does not fit the catalogue" },
+  not_confirmed: { status: 409, error: "The fact is not confirmed" },
+  unknown_task: { status: 404, error: "Task not found" },
+  not_expandable: { status: 409, error: "This task cannot be expanded yet" },
+  unknown_proposal: { status: 404, error: "Proposal not found" },
+  invalid_proposal: { status: 400, error: "The proposal is not valid" },
+  unknown_reason: { status: 400, error: "The proposal refers to something not in the plan" },
+  too_large: { status: 400, error: "The proposal is too large" },
+  duplicate_pending: { status: 409, error: "A proposal for this task is already waiting for a decision" },
+  id_taken: { status: 409, error: "An id of the proposal is already in use" },
+  already_decided: { status: 409, error: "This proposal was already decided" },
+  needs_ai: { status: 409, error: "There is no ready-made suggestion for this decision yet." },
+  not_available: { status: 409, error: "This is not available in the current state of the plan" },
 };
 
 const fail = (code: ErrorCode): PlanResponse => ({
@@ -111,6 +133,15 @@ async function route(request: PlanRequest): Promise<PlanResponse> {
 
   if (method === "POST" && path === "/api/plan") return createPlan(request);
 
+  const fact = path.match(/^\/api\/plan\/([^/]+)\/facts$/);
+  if (method === "POST" && fact) return createFact(request, fact[1]);
+  const factDecision = path.match(/^\/api\/plan\/([^/]+)\/facts\/([^/]+)\/(confirm|reject)$/);
+  if (method === "POST" && factDecision) return decideFact(request, factDecision[1], factDecision[2], factDecision[3] as "confirm" | "reject");
+  const gap = path.match(/^\/api\/plan\/([^/]+)\/gaps\/([^/]+)\/proposal$/);
+  if (method === "POST" && gap) return proposeForGap(request, gap[1], gap[2]);
+  const proposal = path.match(/^\/api\/plan\/([^/]+)\/proposals\/([^/]+)\/(accept|reject)$/);
+  if (method === "POST" && proposal) return decideProposal(request, proposal[1], proposal[2], proposal[3] as "accept" | "reject");
+
   const plan = path.match(/^\/api\/plan\/([^/]+)$/);
   if (method === "GET" && plan) return getPlan(request, plan[1]);
 
@@ -121,6 +152,8 @@ async function route(request: PlanRequest): Promise<PlanResponse> {
 
   const fake = path.match(/^\/api\/dev\/plan\/([^/]+)\/steps\/([^/]+)\/fake-output$/);
   if (isDev && method === "POST" && fake) return fakeOutput(request, fake[1], fake[2]);
+  const fakeProposal = path.match(/^\/api\/dev\/plan\/([^/]+)\/facts\/fake-proposal$/);
+  if (isDev && method === "POST" && fakeProposal) return fakeFactProposal(request, fakeProposal[1]);
 
   return NOT_FOUND;
 }
@@ -130,7 +163,157 @@ async function getPlan(request: PlanRequest, id: string): Promise<PlanResponse> 
   if (!request.repo) return fail("storage_unavailable");
   const stored = await request.repo.get(id, LOCAL_USER);
   if (!stored) return fail("not_found");
-  return { status: 200, body: { ...storedBody(stored), derived: derivePlan(stored.plan) } };
+  return { status: 200, body: { ...storedBody(stored), derived: derivePlan(stored.plan), catalog: CATALOG } };
+}
+
+/** What the screen can offer for a fact: the keys, and the catalogue values of the keys that have them */
+const CATALOG = { factKeys: [...FACT_KEYS], factValues: { product_type: [...PRODUCT_TYPES] } };
+
+// ---- Facts and proposals. The actor is always the person, set here: no body takes one (strict schemas).
+
+const VersionBody = z.strictObject({ expectedVersion: z.number().int().min(1) });
+const CreateFactBody = z.strictObject({
+  key: FactTermSchema,
+  value: FactTermSchema,
+  confirm: z.boolean().optional(),
+  expectedVersion: z.number().int().min(1),
+});
+
+type Decision = { ok: true; plan: Plan; logs: PlanLogRecord[] } | { ok: false; code: ErrorCode };
+
+/**
+ * The one path that changes facts and proposals: load, check the version, apply, and save the plan and
+ * its log entries in one write. A second request with the same version gets version_conflict.
+ */
+async function changeDecisions(
+  request: PlanRequest,
+  id: string,
+  // null: no version check, for the development route only
+  expectedVersion: number | null,
+  decide: (plan: Plan, at: string) => Decision,
+  status: 200 | 201,
+): Promise<PlanResponse> {
+  if (!UUID.test(id)) return fail("not_found");
+  if (!request.repo) return fail("storage_unavailable");
+  const stored = await request.repo.get(id, LOCAL_USER);
+  if (!stored) return fail("not_found");
+  if (expectedVersion !== null && expectedVersion !== stored.version) return fail("version_conflict");
+
+  const result = decide(stored.plan, request.now());
+  if (!result.ok) return fail(result.code as never);
+  const saved = await request.repo.update(id, LOCAL_USER, stored.version, result.plan, [], result.logs);
+  if (!saved.ok) return fail(saved.code);
+  return {
+    status,
+    body: {
+      id: saved.stored.id,
+      version: saved.stored.version,
+      plan: saved.stored.plan,
+      derived: derivePlan(saved.stored.plan),
+    },
+  };
+}
+
+function parseBody<T>(raw: string, schema: z.ZodType<T>): T | undefined {
+  const parsed = schema.safeParse(parseJson(raw));
+  return parsed.success ? parsed.data : undefined;
+}
+
+async function createFact(request: PlanRequest, id: string): Promise<PlanResponse> {
+  const body = parseBody(request.body, CreateFactBody);
+  if (!body) return fail("invalid_body");
+  return changeDecisions(
+    request,
+    id,
+    body.expectedVersion,
+    (plan, at) => {
+      const made = proposeFact(plan, { key: body.key, value: body.value }, { now: () => at, actor: "user" });
+      if (!made.ok) return made;
+      const logs: PlanLogRecord[] = [{ kind: "fact_proposed", actor: "user", refId: made.fact.id, at }];
+      if (body.confirm !== true) return { ok: true, plan: made.plan, logs };
+      // Proposed and confirmed in the same write: one version, two log entries
+      const confirmed = confirmFact(made.plan, made.fact.id, { now: () => at, actor: "user" });
+      if (!confirmed.ok) return confirmed;
+      return { ok: true, plan: confirmed.plan, logs: [...logs, { kind: "fact_confirmed", actor: "user", refId: made.fact.id, at }] };
+    },
+    201,
+  );
+}
+
+async function decideFact(request: PlanRequest, id: string, factId: string, decision: "confirm" | "reject"): Promise<PlanResponse> {
+  const body = parseBody(request.body, VersionBody);
+  if (!body) return fail("invalid_body");
+  if (!IdSchema.safeParse(factId).success) return fail("unknown_fact");
+  return changeDecisions(
+    request,
+    id,
+    body.expectedVersion,
+    (plan, at) => {
+      const options = { now: () => at, actor: "user" as const };
+      const result = decision === "confirm" ? confirmFact(plan, factId, options) : rejectFact(plan, factId, options);
+      if (!result.ok) return result;
+      const kind = decision === "confirm" ? "fact_confirmed" : "fact_rejected";
+      return { ok: true, plan: result.plan, logs: [{ kind, actor: "user", refId: factId, at }] };
+    },
+    200,
+  );
+}
+
+async function proposeForGap(request: PlanRequest, id: string, taskId: string): Promise<PlanResponse> {
+  const body = parseBody(request.body, VersionBody);
+  if (!body) return fail("invalid_body");
+  return changeDecisions(
+    request,
+    id,
+    body.expectedVersion,
+    (plan, at) => {
+      if (!IdSchema.safeParse(taskId).success || !plan.tasks.some((task) => task.id === taskId)) return { ok: false, code: "unknown_task" };
+      const expansion = proposeExpansion(plan, taskId);
+      if (!expansion.ok) return expansion;
+      const created = createProposal(plan, expansion.proposal, { now: () => at });
+      if (!created.ok) return created;
+      return { ok: true, plan: created.plan, logs: [{ kind: "proposal_created", actor: "user", refId: created.proposal.id, at }] };
+    },
+    201,
+  );
+}
+
+async function decideProposal(request: PlanRequest, id: string, proposalId: string, action: "accept" | "reject"): Promise<PlanResponse> {
+  const body = parseBody(request.body, VersionBody);
+  if (!body) return fail("invalid_body");
+  return changeDecisions(
+    request,
+    id,
+    body.expectedVersion,
+    (plan, at) => {
+      const result = applyProposalAction(plan, proposalId, action, { now: () => at, actor: "user" });
+      if (!result.ok) return result;
+      const kind = action === "accept" ? "proposal_accepted" : "proposal_rejected";
+      return { ok: true, plan: result.plan, logs: [{ kind, actor: "user", refId: proposalId, at }] };
+    },
+    200,
+  );
+}
+
+/** Development only: a fact proposed by the AI from its first AI step, so the screen has one to show */
+async function fakeFactProposal(request: PlanRequest, id: string): Promise<PlanResponse> {
+  return changeDecisions(
+    request,
+    id,
+    null,
+    (plan, at) => {
+      const step = plan.steps.find((candidate) => candidate.executor === "ai");
+      if (!step) return { ok: false, code: "unknown_step" };
+      const made = proposeFact(
+        plan,
+        { key: { kind: "catalog", id: "launch_channel" }, value: { kind: "other", text: "Test channel" }, stepId: step.id },
+        { now: () => at, actor: "ai" },
+      );
+      if (!made.ok) return made;
+      return { ok: true, plan: made.plan, logs: [{ kind: "fact_proposed", actor: "ai", refId: made.fact.id, at }] };
+    },
+    201,
+  );
 }
 
 async function userAction(request: PlanRequest, id: string, stepId: string): Promise<PlanResponse> {

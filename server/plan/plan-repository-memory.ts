@@ -10,6 +10,7 @@ import {
   preparePlan,
   readStoredPlan,
   type PlanEventRecord,
+  type PlanLogRecord,
   type PlanRepository,
   type StoredPlan,
   type UpdateResult,
@@ -23,6 +24,7 @@ export interface MemoryRow {
   schemaVersion: number;
   document: string;
   events: PlanEventRecord[];
+  log: PlanLogRecord[];
 }
 
 export class InMemoryPlanRepository implements PlanRepository {
@@ -39,6 +41,7 @@ export class InMemoryPlanRepository implements PlanRepository {
       schemaVersion: PLAN_SCHEMA_VERSION,
       document: JSON.stringify(prepared.plan),
       events: [],
+      log: [],
     };
     this.rows.set(row.id, row);
     return this.stored(row);
@@ -49,13 +52,14 @@ export class InMemoryPlanRepository implements PlanRepository {
     return row && row.userId === userId ? this.stored(row) : undefined;
   }
 
-  async update(id: string, userId: string, expectedVersion: number, plan: Plan, events: PlanEventRecord[]): Promise<UpdateResult> {
+  async update(id: string, userId: string, expectedVersion: number, plan: Plan, events: PlanEventRecord[], logs: PlanLogRecord[] = []): Promise<UpdateResult> {
     const row = this.rows.get(id);
     if (!row || row.userId !== userId) return { ok: false, code: "not_found" };
     if (row.version !== expectedVersion) return { ok: false, code: "version_conflict" };
     row.document = JSON.stringify(parsePlan(plan));
     row.version += 1;
     row.events.push(...events);
+    row.log.push(...logs);
     return { ok: true, stored: this.stored(row) };
   }
 

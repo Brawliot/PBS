@@ -272,7 +272,7 @@ const RelationSchema = z
  * A key or a value of a fact: a catalog entry (fact-catalog.ts decides which ones exist) or free text.
  * It has the same shape as an aspect, so both kinds of record read alike.
  */
-const FactTermSchema = z.discriminatedUnion("kind", [
+export const FactTermSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("catalog"), id: IdSchema }),
   z.strictObject({ kind: z.literal("other"), text: text(MAX_NOTE) }),
 ]);

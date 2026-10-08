@@ -73,6 +73,7 @@ describe("GET /api/plan/:id", () => {
       version: 1,
       plan: restaurantPlan(),
       derived: derivePlan(restaurantPlan()),
+      catalog: { factKeys: ["product_type", "target_customer", "revenue_model", "launch_channel"], factValues: { product_type: ["mobile_game", "mobile_app", "web_app", "saas", "physical_product", "service", "marketplace"] } },
     });
   });
 

@@ -39,6 +39,8 @@ export interface DerivedPlan {
   confirmedFacts: Record<string, { factId: string; value: FactTerm }>;
   /** What was generated from a fact that is no longer confirmed (read only, see staleItems) */
   stale: { taskIds: string[]; stepIds: string[] };
+  /** The pending proposals: what each one would add, and the titles of its tasks */
+  proposals: Record<string, { tasks: number; steps: number; relations: number; titles: string[] }>;
 }
 
 export function derivePlan(plan: Plan): DerivedPlan {
@@ -74,6 +76,17 @@ export function derivePlan(plan: Plan): DerivedPlan {
     }
   }
 
+  const proposals: DerivedPlan["proposals"] = {};
+  for (const proposal of plan.proposals ?? []) {
+    if (proposal.status !== "pending") continue;
+    proposals[proposal.id] = {
+      tasks: proposal.add.tasks.length,
+      steps: proposal.add.steps.length,
+      relations: proposal.add.relations.length,
+      titles: proposal.add.tasks.map((task) => task.title),
+    };
+  }
+
   const confirmedFacts: DerivedPlan["confirmedFacts"] = {};
   const stale = { taskIds: new Set<string>(), stepIds: new Set<string>() };
   for (const fact of plan.facts ?? []) {
@@ -92,5 +105,6 @@ export function derivePlan(plan: Plan): DerivedPlan {
     placeholders,
     confirmedFacts,
     stale: { taskIds: [...stale.taskIds], stepIds: [...stale.stepIds] },
+    proposals,
   };
 }

@@ -24,12 +24,21 @@ export interface PlanEventRecord {
   event: StepEvent;
 }
 
+/** One decision on a fact or a proposal. The actor is set by the server, never by the request. */
+export interface PlanLogRecord {
+  kind: "fact_proposed" | "fact_confirmed" | "fact_rejected" | "proposal_created" | "proposal_accepted" | "proposal_rejected";
+  actor: "user" | "ai" | "system";
+  refId: string;
+  at: string;
+}
+
 export type UpdateResult = { ok: true; stored: StoredPlan } | { ok: false; code: "not_found" | "version_conflict" };
 
 export interface PlanRepository {
   create(userId: string, title: string, plan: Plan): Promise<StoredPlan>;
   get(id: string, userId: string): Promise<StoredPlan | undefined>;
-  update(id: string, userId: string, expectedVersion: number, plan: Plan, events: PlanEventRecord[]): Promise<UpdateResult>;
+  /** Writes the plan, its step events and its decision log in one step, under the version the caller read */
+  update(id: string, userId: string, expectedVersion: number, plan: Plan, events: PlanEventRecord[], logs?: PlanLogRecord[]): Promise<UpdateResult>;
   /** Removes a plan that was created and never handed out: the loser of two requests for the same report */
   remove(id: string, userId: string): Promise<void>;
 }
