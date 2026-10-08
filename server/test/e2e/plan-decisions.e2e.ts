@@ -207,11 +207,74 @@ async function scenarioScreens(browser: any): Promise<string> {
   return "screenshots written to " + SHOTS;
 }
 
+/** A suggestion made with mobile_game, then web_app confirmed: the suggestion is obsolete */
+async function scenarioObsolete(browser: any): Promise<string> {
+  const repo = new InMemoryPlanRepository();
+  const id = await newPlan(repo);
+  await write(repo, id, "/facts", { key: { kind: "catalog", id: "product_type" }, value: { kind: "catalog", id: "mobile_game" }, confirm: true });
+  await write(repo, id, "/gaps/plan-product-development/proposal", {});
+  await write(repo, id, "/facts", { key: { kind: "catalog", id: "product_type" }, value: { kind: "catalog", id: "web_app" }, confirm: true });
+
+  const { context, page } = await openPlan(browser, repo, id, "#/decisions");
+  const obsolete = page.locator("article[data-proposal-id]");
+  await obsolete.waitFor();
+  assert.match(await obsolete.textContent() ?? "", /This suggestion came from a decision that has changed\./);
+  assert.equal(await obsolete.getByRole("button", { name: "Accept", exact: true }).count(), 0, "no Accept on an obsolete suggestion");
+  await obsolete.screenshot({ path: join(SHOTS, "obsolete-suggestion-1280x720.png") });
+  await page.setViewportSize({ width: 390, height: 780 });
+  await obsolete.screenshot({ path: join(SHOTS, "obsolete-suggestion-390x780.png") });
+
+  // The gap says why it cannot be suggested from now on
+  await page.goto(`${BASE}/plan.html?id=${id}#/task/plan-product-development`);
+  await page.waitForSelector("#view h1");
+  const note = page.locator("#view .notice").first();
+  assert.match(await note.textContent() ?? "", /came from a decision that has changed\. Reject it to suggest again\./);
+  await page.screenshot({ path: join(SHOTS, "gap-obsolete-390x780.png") });
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.screenshot({ path: join(SHOTS, "gap-obsolete-1280x720.png") });
+
+  // Rejected: the gap asks again, with the current value
+  await page.goto(`${BASE}/plan.html?id=${id}#/decisions`);
+  await page.locator("article[data-proposal-id]").getByRole("button", { name: "Reject" }).click();
+  await page.locator("article[data-proposal-id]").waitFor({ state: "detached" });
+  await page.locator('li[data-task-id="plan-product-development"]').getByRole("button", { name: "Suggest tasks" }).click();
+  const fresh = page.locator("article[data-proposal-id]");
+  await fresh.waitFor();
+  assert.match(await fresh.textContent() ?? "", /Design the web app/);
+  await fresh.getByRole("button", { name: "Accept", exact: true }).click();
+  await page.locator("details.fold summary", { hasText: "Decided suggestions" }).waitFor();
+  await context.close();
+  return "obsolete: no Accept and its notice, reject, then suggest again with the current value";
+}
+
+/** Reject and suggest again with the same value, four times: nothing is left blocked */
+async function scenarioCycle(browser: any): Promise<string> {
+  const repo = new InMemoryPlanRepository();
+  const id = await newPlan(repo);
+  await write(repo, id, "/facts", { key: { kind: "catalog", id: "product_type" }, value: { kind: "catalog", id: "mobile_game" }, confirm: true });
+  const { context, page } = await openPlan(browser, repo, id, "#/decisions");
+  const gap = page.locator('li[data-task-id="plan-product-development"]');
+  for (let cycle = 1; cycle <= 4; cycle++) {
+    await gap.getByRole("button", { name: "Suggest tasks" }).click();
+    await page.locator("article[data-proposal-id]").waitFor();
+    await page.locator("article[data-proposal-id]").getByRole("button", { name: "Reject" }).click();
+    await page.locator("article[data-proposal-id]").waitFor({ state: "detached" });
+  }
+  await gap.getByRole("button", { name: "Suggest tasks" }).click();
+  await page.locator("article[data-proposal-id]").getByRole("button", { name: "Accept", exact: true }).click();
+  await page.locator("details.fold summary", { hasText: "Decided suggestions" }).waitFor();
+  const stored = (await repo.get(id, "local"))!;
+  // Four rejected suggestions took the plain id and -2, -3, -4: the fifth one is -5
+  assert.ok(stored.plan.tasks.some((task) => task.id === "expand-mobile-game-5-design"), "the fifth suggestion was accepted");
+  await context.close();
+  return "cycle: reject and suggest again four times, then accept";
+}
+
 const server = await startServer();
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ["--no-sandbox"] });
 let failed = 0;
 try {
-  for (const scenario of [scenarioDecisions, scenarioNeedsAi, scenarioStale, scenarioError, scenarioScreens]) {
+  for (const scenario of [scenarioDecisions, scenarioNeedsAi, scenarioStale, scenarioError, scenarioScreens, scenarioObsolete, scenarioCycle]) {
     try {
       console.log("ok -", await scenario(browser));
     } catch (error) {

@@ -82,4 +82,30 @@ describe("plan decisions on PostgreSQL", { skip: url ? false : "TEST_DATABASE_UR
     const { rows } = await pool.query("SELECT count(*)::int AS n FROM plan_log WHERE plan_id = $1 AND kind = 'fact_confirmed'", [id]);
     assert.equal(rows[0].n, 1, "one confirmation in the log");
   });
+  test("reject and suggest again four times: each id is new, and plan_log has a created and a rejected row for each", async () => {
+    const id = await newPlan();
+    let version = 1;
+    await post(`/api/plan/${id}/facts`, { key: { kind: "catalog", id: "product_type" }, value: { kind: "catalog", id: "mobile_game" }, confirm: true, expectedVersion: version });
+    version += 1;
+    const ids: string[] = [];
+    for (let cycle = 0; cycle < 4; cycle++) {
+      const asked = await post(`/api/plan/${id}/gaps/plan-product-development/proposal`, { expectedVersion: version });
+      assert.equal(asked.status, 201, `suggest ${cycle + 1}`);
+      version += 1;
+      const proposalId = (asked.body as { plan: { proposals: { id: string }[] } }).plan.proposals.at(-1)!.id;
+      ids.push(proposalId);
+      const rejected = await post(`/api/plan/${id}/proposals/${proposalId}/reject`, { expectedVersion: version });
+      assert.equal(rejected.status, 200, `reject ${cycle + 1}`);
+      version += 1;
+    }
+    assert.equal(new Set(ids).size, 4);
+    const { rows } = await pool.query("SELECT kind, ref_id FROM plan_log WHERE plan_id = $1 AND kind LIKE 'proposal_%' ORDER BY id", [id]);
+    assert.deepEqual(
+      rows,
+      ids.flatMap((proposalId) => [
+        { kind: "proposal_created", ref_id: proposalId },
+        { kind: "proposal_rejected", ref_id: proposalId },
+      ]),
+    );
+  });
 });

@@ -80,7 +80,7 @@ const FAILURE: Record<ErrorCode, { status: number; error: string }> = {
   not_proposed: { status: 409, error: "This fact is not waiting for a decision" },
   unknown_fact: { status: 404, error: "Fact not found" },
   invalid_fact: { status: 400, error: "The fact does not fit the catalogue" },
-  not_confirmed: { status: 409, error: "The fact is not confirmed" },
+  not_confirmed: { status: 409, error: "The decision behind this suggestion is no longer confirmed" },
   unknown_task: { status: 404, error: "Task not found" },
   not_expandable: { status: 409, error: "This task cannot be expanded yet" },
   unknown_proposal: { status: 404, error: "Proposal not found" },

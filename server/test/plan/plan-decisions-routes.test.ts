@@ -285,7 +285,7 @@ describe("the mobile game, end to end at the API", () => {
     // 2. The proposal is asked for and listed
     const asked = (await call(repo, "POST", `/api/plan/${id}/gaps/${GAP}/proposal`, { expectedVersion: 2 })).body as { plan: Plan; derived: { proposals: Record<string, { tasks: number; steps: number; relations: number }> } };
     const proposalId = asked.plan.proposals![0].id;
-    assert.deepEqual(asked.derived.proposals[proposalId], { tasks: 3, steps: 6, relations: 5, titles: ["Design the game", "Prototype the game", "Publish the game to the stores"] } as never);
+    assert.deepEqual(asked.derived.proposals[proposalId], { tasks: 3, steps: 6, relations: 5, obsolete: false, titles: ["Design the game", "Prototype the game", "Publish the game to the stores"] });
 
     // 3. Accepted: the development tasks come from the fact
     const accepted = (await call(repo, "POST", `/api/plan/${id}/proposals/${proposalId}/accept`, { expectedVersion: 3 })).body as { plan: Plan };

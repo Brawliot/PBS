@@ -8,7 +8,7 @@
 import { checkPlan, type PlanProblem } from "./plan-check.js";
 import { factKeyId } from "./fact-catalog.js";
 import { staleItems } from "./fact-actions.js";
-import { expandable } from "./proposals.js";
+import { expandable, isObsolete } from "./proposals.js";
 import type { FactTerm, Plan } from "./plan-model.js";
 import { departmentProgress, type DepartmentProgress } from "./department-rules.js";
 import { phaseProgress, phaseStatus, type PhaseStatus } from "./phase-rules.js";
@@ -39,8 +39,11 @@ export interface DerivedPlan {
   confirmedFacts: Record<string, { factId: string; value: FactTerm }>;
   /** What was generated from a fact that is no longer confirmed (read only, see staleItems) */
   stale: { taskIds: string[]; stepIds: string[] };
-  /** The pending proposals: what each one would add, and the titles of its tasks */
-  proposals: Record<string, { tasks: number; steps: number; relations: number; titles: string[] }>;
+  /**
+   * The pending proposals: what each one would add, the titles of its tasks, and whether it is obsolete
+   * (a fact it comes from is no longer confirmed, so accepting it is refused)
+   */
+  proposals: Record<string, { tasks: number; steps: number; relations: number; titles: string[]; obsolete: boolean }>;
 }
 
 export function derivePlan(plan: Plan): DerivedPlan {
@@ -84,6 +87,7 @@ export function derivePlan(plan: Plan): DerivedPlan {
       steps: proposal.add.steps.length,
       relations: proposal.add.relations.length,
       titles: proposal.add.tasks.map((task) => task.title),
+      obsolete: isObsolete(plan, proposal),
     };
   }
 

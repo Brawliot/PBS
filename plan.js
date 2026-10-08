@@ -450,12 +450,15 @@
     const { derived } = data;
     const waitsFor = task.placeholder.waitsFor;
     const missing = waitsFor.filter((keyId) => !derived.confirmedFacts[keyId]);
-    const waitingSuggestion = pendingProposals(data.plan).some((item) => item.reason.taskId === task.id);
+    const waiting = pendingProposals(data.plan).filter((item) => item.reason.taskId === task.id);
+    const obsolete = waiting.some((item) => derived.proposals[item.id]?.obsolete);
     const text = missing.length
       ? `To define: waiting for ${missing.map(keyLabel).join(', ')}.`
-      : waitingSuggestion
-        ? 'To define: a suggestion for this task is waiting for your decision.'
-        : 'To define: every decision it waits for is confirmed. You can suggest tasks on the decisions page.';
+      : obsolete
+        ? 'To define: the suggestion for this task came from a decision that has changed. Reject it to suggest again.'
+        : waiting.length
+          ? 'To define: a suggestion for this task is waiting for your decision.'
+          : 'To define: every decision it waits for is confirmed. You can suggest tasks on the decisions page.';
     return el('p', { class: 'notice' }, `${text} `, el('a', { href: '#/decisions' }, 'Go to decisions'));
   }
 
@@ -711,6 +714,8 @@
             const proposals = (plan.proposals ?? []).filter((item) => item.reason.taskId === task.id);
             const expandable = derived.placeholders[task.id]?.expandable === true;
             const rejected = proposals.some((item) => item.status === 'rejected');
+            // A pending suggestion must be decided first; once it is rejected, the gap can ask again
+            const waiting = proposals.some((item) => item.status === 'pending');
             return el(
               'li',
               { class: 'row', 'data-task-id': task.id },
@@ -723,7 +728,7 @@
                   return el('span', { class: 'badge' }, done ? `${keyLabel(keyId)}: ${humanize(done.value.kind === 'catalog' ? done.value.id : done.value.text)} (done)` : `${keyLabel(keyId)} (waiting)`);
                 }),
               ),
-              proposals.length === 0 && expandable
+              !waiting && expandable
                 ? el('button', { type: 'button', class: 'btn btn--outline', disabled: busy ? true : undefined, on: { click: () => post(`/gaps/${enc(task.id)}/proposal`, {}) } }, 'Suggest tasks')
                 : null,
               rejected ? el('span', { class: 'row__meta' }, 'You rejected the suggestion for this task.') : null,
@@ -734,12 +739,14 @@
 
     const proposalItems = pending.length
       ? pending.map((item) => {
-          const summary = derived.proposals[item.id] ?? { tasks: 0, steps: 0, titles: [] };
+          const summary = derived.proposals[item.id] ?? { tasks: 0, steps: 0, titles: [], obsolete: false };
           const forTask = item.reason.taskId ? byId(plan.tasks, item.reason.taskId)?.title : null;
+          // An obsolete suggestion can only be rejected: accepting it would be refused
           return el(
             'article',
             { class: 'step', 'data-proposal-id': item.id },
             el('h3', { class: 'step__title' }, 'Suggested tasks'),
+            summary.obsolete ? el('p', { class: 'notice' }, 'This suggestion came from a decision that has changed.') : null,
             facts([
               ['For', forTask ?? 'A decision'],
               ['Adds', `${summary.tasks} ${plural(summary.tasks, 'task')} and ${summary.steps} ${plural(summary.steps, 'step')}`],
@@ -748,7 +755,7 @@
             el(
               'div',
               { class: 'actions', role: 'group', 'aria-label': 'Suggestion decision' },
-              el('button', { type: 'button', class: 'btn btn--dark', disabled: busy ? true : undefined, on: { click: () => post(`/proposals/${enc(item.id)}/accept`, {}) } }, 'Accept'),
+              summary.obsolete ? null : el('button', { type: 'button', class: 'btn btn--dark', disabled: busy ? true : undefined, on: { click: () => post(`/proposals/${enc(item.id)}/accept`, {}) } }, 'Accept'),
               el('button', { type: 'button', class: 'btn btn--outline', disabled: busy ? true : undefined, on: { click: () => post(`/proposals/${enc(item.id)}/reject`, {}) } }, 'Reject'),
             ),
           );

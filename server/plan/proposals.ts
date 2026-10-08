@@ -45,6 +45,23 @@ const confirmedFactIds = (plan: Plan) => new Set((plan.facts ?? []).filter((fact
 
 const isPlaceholder = (task: Task | undefined) => task?.placeholder !== undefined;
 
+/** How many ids a new proposal for the same gap and value tries before it gives up with id_taken */
+export const EXPANSION_ID_ATTEMPTS = 20;
+
+/**
+ * The facts that the items of a proposal come from, and that are no longer confirmed. This is the one
+ * test of "confirmed" for a proposal: accepting uses it (not_confirmed) and so does isObsolete.
+ */
+export function unconfirmedSources(plan: Plan, add: Proposal["add"]): string[] {
+  const confirmed = confirmedFactIds(plan);
+  return [...add.tasks, ...add.steps].flatMap((item) => item.derivedFrom ?? []).filter((factId) => !confirmed.has(factId));
+}
+
+/** A pending proposal is obsolete when a fact it comes from is no longer confirmed: accepting it would fail */
+export function isObsolete(plan: Plan, proposal: Proposal): boolean {
+  return proposal.status === "pending" && unconfirmedSources(plan, proposal.add).length > 0;
+}
+
 /** A gap is expandable when every key it waits for has a confirmed fact */
 export function expandable(plan: Plan, taskId: string): boolean {
   const task = plan.tasks.find((candidate) => candidate.id === taskId);
@@ -81,7 +98,6 @@ function acceptable(
   input: { id: string; reason: ProposalReason; resolves?: string; add: ProposalAdd },
   ownId?: string,
 ): ProposalError | undefined {
-  const confirmed = confirmedFactIds(plan);
   // The proposal's own id is not a clash when it is checked for acceptance: it is already in the list
   const taken = new Set([
     ...plan.tasks.map((task) => task.id),
@@ -109,8 +125,8 @@ function acceptable(
   if (new Set(addedIds).size !== addedIds.length || addedIds.some((id) => taken.has(id))) return "id_taken";
   for (const item of [...input.add.tasks, ...input.add.steps]) {
     if (!item.derivedFrom || item.derivedFrom.length === 0) return "invalid_proposal";
-    if (item.derivedFrom.some((factId) => !confirmed.has(factId))) return "not_confirmed";
   }
+  if (unconfirmedSources(plan, input.add).length > 0) return "not_confirmed";
   return undefined;
 }
 
@@ -187,14 +203,21 @@ export function proposeExpansion(plan: Plan, taskId: string): { ok: true; propos
   if (!fact || fact.value.kind !== "catalog") return fail("needs_ai");
   const template = templateFor(fact.value.id);
   if (!template) return fail("needs_ai");
-  const prefix = `expand-${fact.value.id.replaceAll("_", "-")}`;
-  return {
-    ok: true,
-    proposal: {
-      id: `${prefix}-${task.id}`,
-      reason: { taskId },
-      resolves: taskId,
-      add: template({ phaseId: task.phaseId, prefix, factId: fact.id }),
-    },
-  };
+  // The first proposal of a value for a gap takes the plain id; each new one after a rejection takes -2, -3...
+  // A candidate is used only when none of its ids (proposal, tasks, steps) is in the plan already.
+  const base = `expand-${fact.value.id.replaceAll("_", "-")}`;
+  const taken = new Set([
+    ...plan.tasks.map((item) => item.id),
+    ...plan.steps.map((item) => item.id),
+    ...(plan.proposals ?? []).map((item) => item.id),
+  ]);
+  for (let attempt = 1; attempt <= EXPANSION_ID_ATTEMPTS; attempt++) {
+    const prefix = attempt === 1 ? base : `${base}-${attempt}`;
+    const add = template({ phaseId: task.phaseId, prefix, factId: fact.id });
+    const id = `${prefix}-${task.id}`;
+    const ids = [id, ...add.tasks.map((item) => item.id), ...add.steps.map((item) => item.id)];
+    if (ids.some((candidate) => taken.has(candidate))) continue;
+    return { ok: true, proposal: { id, reason: { taskId }, resolves: taskId, add } };
+  }
+  return fail("id_taken");
 }
