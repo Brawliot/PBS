@@ -8,6 +8,7 @@
  *   /plan?id=<uuid>#/dept/:id    one department
  *   /plan?id=<uuid>#/phase/:id   one phase
  *   /plan?id=<uuid>#/task/:id    one task (?from=dept:<id> or ?from=phase:<id> sets the breadcrumbs)
+ *   /plan?id=<uuid>#/decisions  facts to confirm, a new decision, gaps, and the suggestions to accept
  */
 (() => {
   'use strict';
@@ -29,6 +30,27 @@
     unknown_step: 'This step no longer exists. Reload the page.',
     not_found: 'This plan could not be found.',
     invalid_body: 'The request was not valid. Try again.',
+    unknown_fact: 'This decision no longer exists. Reload the page.',
+    invalid_fact: 'That decision does not fit the catalogue. Check the key and the value.',
+    not_proposed: 'This decision was already answered.',
+    not_confirmed: 'This decision is not confirmed.',
+    unknown_task: 'This task no longer exists. Reload the page.',
+    not_expandable: 'This task cannot be expanded yet.',
+    unknown_proposal: 'This suggestion no longer exists. Reload the page.',
+    invalid_proposal: 'This suggestion is not valid.',
+    unknown_reason: 'This suggestion refers to something that is no longer in the plan.',
+    too_large: 'This suggestion is too large to add.',
+    duplicate_pending: 'A suggestion for this task is already waiting for a decision.',
+    id_taken: 'A suggestion for this task was already made.',
+    already_decided: 'This suggestion was already decided.',
+    needs_ai: 'There is no ready-made suggestion for this decision yet.',
+    not_available: 'This is not available right now.',
+  };
+  const FACT_KEY_LABEL = {
+    product_type: 'Product type',
+    target_customer: 'Target customer',
+    revenue_model: 'Revenue model',
+    launch_channel: 'Launch channel',
   };
   const GENERIC_ERROR = 'Something went wrong on the server. Try again.';
   const NETWORK_ERROR = 'Could not reach the server. Check your connection and try again.';
@@ -99,6 +121,17 @@
   }
 
   const enc = encodeURIComponent;
+  const plural = (count, unit) => (count === 1 ? unit : `${unit}s`);
+  /** "mobile_game" -> "Mobile game"; free text is shown as it was written */
+  const humanize = (id) => {
+    const words = id.replaceAll('_', ' ');
+    return words.charAt(0).toUpperCase() + words.slice(1);
+  };
+  const keyLabel = (id) => FACT_KEY_LABEL[id] ?? humanize(id);
+  const termLabel = (term) => (term.kind === 'catalog' ? humanize(term.id) : term.text);
+  const factLabel = (fact) => `${fact.key.kind === 'catalog' ? keyLabel(fact.key.id) : fact.key.text}: ${termLabel(fact.value)}`;
+  const pendingFacts = (plan) => (plan.facts ?? []).filter((fact) => fact.status === 'proposed');
+  const pendingProposals = (plan) => (plan.proposals ?? []).filter((item) => item.status === 'pending');
   const planUrl = () => `/api/plan/${enc(planId)}`;
   const visible = (item) => item.feedback !== 'deleted';
   const byId = (list, id) => list.find((item) => item.id === id);
@@ -113,6 +146,7 @@
     const params = new URLSearchParams(query);
     if (rawPath === '/' || rawPath === '') return { name: 'general' };
     if (rawPath === '/timeline') return { name: 'timeline' };
+    if (rawPath === '/decisions') return { name: 'decisions' };
     const match = rawPath.match(/^\/(dept|phase|task)\/([^/]+)$/);
     // #/group/:id is reserved: there is no grouping of departments in the front yet, so it has no view
     if (!match) return { name: 'notfound' };
@@ -179,13 +213,17 @@
   function tabs(active) {
     const link = (key, href, label) =>
       el('a', { class: 'tab', href, 'aria-current': active === key ? 'page' : undefined }, label);
-    return el('nav', { class: 'tabs', 'aria-label': 'Plan views' }, link('overview', '#/', 'Overview'), link('timeline', '#/timeline', 'Timeline'));
+    return el(
+      'nav',
+      { class: 'tabs', 'aria-label': 'Plan views' },
+      link('overview', '#/', 'Overview'),
+      link('timeline', '#/timeline', 'Timeline'),
+      link('decisions', '#/decisions', 'Decisions'),
+    );
   }
 
   const progressText = (progress) =>
     progress && progress.total > 0 ? `${progress.done} of ${progress.total} tasks done` : 'No tasks yet';
-
-  const plural = (count, unit) => (count === 1 ? unit : `${unit}s`);
 
   function phaseName(id) {
     return byId(data.plan.phases, id)?.name ?? '';
@@ -198,6 +236,15 @@
   // ---- Views: each returns the nodes of the page and the heading that takes the focus
   function generalView() {
     const { plan, derived } = data;
+    const waiting = pendingFacts(plan).length + pendingProposals(plan).length;
+    const decisionsNote = waiting
+      ? el(
+          'p',
+          { class: 'notice' },
+          `${waiting} ${plural(waiting, 'decision')} ${waiting === 1 ? 'is' : 'are'} waiting for you. `,
+          el('a', { href: '#/decisions' }, 'Review them'),
+        )
+      : null;
     const body = plan.departments.length
       ? el(
           'ul',
@@ -213,7 +260,7 @@
           ),
         )
       : el('p', {}, 'This plan has no departments.');
-    return { title: data.title, trail: null, heading: data.title, body: [el('h2', { class: 'section' }, 'Departments'), body] };
+    return { title: data.title, trail: null, heading: data.title, body: [decisionsNote, el('h2', { class: 'section' }, 'Departments'), body] };
   }
 
   function deptView(id) {
@@ -370,11 +417,16 @@
       : 'Cannot be measured: the steps have a circular dependency.';
 
     const steps = plan.steps.filter((step) => step.taskId === id && visible(step));
+    const derivedFrom = (task.derivedFrom ?? [])
+      .map((factId) => (plan.facts ?? []).find((fact) => fact.id === factId))
+      .filter(Boolean)
+      .map((fact) => factLabel(fact));
     return {
       title: task.title,
       trail,
       heading: task.title,
       body: [
+        task.placeholder ? toDefineNote(task) : null,
         facts([
           ['Primary department', el('a', { href: deptHref(primary.id) }, primary.name)],
           ['Other departments', secondary.length ? secondary : 'None'],
@@ -383,13 +435,28 @@
           ['Mode', AUTOMATION[summary.automation] ?? 'No steps yet'],
           ['Effort', `${summary.effortHours} hours`],
           ['Time', elapsed],
-        ]),
+          derivedFrom.length ? ['Derived from', el('a', { href: '#/decisions' }, derivedFrom.join(', '))] : null,
+        ].filter(Boolean)),
         el('h2', { class: 'section' }, 'Steps'),
         steps.length
           ? el('ol', { class: 'steps' }, steps.map((step) => el('li', {}, stepCard(step))))
           : el('p', { class: 'empty' }, 'This task has no steps.'),
       ],
     };
+  }
+
+  /** A gap: what it waits for, and where to answer it */
+  function toDefineNote(task) {
+    const { derived } = data;
+    const waitsFor = task.placeholder.waitsFor;
+    const missing = waitsFor.filter((keyId) => !derived.confirmedFacts[keyId]);
+    const waitingSuggestion = pendingProposals(data.plan).some((item) => item.reason.taskId === task.id);
+    const text = missing.length
+      ? `To define: waiting for ${missing.map(keyLabel).join(', ')}.`
+      : waitingSuggestion
+        ? 'To define: a suggestion for this task is waiting for your decision.'
+        : 'To define: every decision it waits for is confirmed. You can suggest tasks on the decisions page.';
+    return el('p', { class: 'notice' }, `${text} `, el('a', { href: '#/decisions' }, 'Go to decisions'));
   }
 
   function stepCard(step) {
@@ -579,6 +646,193 @@
     );
   }
 
+  // ---- Decisions: facts to confirm, a new decision, gaps, and suggestions
+  function decisionsView() {
+    const { plan, derived, catalog } = data;
+    const planFacts = plan.facts ?? [];
+    const confirmed = planFacts.filter((fact) => fact.status === 'confirmed');
+    const waiting = pendingFacts(plan);
+    const closed = planFacts.filter((fact) => fact.status === 'superseded' || fact.status === 'rejected');
+    const pending = pendingProposals(plan);
+    const decided = (plan.proposals ?? []).filter((item) => item.status !== 'pending');
+    const gaps = plan.tasks.filter((task) => task.placeholder);
+    const staleTitles = derived.stale.taskIds.map((id) => byId(plan.tasks, id)?.title).filter(Boolean);
+    const sourceText = (fact) => (fact.from.kind === 'user' ? 'Entered by you' : 'Suggested by the assistant');
+
+    const stale = staleTitles.length
+      ? el(
+          'section',
+          { class: 'notice', 'aria-label': 'Items that need a review' },
+          el('p', {}, 'These items came from a decision that has changed.'),
+          el('ul', { class: 'plain-list' }, staleTitles.map((title) => el('li', {}, title))),
+        )
+      : null;
+
+    const confirmedList = confirmed.length
+      ? el('ul', { class: 'list' }, confirmed.map((fact) => el('li', { class: 'row', 'data-fact-id': fact.id }, el('span', { class: 'row__name' }, factLabel(fact)), el('span', { class: 'row__meta' }, sourceText(fact)))))
+      : el('p', { class: 'empty' }, 'No decisions confirmed yet.');
+
+    const waitingList = waiting.length
+      ? el(
+          'ul',
+          { class: 'list' },
+          waiting.map((fact) =>
+            el(
+              'li',
+              { class: 'row', 'data-fact-id': fact.id },
+              el('span', { class: 'row__name' }, factLabel(fact)),
+              el('span', { class: 'row__meta' }, sourceText(fact)),
+              el(
+                'div',
+                { class: 'actions', role: 'group', 'aria-label': `Answer: ${factLabel(fact)}` },
+                el('button', { type: 'button', class: 'btn btn--dark', disabled: busy ? true : undefined, on: { click: () => post(`/facts/${enc(fact.id)}/confirm`, {}) } }, 'Confirm'),
+                el('button', { type: 'button', class: 'btn btn--outline', disabled: busy ? true : undefined, on: { click: () => post(`/facts/${enc(fact.id)}/reject`, {}) } }, 'Reject'),
+              ),
+            ),
+          ),
+        )
+      : el('p', { class: 'empty' }, 'Nothing is waiting for you.');
+
+    const closedFold = closed.length
+      ? el(
+          'details',
+          { class: 'fold' },
+          el('summary', {}, `Replaced or rejected (${closed.length})`),
+          el('ul', { class: 'plain-list' }, closed.map((fact) => el('li', {}, `${factLabel(fact)}: ${fact.status === 'rejected' ? 'Rejected' : 'Replaced'}`))),
+        )
+      : null;
+
+    const gapItems = gaps.length
+      ? el(
+          'ul',
+          { class: 'list' },
+          gaps.map((task) => {
+            const placeholder = task.placeholder;
+            const proposals = (plan.proposals ?? []).filter((item) => item.reason.taskId === task.id);
+            const expandable = derived.placeholders[task.id]?.expandable === true;
+            const rejected = proposals.some((item) => item.status === 'rejected');
+            return el(
+              'li',
+              { class: 'row', 'data-task-id': task.id },
+              el('a', { class: 'row__name', href: taskHref(task) }, task.title),
+              el(
+                'span',
+                { class: 'row__meta' },
+                placeholder.waitsFor.map((keyId) => {
+                  const done = derived.confirmedFacts[keyId];
+                  return el('span', { class: 'badge' }, done ? `${keyLabel(keyId)}: ${humanize(done.value.kind === 'catalog' ? done.value.id : done.value.text)} (done)` : `${keyLabel(keyId)} (waiting)`);
+                }),
+              ),
+              proposals.length === 0 && expandable
+                ? el('button', { type: 'button', class: 'btn btn--outline', disabled: busy ? true : undefined, on: { click: () => post(`/gaps/${enc(task.id)}/proposal`, {}) } }, 'Suggest tasks')
+                : null,
+              rejected ? el('span', { class: 'row__meta' }, 'You rejected the suggestion for this task.') : null,
+            );
+          }),
+        )
+      : el('p', { class: 'empty' }, 'Nothing is left to define.');
+
+    const proposalItems = pending.length
+      ? pending.map((item) => {
+          const summary = derived.proposals[item.id] ?? { tasks: 0, steps: 0, titles: [] };
+          const forTask = item.reason.taskId ? byId(plan.tasks, item.reason.taskId)?.title : null;
+          return el(
+            'article',
+            { class: 'step', 'data-proposal-id': item.id },
+            el('h3', { class: 'step__title' }, 'Suggested tasks'),
+            facts([
+              ['For', forTask ?? 'A decision'],
+              ['Adds', `${summary.tasks} ${plural(summary.tasks, 'task')} and ${summary.steps} ${plural(summary.steps, 'step')}`],
+            ]),
+            el('ol', { class: 'list' }, summary.titles.map((title) => el('li', { class: 'output' }, title))),
+            el(
+              'div',
+              { class: 'actions', role: 'group', 'aria-label': 'Suggestion decision' },
+              el('button', { type: 'button', class: 'btn btn--dark', disabled: busy ? true : undefined, on: { click: () => post(`/proposals/${enc(item.id)}/accept`, {}) } }, 'Accept'),
+              el('button', { type: 'button', class: 'btn btn--outline', disabled: busy ? true : undefined, on: { click: () => post(`/proposals/${enc(item.id)}/reject`, {}) } }, 'Reject'),
+            ),
+          );
+        })
+      : [el('p', { class: 'empty' }, 'No suggestions are waiting.')];
+
+    const decidedFold = decided.length
+      ? el(
+          'details',
+          { class: 'fold' },
+          el('summary', {}, `Decided suggestions (${decided.length})`),
+          el('ul', { class: 'plain-list' }, decided.map((item) => el('li', {}, `${item.status === 'accepted' ? 'Accepted' : 'Rejected'}: ${derived.proposals[item.id]?.titles.join(', ') ?? item.id}`))),
+        )
+      : null;
+
+    return {
+      title: 'Decisions',
+      trail: null,
+      heading: 'Decisions',
+      body: [
+        stale,
+        el('h2', { class: 'section' }, 'Facts'),
+        el('h3', { class: 'step__sub' }, 'Confirmed'),
+        confirmedList,
+        el('h3', { class: 'step__sub' }, 'Waiting for your decision'),
+        waitingList,
+        closedFold,
+        el('h2', { class: 'section' }, 'Add a decision'),
+        decisionForm(catalog),
+        el('h2', { class: 'section' }, 'To define'),
+        gapItems,
+        el('h2', { class: 'section' }, 'Suggestions'),
+        proposalItems,
+        decidedFold,
+      ],
+    };
+  }
+
+  /** Key and value of a new decision: a catalogue value comes from a list, anything else is free text */
+  function decisionForm(catalog) {
+    const keyOptions = [...catalog.factKeys.map((id) => [id, keyLabel(id)]), ['other', 'Other']];
+    const keySelect = el('select', { id: 'decision-key', name: 'key' }, keyOptions.map(([value, label]) => el('option', { value }, label)));
+    const keyTextLabel = el('label', { for: 'decision-key-text' }, 'Name of the decision');
+    const keyText = el('input', { id: 'decision-key-text', name: 'keyText', type: 'text', maxlength: 500, required: true, autocomplete: 'off' });
+    const valueSelectLabel = el('label', { for: 'decision-value' }, 'Value');
+    const valueSelect = el('select', { id: 'decision-value', name: 'value' });
+    const valueTextLabel = el('label', { for: 'decision-value-text' }, 'Value');
+    const valueText = el('input', { id: 'decision-value-text', name: 'valueText', type: 'text', maxlength: 500, required: true, autocomplete: 'off' });
+    const keyField = el('div', { class: 'field' }, el('label', { for: 'decision-key' }, 'Decision'), keySelect, keyTextLabel, keyText);
+    const valueField = el('div', { class: 'field' }, valueSelectLabel, valueSelect, valueTextLabel, valueText);
+
+    // The value list follows the key: only a key with catalogue values has one; the other key is written
+    const refresh = () => {
+      const key = keySelect.value;
+      const values = key === 'other' ? undefined : catalog.factValues[key];
+      keyTextLabel.hidden = keyText.hidden = key !== 'other';
+      keyText.required = key === 'other';
+      valueSelect.replaceChildren(...(values ?? []).map((value) => el('option', { value }, humanize(value))));
+      valueSelectLabel.hidden = valueSelect.hidden = !values;
+      valueSelect.required = Boolean(values);
+      valueTextLabel.hidden = valueText.hidden = Boolean(values);
+      valueText.required = !values;
+    };
+    keySelect.addEventListener('change', refresh);
+    refresh();
+
+    return el(
+      'form',
+      {
+        class: 'form',
+        on: {
+          submit: (event) => {
+            event.preventDefault();
+            const key = keySelect.value === 'other' ? { kind: 'other', text: keyText.value.trim() } : { kind: 'catalog', id: keySelect.value };
+            const value = valueSelect.hidden ? { kind: 'other', text: valueText.value.trim() } : { kind: 'catalog', id: valueSelect.value };
+            post('/facts', { key, value, confirm: true }, null);
+          },
+        },
+      },
+      el('fieldset', { class: 'form__fieldset' }, [el('legend', { class: 'form__legend' }, 'New decision'), keyField, valueField]),
+      el('button', { type: 'submit', class: 'btn btn--dark', disabled: busy ? true : undefined }, 'Save and confirm'),
+    );
+  }
+
   // ---- Pages
   function notFoundPage() {
     return {
@@ -595,6 +849,8 @@
         return generalView();
       case 'timeline':
         return timelineView();
+      case 'decisions':
+        return decisionsView();
       case 'dept':
         return deptView(route.id);
       case 'phase':
@@ -619,7 +875,7 @@
     const heading = el('h1', { class: 'page__title', tabindex: '-1' }, page.heading);
     const nodes = [
       el('p', { class: 'page__plan' }, data.title),
-      tabs(route.name === 'general' ? 'overview' : route.name === 'timeline' ? 'timeline' : null),
+      tabs(route.name === 'general' ? 'overview' : route.name === 'timeline' ? 'timeline' : route.name === 'decisions' ? 'decisions' : null),
       page.trail ? crumbs(page.trail) : null,
       notice ? el('p', { class: notice.error ? 'notice notice--error' : 'notice' }, notice.text) : null,
       heading,
@@ -662,13 +918,14 @@
     }
   }
 
-  async function send(stepId, body) {
+  /** Every write: the body gets the version the screen shows, and the answer is applied or explained */
+  async function post(path, body, focusSelector = null) {
     if (busy || !data) return;
     busy = true;
     view.inert = true;
     Loader.show();
     try {
-      const response = await fetch(`${planUrl()}/steps/${enc(stepId)}/actions`, {
+      const response = await fetch(`${planUrl()}${path}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         cache: 'no-store',
@@ -691,8 +948,13 @@
       view.inert = false;
       await Loader.hide();
     }
-    // Back on the same step, so the keyboard user keeps their place; the step may be gone after a reload
-    render({ focusSelector: `[data-step-id="${CSS.escape(stepId)}"]` });
+    // Back where the user was, so the keyboard user keeps their place; the item may be gone after a reload
+    render({ focusSelector });
+  }
+
+  /** A step action: the step keeps the focus afterwards */
+  function send(stepId, body) {
+    return post(`/steps/${enc(stepId)}/actions`, body, `[data-step-id="${CSS.escape(stepId)}"]`);
   }
 
   async function init() {

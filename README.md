@@ -60,7 +60,7 @@ Run from `server/`:
 | `npm run typecheck` | `tsc` | Type-checks the TypeScript sources. |
 | `npm run migrate` | `tsx --env-file=.env db/migrate-cli.ts` | Applies the pending migrations in `server/db/migrations` to `DATABASE_URL`. Safe to run again: applied migrations are skipped. |
 | `npm test` | `tsx --test "test/**/*.test.ts"` | Runs all the tests. The PostgreSQL tests run only when `TEST_DATABASE_URL` is set, in their own temporary schema. |
-| `npm run test:e2e` | `node test/e2e/build-my-plan.mjs` | Runs the browser checks of "Build my plan" in Chromium, with the planner and plan API answered by `page.route`. Needs Playwright: set `PLAYWRIGHT_MODULE` to its path if it is not installed here, and `CHROMIUM_PATH` to a Chromium binary if the default one is missing. |
+| `npm run test:e2e` | `node test/e2e/build-my-plan.mjs && tsx test/e2e/plan-decisions.e2e.ts` | Runs the browser checks in Chromium: "Build my plan" (with the planner answered by `page.route`) and the Decisions page (with the real plan routes answering the API). Needs Playwright: set `PLAYWRIGHT_MODULE` to its path if it is not installed here, and `CHROMIUM_PATH` to a Chromium binary if the default one is missing. `SCREENSHOTS` sets where the Decisions screenshots go. |
 
 ## How it works
 
@@ -174,6 +174,29 @@ The plan's title is the idea, cut to 80 characters.
 
 The `GET /api/planner/:id` result of a finished job has a `reportId` field when its report was kept.
 
+### Decisions: facts, gaps and suggestions
+
+The plan asks the person a few things it needs to know (`product_type` for a game, for example). They are answered on the Decisions page (`#/decisions`), and every answer is a write that checks the version of the plan (`expectedVersion`), like the step actions. The actor is always the person: the server sets it, and no request body takes one (an `actor` key gives `400`).
+
+A fact is one answer: a key and a value, each either a catalogue entry (`{ "kind": "catalog", "id": "product_type" }`) or free text (`{ "kind": "other", "text": "..." }`). The keys and the catalogue values are in `GET /api/plan/:id`, under `catalog`. A fact is `proposed` until confirmed; confirming a key replaces the one confirmed before (`superseded`), and what was generated from that one is listed as `derived.stale`, read only.
+
+A gap is a task that waits for facts (`placeholder`). When its facts are confirmed, the plan can suggest the tasks it expands into (a proposal), and the person accepts or rejects them. A value without a ready-made suggestion gives `409 needs_ai`.
+
+| Method and path | Body | Result |
+| --- | --- | --- |
+| `POST /api/plan/:id/facts` | `{ key, value, confirm?, expectedVersion }` | `201`. With `confirm: true`, the fact is proposed and confirmed in the same write. |
+| `POST /api/plan/:id/facts/:factId/confirm` | `{ expectedVersion }` | `200` |
+| `POST /api/plan/:id/facts/:factId/reject` | `{ expectedVersion }` | `200` |
+| `POST /api/plan/:id/gaps/:taskId/proposal` | `{ expectedVersion }` | `201`. The proposal is in `plan.proposals`, and `derived.proposals` lists its tasks and titles. |
+| `POST /api/plan/:id/proposals/:proposalId/accept` | `{ expectedVersion }` | `200`. The tasks are added and the gap no longer waits. |
+| `POST /api/plan/:id/proposals/:proposalId/reject` | `{ expectedVersion }` | `200` |
+
+The success body is the one of a step action: `{ id, version, plan, derived }`. Errors use the same shape as the step actions, `{ error, code }`, with one fixed text per code. A stale `expectedVersion` gives `409 version_conflict`; the page then reloads the plan.
+
+Every write adds its entries to `plan_log` in the same write as the plan: `fact_proposed`, `fact_confirmed`, `fact_rejected`, `proposal_created`, `proposal_accepted` and `proposal_rejected`, with the actor and the id of the fact or proposal. The log only grows: the database refuses any change to it.
+
+With `ENABLE_DEV_ROUTES=1`, `POST /api/dev/plan/:id/facts/fake-proposal` proposes a fact from the first AI step, so the screen can be tried without the AI.
+
 ## Project layout
 
 ```
@@ -186,7 +209,7 @@ server/
   server.ts             HTTP server: static files, POST and GET /api/planner routing
   jobs.ts               In-memory job store: runs the planner in the background
   request.ts            Body reading, validation and limits for the planner request
-  plan-routes.ts        Plan API as a pure function: routes, status codes, development routes
+  plan-routes.ts        Plan API as a pure function: routes, status codes, development routes, facts and proposals
   plan/                 Plan model, rules, checks, derived values, and the plan and report repositories
   db/                   PostgreSQL: migrations (SQL files and their runner), plan and report repositories
   planner/
@@ -199,7 +222,7 @@ server/
   test/planner/         Tests for the handlers, policy, request parsing and the planner runs
   test/plan/            Tests for the plan rules, repositories, reports and routes
   test/db/              Tests for the migrations and the PostgreSQL repositories
-  test/e2e/             Browser checks of "Build my plan" (npm run test:e2e)
+  test/e2e/             Browser checks of "Build my plan" and of the Decisions page (npm run test:e2e)
   test/jobs.test.ts     Tests for the job store (expiry, limits, errors)
   package.json          Scripts and dev dependencies
   tsconfig.json         TypeScript settings (type-check only)
@@ -211,6 +234,7 @@ server/
 - **No authentication.** The login and register dialogs do not send anything (`// TODO: send data` in `script.js`). The login gate is off (`REQUIRE_LOGIN = false` in `script.js`) for testing.
 - **No rate limiting and no cost protection.** Every planner request calls paid APIs: a request that asks for questions makes one Jev and one OpenAI call; a final request (or one with no questions left) makes three Jev calls. Add rate limits and spending controls before deploying.
 - **Placeholders in the UI.** "View my projects" only shows a notice.
+- **Suggestions only from templates.** A gap is expanded only for the `mobile_game` and `web_app` product types. Other values answer `needs_ai` until the AI is built. After a suggestion is rejected, the same gap cannot be suggested again (its id is taken).
 - **Uncalibrated thresholds.** The question-policy numbers (`POLICY` in `question-policy.ts`) and the validation thresholds (`SUPPORT_MIN`, `CHECK_MIN`, `CORE_MIN`, `IMPORTANT_MIN` in `planner-validation-handler.ts`) are estimates and have not been tuned on real data.
 - **Little stored state.** Reports and plans are saved only when `DATABASE_URL` is set. Jobs are kept only in memory: a server restart interrupts the analyses in progress, and the front end shows an interrupted message with Retry. The front end must send back the answers and the analysis claims for the final request.
 - **Reports are not tied to users yet.** Every report and plan belongs to the one local user (`LOCAL_USER` in `server/plan-routes.ts`). See `PRODUCTION.md`.

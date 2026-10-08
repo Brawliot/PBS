@@ -198,7 +198,7 @@ describe("proposals: from a gap, accept and reject", () => {
     assert.equal(plan.tasks.find((task) => task.id === GAP)?.placeholder, undefined);
     assert.ok(plan.tasks.some((task) => task.id === "expand-mobile-game-design"));
     assert.deepEqual(checkPlan(plan), []);
-    assert.equal(rowOf(repo, id).log.at(-1)?.kind, "proposal_accepted");
+    assert.deepEqual(rowOf(repo, id).log.at(-1), { kind: "proposal_accepted", actor: "user", refId: proposalId, at: NOW });
   });
 
   test("a second accept of the same proposal is 409 already_decided", async () => {
@@ -223,7 +223,7 @@ describe("proposals: from a gap, accept and reject", () => {
     const plan = (rejected.body as { plan: Plan }).plan;
     assert.equal(plan.proposals![0].status, "rejected");
     assert.ok(plan.tasks.find((task) => task.id === GAP)?.placeholder, "the gap still waits");
-    assert.equal(rowOf(repo, id).log.at(-1)?.kind, "proposal_rejected");
+    assert.deepEqual(rowOf(repo, id).log.at(-1), { kind: "proposal_rejected", actor: "user", refId: proposalId, at: NOW });
   });
 
   test("an unknown proposal is 404 unknown_proposal", async () => {

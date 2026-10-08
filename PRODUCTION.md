@@ -94,6 +94,23 @@ Hoy el proyecto funciona en local, sin usuarios y sin estado en el servidor. Cas
 
 ---
 
+## Pendiente de la fase 2 (decisiones y propuestas)
+
+### Retirar lo obsoleto
+Los pasos, tareas y propuestas que una decisión deja sin efecto (un hecho sustituido o rechazado) se listan hoy como "derivados obsoletos" y no se retiran. Falta decidir qué pasa con ellos: retirarlos, rehacerlos o dejarlos, y la acción correspondiente en la API.
+**Hecho cuando.** Cada elemento obsoleto tiene una acción de la persona y un registro de ella en `plan_log`.
+
+### El significado de `feedback: "deleted"`
+`plan.js` todavía oculta las tareas y los pasos con `feedback: "deleted"`. Nada del servidor escribe ese valor todavía. Hay que decidir si se mantiene, se sustituye por el registro de decisiones o se elimina.
+
+### Propuestas generadas por IA
+Hoy las propuestas salen solo de plantillas fijas (`server/plan/proposal-templates.ts`). Falta que la IA proponga hechos desde sus pasos y que proponga tareas para valores sin plantilla (hoy responden `needs_ai`). Incluye revisar qué entra en el plan sin que la persona lo acepte.
+
+### Retención de `plan_log`
+La tabla `plan_log` (migración `003_plan_log.sql`) solo crece. Hace falta la misma política que para `reports`: cuánto tiempo se guarda, y cómo se borra todo lo de un usuario cuando lo pida. Su historial no puede borrarse por el disparador: la política tendrá que decidir si el borrado es con una función aparte, en una migración.
+
+---
+
 ## Nice to have
 
 ### Pasada de teclado y lector de pantalla (versión ligera)

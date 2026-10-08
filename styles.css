@@ -836,6 +836,13 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
 .questions { padding-left: 14px; font-size: 15px; }
 
 .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+/* Decisions: a row's buttons go on their own line under its text; folded lists keep the page short */
+.row > .actions { flex-basis: 100%; margin-top: 4px; }
+.row .badge { margin-right: 6px; }
+.step > .actions { margin-top: 14px; }
+.fold { margin-top: 14px; font-size: 15px; }
+.fold summary { cursor: pointer; font-weight: 800; color: var(--dark); padding: 6px 0; }
+.fold .plain-list { padding-left: 4px; margin-top: 6px; }
 .actions .btn { height: 40px; padding: 0 20px; font-size: 15px; }
 .form { display: grid; gap: 12px; padding: 14px; border: 1px solid var(--border); border-radius: 10px; }
 .form__fieldset { display: grid; gap: 12px; border: 0; min-width: 0; }
