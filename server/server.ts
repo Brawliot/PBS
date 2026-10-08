@@ -1,4 +1,4 @@
-import { createServer, type ServerResponse } from "node:http";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -14,6 +14,8 @@ import {
 } from "./planner/planner-validation-handler.js";
 import { JobStore } from "./jobs.js";
 import { HttpError, parsePlannerRequest, readBody } from "./request.js";
+import { createPool, PgPlanRepository } from "./db/pg-plan-repository.js";
+import { handlePlanRequest, isPlanPath } from "./plan-routes.js";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -24,6 +26,11 @@ const NO_STORE = { "Cache-Control": "no-store" };
 
 const jobs = new JobStore({ ttlMs: JOB_TTL_MS, maxJobs: MAX_JOBS });
 setInterval(() => jobs.sweep(), 60_000).unref();
+
+// Without DATABASE_URL the planner still works; only the plan routes answer 503
+const planRepository = process.env.DATABASE_URL
+  ? new PgPlanRepository(createPool(process.env.DATABASE_URL))
+  : undefined;
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -106,8 +113,32 @@ async function runPlanner(
   };
 }
 
+/** The plan API: the body is read here (same limit as the planner), the rest is plan-routes.ts */
+async function planRoute(req: IncomingMessage, res: ServerResponse, path: string) {
+  try {
+    const body = req.method === "POST" ? await readBody(req) : "";
+    const result = await handlePlanRequest({
+      method: req.method ?? "",
+      path,
+      body,
+      repo: planRepository,
+      now: () => new Date().toISOString(),
+      env: process.env,
+    });
+    return sendJson(res, result.status, result.body, NO_STORE);
+  } catch (e) {
+    if (e instanceof HttpError && e.status === 413) {
+      res.once("finish", () => req.socket.destroy());
+      return sendJson(res, 413, { error: e.message }, { ...NO_STORE, Connection: "close" });
+    }
+    console.error(e instanceof Error ? e.name : "unknown error");
+    return sendJson(res, 500, { error: "Internal server error" }, NO_STORE);
+  }
+}
+
 createServer(async (req, res) => {
   const path = new URL(req.url ?? "/", "http://localhost").pathname;
+  if (isPlanPath(path)) return planRoute(req, res, path);
 
   if (req.method === "GET") {
     if (path === "/") return sendFile(res, "index.html");
