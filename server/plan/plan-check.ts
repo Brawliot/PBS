@@ -14,6 +14,7 @@ import { phaseOrderProblems, phaseRelationProblems, phaseSpanProblems } from "./
 import { growthProblems } from "./growth-rules.js";
 import { cycleIn, feedsFromNonAi, findStepCycle, stepProblems, type StepProblem } from "./step-rules.js";
 import { componentsOf } from "./graph.js";
+import { orderOf } from "./order.js";
 
 export const PLAN_LEVELS = ["department", "phase", "task", "step", "fact", "proposal"] as const;
 export type PlanLevel = (typeof PLAN_LEVELS)[number];
@@ -71,7 +72,7 @@ export interface PlanProblem {
 const taskEdges = (relations: readonly Relation[], known: ReadonlySet<string>): [string, string][] =>
   relations.flatMap((relation): [string, string][] => {
     if (relation.level !== "task" || !known.has(relation.from) || !known.has(relation.to)) return [];
-    return relation.type === "follows" ? [[relation.to, relation.from]] : [[relation.from, relation.to]];
+    return [orderOf(relation)];
   });
 
 
@@ -118,7 +119,7 @@ function crossLevelProblems(plan: Plan): PlanProblem[] {
   };
   plan.relations.forEach((relation, index) => {
     if (relation.level !== "task") return;
-    const [before, after] = relation.type === "follows" ? [relation.to, relation.from] : [relation.from, relation.to];
+    const [before, after] = orderOf(relation);
     if (known.has(before) && known.has(after) && later(before, after)) {
       problems.push({ code: "task_order_contradicts_phase", level: "task", index, ids: [before, after] });
     }

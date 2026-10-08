@@ -94,6 +94,19 @@ Hoy el proyecto funciona en local, sin usuarios y sin estado en el servidor. Cas
 
 ---
 
+## Hecho (rendimiento, seguridad y registros)
+
+- **Cabeceras de seguridad en toda respuesta**: `nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY` y una Content-Security-Policy sin `unsafe-inline`. Calculadas en una sola función (`server/security.ts`) y comprobadas con valores exactos en cada tipo de respuesta. Las páginas no tienen script ni estilo en línea, y los e2e fallan ante cualquier violación.
+- **Tiempos del pool de PostgreSQL**: máximo de conexiones (10), espera para conectar (5 s), inactividad (30 s) y tiempo máximo por consulta (10 s), todos ajustables por variable (`DB_POOL_MAX`, `DB_CONNECT_TIMEOUT_MS`, `DB_IDLE_TIMEOUT_MS`, `DB_STATEMENT_TIMEOUT_MS`). Probado contra PostgreSQL real: una consulta que excede el tiempo se cancela.
+- **Registros sin contenido**: una sola función (`server/log.ts`) escribe contexto, nombre del error y un código seguro, nunca el mensaje, la pila, la causa ni el cuerpo de un proveedor. Probado con textos secretos en cada uno de esos sitios.
+- **Modo de desarrollo**: el servidor no arranca con `ENABLE_DEV_ROUTES=1` y `NODE_ENV=production`, y las rutas de desarrollo responden 404 en producción.
+
+**Pendiente de la infraestructura** (no es código de la aplicación):
+
+- **HSTS y TLS** los pone el proxy delante del servidor: certificado válido, redirección a HTTPS y `Strict-Transport-Security`.
+- **Un rol de base de datos sin privilegios de administrador**: la aplicación debe conectarse con un rol que solo pueda leer y escribir sus tablas (no crear ni borrar esquemas, ni cambiar los disparadores de `plan_log` y `plan_events`).
+- **Control de abuso**: sigue en la sección "Control de abuso y de coste" de arriba.
+
 ## Pendiente de la fase 2 (decisiones y propuestas)
 
 ### Retirar lo obsoleto

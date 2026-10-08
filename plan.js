@@ -107,6 +107,9 @@
       if (value === undefined || value === null || value === false) continue;
       if (key === 'on') {
         for (const [type, handler] of Object.entries(value)) node.addEventListener(type, handler);
+      } else if (key === 'style') {
+        // Set as properties, not as a style attribute: the page's Content-Security-Policy forbids the attribute
+        Object.assign(node.style, value);
       } else if (key === 'class') {
         node.className = value;
       } else {
@@ -357,7 +360,7 @@
             { class: 'bar-track', 'aria-hidden': 'true' },
             el('div', {
               class: 'bar',
-              style: `left: ${(phase.startUnit / scale) * 100}%; width: ${(phase.lengthUnits / scale) * 100}%`,
+              style: { left: `${(phase.startUnit / scale) * 100}%`, width: `${(phase.lengthUnits / scale) * 100}%` },
             }),
           )
         : null;

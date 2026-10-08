@@ -13,6 +13,7 @@ interface MemoryReport {
   planId: string | null;
 }
 
+/** Kept as a contract for the tests (no product code calls it yet): in-memory storage with the same rules as the database one, for the tests. */
 export class InMemoryReportRepository implements ReportRepository {
   /** Public so a test can look at or change a row directly */
   readonly rows = new Map<string, MemoryReport>();

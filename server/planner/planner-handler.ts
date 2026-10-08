@@ -3,7 +3,8 @@
  */
 
 import { z } from "zod";
-import { summarizeIssues } from "../schema-summary.js";
+import { issueCodes } from "../schema-summary.js";
+import { logProviderFailure } from "../log.js";
 
 interface JevQuestion {
   type: "choice" | "score" | "noul";
@@ -163,7 +164,7 @@ export async function callJev(
 
   if (!response.ok) {
     // Detail stays in the server log; callers only get a generic message
-    console.error(`Jev API error ${response.status}: ${await response.text()}`);
+    logProviderFailure("Jev API", response.status, await response.text());
     throw new Error("The analysis service failed");
   }
 
@@ -178,7 +179,7 @@ export async function callJev(
   // Only the failure paths and codes are logged, never the values or the body
   const parsed = JevResponseSchema.safeParse(body);
   if (!parsed.success) {
-    console.error(`Jev response failed validation: ${summarizeIssues(parsed.error)}`);
+    console.error(`Jev response failed validation: ${issueCodes(parsed.error)}`);
     throw new Error(JEV_UNEXPECTED_MESSAGE);
   }
   const result: JevResponse = parsed.data;

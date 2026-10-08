@@ -65,5 +65,4 @@ export function reportWith(options: ReportOptions = {}): Report {
   } as Report;
 }
 
-export const ALL_OPTIONS = DIMENSION_KEYS.map((key) => [key, Object.keys(DIMENSION_OPTIONS[key])] as const);
 export { CLAIM_KEYS, CHECK_KEYS };

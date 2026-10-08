@@ -151,7 +151,7 @@ describe("analyzePhase2: reply validation", () => {
     await assert.rejects(analyzePhase2(input, jev), { message: GENERIC });
   });
 
-  test("a failed response throws a generic error; the upstream body only reaches the log", async () => {
+  test("a failed response throws a generic error; the log has the status, never the upstream body", async () => {
     const errorLog = silenceConsoleError();
     mockFetch(() => new Response("upstream says: SENTINEL-upstream-5d20", { status: 500 }));
 
@@ -162,8 +162,8 @@ describe("analyzePhase2: reply validation", () => {
     });
 
     const logged = String(errorLog.mock.calls[0].arguments.join(" "));
-    assert.ok(logged.includes("OpenAI API error 500"));
-    assert.ok(logged.includes("SENTINEL-upstream-5d20"));
+    assert.equal(logged, "OpenAI API error: status 500");
+    assert.ok(!logged.includes("SENTINEL-upstream-5d20"));
   });
 });
 

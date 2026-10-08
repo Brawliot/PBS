@@ -7,8 +7,12 @@ import type { PlannerAnswer } from "./planner/planner-phase2-handler.js";
 import type { Claims } from "./planner/planner-validation-handler.js";
 import { runPlanner } from "./planner/planner-run.js";
 import { JobStore } from "./jobs.js";
+import { environmentProblem, securityHeaders } from "./security.js";
+import { logFailure } from "./log.js";
+import { UUID } from "./ids.js";
 import { HttpError, parsePlannerRequest, readBody } from "./request.js";
-import { createPool, PgPlanRepository } from "./db/pg-plan-repository.js";
+import { PgPlanRepository } from "./db/pg-plan-repository.js";
+import { createPool } from "./db/pool.js";
 import { PgReportRepository } from "./db/pg-report-repository.js";
 import { handlePlanRequest, isPlanPath, LOCAL_USER } from "./plan-routes.js";
 
@@ -16,7 +20,6 @@ const ROOT = fileURLToPath(new URL("../", import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
 const JOB_TTL_MS = 10 * 60_000;
 const MAX_JOBS = 500;
-const JOB_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const NO_STORE = { "Cache-Control": "no-store" };
 
 const jobs = new JobStore({ ttlMs: JOB_TTL_MS, maxJobs: MAX_JOBS });
@@ -36,7 +39,7 @@ const MIME: Record<string, string> = {
 };
 
 // Only these front-end files are public (the repo root also holds .git, server/, etc.)
-const STATIC_FILES = new Set(["/plan.html", "/plan.js", "/loader.js", "/script.js", "/styles.css", "/tech-text.js"]);
+const STATIC_FILES = new Set(["/plan.html", "/plan.js", "/giant.js", "/loader.js", "/script.js", "/styles.css", "/tech-text.js"]);
 const isPublic = (path: string) =>
   STATIC_FILES.has(path) || /^\/fonts\/[\w.-]+$/.test(path);
 
@@ -46,7 +49,7 @@ function sendJson(
   body: unknown,
   headers: Record<string, string> = {},
 ) {
-  res.writeHead(status, { "Content-Type": "application/json", ...headers });
+  res.writeHead(status, { "Content-Type": "application/json", ...securityHeaders(), ...headers });
   res.end(JSON.stringify(body));
 }
 
@@ -55,6 +58,7 @@ async function sendFile(res: ServerResponse, file: string) {
     const content = await readFile(ROOT + file);
     res.writeHead(200, {
       "Content-Type": MIME[extname(file)] ?? "application/octet-stream",
+      ...securityHeaders(),
     });
     res.end(content);
   } catch {
@@ -81,7 +85,7 @@ async function planRoute(req: IncomingMessage, res: ServerResponse, path: string
       res.once("finish", () => req.socket.destroy());
       return sendJson(res, 413, { error: e.message }, { ...NO_STORE, Connection: "close" });
     }
-    console.error(e instanceof Error ? e.name : "unknown error");
+    logFailure("plan request", e);
     return sendJson(res, 500, { error: "Internal server error" }, NO_STORE);
   }
 }
@@ -99,7 +103,7 @@ export const server = createServer(async (req, res) => {
   const jobPath = path.match(/^\/api\/planner\/([^/]+)$/);
   if (req.method === "GET" && jobPath) {
     const id = jobPath[1];
-    const job = JOB_ID.test(id) ? jobs.get(id) : undefined;
+    const job = UUID.test(id) ? jobs.get(id) : undefined;
     if (!job) return sendJson(res, 404, { error: "Job not found" }, NO_STORE);
     if (job.status === "pending") return sendJson(res, 200, { status: "pending" }, NO_STORE);
     if (job.status === "done") {
@@ -126,7 +130,7 @@ export const server = createServer(async (req, res) => {
         return sendJson(res, 413, { error: e.message }, { Connection: "close" });
       }
       if (e instanceof HttpError) return sendJson(res, e.status, { error: e.message });
-      console.error(e);
+      logFailure("planner request", e);
       return sendJson(res, 500, { error: "Internal server error" });
     }
   }
@@ -135,4 +139,11 @@ export const server = createServer(async (req, res) => {
 });
 
 // Tests import the server and listen on an ephemeral port themselves (NODE_TEST_CONTEXT is set by node --test)
-if (!process.env.NODE_TEST_CONTEXT) server.listen(PORT, () => console.log(`http://localhost:${PORT}/`));
+if (!process.env.NODE_TEST_CONTEXT) {
+  const problem = environmentProblem(process.env);
+  if (problem) {
+    console.error(problem);
+    process.exit(1);
+  }
+  server.listen(PORT, () => console.log(`http://localhost:${PORT}/`));
+}

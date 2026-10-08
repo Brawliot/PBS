@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { HttpError } from "./request.js";
+import { logFailure } from "./log.js";
 
 /** In-memory jobs: the planner runs in the background and the client polls for the result */
 
@@ -47,7 +48,7 @@ export class JobStore {
         this.jobs.set(id, { status: "done", result, finishedAt: this.now() });
       },
       (error) => {
-        console.error(error);
+        logFailure("planner job", error);
         const message = error instanceof Error && error.message ? error.message : "Internal server error";
         this.jobs.set(id, { status: "error", message, finishedAt: this.now() });
       },

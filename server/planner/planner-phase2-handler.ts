@@ -6,6 +6,7 @@
 
 import { z } from "zod";
 import { summarizeIssues } from "../schema-summary.js";
+import { logProviderFailure } from "../log.js";
 import { buildState, type JevResponse, type PlannerInput } from "./planner-handler.js";
 
 type Source = "stated" | "inferred" | "unknown";
@@ -313,7 +314,7 @@ export async function analyzePhase2(
 
   if (!response.ok) {
     // Detail stays in the server log; callers only get a generic message
-    console.error(`OpenAI API error ${response.status}: ${await response.text()}`);
+    logProviderFailure("OpenAI API", response.status, await response.text());
     throw new Error("The phase 2 analysis service failed");
   }
 

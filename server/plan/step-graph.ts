@@ -28,11 +28,13 @@ const pick = (steps: readonly Step[], ids: Iterable<string>) => {
 };
 
 /** Steps that must be done before this one can start ("B blocks A": B is a blocker of A) */
+/** Kept as a contract for the tests (no product code calls it yet): the steps that block one step: the counterpart of dependentsOf. */
 export function blockersOf(step: Step, steps: readonly Step[], relations: Relations): Step[] {
   return pick(steps, stepRelations(relations, "blocks").filter((r) => r.to === step.id).map((r) => r.from));
 }
 
 /** Steps this one blocks */
+/** Kept as a contract for the tests (no product code calls it yet): the steps one step blocks: the counterpart of blockersOf. */
 export function dependentsOf(step: Step, steps: readonly Step[], relations: Relations): Step[] {
   return pick(steps, stepRelations(relations, "blocks").filter((r) => r.from === step.id).map((r) => r.to));
 }
@@ -52,6 +54,7 @@ export function feedersOf(step: Step, steps: readonly Step[], relations: Relatio
 }
 
 /** Steps this one follows: they set the order but never block ("A follows B": B is a predecessor of A) */
+/** Kept as a contract for the tests (no product code calls it yet): the steps one step follows (a follows never blocks). */
 export function predecessorsOf(step: Step, steps: readonly Step[], relations: Relations): Step[] {
   return pick(steps, stepRelations(relations, "follows").filter((r) => r.from === step.id).map((r) => r.to));
 }

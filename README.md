@@ -46,6 +46,16 @@ Read from the environment in `server/.env` (loaded by `--env-file=.env`).
 | `PORT` | No | `server/server.ts` | HTTP port. Defaults to `3000` when unset or not a number. |
 | `DATABASE_URL` | No | `server/server.ts`, `server/db/migrate-cli.ts` | PostgreSQL connection string (`postgres://user:password@host:port/database`) where the reports and the plans are stored. Without it the planner works, but no report is kept (the result has no `reportId`), and the plan routes answer `503`. |
 | `TEST_DATABASE_URL` | No | `server/test/db/` | A PostgreSQL database for the integration tests. Each run uses its own schema, dropped at the end. Without it those tests are skipped. |
+| `NODE_ENV` | No | `server/security.ts` | Set it to `production` in production. With it, `ENABLE_DEV_ROUTES=1` is refused at start, and the `/api/dev/` routes answer `404`. |
+| `ENABLE_DEV_ROUTES` | No | `server/plan-routes.ts`, `server/security.ts` | `1` turns on the development routes (fake AI outputs, a demo plan). Never set it in production: the server refuses to start with it and `NODE_ENV=production`. |
+| `DB_POOL_MAX` | No | `server/db/pool.ts` | Most connections to PostgreSQL open at once. Default `10`. |
+| `DB_CONNECT_TIMEOUT_MS` | No | `server/db/pool.ts` | Milliseconds to wait for a free connection before the request fails. Default `5000`. |
+| `DB_IDLE_TIMEOUT_MS` | No | `server/db/pool.ts` | Milliseconds a connection may stay idle before it is closed. Default `30000`. |
+| `DB_STATEMENT_TIMEOUT_MS` | No | `server/db/pool.ts` | Milliseconds a single statement may run; PostgreSQL cancels it after this (error `57014`). Default `10000`. |
+
+The four `DB_` limits must be positive whole numbers. Any other value stops the server at start, and the message names the variable.
+
+**SSL to PostgreSQL** is set by `DATABASE_URL` itself, with the usual `sslmode` parameter (for example `?sslmode=require`). The server does not add or change it.
 
 If a required variable is missing, the server starts, but the planner request fails with `500`.
 
@@ -60,7 +70,16 @@ Run from `server/`:
 | `npm run typecheck` | `tsc` | Type-checks the TypeScript sources. |
 | `npm run migrate` | `tsx --env-file=.env db/migrate-cli.ts` | Applies the pending migrations in `server/db/migrations` to `DATABASE_URL`. Safe to run again: applied migrations are skipped. |
 | `npm test` | `tsx --test "test/**/*.test.ts"` | Runs all the tests. The PostgreSQL tests run only when `TEST_DATABASE_URL` is set, in their own temporary schema. |
+| `npm run perf` | `tsx test/perf/perf.ts` | Times the plan rules on synthetic plans of four sizes (parsing, checks, derived values, one step action). It is not part of `npm test`. |
 | `npm run test:e2e` | `node test/e2e/build-my-plan.mjs && tsx test/e2e/plan-decisions.e2e.ts` | Runs the browser checks in Chromium: "Build my plan" (with the planner answered by `page.route`) and the Decisions page (with the real plan routes answering the API). Needs Playwright: set `PLAYWRIGHT_MODULE` to its path if it is not installed here, and `CHROMIUM_PATH` to a Chromium binary if the default one is missing. `SCREENSHOTS` sets where the Decisions screenshots go. |
+
+## Security
+
+Every response carries the same headers, computed once in `server/security.ts`: `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, and a `Content-Security-Policy` that allows only the site's own scripts, styles, fonts, images and requests (`default-src 'self'`, no `unsafe-inline`, no `eval`, `frame-ancestors 'none'`). The pages have no inline script or style: `giant.js` holds the wordmark loop, and the bar widths on the timeline are set through the DOM, not as style attributes. The `test:e2e` checks fail on any policy violation or console error.
+
+HSTS and TLS are not in the server: they belong to the proxy in front of it (see `PRODUCTION.md`).
+
+**Logs carry no content.** Each failure is written as its context, the name of the error and a short code when there is one (`planner job: Error (provider_down)`). Messages, stacks and causes are never written, and neither is the body of a provider's answer: for a provider the line is the HTTP status, plus a code only when the JSON body has a safe `type` or `code`. This makes debugging harder on purpose; a failing request can be reproduced from its inputs instead.
 
 ## How it works
 
@@ -170,7 +189,7 @@ Request body (JSON), with no other keys:
 | `500` | `{ "error": "Internal server error", "code": "internal_error" }` | Any other failure. The details go to the server log, as a code only. |
 | `503` | `{ "error": "Plan storage is not configured", "code": "storage_unavailable" }` | No `DATABASE_URL`. |
 
-The plan's title is the idea, cut to 80 characters.
+The plan's title is the idea, cut to 80 characters. The body is checked before the storage: an invalid body is `400` even without a database.
 
 The `GET /api/planner/:id` result of a finished job has a `reportId` field when its report was kept.
 
@@ -195,7 +214,11 @@ The success body is the one of a step action: `{ id, version, plan, derived }`. 
 
 Every write adds its entries to `plan_log` in the same write as the plan: `fact_proposed`, `fact_confirmed`, `fact_rejected`, `proposal_created`, `proposal_accepted` and `proposal_rejected`, with the actor and the id of the fact or proposal. The log only grows: the database refuses any change to it.
 
-With `ENABLE_DEV_ROUTES=1`, `POST /api/dev/plan/:id/facts/fake-proposal` proposes a fact from the first AI step, so the screen can be tried without the AI.
+With `ENABLE_DEV_ROUTES=1`, `POST /api/dev/plan/:id/facts/fake-proposal` proposes a fact from the first AI step, so the screen can be tried without the AI. The development routes are off whenever `NODE_ENV=production`, even with the flag set.
+
+### Order of checks on `POST /api/plan`
+
+The body is checked first: a request that is not valid is `400` whether or not the database is configured. Only a valid request reaches the storage, which answers `503` without `DATABASE_URL`.
 
 ## Project layout
 

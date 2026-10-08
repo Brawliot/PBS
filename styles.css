@@ -779,6 +779,10 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
 @media (min-width: 901px) {
   .plan ~ .giant { flex: none; height: 28vh; margin-top: 0; }
 }
+/* The wordmark keeps its size at the bottom; the plan scrolls above it (on every width) */
+.plan ~ .giant { flex: none; }
+/* The sprite of icons is not drawn: it only holds symbols that <use> refers to */
+.sprite { position: absolute; }
 .plan a { color: var(--dark); text-underline-offset: 3px; }
 .plan a:hover { color: var(--black); }
 .page__plan { font-size: 14px; color: var(--gray-text); letter-spacing: 0.02em; }

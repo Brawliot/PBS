@@ -381,11 +381,8 @@ export type StepExecutor = Step["executor"];
 export type StepOutput = NonNullable<Step["outputs"]>[number];
 export type StepEvent = Step["events"][number];
 export type Relation = Plan["relations"][number];
-export type Origin = Task["origin"];
-export type Aspect = Extract<Relation, { level: "department" }>["aspect"];
 export type FactTerm = z.infer<typeof FactTermSchema>;
 export type Fact = NonNullable<Plan["facts"]>[number];
-export type FactStatus = Fact["status"];
 export type Proposal = NonNullable<Plan["proposals"]>[number];
 
 /** Validates a stored or generated plan. The error lists paths and codes, never values. */

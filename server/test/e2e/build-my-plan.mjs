@@ -12,6 +12,7 @@ import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import assert from "node:assert/strict";
+import { watch, assertNoProblems } from "./watch.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const serverDir = join(here, "../..");
@@ -83,6 +84,7 @@ const withReport = { ...snapshot.noQuestions, reportId: REPORT_ID };
 async function scenarioFullFlow(browser) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   const page = await context.newPage();
+  await watch(page, scenarioLabel());
   const planRequests = await mockApi(page, { result: withReport, plan: json(201, { id: PLAN_ID }) });
   await analyse(page);
   await page.click("#result-plan");
@@ -96,6 +98,7 @@ async function scenarioFullFlow(browser) {
 async function scenarioError(browser) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   const page = await context.newPage();
+  await watch(page, scenarioLabel());
   const planRequests = await mockApi(page, { result: withReport, plan: json(500, { error: "Could not build the plan", code: "skeleton_failed" }) });
   await analyse(page);
   await page.click("#result-plan");
@@ -116,6 +119,7 @@ async function scenarioError(browser) {
 async function scenarioNoReport(browser) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   const page = await context.newPage();
+  await watch(page, scenarioLabel());
   const planRequests = await mockApi(page, { result: snapshot.noQuestions, plan: json(201, { id: PLAN_ID }) });
   await analyse(page);
   await page.click("#result-plan");
@@ -128,6 +132,9 @@ async function scenarioNoReport(browser) {
   return "no report id: the fixed notice, no animation, no request";
 }
 
+let currentScenario = "";
+const scenarioLabel = () => currentScenario;
+
 const server = await startServer();
 const browser = await chromium.launch({
   executablePath: process.env.CHROMIUM_PATH || undefined,
@@ -136,6 +143,7 @@ const browser = await chromium.launch({
 let failed = 0;
 try {
   for (const scenario of [scenarioFullFlow, scenarioError, scenarioNoReport]) {
+    currentScenario = scenario.name;
     try {
       console.log("ok -", await scenario(browser));
     } catch (error) {
@@ -146,5 +154,11 @@ try {
 } finally {
   await browser.close();
   server.kill();
+}
+try {
+  assertNoProblems();
+} catch (error) {
+  failed += 1;
+  console.error("not ok - security watch:", error.message);
 }
 if (failed > 0) process.exitCode = 1;

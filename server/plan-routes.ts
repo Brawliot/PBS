@@ -13,6 +13,8 @@ import { EVENT_ACTIONS, FactTermSchema, IdSchema, type Plan } from "./plan/plan-
 import { applyProposalAction, createProposal, proposeExpansion, type ProposalError } from "./plan/proposals.js";
 import { confirmFact, proposeFact, rejectFact, type FactActionError } from "./plan/fact-actions.js";
 import { FACT_KEYS, PRODUCT_TYPES } from "./plan/fact-catalog.js";
+import { devRoutesAllowed } from "./security.js";
+import { UUID } from "./ids.js";
 import type { PlanLogRecord, PlanRepository, StoredPlan } from "./plan/plan-repository.js";
 import { StoredPlanError } from "./plan/plan-repository.js";
 import type { ReportRepository } from "./plan/report-repository.js";
@@ -21,7 +23,6 @@ import type { StepAction, StepActor } from "./plan/step-actions.js";
 /** The one user until authentication exists. Every repository call is scoped to it, and only this file names it. */
 export const LOCAL_USER = "local";
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export interface PlanRequest {
   method: string;
@@ -129,7 +130,7 @@ export async function handlePlanRequest(request: PlanRequest): Promise<PlanRespo
 async function route(request: PlanRequest): Promise<PlanResponse> {
   const { method, path, env } = request;
   const isDev = path.startsWith("/api/dev/");
-  if (isDev && env.ENABLE_DEV_ROUTES !== "1") return NOT_FOUND;
+  if (isDev && !devRoutesAllowed(env)) return NOT_FOUND;
 
   if (method === "POST" && path === "/api/plan") return createPlan(request);
 
@@ -342,9 +343,10 @@ const TITLE_CHARS = 80;
  * the linked one (200), so the user never ends up with two plans.
  */
 async function createPlan(request: PlanRequest): Promise<PlanResponse> {
-  if (!request.repo || !request.reports) return fail("storage_unavailable");
+  // The body is checked first: a bad request is 400 whether or not the storage is there
   const parsed = CreatePlanBody.safeParse(parseJson(request.body));
   if (!parsed.success) return fail("invalid_body");
+  if (!request.repo || !request.reports) return fail("storage_unavailable");
   const { reportId } = parsed.data;
 
   const stored = await request.reports.get(reportId, LOCAL_USER);

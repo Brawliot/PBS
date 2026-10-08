@@ -24,6 +24,7 @@ export const DEPARTMENT_IDS = {
 /**
  * Groups have their own kind of route (#/group/:id), apart from departments (#/dept/:id), so a
  * group may share an id with a department. Ids must be unique inside each kind, not across them.
+ * Kept as a contract for the tests (no product code calls it yet): the ids that the groups of the catalogue use, kept with the rules that check them.
  */
 export const GROUP_IDS = {
   "Legal & Compliance": "legal",

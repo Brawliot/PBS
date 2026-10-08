@@ -82,8 +82,6 @@ export const EXPANSION_TEMPLATES: Readonly<Record<string, Template>> = {
     ]),
 };
 
-/** The templates use these departments: a plan without them cannot take the proposal */
-export const TEMPLATE_DEPARTMENTS = ["product", "technology", "operations"] as const;
 
 export const templateFor = (value: string): Template | undefined =>
   Object.hasOwn(EXPANSION_TEMPLATES, value) ? EXPANSION_TEMPLATES[value] : undefined;

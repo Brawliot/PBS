@@ -52,7 +52,7 @@ describe("callJev", () => {
     assert.equal(calls.length, 0);
   });
 
-  test("a failed response throws a generic error and logs the upstream detail", async () => {
+  test("a failed response throws a generic error and logs the status only, never the upstream body", async () => {
     const errorLog = silenceConsoleError();
     mockFetch(() => new Response("upstream says: sk-secret-detail", { status: 500 }));
 
@@ -65,8 +65,8 @@ describe("callJev", () => {
 
     assert.equal(errorLog.mock.callCount(), 1);
     const logged = String(errorLog.mock.calls[0].arguments[0]);
-    assert.ok(logged.includes("Jev API error 500"));
-    assert.ok(logged.includes("sk-secret-detail"));
+    assert.equal(logged, "Jev API error: status 500");
+    assert.ok(!logged.includes("sk-secret-detail"));
   });
 
   test("sends the bearer key, the environment model and the questions to the Jev endpoint", async () => {
@@ -120,14 +120,15 @@ describe("callJev", () => {
       });
     }
 
-    test("the log names the failing path and the code, not the value", async () => {
+    test("the log names the kinds of issue, not the paths or the values", async () => {
       const errorLog = silenceConsoleError();
       mockFetch(() => jsonResponse(200, answersOf({ check: { type: "noul", noul: SENTINEL } })));
 
       await assert.rejects(callJev("state", questions));
 
       const logged = String(errorLog.mock.calls[0].arguments.join(" "));
-      assert.ok(logged.includes("answers.check.noul invalid_type"), logged);
+      assert.equal(logged, "Jev response failed validation: invalid_type");
+      assert.ok(!logged.includes("answers"), logged);
     });
 
     test("a valid response with extra fields passes and the extra fields are dropped", async () => {

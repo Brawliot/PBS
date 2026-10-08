@@ -6,8 +6,6 @@
 
 import type { Plan, Relation, Step } from "./plan-model.js";
 
-type StepRelation = Extract<Relation, { level: "step" }>;
-
 /** The steps of a plan by id, and what blocks and feeds each one */
 export interface StepGraph {
   /** The step with each id (the last one, if an id is repeated: as the rules always took it) */
@@ -75,7 +73,3 @@ export function buildPlanIndex(plan: Plan): PlanIndex {
   }
   return { graph: stepGraph(plan.steps, plan.relations), stepsOfTask, insideRelations, feeding };
 }
-
-/** The step-level relations of one type, with the type narrowed */
-export const stepRelationsOf = (relations: Plan["relations"], type: StepRelation["type"]) =>
-  relations.filter((relation): relation is StepRelation => relation.level === "step" && relation.type === type);

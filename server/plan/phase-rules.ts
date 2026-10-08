@@ -8,6 +8,7 @@ import type { Plan, TimelineUnit } from "./plan-model.js";
 import type { PlanIndex } from "./plan-index.js";
 import { cycleIn } from "./step-rules.js";
 import { taskStatus, type TaskStatus } from "./task-rules.js";
+import { orderOf } from "./order.js";
 
 type Relations = Plan["relations"];
 
@@ -109,7 +110,7 @@ export type PhaseRelationProblem =
 const phaseEdges = (relations: Relations, known: ReadonlySet<string>): [string, string][] =>
   relations.flatMap((relation): [string, string][] => {
     if (relation.level !== "phase" || !known.has(relation.from) || !known.has(relation.to)) return [];
-    return relation.type === "follows" ? [[relation.to, relation.from]] : [[relation.from, relation.to]];
+    return [orderOf(relation)];
   });
 
 /**
@@ -153,7 +154,7 @@ export function phaseOrderProblems(plan: Plan): PhaseOrderProblem[] {
   const order = new Map<string, number>(plan.phases.map((phase) => [phase.id, phase.order]));
   plan.relations.forEach((relation, index) => {
     if (relation.level !== "phase") return;
-    const [before, after] = relation.type === "follows" ? [relation.to, relation.from] : [relation.from, relation.to];
+    const [before, after] = orderOf(relation);
     const first = order.get(before);
     const second = order.get(after);
     if (first !== undefined && second !== undefined && first > second) {

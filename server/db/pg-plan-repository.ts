@@ -5,7 +5,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { Pool, type PoolClient } from "pg";
+import type { Pool, PoolClient } from "pg";
 import { parsePlan, type Plan } from "../plan/plan-model.js";
 import {
   PLAN_SCHEMA_VERSION,
@@ -32,13 +32,6 @@ const storedFrom = (row: PlanRow): StoredPlan => ({
   version: row.version,
   plan: readStoredPlan(row.schema_version, row.document),
 });
-
-/** A pool that logs only the error code: the message of a driver error can carry values */
-export function createPool(connectionString: string): Pool {
-  const pool = new Pool({ connectionString });
-  pool.on("error", (error) => console.error("Postgres pool error:", (error as { code?: string }).code ?? "unknown"));
-  return pool;
-}
 
 export class PgPlanRepository implements PlanRepository {
   constructor(private readonly pool: Pool) {}

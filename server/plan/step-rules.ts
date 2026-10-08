@@ -5,6 +5,7 @@
  */
 
 import { MAX_ROUNDS, type Plan, type Step, type StepExecutor, type StepOutput, type StepStatus } from "./plan-model.js";
+import { orderOf } from "./order.js";
 
 /**
  * The only source of truth for status changes, per executor. Anything not listed is
@@ -107,7 +108,7 @@ export function feedsFromNonAi(plan: Plan): number[] {
 export function orderEdges(relations: Plan["relations"]): [string, string][] {
   return relations.flatMap((relation): [string, string][] => {
     if (relation.level !== "step") return [];
-    return relation.type === "follows" ? [[relation.to, relation.from]] : [[relation.from, relation.to]];
+    return [orderOf(relation)];
   });
 }
 

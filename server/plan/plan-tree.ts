@@ -33,6 +33,7 @@ const node = (plan: Plan, task: Task, index?: PlanIndex): TaskNode => ({
   steps: index ? (index.stepsOfTask.get(task.id) ?? []) : plan.steps.filter((step) => step.taskId === task.id),
 });
 
+/** Kept as a contract for the tests (no product code calls it yet): the lookup of one task with its steps. */
 export function taskNode(plan: Plan, taskId: string, index?: PlanIndex): TaskNode | undefined {
   const task = plan.tasks.find((candidate) => candidate.id === taskId);
   return task && node(plan, task, index);
@@ -53,6 +54,7 @@ export function departmentNode(plan: Plan, departmentId: string, index?: PlanInd
   };
 }
 
+/** Kept as a contract for the tests (no product code calls it yet): the tree of one phase, grouped by department. */
 export function phaseNode(plan: Plan, phaseId: string, index?: PlanIndex): PhaseNode | undefined {
   const phase = plan.phases.find((candidate) => candidate.id === phaseId);
   if (!phase) return undefined;

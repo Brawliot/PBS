@@ -13,6 +13,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 import { handlePlanRequest } from "../../plan-routes.js";
+// @ts-ignore: a plain module, shared with the other e2e script
+import { watch, assertNoProblems } from "./watch.mjs";
 import { InMemoryPlanRepository } from "../../plan/plan-repository-memory.js";
 import { buildPlanSkeleton } from "../../plan/plan-skeleton.js";
 import { reportWith } from "../plan/report-fixtures.js";
@@ -82,6 +84,7 @@ async function serveApi(repo: InMemoryPlanRepository, route: any) {
 async function openPlan(browser: any, repo: InMemoryPlanRepository, id: string, hash: string, size = { width: 1280, height: 720 }) {
   const context = await browser.newContext({ viewport: size });
   const page = await context.newPage();
+  await watch(page, `plan page ${hash}`);
   await page.route("**/api/plan/**", (route: any) => serveApi(repo, route));
   await page.goto(`${BASE}/plan.html?id=${id}${hash}`);
   await page.waitForSelector("#view h1");
@@ -196,6 +199,11 @@ async function scenarioScreens(browser: any): Promise<string> {
     await gap.page.screenshot({ path: join(SHOTS, `gap-${tag}.png`) });
     await gap.context.close();
 
+    // The timeline draws its bars with style values: it must load under the Content-Security-Policy too
+    const timeline = await openPlan(browser, repo, id, "#/timeline", size);
+    await timeline.page.waitForSelector(".bar");
+    await timeline.context.close();
+
     const decisions = await openPlan(browser, repo, id, "#/decisions", size);
     await decisions.page.screenshot({ path: join(SHOTS, `decisions-${tag}.png`) });
     // The page scrolls inside #view: the lower part is shot after scrolling it
@@ -285,5 +293,11 @@ try {
 } finally {
   await browser.close();
   server.kill();
+}
+try {
+  assertNoProblems();
+} catch (error) {
+  failed += 1;
+  console.error("not ok - security watch:", (error as Error).message);
 }
 if (failed > 0) process.exitCode = 1;

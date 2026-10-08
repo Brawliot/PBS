@@ -73,10 +73,14 @@ describe("POST /api/plan: the answers", () => {
     assert.equal((await store.reports.get(reportId, "local"))?.planId, [...ids][0]);
   });
 
-  test("no database: 503 as the other plan routes, whatever the body", async () => {
+  test("no database: a valid body is 503 as the other plan routes; the body is checked before the storage", async () => {
     const body = { status: 503, body: { error: "Plan storage is not configured", code: "storage_unavailable" } };
     assert.deepEqual(await call(undefined, { reportId: MISSING }), body);
     assert.deepEqual(await call({ plans: new InMemoryPlanRepository(), reports: undefined } as never, { reportId: MISSING }), body);
+    // A bad body is 400 whether or not there is a database
+    const invalid = { status: 400, body: { error: "Invalid request body", code: "invalid_body" } };
+    assert.deepEqual(await call(undefined, { reportId: "not-a-uuid" }), invalid);
+    assert.deepEqual(await call(undefined, { reportId: MISSING, extra: true }), invalid);
   });
 });
 

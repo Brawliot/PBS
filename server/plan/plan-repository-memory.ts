@@ -27,6 +27,7 @@ export interface MemoryRow {
   log: PlanLogRecord[];
 }
 
+/** Kept as a contract for the tests (no product code calls it yet): in-memory storage with the same rules as the database one, for the tests. */
 export class InMemoryPlanRepository implements PlanRepository {
   /** Public so a test can put a row in a state that the API could not produce (for example, another schema) */
   readonly rows = new Map<string, MemoryRow>();

@@ -10,11 +10,15 @@ import { feedersOf } from "./step-graph.js";
 import { readableOutput, roundsUsed } from "./step-rules.js";
 
 // Unmeasured limits, tune with real runs. The first two must fit what an output can store.
+/** Kept as a contract for the tests (no product code calls it yet): the limit of questions a runner may return in one round. */
 export const MAX_QUESTIONS_PER_ROUND = 5;
+/** Kept as a contract for the tests (no product code calls it yet): the limit of characters of one question a runner may return. */
 export const MAX_QUESTION_LENGTH = 300;
+/** Kept as a contract for the tests (no product code calls it yet): the limit of characters of the text a runner receives. */
 export const MAX_DOCUMENT_TEXT = 20_000;
 
 /** What the runner is allowed to see: nothing but this, and only text */
+/** Kept as a contract for the tests (no product code calls it yet): what a runner receives for one step, and nothing else. */
 export interface RunnerInput {
   step: { id: string; text: string; taskId: string; departmentId: string };
   /** The round within the current attempt: 1 for the first run, 2 after the first answers, and so on */
@@ -25,18 +29,22 @@ export interface RunnerInput {
   feeds: { stepId: string; stepText: string; version: number; summary: string; documentRef?: string }[];
 }
 
+/** Kept as a contract for the tests (no product code calls it yet): the shape a runner's answer must have before it is used. */
 export const RunnerOutputSchema = z.strictObject({
   summary: z.string().trim().min(1).max(MAX_STEP_TEXT),
   document: z.string().trim().min(1).max(MAX_DOCUMENT_TEXT),
   questions: z.array(z.string().trim().min(1).max(MAX_QUESTION_LENGTH)).max(MAX_QUESTIONS_PER_ROUND),
 });
 
+/** Kept as a contract for the tests (no product code calls it yet): the type of an answer that passed RunnerOutputSchema. */
 export type RunnerOutput = z.infer<typeof RunnerOutputSchema>;
 
+/** Kept as a contract for the tests (no product code calls it yet): the interface that a real runner implements. */
 export interface StepRunner {
   run(input: RunnerInput): Promise<RunnerOutput>;
 }
 
+/** Kept as a contract for the tests (no product code calls it yet): the result of running one step: an accepted answer or a refusal. */
 export type RunStepResult =
   | { ok: true; output: RunnerOutput }
   | { ok: false; code: "runner_failed" | "invalid_output" };
@@ -46,6 +54,7 @@ export type RunStepResult =
  * confirmed current output of a feeding step is included: never a draft, a rejected
  * version or a replaced one. The step's own earlier outputs are not included either;
  * the person's answers carry what the next round needs.
+ * Kept as a contract for the tests (no product code calls it yet): the input of a step, without the rest of the plan.
  */
 export function buildRunnerInput(step: Step, steps: readonly Step[], relations: Plan["relations"]): RunnerInput | undefined {
   if (step.executor !== "ai") return undefined;
@@ -75,6 +84,7 @@ export function buildRunnerInput(step: Step, steps: readonly Step[], relations: 
 }
 
 /** Runs the step and accepts only an output that fits the schema. The error never carries content. */
+/** Kept as a contract for the tests (no product code calls it yet): runs a runner on a step and checks its answer. */
 export async function runStep(runner: StepRunner, input: RunnerInput): Promise<RunStepResult> {
   let raw: unknown;
   try {

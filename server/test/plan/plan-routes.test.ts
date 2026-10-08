@@ -269,10 +269,10 @@ describe("the development routes", () => {
 });
 
 describe("the other routes", () => {
-  test("POST /api/plan without a database is 503: the plans are not available, whatever the body", async () => {
+  test("POST /api/plan without a database: a valid body is 503; a body that is not valid is 400 first", async () => {
     const storage = { error: "Plan storage is not configured", code: "storage_unavailable" };
     assert.deepEqual(await call(undefined, "POST", "/api/plan", { reportId: "00000000-0000-4000-8000-000000000000" }), { status: 503, body: storage });
-    assert.equal((await call(undefined, "POST", "/api/plan", "not json")).status, 503);
+    assert.deepEqual(await call(undefined, "POST", "/api/plan", "not json"), { status: 400, body: { error: "Invalid request body", code: "invalid_body" } });
   });
 
   test("any other path or method is 404", async () => {
