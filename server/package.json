@@ -8,7 +8,8 @@
     "test:e2e": "node test/e2e/build-my-plan.mjs && tsx test/e2e/plan-decisions.e2e.ts",
     "start": "tsx --env-file=.env server.ts",
     "typecheck": "tsc",
-    "migrate": "tsx --env-file=.env db/migrate-cli.ts"
+    "migrate": "tsx --env-file=.env db/migrate-cli.ts",
+    "perf": "tsx test/perf/perf.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",

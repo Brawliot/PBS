@@ -5,7 +5,6 @@
  */
 
 import type { Plan, TimelineUnit } from "./plan-model.js";
-import type { PlanIndex } from "./plan-index.js";
 import { cycleIn } from "./step-rules.js";
 import { taskStatus, type TaskStatus } from "./task-rules.js";
 
@@ -34,17 +33,11 @@ export function timelineUnit(timelineChoice: string): TimelineUnit {
   return TIMELINE_UNIT_BY_CHOICE.get(timelineChoice) ?? "week";
 }
 
-/**
- * The status of each task of the phase, computed from its steps and the relations between them. With an
- * index, the steps and relations of each task come from it (the same ones, so the same statuses).
- */
-export function phaseTaskStatuses(plan: Plan, phaseId: string, index?: PlanIndex): TaskStatus[] {
+/** The status of each task of the phase, computed from its steps and the relations between them */
+export function phaseTaskStatuses(plan: Plan, phaseId: string): TaskStatus[] {
   return plan.tasks
     .filter((task) => task.phaseId === phaseId)
-    .map((task) => {
-      if (index) return taskStatus(index.stepsOfTask.get(task.id) ?? [], index.insideRelations.get(task.id) ?? []);
-      return taskStatus(plan.steps.filter((step) => step.taskId === task.id), plan.relations);
-    });
+    .map((task) => taskStatus(plan.steps.filter((step) => step.taskId === task.id), plan.relations));
 }
 
 /**
@@ -52,8 +45,8 @@ export function phaseTaskStatuses(plan: Plan, phaseId: string, index?: PlanIndex
  * done with the rest unfinished, is in progress; otherwise not started. A blocked task does not
  * start a phase by itself.
  */
-export function intrinsicPhaseStatus(plan: Plan, phaseId: string, index?: PlanIndex): PhaseStatus {
-  const statuses = phaseTaskStatuses(plan, phaseId, index);
+export function intrinsicPhaseStatus(plan: Plan, phaseId: string): PhaseStatus {
+  const statuses = phaseTaskStatuses(plan, phaseId);
   if (statuses.length === 0) return "not_started";
   if (statuses.every((status) => status === "done")) return "done";
   if (statuses.some((status) => status === "in_progress" || status === "done")) return "in_progress";
@@ -65,9 +58,9 @@ export function intrinsicPhaseStatus(plan: Plan, phaseId: string, index?: PlanIn
  * phase with nothing to do holds nothing back). An id that is not a phase counts as not done, as an
  * unknown source does for steps, so a missing phase keeps blocking.
  */
-function countsAsDone(plan: Plan, phaseId: string, index?: PlanIndex): boolean {
+function countsAsDone(plan: Plan, phaseId: string): boolean {
   if (!plan.phases.some((phase) => phase.id === phaseId)) return false;
-  return phaseTaskStatuses(plan, phaseId, index).length === 0 || intrinsicPhaseStatus(plan, phaseId, index) === "done";
+  return phaseTaskStatuses(plan, phaseId).length === 0 || intrinsicPhaseStatus(plan, phaseId) === "done";
 }
 
 /**
@@ -76,22 +69,22 @@ function countsAsDone(plan: Plan, phaseId: string, index?: PlanIndex): boolean {
  * "follows" never blocks.
  * Assumption: "blocked" only applies to phases that have not started yet.
  */
-export function phaseStatus(plan: Plan, phaseId: string, index?: PlanIndex): PhaseStatus {
-  const own = intrinsicPhaseStatus(plan, phaseId, index);
+export function phaseStatus(plan: Plan, phaseId: string): PhaseStatus {
+  const own = intrinsicPhaseStatus(plan, phaseId);
   if (own !== "not_started") return own;
   const blocked = plan.relations.some(
     (relation) =>
       relation.level === "phase" &&
       relation.type === "blocks" &&
       relation.to === phaseId &&
-      !countsAsDone(plan, relation.from, index),
+      !countsAsDone(plan, relation.from),
   );
   return blocked ? "blocked" : "not_started";
 }
 
 /** Progress by number of tasks (assumption: a task counts the same whatever its size) */
-export function phaseProgress(plan: Plan, phaseId: string, index?: PlanIndex): { total: number; done: number; percent: number } {
-  const statuses = phaseTaskStatuses(plan, phaseId, index);
+export function phaseProgress(plan: Plan, phaseId: string): { total: number; done: number; percent: number } {
+  const statuses = phaseTaskStatuses(plan, phaseId);
   const total = statuses.length;
   const done = statuses.filter((status) => status === "done").length;
   const percent = total === 0 ? 0 : Math.round((done / total) * 100);

@@ -7,7 +7,6 @@
 
 import type { Plan, Relation, Step } from "./plan-model.js";
 import { cycleIn, orderEdges, readableOutput } from "./step-rules.js";
-import { stepGraph, type StepGraph } from "./plan-index.js";
 
 type Relations = Plan["relations"];
 type StepRelation = Extract<Relation, { level: "step" }>;
@@ -37,12 +36,8 @@ export function dependentsOf(step: Step, steps: readonly Step[], relations: Rela
   return pick(steps, stepRelations(relations, "blocks").filter((r) => r.from === step.id).map((r) => r.to));
 }
 
-/**
- * Whether any step uses this one's result: its executor must then stay an AI. `feeding` is the set of ids
- * that feed another step (buildPlanIndex); without it the relations are searched.
- */
-export function feedsAnyStep(step: Step, relations: Relations, feeding?: ReadonlySet<string>): boolean {
-  if (feeding) return feeding.has(step.id);
+/** Whether any step uses this one's result: its executor must then stay an AI */
+export function feedsAnyStep(step: Step, relations: Relations): boolean {
   return stepRelations(relations, "feeds").some((r) => r.from === step.id);
 }
 
@@ -61,17 +56,16 @@ export function predecessorsOf(step: Step, steps: readonly Step[], relations: Re
  * has a confirmed current output. A source that is not in `steps` counts as not met.
  * Any other status is not_applicable: readiness is deduced, never stored.
  */
-export function readiness(step: Step, steps: readonly Step[], relations: Relations, graph?: StepGraph): Readiness {
+export function readiness(step: Step, steps: readonly Step[], relations: Relations): Readiness {
   if (step.status !== "not_started") return "not_applicable";
-  // `graph` is the stepGraph of these steps and relations (buildPlanIndex keeps one); without it, it is built here
-  const lookup = graph ?? stepGraph(steps, relations);
+  const byId = new Map(steps.map((candidate) => [candidate.id, candidate]));
   const met = (source: string, isMet: (source: Step) => boolean) => {
-    const found = lookup.byId.get(source);
+    const found = byId.get(source);
     return found !== undefined && isMet(found);
   };
   const blocked =
-    (lookup.blockers.get(step.id) ?? []).some((from) => !met(from, (s) => s.status === "done")) ||
-    (lookup.feeders.get(step.id) ?? []).some((from) => !met(from, (s) => readableOutput(s) !== undefined));
+    stepRelations(relations, "blocks").some((r) => r.to === step.id && !met(r.from, (s) => s.status === "done")) ||
+    stepRelations(relations, "feeds").some((r) => r.to === step.id && !met(r.from, (s) => readableOutput(s) !== undefined));
   return blocked ? "blocked" : "ready";
 }
 

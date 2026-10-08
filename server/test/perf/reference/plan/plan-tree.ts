@@ -5,7 +5,6 @@
  */
 
 import type { Department, Phase, Plan, Step, Task } from "./plan-model.js";
-import { buildPlanIndex, type PlanIndex } from "./plan-index.js";
 import { taskDepartments } from "./task-rules.js";
 
 export interface TaskNode {
@@ -27,33 +26,31 @@ export interface PhaseNode {
   groups: { department: Department; tasks: TaskNode[] }[];
 }
 
-/** The node of a task: its steps, from the index when there is one, else searched in the plan */
-const node = (plan: Plan, task: Task, index?: PlanIndex): TaskNode => ({
+const node = (plan: Plan, task: Task): TaskNode => ({
   task,
-  steps: index ? (index.stepsOfTask.get(task.id) ?? []) : plan.steps.filter((step) => step.taskId === task.id),
+  steps: plan.steps.filter((step) => step.taskId === task.id),
 });
 
-export function taskNode(plan: Plan, taskId: string, index?: PlanIndex): TaskNode | undefined {
+export function taskNode(plan: Plan, taskId: string): TaskNode | undefined {
   const task = plan.tasks.find((candidate) => candidate.id === taskId);
-  return task && node(plan, task, index);
+  return task && node(plan, task);
 }
 
-export function departmentNode(plan: Plan, departmentId: string, index?: PlanIndex): DepartmentNode | undefined {
+export function departmentNode(plan: Plan, departmentId: string): DepartmentNode | undefined {
   const department = plan.departments.find((candidate) => candidate.id === departmentId);
   if (!department) return undefined;
-  const lookup = index ?? buildPlanIndex(plan);
   return {
     department,
     responsible: plan.tasks
       .filter((task) => task.primaryDepartmentId === departmentId)
-      .map((task) => node(plan, task, lookup)),
+      .map((task) => node(plan, task)),
     participates: plan.tasks
-      .map((task) => node(plan, task, lookup))
+      .map((task) => node(plan, task))
       .filter(({ task, steps }) => taskDepartments(task, steps).secondary.includes(departmentId)),
   };
 }
 
-export function phaseNode(plan: Plan, phaseId: string, index?: PlanIndex): PhaseNode | undefined {
+export function phaseNode(plan: Plan, phaseId: string): PhaseNode | undefined {
   const phase = plan.phases.find((candidate) => candidate.id === phaseId);
   if (!phase) return undefined;
   const inPhase = plan.tasks.filter((task) => task.phaseId === phaseId);
@@ -62,7 +59,7 @@ export function phaseNode(plan: Plan, phaseId: string, index?: PlanIndex): Phase
       department,
       tasks: inPhase
         .filter((task) => task.primaryDepartmentId === department.id)
-        .map((task) => node(plan, task, index)),
+        .map((task) => node(plan, task)),
     }))
     .filter((group) => group.tasks.length > 0);
   return { phase, groups };

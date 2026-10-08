@@ -13,7 +13,6 @@ import type { Plan, Relation, Step } from "./plan-model.js";
 import { phaseOrderProblems, phaseRelationProblems, phaseSpanProblems } from "./phase-rules.js";
 import { growthProblems } from "./growth-rules.js";
 import { cycleIn, feedsFromNonAi, findStepCycle, stepProblems, type StepProblem } from "./step-rules.js";
-import { componentsOf } from "./graph.js";
 
 export const PLAN_LEVELS = ["department", "phase", "task", "step", "fact", "proposal"] as const;
 export type PlanLevel = (typeof PLAN_LEVELS)[number];
@@ -74,6 +73,24 @@ const taskEdges = (relations: readonly Relation[], known: ReadonlySet<string>): 
     return relation.type === "follows" ? [[relation.to, relation.from]] : [[relation.from, relation.to]];
   });
 
+/** Whether `to` can be reached from `from` following the edges */
+function reaches(edges: readonly [string, string][], from: string, to: string): boolean {
+  const next = new Map<string, string[]>();
+  for (const [before, after] of edges) next.set(before, [...(next.get(before) ?? []), after]);
+  const seen = new Set<string>([from]);
+  const queue = [from];
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    if (current === to) return true;
+    for (const target of next.get(current) ?? []) {
+      if (!seen.has(target)) {
+        seen.add(target);
+        queue.push(target);
+      }
+    }
+  }
+  return false;
+}
 
 /** The task order that steps imply: "blocks" and "feeds" between steps of different tasks, never "follows" */
 function impliedTaskOrder(plan: Plan): { before: string; after: string; index: number }[] {
@@ -100,11 +117,10 @@ function crossLevelProblems(plan: Plan): PlanProblem[] {
   const stored = taskEdges(plan.relations, known);
   const edges = [...stored, ...implied.map(({ before, after }) => [before, after] as [string, string])];
 
-  // The edge before -> after closes a loop exactly when both ends are in one strongly connected component
-  const component = componentsOf([...known], edges);
   const problems: PlanProblem[] = [];
   for (const { before, after, index } of implied) {
-    if (component.get(before) === component.get(after)) {
+    // The edge before -> after closes a loop when after already leads back to before
+    if (reaches(edges, after, before)) {
       problems.push({ code: "task_order_contradicts_steps", level: "step", index, ids: [before, after] });
     }
   }

@@ -53,19 +53,11 @@ export interface DepartmentProgress {
 }
 
 /** Tasks the department is responsible for, by status. Tasks where it only participates do not count (optional assumption). */
-/**
- * `relationsOf` gives the step relations of a task (what taskStatus reads); without it, the whole list is
- * searched for each task. Both give the same status.
- */
-export function departmentProgress(
-  node: DepartmentNode,
-  relations: Relations,
-  relationsOf?: (taskId: string) => Relations,
-): DepartmentProgress {
+export function departmentProgress(node: DepartmentNode, relations: Relations): DepartmentProgress {
   const progress: DepartmentProgress = { total: 0, notStarted: 0, inProgress: 0, blocked: 0, done: 0 };
-  for (const { task, steps } of node.responsible) {
+  for (const { steps } of node.responsible) {
     progress.total++;
-    const status = taskStatus(steps, relationsOf ? relationsOf(task.id) : relations);
+    const status = taskStatus(steps, relations);
     if (status === "not_started") progress.notStarted++;
     else if (status === "in_progress") progress.inProgress++;
     else if (status === "blocked") progress.blocked++;

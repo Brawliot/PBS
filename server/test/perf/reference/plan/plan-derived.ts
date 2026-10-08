@@ -6,7 +6,6 @@
  */
 
 import { checkPlan, type PlanProblem } from "./plan-check.js";
-import { buildPlanIndex } from "./plan-index.js";
 import { factKeyId } from "./fact-catalog.js";
 import { staleItems } from "./fact-actions.js";
 import { expandable, isObsolete } from "./proposals.js";
@@ -48,33 +47,29 @@ export interface DerivedPlan {
 }
 
 export function derivePlan(plan: Plan): DerivedPlan {
-  // Built once: each rule below reads the steps of a task or the relations of a step from here
-  const index = buildPlanIndex(plan);
-
   const steps: Record<string, StepDerived> = {};
   for (const step of plan.steps) {
-    const stepReadiness = readiness(step, plan.steps, plan.relations, index.graph);
+    const stepReadiness = readiness(step, plan.steps, plan.relations);
     steps[step.id] = {
       readiness: stepReadiness,
-      availableActions: availableActions(step, stepReadiness, feedsAnyStep(step, plan.relations, index.feeding)),
+      availableActions: availableActions(step, stepReadiness, feedsAnyStep(step, plan.relations)),
     };
   }
 
   const tasks: Record<string, TaskSummary> = {};
   for (const task of plan.tasks) {
-    tasks[task.id] = summarizeTask(task, index.stepsOfTask.get(task.id) ?? [], index.insideRelations.get(task.id) ?? []);
+    tasks[task.id] = summarizeTask(task, plan.steps.filter((step) => step.taskId === task.id), plan.relations);
   }
 
   const phases: Record<string, PhaseDerived> = {};
   for (const phase of plan.phases) {
-    phases[phase.id] = { status: phaseStatus(plan, phase.id, index), progress: phaseProgress(plan, phase.id, index) };
+    phases[phase.id] = { status: phaseStatus(plan, phase.id), progress: phaseProgress(plan, phase.id) };
   }
 
   const departments: Record<string, DepartmentProgress> = {};
-  const relationsOf = (taskId: string) => index.insideRelations.get(taskId) ?? [];
   for (const department of plan.departments) {
-    const node = departmentNode(plan, department.id, index);
-    if (node) departments[department.id] = departmentProgress(node, plan.relations, relationsOf);
+    const node = departmentNode(plan, department.id);
+    if (node) departments[department.id] = departmentProgress(node, plan.relations);
   }
 
   const placeholders: DerivedPlan["placeholders"] = {};
