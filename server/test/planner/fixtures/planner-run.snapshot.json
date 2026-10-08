@@ -1,0 +1,443 @@
+{
+  "noQuestions": {
+    "jev": {
+      "model": "test",
+      "answers": {
+        "sector": {
+          "type": "choice",
+          "choice": "Hospitality/Food service"
+        },
+        "geographic_scope": {
+          "type": "choice",
+          "choice": "Local"
+        },
+        "timeline": {
+          "type": "choice",
+          "choice": "Fast (3-6m)"
+        }
+      },
+      "usage": {
+        "input_tokens": 1,
+        "output_tokens": 1
+      }
+    },
+    "phase2": {
+      "maturity": "developing",
+      "subsector": {
+        "value": "Bakery",
+        "source": "stated",
+        "confidence": 80
+      },
+      "location": {
+        "value": "Madrid",
+        "source": "stated",
+        "confidence": 80
+      },
+      "target_customer": {
+        "value": "Households",
+        "source": "inferred",
+        "confidence": 60
+      },
+      "value_proposition": {
+        "value": "Fresh bread at home",
+        "source": "stated",
+        "confidence": 80
+      },
+      "revenue_model": {
+        "value": "Commission per order",
+        "source": "unknown",
+        "confidence": 0
+      },
+      "stage": {
+        "value": "Idea only",
+        "source": "stated",
+        "confidence": 80
+      },
+      "competition": {
+        "value": "Local bakeries with delivery apps",
+        "source": "stated",
+        "confidence": 80
+      },
+      "constraints": {
+        "budget": {
+          "min": 5000,
+          "max": null,
+          "currency": "EUR",
+          "fits": "Enough for a first version"
+        },
+        "exclusions": [],
+        "risks": [
+          "Competition"
+        ],
+        "assumptions": [
+          "Ovens are available"
+        ]
+      },
+      "questions": []
+    },
+    "profile": {
+      "values": {
+        "customer_segment": "Not specified",
+        "revenue_model": "Not specified",
+        "offering_type": "Not specified",
+        "acquisition_channel": "Not specified",
+        "competition": "Not specified",
+        "differentiator": "Not specified",
+        "validation_stage": "Not specified",
+        "founder_profile": "Not specified",
+        "deadline_rigidity": "Not specified",
+        "capital_intensity": "Not specified",
+        "team_requirement": "Not specified",
+        "time_to_revenue": "Not specified",
+        "regulatory_load": "Not specified",
+        "third_party_dependency": "Not specified",
+        "money_handling": "Not specified"
+      },
+      "unknown": [
+        "customer_segment",
+        "revenue_model",
+        "offering_type",
+        "acquisition_channel",
+        "competition",
+        "differentiator",
+        "validation_stage",
+        "founder_profile",
+        "deadline_rigidity",
+        "capital_intensity",
+        "team_requirement",
+        "time_to_revenue",
+        "regulatory_load",
+        "third_party_dependency",
+        "money_handling"
+      ],
+      "known": 0,
+      "total": 15
+    },
+    "validation": {
+      "unsupported": [],
+      "warnings": [],
+      "departments": [
+        {
+          "name": "Legal & Compliance",
+          "confidence": 40,
+          "tier": "important"
+        },
+        {
+          "name": "Finance",
+          "confidence": 40,
+          "tier": "important"
+        },
+        {
+          "name": "Marketing",
+          "confidence": 40,
+          "tier": "important"
+        },
+        {
+          "name": "HR",
+          "confidence": 0,
+          "tier": "light"
+        },
+        {
+          "name": "Sales",
+          "confidence": 0,
+          "tier": "light"
+        },
+        {
+          "name": "Product",
+          "confidence": 0,
+          "tier": "light"
+        },
+        {
+          "name": "Technology",
+          "confidence": 0,
+          "tier": "light"
+        },
+        {
+          "name": "Operations",
+          "confidence": 0,
+          "tier": "light"
+        },
+        {
+          "name": "Infrastructure",
+          "confidence": 0,
+          "tier": "light"
+        },
+        {
+          "name": "Health",
+          "confidence": 0,
+          "tier": "light"
+        }
+      ],
+      "groups": [
+        {
+          "name": "Legal & Compliance",
+          "confidence": 40,
+          "tier": "important"
+        },
+        {
+          "name": "Finance & People",
+          "confidence": 40,
+          "tier": "important"
+        },
+        {
+          "name": "Growth",
+          "confidence": 40,
+          "tier": "important"
+        },
+        {
+          "name": "Product & Tech",
+          "confidence": 0,
+          "tier": "light"
+        },
+        {
+          "name": "Operations",
+          "confidence": 0,
+          "tier": "light"
+        },
+        {
+          "name": "Health",
+          "confidence": 0,
+          "tier": "light"
+        }
+      ],
+      "level": 1
+    }
+  },
+  "withQuestions": {
+    "jev": {
+      "model": "test",
+      "answers": {
+        "sector": {
+          "type": "choice",
+          "choice": "Hospitality/Food service"
+        },
+        "geographic_scope": {
+          "type": "choice",
+          "choice": "Local"
+        },
+        "timeline": {
+          "type": "choice",
+          "choice": "Fast (3-6m)"
+        }
+      },
+      "usage": {
+        "input_tokens": 1,
+        "output_tokens": 1
+      }
+    },
+    "phase2": {
+      "maturity": "developing",
+      "subsector": {
+        "value": "Bakery",
+        "source": "stated",
+        "confidence": 80
+      },
+      "location": {
+        "value": "Madrid",
+        "source": "stated",
+        "confidence": 80
+      },
+      "target_customer": {
+        "value": "Households",
+        "source": "inferred",
+        "confidence": 60
+      },
+      "value_proposition": {
+        "value": "Fresh bread at home",
+        "source": "stated",
+        "confidence": 80
+      },
+      "revenue_model": {
+        "value": "Commission per order",
+        "source": "unknown",
+        "confidence": 0
+      },
+      "stage": {
+        "value": "Idea only",
+        "source": "stated",
+        "confidence": 80
+      },
+      "competition": {
+        "value": "Local bakeries with delivery apps",
+        "source": "stated",
+        "confidence": 80
+      },
+      "constraints": {
+        "budget": {
+          "min": 5000,
+          "max": null,
+          "currency": "EUR",
+          "fits": "Enough for a first version"
+        },
+        "exclusions": [],
+        "risks": [
+          "Competition"
+        ],
+        "assumptions": [
+          "Ovens are available"
+        ]
+      },
+      "questions": [
+        {
+          "topic": "validation",
+          "question": "Have you tested it with customers?",
+          "options": [
+            "Yes",
+            "No"
+          ]
+        }
+      ]
+    },
+    "questionTotal": 1
+  },
+  "final": {
+    "jev": {
+      "model": "test",
+      "answers": {
+        "sector": {
+          "type": "choice",
+          "choice": "Hospitality/Food service"
+        },
+        "geographic_scope": {
+          "type": "choice",
+          "choice": "Local"
+        },
+        "timeline": {
+          "type": "choice",
+          "choice": "Fast (3-6m)"
+        }
+      },
+      "usage": {
+        "input_tokens": 1,
+        "output_tokens": 1
+      }
+    },
+    "profile": {
+      "values": {
+        "customer_segment": "Not specified",
+        "revenue_model": "Not specified",
+        "offering_type": "Not specified",
+        "acquisition_channel": "Not specified",
+        "competition": "Not specified",
+        "differentiator": "Not specified",
+        "validation_stage": "Not specified",
+        "founder_profile": "Not specified",
+        "deadline_rigidity": "Not specified",
+        "capital_intensity": "Not specified",
+        "team_requirement": "Not specified",
+        "time_to_revenue": "Not specified",
+        "regulatory_load": "Not specified",
+        "third_party_dependency": "Not specified",
+        "money_handling": "Not specified"
+      },
+      "unknown": [
+        "customer_segment",
+        "revenue_model",
+        "offering_type",
+        "acquisition_channel",
+        "competition",
+        "differentiator",
+        "validation_stage",
+        "founder_profile",
+        "deadline_rigidity",
+        "capital_intensity",
+        "team_requirement",
+        "time_to_revenue",
+        "regulatory_load",
+        "third_party_dependency",
+        "money_handling"
+      ],
+      "known": 0,
+      "total": 15
+    },
+    "validation": {
+      "unsupported": [],
+      "warnings": [],
+      "departments": [
+        {
+          "name": "Legal & Compliance",
+          "confidence": 40,
+          "tier": "important"
+        },
+        {
+          "name": "Finance",
+          "confidence": 40,
+          "tier": "important"
+        },
+        {
+          "name": "Marketing",
+          "confidence": 40,
+          "tier": "important"
+        },
+        {
+          "name": "HR",
+          "confidence": 0,
+          "tier": "light"
+        },
+        {
+          "name": "Sales",
+          "confidence": 0,
+          "tier": "light"
+        },
+        {
+          "name": "Product",
+          "confidence": 0,
+          "tier": "light"
+        },
+        {
+          "name": "Technology",
+          "confidence": 0,
+          "tier": "light"
+        },
+        {
+          "name": "Operations",
+          "confidence": 0,
+          "tier": "light"
+        },
+        {
+          "name": "Infrastructure",
+          "confidence": 0,
+          "tier": "light"
+        },
+        {
+          "name": "Health",
+          "confidence": 0,
+          "tier": "light"
+        }
+      ],
+      "groups": [
+        {
+          "name": "Legal & Compliance",
+          "confidence": 40,
+          "tier": "important"
+        },
+        {
+          "name": "Finance & People",
+          "confidence": 40,
+          "tier": "important"
+        },
+        {
+          "name": "Growth",
+          "confidence": 40,
+          "tier": "important"
+        },
+        {
+          "name": "Product & Tech",
+          "confidence": 0,
+          "tier": "light"
+        },
+        {
+          "name": "Operations",
+          "confidence": 0,
+          "tier": "light"
+        },
+        {
+          "name": "Health",
+          "confidence": 0,
+          "tier": "light"
+        }
+      ],
+      "level": 1
+    }
+  }
+}

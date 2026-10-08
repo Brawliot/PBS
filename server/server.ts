@@ -136,7 +136,7 @@ async function planRoute(req: IncomingMessage, res: ServerResponse, path: string
   }
 }
 
-createServer(async (req, res) => {
+export const server = createServer(async (req, res) => {
   const path = new URL(req.url ?? "/", "http://localhost").pathname;
   if (isPlanPath(path)) return planRoute(req, res, path);
 
@@ -182,4 +182,7 @@ createServer(async (req, res) => {
   }
 
   sendJson(res, 404, { error: "Not found" });
-}).listen(PORT, () => console.log(`http://localhost:${PORT}/`));
+});
+
+// Tests import the server and listen on an ephemeral port themselves (NODE_TEST_CONTEXT is set by node --test)
+if (!process.env.NODE_TEST_CONTEXT) server.listen(PORT, () => console.log(`http://localhost:${PORT}/`));
