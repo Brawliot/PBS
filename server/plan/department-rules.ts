@@ -13,7 +13,7 @@ type DepartmentRelation = Extract<Relations[number], { level: "department" }>;
 
 export type DepartmentRelationProblem = {
   code: "unknown_aspect" | "unknown_department_from" | "unknown_department_to" | "duplicate_relation";
-  /** Position among the department-level relations, never the content */
+  /** Position of the relation in the list that was given (all levels), never its content */
   index: number;
 };
 
@@ -21,7 +21,8 @@ const aspectKey = (aspect: DepartmentRelation["aspect"]) =>
   aspect.kind === "catalog" ? `catalog:${aspect.id}` : `other:${aspect.note}`;
 
 /**
- * Problems of the department-level relations. Cycles and crossed pairs with different aspects
+ * Problems of the department-level relations, with the position each one has in `relations`
+ * (relations of other levels are skipped but still counted). Cycles and crossed pairs with different aspects
  * are valid; only an identical relation (same from, to, type and aspect) is a duplicate.
  */
 export function departmentRelationProblems(
@@ -31,16 +32,15 @@ export function departmentRelationProblems(
   const ids = new Set(departments.map((department) => department.id));
   const seen = new Set<string>();
   const problems: DepartmentRelationProblem[] = [];
-  relations
-    .filter((relation): relation is DepartmentRelation => relation.level === "department")
-    .forEach((relation, index) => {
-      if (relation.aspect.kind === "catalog" && !isCatalogAspect(relation.aspect.id)) problems.push({ code: "unknown_aspect", index });
-      if (!ids.has(relation.from)) problems.push({ code: "unknown_department_from", index });
-      if (!ids.has(relation.to)) problems.push({ code: "unknown_department_to", index });
-      const key = JSON.stringify([relation.from, relation.to, relation.type, aspectKey(relation.aspect)]);
-      if (seen.has(key)) problems.push({ code: "duplicate_relation", index });
-      seen.add(key);
-    });
+  relations.forEach((relation, index) => {
+    if (relation.level !== "department") return;
+    if (relation.aspect.kind === "catalog" && !isCatalogAspect(relation.aspect.id)) problems.push({ code: "unknown_aspect", index });
+    if (!ids.has(relation.from)) problems.push({ code: "unknown_department_from", index });
+    if (!ids.has(relation.to)) problems.push({ code: "unknown_department_to", index });
+    const key = JSON.stringify([relation.from, relation.to, relation.type, aspectKey(relation.aspect)]);
+    if (seen.has(key)) problems.push({ code: "duplicate_relation", index });
+    seen.add(key);
+  });
   return problems;
 }
 

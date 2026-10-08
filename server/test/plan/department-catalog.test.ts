@@ -1,6 +1,7 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { buildDepartments, DEPARTMENT_IDS, GROUP_IDS, DEPENDENCY_ASPECTS, isCatalogAspect } from "../../plan/department-catalog.js";
+import { PlanSchema } from "../../plan/plan-model.js";
 import { analyzeValidation, GROUPS, type Validation } from "../../planner/planner-validation-handler.js";
 import type { JevResponse, PlannerInput } from "../../planner/planner-handler.js";
 import { mockFetch, jsonResponse } from "../planner/helpers.js";
@@ -42,6 +43,29 @@ describe("department ids", () => {
   });
 });
 
+/** Valid ids as the plan schema sees them, not as a copy of its regex */
+const isValidId = (id: string) =>
+  PlanSchema.safeParse({ departments: [{ id, name: "X", tier: "core" }], phases: [], tasks: [], steps: [], relations: [] }).success;
+
+describe("ids by kind", () => {
+  test("every department, group and aspect id is a valid plan id", () => {
+    for (const id of [...Object.values(DEPARTMENT_IDS), ...Object.values(GROUP_IDS), ...Object.keys(DEPENDENCY_ASPECTS)]) {
+      assert.ok(isValidId(id), id);
+    }
+  });
+
+  test("ids are unique inside each kind", () => {
+    for (const ids of [Object.values(DEPARTMENT_IDS), Object.values(GROUP_IDS), Object.keys(DEPENDENCY_ASPECTS)]) {
+      assert.equal(new Set(ids).size, ids.length);
+    }
+  });
+
+  test("the ids a group shares with a department are exactly these: kinds have their own routes, so that is fine", () => {
+    const departments = new Set<string>(Object.values(DEPARTMENT_IDS));
+    assert.deepEqual(Object.values(GROUP_IDS).filter((id) => departments.has(id)), ["legal", "operations", "health"]);
+  });
+});
+
 describe("buildDepartments", () => {
   // Heaviest first, as the validation delivers them
   const validation = (order: readonly string[]): Pick<Validation, "departments"> => ({
@@ -54,7 +78,7 @@ describe("buildDepartments", () => {
     const input: Pick<Validation, "departments"> = {
       departments: order.map((name, index) => ({ name, confidence: 100 - index, tier: tiers[index] as "core" | "light" })),
     };
-    assert.deepEqual(buildDepartments(input), [
+    assert.deepEqual(buildDepartments(input), { ok: true, departments: [
       { id: "health", name: "Health", tier: "core" },
       { id: "legal", name: "Legal & Compliance", tier: "core" },
       { id: "finance", name: "Finance", tier: "core" },
@@ -65,15 +89,37 @@ describe("buildDepartments", () => {
       { id: "technology", name: "Technology", tier: "light" },
       { id: "operations", name: "Operations", tier: "light" },
       { id: "infrastructure", name: "Infrastructure", tier: "light" },
-    ]);
+    ] });
   });
 
   test("a validation missing a department is an error with its code, never an invented department", () => {
     const withoutHealth = TEN.slice(0, 9).map(([name]) => name);
-    assert.throws(
-      () => buildDepartments(validation(withoutHealth)),
-      (error: Error & { code?: string }) => error.code === "missing_department" && error.message.includes("health"),
-    );
+    assert.deepEqual(buildDepartments(validation(withoutHealth)), { ok: false, code: "missing_department" });
+    assert.deepEqual(buildDepartments(validation([])), { ok: false, code: "missing_department" });
+  });
+
+  test("a department the catalog does not know is an error, even when the ten are there", () => {
+    const ten = TEN.map(([name]) => name);
+    assert.deepEqual(buildDepartments(validation([...ten, "Legal"])), { ok: false, code: "unknown_department" });
+    assert.deepEqual(buildDepartments(validation(["constructor"])), { ok: false, code: "unknown_department" });
+    assert.deepEqual(buildDepartments(validation(["__proto__"])), { ok: false, code: "unknown_department" });
+  });
+
+  test("a repeated department is an error, so a list the plan would reject is never built", () => {
+    const ten = TEN.map(([name]) => name);
+    assert.deepEqual(buildDepartments(validation([...ten, "Finance"])), { ok: false, code: "duplicate_department" });
+    assert.deepEqual(buildDepartments(validation(["Finance", "Finance"])), { ok: false, code: "duplicate_department" });
+  });
+
+  test("an unknown or repeated department is reported before a missing one", () => {
+    assert.deepEqual(buildDepartments(validation(["Finance", "Nope"])), { ok: false, code: "unknown_department" });
+    assert.deepEqual(buildDepartments(validation(["Finance", "Finance"])), { ok: false, code: "duplicate_department" });
+  });
+
+  test("what it builds is a list the plan accepts", () => {
+    const result = buildDepartments(validation(TEN.map(([name]) => name)));
+    assert.ok(result.ok);
+    assert.ok(PlanSchema.safeParse({ departments: result.departments, phases: [], tasks: [], steps: [], relations: [] }).success);
   });
 
   test("the base departments (Legal & Compliance, Finance, Marketing) are at least important, from the real validation", async () => {
@@ -81,7 +127,9 @@ describe("buildDepartments", () => {
     mockFetch(() => jsonResponse(200, { model: "test", answers: {}, usage: { input_tokens: 0, output_tokens: 0 } }));
     const input: PlannerInput = { idea: "Bakery delivery", budget: 10_000, experience: 1, team: 1, hours: 1 };
     const jev: JevResponse = { model: "test", answers: {}, usage: { input_tokens: 0, output_tokens: 0 } };
-    const built = buildDepartments(await analyzeValidation(input, jev, {}, []));
+    const result = buildDepartments(await analyzeValidation(input, jev, {}, []));
+    assert.ok(result.ok);
+    const built = result.departments;
     const tierOf = (name: string) => built.find((department) => department.name === name)?.tier;
     assert.equal(tierOf("Legal & Compliance"), "important");
     assert.equal(tierOf("Finance"), "important");

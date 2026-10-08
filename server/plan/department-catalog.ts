@@ -21,6 +21,10 @@ export const DEPARTMENT_IDS = {
   Health: "health",
 } as const;
 
+/**
+ * Groups have their own kind of route (#/group/:id), apart from departments (#/dept/:id), so a
+ * group may share an id with a department. Ids must be unique inside each kind, not across them.
+ */
 export const GROUP_IDS = {
   "Legal & Compliance": "legal",
   "Finance & People": "finance-people",
@@ -47,20 +51,27 @@ export type DependencyAspectId = keyof typeof DEPENDENCY_ASPECTS;
 export const isCatalogAspect = (id: string): id is DependencyAspectId =>
   Object.hasOwn(DEPENDENCY_ASPECTS, id);
 
+export type BuildDepartmentsError = "missing_department" | "unknown_department" | "duplicate_department";
+export type BuildDepartmentsResult =
+  | { ok: true; departments: Department[] }
+  | { ok: false; code: BuildDepartmentsError };
+
 /**
- * plan.departments from the validation, in its order (heaviest first). A department the
- * validation lacks is an error with code "missing_department", never invented.
+ * plan.departments from the validation, in its order (heaviest first) and with its tiers. The
+ * validation must have exactly one entry for each department of the catalog: a missing one, one
+ * the catalog does not know, or a repeated one is an error with its code. Nothing is invented,
+ * dropped or repeated, so what comes out is always a list the plan accepts.
  */
-export function buildDepartments(validation: Pick<Validation, "departments">): Department[] {
-  const byName = new Map(validation.departments.map((item) => [item.name, item]));
-  for (const [name, id] of Object.entries(DEPARTMENT_IDS)) {
-    if (!byName.has(name)) {
-      throw Object.assign(new Error(`Validation lacks a department (missing_department): ${id}`), {
-        code: "missing_department" as const,
-      });
-    }
+export function buildDepartments(validation: Pick<Validation, "departments">): BuildDepartmentsResult {
+  const seen = new Set<string>();
+  const departments: Department[] = [];
+  for (const { name, tier } of validation.departments) {
+    if (!Object.hasOwn(DEPARTMENT_IDS, name)) return { ok: false, code: "unknown_department" };
+    const id = DEPARTMENT_IDS[name as keyof typeof DEPARTMENT_IDS];
+    if (seen.has(id)) return { ok: false, code: "duplicate_department" };
+    seen.add(id);
+    departments.push({ id, name, tier });
   }
-  return validation.departments
-    .filter((item) => Object.hasOwn(DEPARTMENT_IDS, item.name))
-    .map((item) => ({ id: DEPARTMENT_IDS[item.name as keyof typeof DEPARTMENT_IDS], name: item.name, tier: item.tier }));
+  if (seen.size !== Object.keys(DEPARTMENT_IDS).length) return { ok: false, code: "missing_department" };
+  return { ok: true, departments };
 }

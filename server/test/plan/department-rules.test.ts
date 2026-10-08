@@ -27,12 +27,17 @@ describe("departmentRelationProblems", () => {
     assert.deepEqual(departmentRelationProblems(relations, DEPARTMENTS), []);
   });
 
+  test("a crossed pair for the same aspect is valid too: the direction is part of the relation", () => {
+    const relations = [dep("legal", "finance", catalog("contracts")), dep("finance", "legal", catalog("contracts"))];
+    assert.deepEqual(departmentRelationProblems(relations, DEPARTMENTS), []);
+  });
+
   test("an aspect 'other' is accepted without being in the catalog", () => {
     const relations = [dep("legal", "finance", { kind: "other", note: "Tax residency rules" })];
     assert.deepEqual(departmentRelationProblems(relations, DEPARTMENTS), []);
   });
 
-  test("a catalog aspect that does not exist is reported with its position among department relations", () => {
+  test("a catalog aspect that does not exist is reported with its position", () => {
     const relations = [dep("legal", "finance", catalog("contracts")), dep("legal", "marketing", catalog("gossip"))];
     assert.deepEqual(departmentRelationProblems(relations, DEPARTMENTS), [{ code: "unknown_aspect", index: 1 }]);
   });
@@ -66,6 +71,24 @@ describe("departmentRelationProblems", () => {
       { level: "phase", from: "a", to: "b", type: "follows" },
     ] as Relation[];
     assert.deepEqual(departmentRelationProblems(relations, DEPARTMENTS), []);
+  });
+
+  test("positions count the whole list: relations of other levels are skipped but counted", () => {
+    const other = [
+      { level: "task", from: "a", to: "b", type: "blocks" },
+      { level: "step", from: "s1", to: "s2", type: "feeds" },
+    ] as Relation[];
+    const relations = [...other, dep("ghost", "finance", catalog("contracts")), other[0], dep("legal", "finance", catalog("gossip"))];
+    assert.deepEqual(departmentRelationProblems(relations, DEPARTMENTS), [
+      { code: "unknown_department_from", index: 2 },
+      { code: "unknown_aspect", index: 4 },
+    ]);
+  });
+
+  test("a duplicate is reported at its position in the whole list", () => {
+    const task = { level: "task", from: "a", to: "b", type: "blocks" } as Relation;
+    const relations = [dep("legal", "finance", catalog("contracts")), task, task, dep("legal", "finance", catalog("contracts"))];
+    assert.deepEqual(departmentRelationProblems(relations, DEPARTMENTS), [{ code: "duplicate_relation", index: 3 }]);
   });
 
   test("a problem never carries the content of the relation, only its code and position", () => {
