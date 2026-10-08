@@ -9,6 +9,7 @@
 import { z } from "zod";
 import {
   EVENT_ACTIONS,
+  MAX_EVENTS,
   MAX_OUTPUT_QUESTIONS,
   OutputSchema,
   ProofSchema,
@@ -34,6 +35,7 @@ export const STEP_ACTION_ERRORS = [
   "invalid_result",
   "executor_in_use",
   "invalid_executor_change",
+  "events_full",
 ] as const;
 
 export type StepActionError = (typeof STEP_ACTION_ERRORS)[number];
@@ -131,6 +133,8 @@ const withLatest = (outputs: StepOutput[], change: Partial<StepOutput>): StepOut
   outputs.map((output, index) => (index === outputs.length - 1 ? { ...output, ...change } : output));
 
 export function applyStepAction(step: Step, action: StepAction, context: ActionContext): ActionResult {
+  // The history has no room left: no action can add an event, so none is applied (see availableActions)
+  if (step.events.length >= MAX_EVENTS) return fail("events_full");
   if (context.actor !== "user" && (!AUTOMATIC.includes(action) || step.executor !== "ai")) return fail("wrong_actor");
   if (action === "launch" && context.readiness !== "ready") return fail("not_ready");
 
@@ -241,6 +245,7 @@ const PROBE_TIME = "1970-01-01T00:00:00Z";
  * its state, and an action not listed is.
  */
 export function availableActions(step: Step, readiness: Readiness, feedsOthers: boolean): StepAction[] {
+  if (step.events.length >= MAX_EVENTS) return [];
   return EVENT_ACTIONS.filter((action) => isAvailable(step, action, readiness, feedsOthers));
 }
 

@@ -6,7 +6,7 @@
 
 import { randomUUID } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
-import { parsePlan, type Plan } from "../plan/plan-model.js";
+import { MAX_DOCUMENT_BYTES, parsePlan, type Plan } from "../plan/plan-model.js";
 import {
   PLAN_SCHEMA_VERSION,
   preparePlan,
@@ -61,6 +61,8 @@ export class PgPlanRepository implements PlanRepository {
 
   async update(id: string, userId: string, expectedVersion: number, plan: Plan, events: PlanEventRecord[], logs: PlanLogRecord[] = []): Promise<UpdateResult> {
     const document = JSON.stringify(parsePlan(plan));
+    // Refused before the transaction starts: a plan that is too large changes nothing
+    if (Buffer.byteLength(document) > MAX_DOCUMENT_BYTES) return { ok: false, code: "plan_too_large" };
     const client = await this.pool.connect();
     try {
       await client.query("BEGIN");

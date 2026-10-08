@@ -6,7 +6,18 @@
  */
 
 import { checkPlan } from "./plan-check.js";
-import { MAX_TITLE, parsePlan, type Plan, type StepEvent } from "./plan-model.js";
+import { EVENT_ACTORS, MAX_DOCUMENT_BYTES, MAX_TITLE, parsePlan, type Plan, type StepEvent } from "./plan-model.js";
+
+/** The kinds of the decision log (plan_log.kind in the migrations) */
+export const PLAN_LOG_KINDS = ["fact_proposed", "fact_confirmed", "fact_rejected", "proposal_created", "proposal_accepted", "proposal_rejected"] as const;
+
+/** A plan whose document would be over MAX_DOCUMENT_BYTES. Only the code reaches a response. */
+export class PlanTooLargeError extends Error {
+  readonly code = "plan_too_large";
+  constructor() {
+    super("Plan is too large to store");
+  }
+}
 
 /** The version of the stored document. A row with another one is not read: a migration has to decide what it means. */
 export const PLAN_SCHEMA_VERSION = 1;
@@ -26,13 +37,13 @@ export interface PlanEventRecord {
 
 /** One decision on a fact or a proposal. The actor is set by the server, never by the request. */
 export interface PlanLogRecord {
-  kind: "fact_proposed" | "fact_confirmed" | "fact_rejected" | "proposal_created" | "proposal_accepted" | "proposal_rejected";
-  actor: "user" | "ai" | "system";
+  kind: (typeof PLAN_LOG_KINDS)[number];
+  actor: (typeof EVENT_ACTORS)[number];
   refId: string;
   at: string;
 }
 
-export type UpdateResult = { ok: true; stored: StoredPlan } | { ok: false; code: "not_found" | "version_conflict" };
+export type UpdateResult = { ok: true; stored: StoredPlan } | { ok: false; code: "not_found" | "version_conflict" | "plan_too_large" };
 
 export interface PlanRepository {
   create(userId: string, title: string, plan: Plan): Promise<StoredPlan>;
@@ -65,6 +76,7 @@ export function preparePlan(title: string, plan: Plan): { title: string; plan: P
   const clean = title.trim();
   if (clean.length === 0 || clean.length > MAX_TITLE) throw new Error("Invalid plan title");
   const valid = parsePlan(plan);
+  if (Buffer.byteLength(JSON.stringify(valid)) > MAX_DOCUMENT_BYTES) throw new PlanTooLargeError();
   if (checkPlan(valid).length > 0) throw new Error("A new plan must have no problems");
   return { title: clean, plan: valid };
 }

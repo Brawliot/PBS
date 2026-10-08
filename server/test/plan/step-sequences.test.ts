@@ -167,8 +167,10 @@ describe("random sequences of actions", () => {
     // error code was seen, and every executor got to every status it can reach
     for (const action of ACTIONS) assert.ok((accepted.get(action) ?? 0) > 0, `${action} was never accepted`);
     // output_not_confirmed needs an AI step waiting for the person with no draft, which no valid
-    // sequence produces: the unit tests of the actions cover it with a step built by hand
-    for (const code of STEP_ACTION_ERRORS.filter((c) => c !== "output_not_confirmed")) assert.ok((refused.get(code) ?? 0) > 0, `${code} was never seen`);
+    // sequence produces: the unit tests of the actions cover it with a step built by hand. events_full needs
+    // MAX_EVENTS events in one step, which these short sequences never reach (step-events-cap.test.ts covers it)
+    const notReachable = ["output_not_confirmed", "events_full"];
+    for (const code of STEP_ACTION_ERRORS.filter((c) => !notReachable.includes(c))) assert.ok((refused.get(code) ?? 0) > 0, `${code} was never seen`);
     const expectedReached = [
       "ai running", "ai waiting_user", "ai done", "ai rejected", "ai not_started",
       "user running", "user waiting_third_party", "user done", "user rejected", "user not_started",

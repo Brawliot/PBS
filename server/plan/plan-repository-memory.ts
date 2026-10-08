@@ -4,7 +4,7 @@
  */
 
 import { randomUUID } from "node:crypto";
-import { parsePlan, type Plan } from "./plan-model.js";
+import { MAX_DOCUMENT_BYTES, parsePlan, type Plan } from "./plan-model.js";
 import {
   PLAN_SCHEMA_VERSION,
   preparePlan,
@@ -57,7 +57,9 @@ export class InMemoryPlanRepository implements PlanRepository {
     const row = this.rows.get(id);
     if (!row || row.userId !== userId) return { ok: false, code: "not_found" };
     if (row.version !== expectedVersion) return { ok: false, code: "version_conflict" };
-    row.document = JSON.stringify(parsePlan(plan));
+    const document = JSON.stringify(parsePlan(plan));
+    if (Buffer.byteLength(document) > MAX_DOCUMENT_BYTES) return { ok: false, code: "plan_too_large" };
+    row.document = document;
     row.version += 1;
     row.events.push(...events);
     row.log.push(...logs);

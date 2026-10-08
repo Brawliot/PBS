@@ -16,11 +16,11 @@ import { FACT_KEYS, PRODUCT_TYPES } from "./plan/fact-catalog.js";
 import { devRoutesAllowed } from "./security.js";
 import { UUID } from "./ids.js";
 import type { PlanLogRecord, PlanRepository, StoredPlan } from "./plan/plan-repository.js";
-import { StoredPlanError } from "./plan/plan-repository.js";
-import type { ReportRepository } from "./plan/report-repository.js";
+import { PlanTooLargeError, StoredPlanError } from "./plan/plan-repository.js";
+import type { AttachResult, ReportRepository } from "./plan/report-repository.js";
 import type { StepAction, StepActor } from "./plan/step-actions.js";
 
-/** The one user until authentication exists. Every repository call is scoped to it, and only this file names it. */
+/** The one user until authentication exists. Every repository call is scoped to it; server.ts and this file are the only places that name it. */
 export const LOCAL_USER = "local";
 
 
@@ -44,7 +44,7 @@ export interface PlanResponse {
 }
 
 /** Every failure a route can answer with: the storage codes of the plan, plus the ones of the request itself */
-type ErrorCode =
+export type ErrorCode =
   | PlanActionError
   | FactActionError
   | ProposalError
@@ -54,16 +54,18 @@ type ErrorCode =
   | "not_found"
   | "report_not_found"
   | "skeleton_failed"
+  | "plan_too_large"
   | "storage_unavailable"
   | "internal_error";
 
 // One fixed text per code. The status of each step action is listed here, so none is left without one.
-const FAILURE: Record<ErrorCode, { status: number; error: string }> = {
+export const FAILURE: Record<ErrorCode, { status: number; error: string }> = {
   invalid_body: { status: 400, error: "Invalid request body" },
   not_found: { status: 404, error: "Plan not found" },
   unknown_step: { status: 404, error: "Step not found" },
   invalid_payload: { status: 400, error: "The payload does not fit this action" },
   invalid_executor_change: { status: 400, error: "The executor change is not valid" },
+  events_full: { status: 409, error: "This step has reached the limit of its history and cannot change" },
   wrong_actor: { status: 403, error: "This actor cannot do this action" },
   version_conflict: { status: 409, error: "The plan changed since it was loaded" },
   not_allowed: { status: 409, error: "This action is not allowed in the current state of the step" },
@@ -93,6 +95,7 @@ const FAILURE: Record<ErrorCode, { status: number; error: string }> = {
   already_decided: { status: 409, error: "This proposal was already decided" },
   needs_ai: { status: 409, error: "There is no ready-made suggestion for this decision yet." },
   not_available: { status: 409, error: "This is not available in the current state of the plan" },
+  plan_too_large: { status: 409, error: "This change would make the plan too large to store" },
 };
 
 const fail = (code: ErrorCode): PlanResponse => ({
@@ -201,7 +204,7 @@ async function changeDecisions(
   if (expectedVersion !== null && expectedVersion !== stored.version) return fail("version_conflict");
 
   const result = decide(stored.plan, request.now());
-  if (!result.ok) return fail(result.code as never);
+  if (!result.ok) return fail(result.code);
   const saved = await request.repo.update(id, LOCAL_USER, stored.version, result.plan, [], result.logs);
   if (!saved.ok) return fail(saved.code);
   return {
@@ -362,12 +365,25 @@ async function createPlan(request: PlanRequest): Promise<PlanResponse> {
   if (!skeleton.ok) return fail("skeleton_failed");
 
   const title = [...stored.report.input.idea].slice(0, TITLE_CHARS).join("");
-  const plan = await request.repo.create(LOCAL_USER, title, skeleton.plan);
-  const linked = await request.reports.attachPlan(reportId, LOCAL_USER, plan.id);
-  if (!linked.ok) return fail("report_not_found");
-  if (linked.attached) return { status: 201, body: { id: plan.id } };
+  let plan: StoredPlan;
+  try {
+    plan = await request.repo.create(LOCAL_USER, title, skeleton.plan);
+  } catch (error) {
+    if (error instanceof PlanTooLargeError) return fail("plan_too_large");
+    throw error;
+  }
+  // A plan that is not linked to its report is never handed out: it is removed on every path that does not keep it
+  let linked: AttachResult;
+  try {
+    linked = await request.reports.attachPlan(reportId, LOCAL_USER, plan.id);
+  } catch (error) {
+    await request.repo.remove(plan.id, LOCAL_USER);
+    throw error;
+  }
+  if (linked.ok && linked.attached) return { status: 201, body: { id: plan.id } };
 
   await request.repo.remove(plan.id, LOCAL_USER);
+  if (!linked.ok) return fail("report_not_found");
   return { status: 200, body: { id: linked.planId } };
 }
 

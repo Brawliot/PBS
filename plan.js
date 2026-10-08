@@ -26,6 +26,8 @@
     executor_in_use: "Another step uses this step's result, so its executor cannot change.",
     invalid_payload: 'The information does not fit this action. Check the fields and try again.',
     invalid_executor_change: 'That executor change is not valid.',
+    events_full: 'This step has reached the limit of its history and cannot change.',
+    plan_too_large: 'This change would make the plan too large to store.',
     wrong_actor: 'You cannot do this action.',
     unknown_step: 'This step no longer exists. Reload the page.',
     not_found: 'This plan could not be found.',

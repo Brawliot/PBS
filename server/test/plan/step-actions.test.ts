@@ -254,7 +254,7 @@ describe("error codes", () => {
       [...STEP_ACTION_ERRORS],
       [
         "not_allowed", "not_ready", "wrong_actor", "rounds_exceeded", "missing_proof", "output_not_confirmed",
-        "invalid_payload", "invalid_result", "executor_in_use", "invalid_executor_change",
+        "invalid_payload", "invalid_result", "executor_in_use", "invalid_executor_change", "events_full",
       ],
     );
   });
