@@ -30,6 +30,20 @@ describe("the pool's limits", () => {
     assert.throws(() => poolLimits({ DB_STATEMENT_TIMEOUT_MS: "soon" }), { message: "DB_STATEMENT_TIMEOUT_MS must be a positive whole number" });
   });
 
+  test("every limit reaches the pool: each variable changes its own setting", () => {
+    const seen: Record<string, unknown>[] = [];
+    class FakePool {
+      constructor(config: Record<string, unknown>) {
+        seen.push(config);
+      }
+      on() {
+        return this;
+      }
+    }
+    createPool("postgres://x", { DB_POOL_MAX: "7", DB_CONNECT_TIMEOUT_MS: "1100", DB_IDLE_TIMEOUT_MS: "2200", DB_STATEMENT_TIMEOUT_MS: "3300" }, FakePool as unknown as typeof Pool);
+    assert.deepEqual(seen[0], { connectionString: "postgres://x", max: 7, connectionTimeoutMillis: 1100, idleTimeoutMillis: 2200, statement_timeout: 3300 });
+  });
+
   test("the pool is built with these limits: the injected constructor sees them", () => {
     const seen: Record<string, unknown>[] = [];
     class FakePool {

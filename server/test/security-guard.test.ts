@@ -49,7 +49,10 @@ describe("the development routes never run in production", () => {
     let stdout = "";
     child.stderr.on("data", (chunk) => (stderr += chunk));
     child.stdout.on("data", (chunk) => (stdout += chunk));
+    // A server that wrongly starts would keep running: it is stopped after a while so the test fails instead of hanging
+    const stop = setTimeout(() => child.kill("SIGKILL"), 20_000);
     const code = await new Promise<number | null>((resolve) => child.on("exit", (exit) => resolve(exit)));
+    clearTimeout(stop);
     assert.equal(code, 1);
     assert.ok(stderr.includes("ENABLE_DEV_ROUTES=1 is not allowed when NODE_ENV=production."), stderr);
     assert.equal(stdout.includes("http://localhost"), false, "it did not start listening");
