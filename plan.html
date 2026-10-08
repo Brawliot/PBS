@@ -36,14 +36,6 @@
   <script src="loader.js" defer></script>
   <script src="plan.js" defer></script>
   <script>
-    // The report from the home page (key set in script.js); null when the page is opened directly
-    window.mandoReport = null;
-    try {
-      window.mandoReport = JSON.parse(sessionStorage.getItem('mando.report'));
-    } catch {
-      // No storage or invalid data: the page opens without a report
-    }
-
     // Giant wordmark: duplicate the group so the loop is seamless
     const track = document.querySelector('.giant__track');
     const copy = track.firstElementChild.cloneNode(true);

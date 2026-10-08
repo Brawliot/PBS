@@ -323,9 +323,7 @@
   let current = null; // question on screen
   let total = 0;      // number of questions in this session
   let analysis = null; // phase 2 analysis from the first response
-  let jevResult = null; // Jev analysis from the latest response
-  let report = null;   // everything the plan page receives (see REPORT_KEY)
-  const REPORT_KEY = 'mando.report'; // sessionStorage key read by plan.html
+  let reportId = null; // id of the report the server kept for this analysis (see POST /api/plan)
   const CLAIM_KEYS = ['subsector', 'location', 'target_customer', 'value_proposition', 'revenue_model', 'stage', 'competition'];
 
   const resetFlow = () => {
@@ -333,6 +331,7 @@
     queue = [];
     current = null;
     analysis = null;
+    reportId = null;
   };
 
   const nextQuestion = () => {
@@ -370,10 +369,9 @@
         answers.length === 0 ? wait(EXIT_MS + MIN_LOADER_MS) : null,
       ]);
       analysis = result.phase2 ?? analysis;
-      jevResult = result.jev ?? jevResult;
       profile = result.profile ?? null;
       validation = result.validation ?? null;
-      if (profile) report = { input, answers, jev: jevResult, phase2: analysis, profile, validation };
+      if (profile) reportId = result.reportId ?? null;
       if (!profile) {
         queue = result.phase2?.questions ?? [];
         total = result.questionTotal ?? queue.length;
@@ -531,30 +529,48 @@
     detailDialog.showModal();
     syncModalState();
   });
-  // Build my plan: the loader appears where it always does, the result leaves and the plan page opens
+  // Build my plan: the loader appears where it always does, the result leaves and the plan page opens.
+  // The plan is made by the server from the report it kept; the page only sends the report's id.
   const PLAN_LOADER_MS = 150; // head start of the loader (it fades in behind the result)
   const RESULT_OUT_MS = 400;  // result leaves (keep in sync with CSS)
+  const PLAN_ERROR = 'Could not open the plan. Please try again.';
   let planning = false;
+
+  const requestPlan = async (id) => {
+    const { res, data } = await requestJson('/api/plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reportId: id }),
+    }, START_TIMEOUT_MS);
+    if (!res.ok || typeof data.id !== 'string') throw userError(PLAN_ERROR, false);
+    return data.id;
+  };
 
   document.getElementById('result-plan').addEventListener('click', async () => {
     if (planning) return;
-    planning = true;
-    resultSection.inert = true;
-    try {
-      sessionStorage.setItem(REPORT_KEY, JSON.stringify(report));
-    } catch {
-      planning = false;
-      resultSection.inert = false;
-      showToast('Could not open the plan. Please try again.');
+    if (!reportId) {
+      showToast('Plans are not available right now.');
       return;
     }
+    planning = true;
+    resultSection.inert = true;
     status.textContent = 'Building your plan…';
-
-    Loader.show();
-    await wait(PLAN_LOADER_MS);
-    resultSection.classList.add('is-leaving');
-    await wait(RESULT_OUT_MS);
-    location.assign('/plan');
+    try {
+      const planRequest = requestPlan(reportId);
+      planRequest.catch(() => {}); // handled below; this only stops the rejection from being reported early
+      Loader.show();
+      await wait(PLAN_LOADER_MS);
+      resultSection.classList.add('is-leaving');
+      const [planId] = await Promise.all([planRequest, wait(RESULT_OUT_MS)]);
+      location.assign(`/plan?id=${encodeURIComponent(planId)}`);
+    } catch {
+      // Back to the result: the loader goes, the result comes back, and the user can try again
+      await Loader.hide();
+      resultSection.classList.remove('is-leaving');
+      resultSection.inert = false;
+      planning = false;
+      showToast(PLAN_ERROR);
+    }
   });
 
   // Coming back with the browser's back button must not show a stale loader
