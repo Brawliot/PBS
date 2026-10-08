@@ -2,16 +2,10 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { readFile } from "node:fs/promises";
 import { extname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { analyzeWithJev, type JevResponse, type PlannerInput } from "./planner/planner-handler.js";
-import { analyzePhase2, type Phase2Response, type PlannerAnswer } from "./planner/planner-phase2-handler.js";
-import { analyzeProfile } from "./planner/planner-profile-handler.js";
-import { questionLimit, selectQuestions } from "./planner/question-policy.js";
-import {
-  analyzeValidation,
-  claimsFromPhase2,
-  departmentLevel,
-  type Claims,
-} from "./planner/planner-validation-handler.js";
+import type { PlannerInput } from "./planner/planner-handler.js";
+import type { PlannerAnswer } from "./planner/planner-phase2-handler.js";
+import type { Claims } from "./planner/planner-validation-handler.js";
+import { runPlanner } from "./planner/planner-run.js";
 import { JobStore } from "./jobs.js";
 import { HttpError, parsePlannerRequest, readBody } from "./request.js";
 import { createPool, PgPlanRepository } from "./db/pg-plan-repository.js";
@@ -65,52 +59,6 @@ async function sendFile(res: ServerResponse, file: string) {
   } catch {
     sendJson(res, 404, { error: "Not found" });
   }
-}
-
-/** Last step: classify the profile and validate the analysis, both at once */
-async function buildReport(
-  input: PlannerInput,
-  jev: JevResponse,
-  answers: PlannerAnswer[],
-  claims: Claims,
-  phase2?: Phase2Response,
-) {
-  const [profile, validation] = await Promise.all([
-    analyzeProfile(input, jev, phase2, answers),
-    analyzeValidation(input, jev, claims, answers),
-  ]);
-  return { profile, validation: { ...validation, level: departmentLevel(profile, input) } };
-}
-
-/** One planner run: Jev, then phase 2 or the final report. Returns the response body. */
-async function runPlanner(
-  input: PlannerInput,
-  answers: PlannerAnswer[],
-  final: boolean,
-  claims: Claims,
-) {
-  const jev = await analyzeWithJev(input);
-
-  // Final request: the questions are answered, so only the profile is left
-  if (final) {
-    return { jev, ...(await buildReport(input, jev, answers, claims)) };
-  }
-
-  const phase2 = await analyzePhase2(input, jev, answers);
-  const questions = selectQuestions(
-    phase2.questions,
-    answers,
-    questionLimit(phase2.maturity, input),
-  );
-  if (questions.length === 0) {
-    const report = await buildReport(input, jev, answers, claimsFromPhase2(phase2), phase2);
-    return { jev, phase2: { ...phase2, questions }, ...report };
-  }
-  return {
-    jev,
-    phase2: { ...phase2, questions },
-    questionTotal: answers.length + questions.length,
-  };
 }
 
 /** The plan API: the body is read here (same limit as the planner), the rest is plan-routes.ts */

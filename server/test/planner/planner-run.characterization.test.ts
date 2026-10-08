@@ -1,6 +1,7 @@
 import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { request, type AddressInfo } from "node:http";
+import { request } from "node:http";
+import type { AddressInfo } from "node:net";
 import { readFileSync } from "node:fs";
 import { server } from "../../server.js";
 import { mockFetch, jsonResponse, type CapturedRequest } from "./helpers.js";
