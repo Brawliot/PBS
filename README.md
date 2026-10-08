@@ -44,7 +44,8 @@ Read from the environment in `server/.env` (loaded by `--env-file=.env`).
 | `OPENAI_API_KEY` | Yes | `server/planner/planner-phase2-handler.ts` | Bearer key for the OpenAI Chat Completions API. |
 | `OPENAI_MODEL` | Yes | `server/planner/planner-phase2-handler.ts` | OpenAI model name. The example uses `gpt-4o`. |
 | `PORT` | No | `server/server.ts` | HTTP port. Defaults to `3000` when unset or not a number. |
-| `DATABASE_URL` | No | `server/server.ts`, `server/db/migrate-cli.ts` | PostgreSQL connection string (`postgres://user:password@host:port/database`) where the plans are stored. Without it the planner works, and the plan routes answer `503`. |
+| `DATABASE_URL` | No | `server/server.ts`, `server/db/migrate-cli.ts` | PostgreSQL connection string (`postgres://user:password@host:port/database`) where the reports and the plans are stored. Without it the planner works, but no report is kept (the result has no `reportId`), and the plan routes answer `503`. |
+| `TEST_DATABASE_URL` | No | `server/test/db/` | A PostgreSQL database for the integration tests. Each run uses its own schema, dropped at the end. Without it those tests are skipped. |
 
 If a required variable is missing, the server starts, but the planner request fails with `500`.
 
@@ -59,6 +60,7 @@ Run from `server/`:
 | `npm run typecheck` | `tsc` | Type-checks the TypeScript sources. |
 | `npm run migrate` | `tsx --env-file=.env db/migrate-cli.ts` | Applies the pending migrations in `server/db/migrations` to `DATABASE_URL`. Safe to run again: applied migrations are skipped. |
 | `npm test` | `tsx --test "test/**/*.test.ts"` | Runs all the tests. The PostgreSQL tests run only when `TEST_DATABASE_URL` is set, in their own temporary schema. |
+| `npm run test:e2e` | `node test/e2e/build-my-plan.mjs` | Runs the browser checks of "Build my plan" in Chromium, with the planner and plan API answered by `page.route`. Needs Playwright: set `PLAYWRIGHT_MODULE` to its path if it is not installed here, and `CHROMIUM_PATH` to a Chromium binary if the default one is missing. |
 
 ## How it works
 
@@ -67,7 +69,13 @@ Run from `server/`:
 3. **Question policy** (`server/planner/question-policy.ts`): the model proposes, the server decides. It sets the question limit from maturity (vague 2, developing 3, advanced 4, adjusted by commitment signals and clamped to 1-5), removes topics already answered, and keeps the most valuable questions first.
 4. **Final request** (`server/planner/planner-profile-handler.ts`, `server/planner/planner-validation-handler.ts`): once all questions are answered, the server asks Jev for a 15-dimension business profile and validates the analysis. Claims are checked against the description, seven coherence checks are run, and 10 departments are scored. Departments are shown as groups or as individual departments depending on team size and the profile's team requirement (`departmentLevel`).
 
-Each request runs as a background job, kept in memory by `server/jobs.ts`: `POST /api/planner` returns a job id at once and the front end polls `GET /api/planner/:id` until the result is ready. The planner stores nothing between requests. Plans are the only data the server keeps, in PostgreSQL. The front end (`script.js`) sends the phase 2 claims back in the final request (`analysis`), so the validation can check them without the server storing anything.
+Each request runs as a background job, kept in memory by `server/jobs.ts`: `POST /api/planner` returns a job id at once and the front end polls `GET /api/planner/:id` until the result is ready. The front end (`script.js`) sends the phase 2 claims back in the final request (`analysis`), so the validation can check them.
+
+### From the report to a plan
+
+When a run ends with a report (the final request, or the first round with no questions left), the server builds the report from its own values (`server/planner/planner-run.ts`: the input and answers it received, the Jev result, the phase 2 analysis when there is one, the profile and the validation) and keeps it in the `reports` table. The job result then carries a `reportId`. The browser never sends the report back: it keeps only that id.
+
+"Build my plan" sends the id to `POST /api/plan`, and the server builds the plan from the stored report with the fixed rules (`server/plan/plan-skeleton.ts`). A report has at most one plan: a second request returns the same plan, and two requests at the same time leave one plan in the database. When the report cannot be kept (no database, or a report that does not pass `parseReport`), the planner still answers, the result has no `reportId`, and "Build my plan" shows a notice instead.
 
 ## API
 
@@ -142,6 +150,30 @@ Errors return JSON `{ "error": "..." }`:
 | `503` | The job store is full. Try again shortly. No job is started. |
 | `404` | Any other path or method, or a job that does not exist (see `GET` above). |
 
+### `POST /api/plan`
+
+Creates the plan of a stored report. It needs a database; without one it answers `503`.
+
+Request body (JSON), with no other keys:
+
+```json
+{ "reportId": "7b1e0c4a-2f3d-4e5a-8b6c-9d0e1f2a3b4c" }
+```
+
+| Status | Body | When |
+| --- | --- | --- |
+| `201` | `{ "id": "<plan id>" }` | The plan was made now and linked to the report. |
+| `200` | `{ "id": "<plan id>" }` | The report already had its plan. |
+| `400` | `{ "error": "Invalid request body", "code": "invalid_body" }` | Not JSON, a `reportId` that is not a UUID, or any other key. |
+| `404` | `{ "error": "Report not found", "code": "report_not_found" }` | The report does not exist, or it belongs to another user (the same answer for both). |
+| `500` | `{ "error": "Could not build the plan", "code": "skeleton_failed" }` | The rules could not build a valid plan from this report. |
+| `500` | `{ "error": "Internal server error", "code": "internal_error" }` | Any other failure. The details go to the server log, as a code only. |
+| `503` | `{ "error": "Plan storage is not configured", "code": "storage_unavailable" }` | No `DATABASE_URL`. |
+
+The plan's title is the idea, cut to 80 characters.
+
+The `GET /api/planner/:id` result of a finished job has a `reportId` field when its report was kept.
+
 ## Project layout
 
 ```
@@ -155,17 +187,19 @@ server/
   jobs.ts               In-memory job store: runs the planner in the background
   request.ts            Body reading, validation and limits for the planner request
   plan-routes.ts        Plan API as a pure function: routes, status codes, development routes
-  plan/                 Plan model, rules, checks, derived values and the plan repositories
-  db/                   PostgreSQL: migrations (SQL files and their runner) and the plan repository
+  plan/                 Plan model, rules, checks, derived values, and the plan and report repositories
+  db/                   PostgreSQL: migrations (SQL files and their runner), plan and report repositories
   planner/
     planner-handler.ts          Jev phase 1 (sector, scope, timeline) and the shared Jev call
     planner-phase2-handler.ts   OpenAI analysis: maturity, sections, questions
     question-policy.ts          How many questions to ask and which ones
     planner-profile-handler.ts  15-dimension business profile (Jev)
     planner-validation-handler.ts  Claim checks, coherence checks and department scores (Jev)
-  test/planner/         Tests for the handlers, policy and request parsing
-  test/plan/            Tests for the plan rules, repositories and routes
-  test/db/              Tests for the migrations and the PostgreSQL repository
+    planner-run.ts              One planner run (Jev, phase 2 or the report), and keeping its report
+  test/planner/         Tests for the handlers, policy, request parsing and the planner runs
+  test/plan/            Tests for the plan rules, repositories, reports and routes
+  test/db/              Tests for the migrations and the PostgreSQL repositories
+  test/e2e/             Browser checks of "Build my plan" (npm run test:e2e)
   test/jobs.test.ts     Tests for the job store (expiry, limits, errors)
   package.json          Scripts and dev dependencies
   tsconfig.json         TypeScript settings (type-check only)
@@ -176,6 +210,8 @@ server/
 
 - **No authentication.** The login and register dialogs do not send anything (`// TODO: send data` in `script.js`). The login gate is off (`REQUIRE_LOGIN = false` in `script.js`) for testing.
 - **No rate limiting and no cost protection.** Every planner request calls paid APIs: a request that asks for questions makes one Jev and one OpenAI call; a final request (or one with no questions left) makes three Jev calls. Add rate limits and spending controls before deploying.
-- **Placeholders in the UI.** "View my projects" only shows a notice. "Build my plan" waits three seconds and then returns to the result; it does not call the server.
+- **Placeholders in the UI.** "View my projects" only shows a notice.
 - **Uncalibrated thresholds.** The question-policy numbers (`POLICY` in `question-policy.ts`) and the validation thresholds (`SUPPORT_MIN`, `CHECK_MIN`, `CORE_MIN`, `IMPORTANT_MIN` in `planner-validation-handler.ts`) are estimates and have not been tuned on real data.
-- **No stored state.** Nothing is saved between requests, and jobs are kept only in memory: a server restart interrupts the analyses in progress, and the front end shows an interrupted message with Retry. The front end must send back the answers and the analysis claims for the final request.
+- **Little stored state.** Reports and plans are saved only when `DATABASE_URL` is set. Jobs are kept only in memory: a server restart interrupts the analyses in progress, and the front end shows an interrupted message with Retry. The front end must send back the answers and the analysis claims for the final request.
+- **Reports are not tied to users yet.** Every report and plan belongs to the one local user (`LOCAL_USER` in `server/plan-routes.ts`). See `PRODUCTION.md`.
+- **A final request keeps a report without `phase2`.** The final request does not run phase 2 again, so its stored report has no `phase2` field; the report from the first round without questions has it.

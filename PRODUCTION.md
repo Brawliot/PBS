@@ -80,6 +80,18 @@ Hoy el proyecto funciona en local, sin usuarios y sin estado en el servidor. Cas
 **Hecho cuando.** Un análisis sobrevive a un reinicio del servidor y se puede consultar desde cualquier instancia, y un usuario recibe 404 al pedir el trabajo de otro usuario.
 **Categoría.** Crítico en producción, seguridad. Depende de la autenticación (para asociar cada trabajo a su usuario).
 
+### Ligar informes y planes a usuarios
+**Qué es.** Hoy todos los informes y los planes pertenecen a un único usuario local (`LOCAL_USER` en `server/plan-routes.ts`), y cada consulta lo usa. Cuando haya autenticación, el informe y el plan deben guardar el usuario real, y cada ruta debe comprobar que el usuario que pregunta es el dueño: `POST /api/plan`, `GET /api/plan/:id` y las acciones de los pasos.
+**Por qué.** Si dos personas usan la aplicación, hoy compartirían todo, y el `reportId` que el navegador recibe serviría para leer el informe de cualquiera que lo conozca.
+**Hecho cuando.** Un usuario recibe 404 al pedir un informe o un plan que no es suyo, y no hay ninguna consulta a la base de datos sin el usuario.
+**Categoría.** Crítico, seguridad. Depende de la autenticación.
+
+### Retención de los informes
+**Qué es.** La tabla `reports` (migración `002_reports.sql`) guarda el informe completo de cada análisis que termina con uno, y no se borra nunca. Hace falta una política: cuánto tiempo se guardan, cómo se borran los informes que no tienen plan, y cómo se borra todo lo de un usuario cuando lo pida.
+**Por qué.** Cada análisis crece la tabla, y el informe contiene la idea del usuario y sus respuestas: datos personales que no deberían quedarse para siempre.
+**Hecho cuando.** Hay un trabajo periódico que borra los informes sin plan con más de N días (N decidido con el equipo), el borrado de un usuario elimina también sus informes y planes, y la política está escrita en la política de privacidad.
+**Categoría.** Crítico, datos de los usuarios. Depende de la autenticación (para saber de quién es cada informe).
+
 ---
 
 ## Nice to have
