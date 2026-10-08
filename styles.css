@@ -774,6 +774,11 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
   position: relative; z-index: 2; flex: 1 1 auto; min-height: 0; overflow-y: auto;
   width: min(960px, calc(100% - 32px)); margin: 0 auto; padding: 2.5vh 0 2vh;
 }
+/* Desktop: the wordmark keeps a strip of the bottom 28 % of the window, and the plan has the rest (72 %,
+   above the 70 % it needs). Its animation is unchanged. Phones keep the page layout of the home page. */
+@media (min-width: 901px) {
+  .plan ~ .giant { flex: none; height: 28vh; margin-top: 0; }
+}
 .plan a { color: var(--dark); text-underline-offset: 3px; }
 .plan a:hover { color: var(--black); }
 .page__plan { font-size: 14px; color: var(--gray-text); letter-spacing: 0.02em; }
