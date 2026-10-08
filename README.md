@@ -44,6 +44,7 @@ Read from the environment in `server/.env` (loaded by `--env-file=.env`).
 | `OPENAI_API_KEY` | Yes | `server/planner/planner-phase2-handler.ts` | Bearer key for the OpenAI Chat Completions API. |
 | `OPENAI_MODEL` | Yes | `server/planner/planner-phase2-handler.ts` | OpenAI model name. The example uses `gpt-4o`. |
 | `PORT` | No | `server/server.ts` | HTTP port. Defaults to `3000` when unset or not a number. |
+| `DATABASE_URL` | No | `server/server.ts`, `server/db/migrate-cli.ts` | PostgreSQL connection string (`postgres://user:password@host:port/database`) where the plans are stored. Without it the planner works, and the plan routes answer `503`. |
 
 If a required variable is missing, the server starts, but the planner request fails with `500`.
 
@@ -56,7 +57,8 @@ Run from `server/`:
 | `npm run dev` | `tsx watch --env-file=.env server.ts` | Starts the server and restarts on changes. |
 | `npm start` | `tsx --env-file=.env server.ts` | Starts the server without watching. |
 | `npm run typecheck` | `tsc` | Type-checks the TypeScript sources. |
-| `npm test` | `tsx --test "test/**/*.test.ts"` | Runs the planner, request and job tests. |
+| `npm run migrate` | `tsx --env-file=.env db/migrate-cli.ts` | Applies the pending migrations in `server/db/migrations` to `DATABASE_URL`. Safe to run again: applied migrations are skipped. |
+| `npm test` | `tsx --test "test/**/*.test.ts"` | Runs all the tests. The PostgreSQL tests run only when `TEST_DATABASE_URL` is set, in their own temporary schema. |
 
 ## How it works
 
@@ -65,7 +67,7 @@ Run from `server/`:
 3. **Question policy** (`server/planner/question-policy.ts`): the model proposes, the server decides. It sets the question limit from maturity (vague 2, developing 3, advanced 4, adjusted by commitment signals and clamped to 1-5), removes topics already answered, and keeps the most valuable questions first.
 4. **Final request** (`server/planner/planner-profile-handler.ts`, `server/planner/planner-validation-handler.ts`): once all questions are answered, the server asks Jev for a 15-dimension business profile and validates the analysis. Claims are checked against the description, seven coherence checks are run, and 10 departments are scored. Departments are shown as groups or as individual departments depending on team size and the profile's team requirement (`departmentLevel`).
 
-Each request runs as a background job, kept in memory by `server/jobs.ts`: `POST /api/planner` returns a job id at once and the front end polls `GET /api/planner/:id` until the result is ready. The server stores nothing else between requests. The front end (`script.js`) sends the phase 2 claims back in the final request (`analysis`), so the validation can check them without the server storing anything.
+Each request runs as a background job, kept in memory by `server/jobs.ts`: `POST /api/planner` returns a job id at once and the front end polls `GET /api/planner/:id` until the result is ready. The planner stores nothing between requests. Plans are the only data the server keeps, in PostgreSQL. The front end (`script.js`) sends the phase 2 claims back in the final request (`analysis`), so the validation can check them without the server storing anything.
 
 ## API
 
@@ -152,6 +154,9 @@ server/
   server.ts             HTTP server: static files, POST and GET /api/planner routing
   jobs.ts               In-memory job store: runs the planner in the background
   request.ts            Body reading, validation and limits for the planner request
+  plan-routes.ts        Plan API as a pure function: routes, status codes, development routes
+  plan/                 Plan model, rules, checks, derived values and the plan repositories
+  db/                   PostgreSQL: migrations (SQL files and their runner) and the plan repository
   planner/
     planner-handler.ts          Jev phase 1 (sector, scope, timeline) and the shared Jev call
     planner-phase2-handler.ts   OpenAI analysis: maturity, sections, questions
@@ -159,6 +164,8 @@ server/
     planner-profile-handler.ts  15-dimension business profile (Jev)
     planner-validation-handler.ts  Claim checks, coherence checks and department scores (Jev)
   test/planner/         Tests for the handlers, policy and request parsing
+  test/plan/            Tests for the plan rules, repositories and routes
+  test/db/              Tests for the migrations and the PostgreSQL repository
   test/jobs.test.ts     Tests for the job store (expiry, limits, errors)
   package.json          Scripts and dev dependencies
   tsconfig.json         TypeScript settings (type-check only)
