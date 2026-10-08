@@ -16,6 +16,11 @@ export const MAX_ANSWERS = 12;
 export const MAX_TEXT = 1000; // characters per answer field
 export const MAX_IDEA = 2000; // characters for the idea field
 export const MAX_BODY = 100_000; // bytes for request body
+/**
+ * Control characters: U+0000 to U+001F and U+007F, except tab and newline. PostgreSQL refuses U+0000 in jsonb,
+ * and none of the others belong in an idea or an answer.
+ */
+export const CONTROL_CHARACTERS = /[\u0000-\u0008\u000B-\u001F\u007F]/;
 
 export class HttpError extends Error {
   constructor(
@@ -58,6 +63,10 @@ export function parseAnswers(value: unknown): PlannerAnswer[] {
   }
   return value.map((item) => {
     const { topic, question, answer } = item ?? {};
+    // Checked before the trim: a control character is refused, not silently cut off at the edge
+    if ([topic, question, answer].some((field) => typeof field === "string" && CONTROL_CHARACTERS.test(field))) {
+      throw new HttpError(400, "Answers cannot contain control characters");
+    }
     // Trimmed first, so the length limit applies to the text that is kept
     const [t, q, a] = [topic, question, answer].map((field) =>
       typeof field === "string" ? field.trim() : "",
@@ -87,6 +96,9 @@ export function parsePlannerRequest(raw: string): {
     throw new HttpError(400, "Invalid JSON");
   }
 
+  if (typeof body.idea === "string" && CONTROL_CHARACTERS.test(body.idea)) {
+    throw new HttpError(400, "The idea cannot contain control characters");
+  }
   const idea = typeof body.idea === "string" ? body.idea.trim() : "";
   if (!idea) throw new HttpError(400, "Idea is required");
   if (idea.length > MAX_IDEA) throw new HttpError(400, "Idea is too long");

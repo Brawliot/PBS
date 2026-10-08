@@ -1,8 +1,8 @@
 /**
  * The plan: departments, phases, tasks, steps and the relations between them.
  * This module only defines the shape of each record and of the whole document.
- * The rules of a step (transitions, invariants, graph, actions) live in step-*.ts;
- * the checks of references between records are not written yet.
+ * The rules of a step (transitions, invariants, graph, actions) live in step-*.ts,
+ * and the checks of references between records (ids that exist, no cycles...) in plan-check.ts.
  */
 
 import { z } from "zod";
@@ -20,6 +20,8 @@ export const MAX_OUTPUT_QUESTIONS = 20;
 // Most rounds an AI step may use in one attempt (the first draft plus the refinements); see roundsUsed
 export const MAX_ROUNDS = 3;
 export const MAX_EVENTS = 200;
+// Largest plan document that is stored, in bytes of its JSON text. Unmeasured: tune with real plans
+export const MAX_DOCUMENT_BYTES = 5 * 1024 * 1024;
 // Most output versions over the whole life of a step, across attempts. Unmeasured: every version costs
 // at least two events (a launch or an answer, then attach_output), so MAX_EVENTS / 2 is the most that
 // can ever exist; MAX_EVENTS already bounds the total, this only keeps the schema honest about it.
@@ -35,7 +37,8 @@ export const PROPOSAL_LIMITS = { tasks: 20, steps: 60, relations: 120 };
 
 // Ids end up in URLs (#/task/t12): short, lowercase and stable
 export const IdSchema = z.string().max(MAX_ID).regex(/^[a-z0-9][a-z0-9_-]*$/);
-const text = (max: number) => z.string().trim().min(1).max(max);
+// The NUL character cannot be stored in PostgreSQL's jsonb, so no text of the plan may carry it
+const text = (max: number) => z.string().trim().min(1).max(max).refine((value) => !value.includes("\u0000"), "NUL is not allowed");
 const NoteSchema = text(MAX_NOTE);
 
 const TierSchema: z.ZodType<Tier> = z.enum(["core", "important", "light"]);
@@ -98,6 +101,10 @@ export const STEP_STATUSES = [
   "done",
   "rejected",
 ] as const;
+/** Who acts: the person, the AI, or the system (plan_events.actor and plan_log.actor in the migrations) */
+export const EVENT_ACTORS = ["user", "ai", "system"] as const;
+/** What a step needs to be closed without the AI: none, or a kind of evidence from the person */
+export const EVIDENCE_KINDS = ["none", "accepted_output", "written_confirmation", "receipt"] as const;
 export const EVENT_ACTIONS = [
   "launch",
   "attach_output",
@@ -133,7 +140,7 @@ export const OutputSchema = z.strictObject({
 });
 
 const EvidenceSchema = z.strictObject({
-  kind: z.enum(["none", "accepted_output", "written_confirmation", "receipt"]),
+  kind: z.enum(EVIDENCE_KINDS),
 });
 
 /** What the person handed in to close the step. For now only text; a file comes later. */
@@ -150,7 +157,7 @@ export const ProofSchema = z.strictObject({
 const EventSchema = z
   .strictObject({
     at: DateTimeSchema,
-    actor: z.enum(["user", "ai", "system"]),
+    actor: z.enum(EVENT_ACTORS),
     action: z.enum(EVENT_ACTIONS),
     from: StatusSchema,
     to: StatusSchema,
