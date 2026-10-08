@@ -51,10 +51,19 @@ const DepartmentSchema = z.strictObject({
   tier: TierSchema,
 });
 
+// The unit of the plan's timeline: the phases place themselves on it (phase-rules.ts)
+export const TIMELINE_UNITS = ["day", "week", "month"] as const;
+const TimelineSchema = z.strictObject({ unit: z.enum(TIMELINE_UNITS) });
+export type TimelineUnit = (typeof TIMELINE_UNITS)[number];
+
+// A phase is only a group of tasks. Its place on the timeline is optional, in units of the plan's
+// timeline; it needs the timeline to mean anything (checked on the whole plan below)
 const PhaseSchema = z.strictObject({
   id: IdSchema,
   name: text(MAX_NAME),
   order: z.number().int().min(0),
+  startUnit: z.number().int().min(0).optional(),
+  lengthUnits: z.number().int().min(1).optional(),
 });
 
 // Status, mode, effort, elapsed time and secondary departments are not stored: task-rules.ts
@@ -250,6 +259,7 @@ const RelationSchema = z
 
 export const PlanSchema = z
   .strictObject({
+    timeline: TimelineSchema.optional(),
     departments: z.array(DepartmentSchema).max(LIMITS.departments),
     phases: z.array(PhaseSchema).max(LIMITS.phases),
     tasks: z.array(TaskSchema).max(LIMITS.tasks),
@@ -266,6 +276,11 @@ export const PlanSchema = z
         seen.add(item.id);
       });
     }
+    plan.phases.forEach((phase, index) => {
+      if (plan.timeline === undefined && (phase.startUnit !== undefined || phase.lengthUnits !== undefined)) {
+        ctx.addIssue({ code: "custom", message: "A phase placed on the timeline needs the plan timeline", path: ["phases", index] });
+      }
+    });
   });
 
 export type Plan = z.infer<typeof PlanSchema>;

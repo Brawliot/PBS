@@ -681,3 +681,39 @@ describe("parsePlan", () => {
     );
   });
 });
+
+describe("PlanSchema: the timeline and the place of a phase", () => {
+  const placed = (overrides: Record<string, unknown> = {}) => ({ id: "f1", name: "Set up", order: 0, startUnit: 0, lengthUnits: 8, ...overrides });
+
+  test("a plan without timeline is valid, and so is one with a timeline and no placed phase", () => {
+    assert.deepEqual(issues(plan()), []);
+    assert.deepEqual(issues(plan({ timeline: { unit: "week" }, phases: [{ id: "f1", name: "Set up", order: 0 }] })), []);
+  });
+
+  test("a phase placed on the timeline is valid when the plan has a timeline, in any unit", () => {
+    for (const unit of ["day", "week", "month"]) {
+      assert.deepEqual(issues(plan({ timeline: { unit }, phases: [placed()] })), []);
+    }
+  });
+
+  test("a phase with a start or a length but no timeline is rejected", () => {
+    rejectedAt(plan({ phases: [placed()] }), "phases.0");
+    rejectedAt(plan({ phases: [placed({ startUnit: undefined })] }), "phases.0");
+    rejectedAt(plan({ phases: [{ id: "f1", name: "Set up", order: 0, lengthUnits: 4 }] }), "phases.0");
+  });
+
+  test("the start is a whole number from 0, and the length a whole number from 1", () => {
+    const timeline = { unit: "week" };
+    assert.deepEqual(issues(plan({ timeline, phases: [placed({ startUnit: 0 })] })), []);
+    rejectedAt(plan({ timeline, phases: [placed({ startUnit: -1 })] }), "phases.0.startUnit");
+    rejectedAt(plan({ timeline, phases: [placed({ startUnit: 1.5 })] }), "phases.0.startUnit");
+    assert.deepEqual(issues(plan({ timeline, phases: [placed({ lengthUnits: 1 })] })), []);
+    rejectedAt(plan({ timeline, phases: [placed({ lengthUnits: 0 })] }), "phases.0.lengthUnits");
+    rejectedAt(plan({ timeline, phases: [placed({ lengthUnits: 2.5 })] }), "phases.0.lengthUnits");
+  });
+
+  test("the timeline takes only a known unit and nothing else", () => {
+    rejectedAt(plan({ timeline: { unit: "year" }, phases: [] }), "timeline.unit");
+    rejectedAt(plan({ timeline: { unit: "week", extra: true }, phases: [] }), "timeline");
+  });
+});
