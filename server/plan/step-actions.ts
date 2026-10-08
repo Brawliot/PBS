@@ -8,6 +8,7 @@
 
 import { z } from "zod";
 import {
+  EVENT_ACTIONS,
   MAX_OUTPUT_QUESTIONS,
   OutputSchema,
   ProofSchema,
@@ -81,6 +82,13 @@ const STARTS_FROM: Partial<Record<StepAction, StepStatus>> = {
   reopen: "rejected",
   change_executor: "not_started",
 };
+
+/**
+ * Actions that keep the status: the executor is not a status, and an AI step with a proof is closed
+ * by confirming its output. Shared by applyStepAction and availableActions, so they cannot disagree.
+ */
+const keepsStatus = (step: Step, action: StepAction): boolean =>
+  action === "change_executor" || (action === "submit_proof" && step.executor === "ai" && step.status === "waiting_user");
 
 /** Actions that do not need the person: delivering an AI output, and only to an AI step. Every other one is theirs. */
 const AUTOMATIC: readonly StepAction[] = ["attach_output"];
@@ -201,10 +209,9 @@ export function applyStepAction(step: Step, action: StepAction, context: ActionC
     }
   }
 
-  // These keep the status: the executor is not a status, and an AI step with a proof is closed by confirming its output
-  const keepsStatus = action === "change_executor" || (action === "submit_proof" && isAi && step.status === "waiting_user");
-  const to = action === "change_executor" || keepsStatus ? step.status : TARGET[action];
-  if (!keepsStatus) {
+  const keeps = keepsStatus(step, action);
+  const to = action === "change_executor" || keeps ? step.status : TARGET[action];
+  if (!keeps) {
     const verdict = canTransition(step.status, to, { step: candidate, launchedByUser: context.actor === "user" });
     if (!verdict.allowed) return fail(REFUSALS[verdict.reason](candidate));
   }
@@ -220,4 +227,49 @@ export function applyStepAction(step: Step, action: StepAction, context: ActionC
   const result = StepSchema.safeParse({ ...candidate, status: to, events: [...step.events, event] });
   if (!result.success) return fail("invalid_result");
   return { ok: true, step: result.data, event };
+}
+
+/** Stands for the proof an action would bring: availability only checks that there is one */
+const PROBE_PROOF = { text: "probe", at: "1970-01-01T00:00:00Z", by: "user" } as const;
+const PROBE_TIME = "1970-01-01T00:00:00Z";
+
+/**
+ * The actions the person could apply to this step now, in the order of EVENT_ACTIONS. It judges
+ * the step and its readiness, never a payload: the checks that need the payload itself are left
+ * out, and the evidence is assumed present (see PROBE_PROOF). It reads the same tables as
+ * applyStepAction (STARTS_FROM, TARGET, canTransition), so an action listed here is not refused for
+ * its state, and an action not listed is.
+ */
+export function availableActions(step: Step, readiness: Readiness, feedsOthers: boolean): StepAction[] {
+  return EVENT_ACTIONS.filter((action) => isAvailable(step, action, readiness, feedsOthers));
+}
+
+function isAvailable(step: Step, action: StepAction, readiness: Readiness, feedsOthers: boolean): boolean {
+  if (action === "launch" && readiness !== "ready") return false;
+  const startsFrom = STARTS_FROM[action];
+  if (startsFrom !== undefined && step.status !== startsFrom) return false;
+
+  const isDraft = step.outputs?.at(-1)?.state === "draft";
+  switch (action) {
+    case "answer":
+    case "confirm_output":
+      if (!isDraft) return false;
+      break;
+    case "reject_output":
+      if (step.executor === "ai" && !isDraft) return false;
+      break;
+    case "change_executor":
+      // Only an AI step whose result is used stays where it is; every other change has a valid target
+      return !(feedsOthers && step.executor === "ai");
+  }
+  if (keepsStatus(step, action)) return true;
+
+  return canTransition(step.status, TARGET[action], { step: probeCandidate(step, action), launchedByUser: true }).allowed;
+}
+
+/** The step as applyStepAction would leave it, with only what canTransition reads: the proof or the confirmation */
+function probeCandidate(step: Step, action: StepAction): Step {
+  if (action === "submit_proof") return { ...step, proof: step.proof ?? PROBE_PROOF };
+  if (action === "confirm_output") return { ...step, outputs: withLatest(step.outputs ?? [], { state: "confirmed", confirmedAt: PROBE_TIME }) };
+  return step;
 }

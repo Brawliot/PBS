@@ -6,7 +6,8 @@ import type { Plan } from "../../plan/plan-model.js";
 import type { StepAction, StepActor } from "../../plan/step-actions.js";
 import { STEP_ACTION_ERRORS } from "../../plan/step-actions.js";
 import { prng } from "./prng.js";
-import { deepFreeze, restaurantPlan, step } from "./plan-fixtures.js";
+import { restaurantPlan } from "../../plan/demo-plan.js";
+import { deepFreeze, step } from "./plan-fixtures.js";
 
 const T = "2026-10-07T10:00:00Z";
 const now = () => T;

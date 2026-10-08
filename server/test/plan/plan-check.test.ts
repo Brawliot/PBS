@@ -2,7 +2,8 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { checkPlan, type PlanProblem } from "../../plan/plan-check.js";
 import type { Plan } from "../../plan/plan-model.js";
-import { restaurantPlan, step } from "./plan-fixtures.js";
+import { restaurantPlan } from "../../plan/demo-plan.js";
+import { step } from "./plan-fixtures.js";
 
 /** A plan from the restaurant, changed by `change` */
 const changed = (change: (plan: Plan) => void): Plan => {

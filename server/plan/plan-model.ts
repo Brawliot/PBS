@@ -28,7 +28,7 @@ export const MAX_OUTPUTS = MAX_EVENTS / 2;
 export const LIMITS = { departments: 20, phases: 50, tasks: 500, steps: 5000, relations: 10_000 };
 
 // Ids end up in URLs (#/task/t12): short, lowercase and stable
-const IdSchema = z.string().max(MAX_ID).regex(/^[a-z0-9][a-z0-9_-]*$/);
+export const IdSchema = z.string().max(MAX_ID).regex(/^[a-z0-9][a-z0-9_-]*$/);
 const text = (max: number) => z.string().trim().min(1).max(max);
 const NoteSchema = text(MAX_NOTE);
 
