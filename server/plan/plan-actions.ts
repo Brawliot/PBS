@@ -41,7 +41,7 @@ export function stepActionContext(plan: Plan, stepId: string, options: PlanActio
 const problemKey = (problem: PlanProblem) => JSON.stringify(problem);
 
 /** Problems of `after` that `before` did not have, counting repeats */
-function newProblems(before: PlanProblem[], after: PlanProblem[]): PlanProblem[] {
+export function newProblems(before: PlanProblem[], after: PlanProblem[]): PlanProblem[] {
   const remaining = new Map<string, number>();
   for (const problem of before) remaining.set(problemKey(problem), (remaining.get(problemKey(problem)) ?? 0) + 1);
   return after.filter((problem) => {

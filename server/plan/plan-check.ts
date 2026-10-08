@@ -11,9 +11,10 @@
 import { departmentRelationProblems } from "./department-rules.js";
 import type { Plan, Relation, Step } from "./plan-model.js";
 import { phaseOrderProblems, phaseRelationProblems, phaseSpanProblems } from "./phase-rules.js";
+import { growthProblems } from "./growth-rules.js";
 import { cycleIn, feedsFromNonAi, findStepCycle, stepProblems, type StepProblem } from "./step-rules.js";
 
-export const PLAN_LEVELS = ["department", "phase", "task", "step"] as const;
+export const PLAN_LEVELS = ["department", "phase", "task", "step", "fact", "proposal"] as const;
 export type PlanLevel = (typeof PLAN_LEVELS)[number];
 
 /** Every code checkPlan can report. The level says which record kind it is about. */
@@ -38,6 +39,19 @@ export const PLAN_PROBLEM_CODES = [
   "follows_before_predecessor",
   "task_order_contradicts_steps",
   "task_order_contradicts_phase",
+  "fact_unknown_key",
+  "fact_value_not_allowed",
+  "fact_unknown_step",
+  "fact_superseded_by_broken",
+  "fact_duplicate_confirmed",
+  "derived_from_unknown_fact",
+  "placeholder_has_steps",
+  "placeholder_unknown_key",
+  "proposal_reason_unknown",
+  "proposal_resolves_unknown_task",
+  "proposal_pending_has_time",
+  "proposal_pending_ids_exist",
+  "proposal_decided_without_time",
 ] as const;
 export type PlanProblemCode = (typeof PLAN_PROBLEM_CODES)[number];
 
@@ -191,5 +205,8 @@ export function checkPlan(plan: Plan): PlanProblem[] {
 
   // Between levels
   problems.push(...crossLevelProblems(plan));
+
+  // What the plan grows with: facts, their references, the gaps and the proposals
+  problems.push(...growthProblems(plan));
   return problems;
 }

@@ -57,6 +57,10 @@ describe("derivePlan on the restaurant plan", () => {
         legal: { total: 2, notStarted: 2, inProgress: 0, blocked: 0, done: 0 },
         finance: { total: 2, notStarted: 2, inProgress: 0, blocked: 0, done: 0 },
       },
+      // The plan has no facts, gaps or proposals: nothing to grow with yet
+      placeholders: {},
+      confirmedFacts: {},
+      stale: { taskIds: [], stepIds: [] },
     });
   });
 

@@ -6,7 +6,10 @@
  */
 
 import { checkPlan, type PlanProblem } from "./plan-check.js";
-import type { Plan } from "./plan-model.js";
+import { factKeyId } from "./fact-catalog.js";
+import { staleItems } from "./fact-actions.js";
+import { expandable } from "./proposals.js";
+import type { FactTerm, Plan } from "./plan-model.js";
 import { departmentProgress, type DepartmentProgress } from "./department-rules.js";
 import { phaseProgress, phaseStatus, type PhaseStatus } from "./phase-rules.js";
 import { departmentNode } from "./plan-tree.js";
@@ -30,6 +33,12 @@ export interface DerivedPlan {
   tasks: Record<string, TaskSummary>;
   phases: Record<string, PhaseDerived>;
   departments: Record<string, DepartmentProgress>;
+  /** The gaps: what they wait for, and whether every key has a confirmed fact */
+  placeholders: Record<string, { waitsFor: string[]; expandable: boolean }>;
+  /** The confirmed fact of each key (factKeyId), with its value */
+  confirmedFacts: Record<string, { factId: string; value: FactTerm }>;
+  /** What was generated from a fact that is no longer confirmed (read only, see staleItems) */
+  stale: { taskIds: string[]; stepIds: string[] };
 }
 
 export function derivePlan(plan: Plan): DerivedPlan {
@@ -58,5 +67,30 @@ export function derivePlan(plan: Plan): DerivedPlan {
     if (node) departments[department.id] = departmentProgress(node, plan.relations);
   }
 
-  return { problems: checkPlan(plan), steps, tasks, phases, departments };
+  const placeholders: DerivedPlan["placeholders"] = {};
+  for (const task of plan.tasks) {
+    if (task.placeholder) {
+      placeholders[task.id] = { waitsFor: [...task.placeholder.waitsFor], expandable: expandable(plan, task.id) };
+    }
+  }
+
+  const confirmedFacts: DerivedPlan["confirmedFacts"] = {};
+  const stale = { taskIds: new Set<string>(), stepIds: new Set<string>() };
+  for (const fact of plan.facts ?? []) {
+    if (fact.status === "confirmed") confirmedFacts[factKeyId(fact.key)] = { factId: fact.id, value: fact.value };
+    const items = staleItems(plan, fact.id);
+    items.taskIds.forEach((id) => stale.taskIds.add(id));
+    items.stepIds.forEach((id) => stale.stepIds.add(id));
+  }
+
+  return {
+    problems: checkPlan(plan),
+    steps,
+    tasks,
+    phases,
+    departments,
+    placeholders,
+    confirmedFacts,
+    stale: { taskIds: [...stale.taskIds], stepIds: [...stale.stepIds] },
+  };
 }

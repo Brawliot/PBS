@@ -26,6 +26,12 @@ export const MAX_EVENTS = 200;
 export const MAX_OUTPUTS = MAX_EVENTS / 2;
 // Upper bounds per collection: unmeasured estimates, tune with real plans
 export const LIMITS = { departments: 20, phases: 50, tasks: 500, steps: 5000, relations: 10_000 };
+// Growth of the plan (facts and proposals). Unmeasured: tune with real plans
+export const MAX_FACTS = 200;
+export const MAX_PROPOSALS = 100;
+export const MAX_DERIVED_FROM = 20;
+export const MAX_WAITS_FOR = 5;
+export const PROPOSAL_LIMITS = { tasks: 20, steps: 60, relations: 120 };
 
 // Ids end up in URLs (#/task/t12): short, lowercase and stable
 export const IdSchema = z.string().max(MAX_ID).regex(/^[a-z0-9][a-z0-9_-]*$/);
@@ -76,6 +82,10 @@ const TaskSchema = z.strictObject({
   origin: OriginSchema,
   confidence: ConfidenceSchema,
   feedback: FeedbackSchema.optional(),
+  // Ids of the facts this task was generated from (growth of the plan, see fact-actions.ts)
+  derivedFrom: z.array(IdSchema).min(1).max(MAX_DERIVED_FROM).optional(),
+  // A gap: a task waiting for confirmed facts, with no steps yet (proposals.ts expands it)
+  placeholder: z.strictObject({ waitsFor: z.array(IdSchema).min(1).max(MAX_WAITS_FOR) }).optional(),
 });
 
 export const STEP_EXECUTORS = ["ai", "user", "third_party"] as const;
@@ -184,6 +194,7 @@ export const StepSchema = z
     origin: OriginSchema,
     confidence: ConfidenceSchema,
     feedback: FeedbackSchema.optional(),
+    derivedFrom: z.array(IdSchema).min(1).max(MAX_DERIVED_FROM).optional(),
   })
   .superRefine((step, ctx) => {
     const issue = (message: string, path: (string | number)[]) =>
@@ -257,6 +268,70 @@ const RelationSchema = z
     path: ["to"],
   });
 
+/**
+ * A key or a value of a fact: a catalog entry (fact-catalog.ts decides which ones exist) or free text.
+ * It has the same shape as an aspect, so both kinds of record read alike.
+ */
+const FactTermSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("catalog"), id: IdSchema }),
+  z.strictObject({ kind: z.literal("other"), text: text(MAX_NOTE) }),
+]);
+export const FACT_STATUSES = ["proposed", "confirmed", "superseded", "rejected"] as const;
+
+/** Where a fact came from: the person, or an AI step (and the version of its output, if any) */
+const FactSourceSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("user") }),
+  z.strictObject({ kind: z.literal("step"), stepId: IdSchema, version: z.number().int().min(1).optional() }),
+]);
+
+/** A project fact: something the person has confirmed about the business (or proposed, and not yet). */
+const FactSchema = z
+  .strictObject({
+    id: IdSchema,
+    key: FactTermSchema,
+    value: FactTermSchema,
+    status: z.enum(FACT_STATUSES),
+    from: FactSourceSchema,
+    createdAt: DateTimeSchema,
+    confirmedAt: DateTimeSchema.optional(),
+    supersededBy: IdSchema.optional(),
+  })
+  .superRefine((fact, ctx) => {
+    if (fact.status === "confirmed" && fact.confirmedAt === undefined) {
+      ctx.addIssue({ code: "custom", message: "A confirmed fact needs confirmedAt", path: ["confirmedAt"] });
+    }
+    if (fact.confirmedAt !== undefined && fact.status !== "confirmed" && fact.status !== "superseded") {
+      ctx.addIssue({ code: "custom", message: "Only a confirmed or superseded fact has confirmedAt", path: ["confirmedAt"] });
+    }
+    if (fact.status === "superseded" && fact.supersededBy === undefined) {
+      ctx.addIssue({ code: "custom", message: "A superseded fact needs supersededBy", path: ["supersededBy"] });
+    }
+    if (fact.status !== "superseded" && fact.supersededBy !== undefined) {
+      ctx.addIssue({ code: "custom", message: "Only a superseded fact has supersededBy", path: ["supersededBy"] });
+    }
+    if (fact.supersededBy === fact.id) ctx.addIssue({ code: "custom", message: "A fact cannot supersede itself", path: ["supersededBy"] });
+  });
+
+export const PROPOSAL_STATUSES = ["pending", "accepted", "rejected"] as const;
+
+/**
+ * A proposal: tasks, steps and relations the person can accept or reject. Nothing in it is in the plan
+ * until it is accepted. "resolves" is the gap it fills, if the reason is a gap.
+ */
+const ProposalSchema = z.strictObject({
+  id: IdSchema,
+  status: z.enum(PROPOSAL_STATUSES),
+  reason: z.union([z.strictObject({ factId: IdSchema }), z.strictObject({ taskId: IdSchema })]),
+  resolves: IdSchema.optional(),
+  add: z.strictObject({
+    tasks: z.array(TaskSchema).max(PROPOSAL_LIMITS.tasks),
+    steps: z.array(StepSchema).max(PROPOSAL_LIMITS.steps),
+    relations: z.array(RelationSchema).max(PROPOSAL_LIMITS.relations),
+  }),
+  createdAt: DateTimeSchema,
+  decidedAt: DateTimeSchema.optional(),
+});
+
 export const PlanSchema = z
   .strictObject({
     timeline: TimelineSchema.optional(),
@@ -265,8 +340,21 @@ export const PlanSchema = z
     tasks: z.array(TaskSchema).max(LIMITS.tasks),
     steps: z.array(StepSchema).max(LIMITS.steps),
     relations: z.array(RelationSchema).max(LIMITS.relations),
+    facts: z.array(FactSchema).max(MAX_FACTS).optional(),
+    proposals: z.array(ProposalSchema).max(MAX_PROPOSALS).optional(),
   })
   .superRefine((plan, ctx) => {
+    const growth = [
+      ["facts", plan.facts ?? []],
+      ["proposals", plan.proposals ?? []],
+    ] as const;
+    for (const [key, items] of growth) {
+      const seen = new Set<string>();
+      items.forEach((item, index) => {
+        if (seen.has(item.id)) ctx.addIssue({ code: "custom", message: "Duplicate id", path: [key, index, "id"] });
+        seen.add(item.id);
+      });
+    }
     for (const key of ["departments", "phases", "tasks", "steps"] as const) {
       const seen = new Set<string>();
       plan[key].forEach((item, index) => {
@@ -295,6 +383,10 @@ export type StepEvent = Step["events"][number];
 export type Relation = Plan["relations"][number];
 export type Origin = Task["origin"];
 export type Aspect = Extract<Relation, { level: "department" }>["aspect"];
+export type FactTerm = z.infer<typeof FactTermSchema>;
+export type Fact = NonNullable<Plan["facts"]>[number];
+export type FactStatus = Fact["status"];
+export type Proposal = NonNullable<Plan["proposals"]>[number];
 
 /** Validates a stored or generated plan. The error lists paths and codes, never values. */
 export function parsePlan(value: unknown): Plan {
