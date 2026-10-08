@@ -1,6 +1,52 @@
 # Pendiente para fases futuras
 
-Cosas que no pertenecen a la fase 1 ni a su salida a producción, pero que hay que hacer en siguientes fases. Para lo que falta antes de publicar la fase 1, ver `PRODUCTION.md`.
+Cosas que no pertenecen a las fases ya construidas ni a su salida a producción, pero que hay que hacer. Para lo que falta antes de publicar, y las mejoras opcionales, ver `PRODUCTION.md`.
+
+## Las fases del proyecto
+
+| Fase | Qué es | Estado |
+|---|---|---|
+| **1. Planner** | La idea, las preguntas y el informe | Hecha. Falta la prueba real con claves y la calibración (abajo) |
+| **2. El plan, sin IA** | Los cuatro niveles (departamento, fase, tarea, paso) con sus reglas, la base de datos, la API, las pantallas, el esqueleto desde el informe, "Build my plan", hechos y propuestas | Casi cerrada: falta lo de "Pendiente de cerrar de la fase 2" |
+| **3. La inteligencia del plan** | Un agente por nivel, con contratos definidos de arriba abajo, y la evaluación de su calidad | Por empezar |
+| **4. Producto** | Usuarios, "View my projects", retención de datos y despliegue | Pendiente (ver `PRODUCTION.md`) |
+
+---
+
+## Pendiente de cerrar de la fase 2
+
+Lo que falta para dar la fase 2 por terminada y pasar a la 3. Primero lo funcional (son decisiones), luego los supuestos sin calibrar, y al final el cierre.
+
+### Funcionalidad que hay que decidir
+1. **Retirar lo obsoleto.** Lo derivado de un hecho cambiado hoy solo se lista. Decidir si se retira, se rehace o se deja, y la acción de la persona con su registro en `plan_log`. Descrito en `PRODUCTION.md`, "Pendiente de la fase 2".
+2. **El significado de `feedback: "deleted"`.** `plan.js` lo oculta y nada del servidor lo escribe. Mantenerlo, sustituirlo por el registro de decisiones o quitarlo.
+3. **Edición manual mínima del plan.** Decidir si la persona puede añadir, renombrar o retirar tareas y pasos a mano en esta fase, o se aparca.
+4. **Vista de grupos.** La ruta `#/group/:id` está reservada sin vista, y el plan no recuerda si el negocio es "pequeño" (grupos) o "grande" (departamentos). Implementarla o quitar la ruta.
+5. **Estado de una tarea y relaciones entre pasos de distintas tareas.** `taskStatus` las ignora y `readiness` las tiene en cuenta. Asumirlo o cambiarlo.
+
+### Supuestos sin calibrar (aprobar, cambiar o aparcar cada uno)
+- Catálogo de aspectos de dependencia entre departamentos, claves de hechos y valores de `product_type` (`department-catalog.ts`, `fact-catalog.ts`).
+- Tabla de dimensión a departamento y etiquetas de regulación y capital del esqueleto (`plan-skeleton.ts`).
+- Tabla de unidades del calendario, duración total por tramo, y nombres y reparto de las tres fases.
+- Constantes: `WORKDAY_HOURS`, `MAX_ROUNDS`, `MAX_EVENTS`, `MAX_OUTPUTS`, `LIMITS`, `MAX_DOCUMENT_BYTES`, los límites del informe y el tope de 20 intentos de ids de propuesta.
+- Significado de `blocked` en tarea y fase, y avance de la fase por número de tareas.
+
+### Cierre y verificación
+- Prueba manual en local con PostgreSQL: el plan de ejemplo, "Build my plan", decisiones y propuestas.
+- Prueba real con claves y calibración de la fase 1 (abajo). Además es requisito para la fase 3.
+- Recorrido final de punta a punta, y revisar que `README.md`, `PRODUCTION.md` y este documento dicen la verdad.
+- Unificar las ramas: dejar una sola, archivar las demás y decidir si todo pasa a `main` con un pull request.
+- Huecos de tests: que cada código de `FAILURE` tenga su texto en `plan.js`, y la URL de más de 16 KB (431 frente a 400).
+
+---
+
+## Fase 3: la inteligencia del plan (diseño acordado)
+
+- **Los agentes solo proponen.** Ningún agente edita el plan: devuelve propuestas, hechos propuestas, peticiones y preguntas. El nivel superior las valida (`checkPlan`, y Jev para la relevancia) y la persona acepta o confirma lo importante.
+- **Contratos de arriba abajo,** uno por nivel (plan, departamento, tarea y paso): qué recibe, qué controla y qué devuelve, con sus tipos, límites y un ejecutor falso para los tests. El contrato del paso ya existe (`step-runner.ts`).
+- **Los departamentos no se hablan entre sí:** se comunican por los hechos confirmados, las salidas confirmadas que alimentan a otros pasos y las relaciones con aspecto.
+- **Flujo fijo, no agentes libres:** el esqueleto fijo, una llamada de planificación, una llamada por departamento en paralelo y los pasos de cada tarea generados cuando se necesitan.
+- **Después,** el modelo real nivel por nivel, de arriba abajo, comprobado contra un conjunto de ejemplos (ver "Evaluación de modelos").
 
 ---
 
@@ -73,6 +119,8 @@ Tres comprobaciones con las APIs reales que se dejaron aparcadas para poder avan
 ---
 
 ## Siguiente fase del producto: "Build my plan"
+
+> **Nota.** El botón "Build my plan" ya crea un plan real desde el informe guardado por el servidor (fase 2, ver `README.md`). El texto de esta sección es el planteamiento original; lo que sigue pendiente de aquí es la generación con IA (fase 3) y la saturación del plan.
 
 **Qué es.** La fase que genera el plan de ejecución a partir del informe. Hoy el botón "Build my plan" solo hace la animación (el loader aparece, el informe se va y, a los tres segundos, vuelve con un aviso de que aún no está disponible). El código tiene un `// TODO` donde irá la petición real.
 

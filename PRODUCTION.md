@@ -1,8 +1,8 @@
 # Pendiente para producción
 
-Este documento recoge lo que falta para publicar la fase 1 (el flujo completo: idea, preguntas, informe) y las mejoras opcionales. Lo que se hace antes de cerrar la fase está fuera de aquí; lo que pertenece a fases siguientes está en `FUTURE.md`.
+Este documento recoge lo que falta para publicar las fases 1 y 2 (el flujo completo: idea, preguntas, informe y plan) y las mejoras opcionales. Lo que se hace antes de cerrar la fase 2 y lo que pertenece a fases siguientes está en `FUTURE.md`.
 
-Hoy el proyecto funciona en local, sin usuarios y sin estado en el servidor. Casi todo lo de abajo nace de eso.
+Hoy el proyecto funciona en local y sin usuarios (todo pertenece a `LOCAL_USER`). El estado vive en PostgreSQL (planes, informes y registros). Casi todo lo de abajo nace de eso.
 
 ---
 
@@ -21,9 +21,9 @@ Hoy el proyecto funciona en local, sin usuarios y sin estado en el servidor. Cas
 **Categoría.** Crítico, seguridad. Depende de la autenticación (para limitar por usuario).
 
 ### Base de datos
-**Qué es.** Almacenamiento persistente de usuarios, proyectos y resultados de los análisis (por ejemplo, Postgres), con migraciones y copias de seguridad.
-**Por qué.** El servidor no guarda nada: si recarga la página, se pierde todo. También es imprescindible para "View my projects" y para cumplir con el derecho a exportar y borrar datos.
-**Hecho cuando.** Un usuario puede cerrar la sesión, volver y encontrar sus análisis; y existe un procedimiento probado para restaurar una copia.
+**Qué es.** La base de datos ya existe (PostgreSQL: planes, informes y los registros `plan_events` y `plan_log`, con migraciones y su ejecutor). Falta lo de producción: usuarios, una instancia gestionada con SSL, un rol de la aplicación sin privilegios de administrador (no debe poder quitar los disparadores de solo-añadir), el tamaño del pool, las migraciones dentro del despliegue y copias de seguridad con restauración probada.
+**Por qué.** Un rol con demasiados privilegios anula las garantías de la base de datos, y sin copias probadas una pérdida de datos no tiene vuelta atrás. También es imprescindible para "View my projects" y para cumplir con el derecho a exportar y borrar datos.
+**Hecho cuando.** Un usuario puede cerrar la sesión, volver y encontrar sus análisis y planes; la aplicación se conecta con un rol sin privilegios de administrador por SSL; y existe un procedimiento probado para restaurar una copia.
 **Categoría.** Crítico, datos de los usuarios.
 
 ### Gestión de secretos
@@ -53,6 +53,7 @@ Hoy el proyecto funciona en local, sin usuarios y sin estado en el servidor. Cas
 ### Tests más allá de los unitarios
 **Qué es.** Tests de integración de la API con los proveedores simulados, y tests de extremo a extremo con Playwright que recorran el flujo completo, incluidos errores y reintento.
 **Por qué.** Los unitarios cubren funciones sueltas; no detectan que el front y el servidor dejen de entenderse. Un cambio en el formato de respuesta puede dejar la pantalla en blanco con todos los unitarios en verde.
+**Hoy.** Ya hay tests de integración con PostgreSQL real (con `TEST_DATABASE_URL`) y e2e con Playwright (`npm run test:e2e`) que recorren "Build my plan", las decisiones y los errores, con las APIs simuladas. Falta que se ejecuten en el CI, y que Playwright sea una dependencia de desarrollo en `package.json` (hoy se usa con `PLAYWRIGHT_MODULE` y `CHROMIUM_PATH`).
 **Hecho cuando.** Un cambio que rompe el flujo completo hace fallar el CI.
 **Categoría.** Crítico al terminar el proyecto entero.
 
@@ -97,6 +98,48 @@ Hoy el proyecto funciona en local, sin usuarios y sin estado en el servidor. Cas
 **Por qué.** Cada análisis crece la tabla, y el informe contiene la idea del usuario y sus respuestas: datos personales que no deberían quedarse para siempre.
 **Hecho cuando.** Hay un trabajo periódico que borra los informes sin plan con más de N días (N decidido con el equipo), el borrado de un usuario elimina también sus informes y planes, y la política está escrita en la política de privacidad.
 **Categoría.** Crítico, datos de los usuarios. Depende de la autenticación (para saber de quién es cada informe).
+
+### Borrado de planes y tope por usuario
+**Qué es.** Hoy un plan no se puede borrar y no hay tope de planes por usuario. `plan_events` y `plan_log` no tienen un borrado definido.
+**Por qué.** Sin borrado no se puede cumplir el derecho a eliminar los datos, y sin tope un usuario puede llenar la base de datos.
+**Hecho cuando.** Hay una acción de borrado de un plan (y de su informe) que elimina también sus registros, con la política escrita sobre cómo conviven con tablas que solo se añaden, y un máximo de planes por usuario con su error.
+**Categoría.** Crítico, datos de los usuarios. Depende de la autenticación.
+
+### Exportar y borrar todos los datos de un usuario
+**Qué es.** Una forma de que la persona descargue todo lo suyo (informes, planes y registros) y de borrarlo por completo cuando lo pida.
+**Por qué.** Es una obligación legal en muchos mercados y completa las políticas de retención de abajo.
+**Hecho cuando.** Existe la exportación y el borrado, probados con datos reales, y están descritos en la política de privacidad.
+**Categoría.** Crítico, datos de los usuarios. Depende de la autenticación.
+
+### Actualización de planes antiguos
+**Qué es.** `PLAN_SCHEMA_VERSION` rechaza un plan guardado con otra versión del esquema. Cada cambio incompatible del modelo necesitará una función que convierta los planes viejos, con planes antiguos de muestra en los tests.
+**Por qué.** Sin ella, cambiar el modelo deja ilegibles los planes ya guardados de los usuarios.
+**Hecho cuando.** Existe la función de actualización para cada versión, y un test que lee planes de cada versión anterior y los deja válidos.
+**Categoría.** Crítico cuando haya usuarios reales y se cambie el modelo.
+
+### Salud, registros estructurados y seguimiento de errores
+**Qué es.** Un endpoint de salud que compruebe también la base de datos, registros con un formato estructurado (sin contenido de los usuarios, como ahora), seguimiento de errores y métricas básicas (latencia, errores, uso del pool).
+**Por qué.** Sin esto un fallo en producción se descubre cuando se queja un usuario.
+**Hecho cuando.** Una caída de la base de datos o un aumento de errores genera una alerta antes de que la note un usuario.
+**Categoría.** Crítico en producción.
+
+### TLS, HSTS y política de CORS
+**Qué es.** Certificado válido y redirección a HTTPS en el proxy, `Strict-Transport-Security`, y una política de CORS decidida (hoy todo es del mismo origen).
+**Por qué.** Sin HTTPS, las sesiones y los datos viajan en claro.
+**Hecho cuando.** Todo el tráfico va por HTTPS con HSTS y las llamadas de otros orígenes se aceptan o rechazan a propósito.
+**Categoría.** Crítico, seguridad. Es infraestructura, no código de la aplicación.
+
+### Moderación, aviso y textos legales
+**Qué es.** Revisar la entrada del usuario antes de usarla (descrito en `FUTURE.md`, "Moderación de la entrada"), un aviso visible de que el análisis y el plan son orientativos y no sustituyen asesoría profesional, y la política de privacidad y los términos.
+**Por qué.** Los proveedores de IA pueden suspender la cuenta por contenido que incumple sus normas, y la web trata datos personales.
+**Hecho cuando.** Hay moderación, el aviso está en el informe y en el plan, y los textos legales están publicados y enlazados.
+**Categoría.** Crítico en producción.
+
+### Archivos de evidencia
+**Qué es.** Hoy la evidencia de un paso es solo texto. Si se decide aceptar justificantes en archivo, hace falta almacenamiento, límites de tamaño y tipo, y revisión del contenido.
+**Por qué.** Un archivo subido por un usuario es una superficie de ataque y un coste de almacenamiento.
+**Hecho cuando.** Hay almacenamiento con límites y revisión, y el archivo queda ligado a su paso en el registro.
+**Categoría.** Producción, solo si se decide aceptar archivos.
 
 ---
 
@@ -154,3 +197,27 @@ ESLint y Prettier para unificar el estilo, ganchos que los ejecuten antes de cad
 
 ### Estado del servicio, procedimientos de incidencias y objetivos de disponibilidad
 Una página pública de estado, guías para actuar ante un fallo (qué mirar y a quién avisar) y objetivos medibles de disponibilidad del servicio.
+
+### Del plan (fase 2)
+- **Saturación del plan**: mostrar y activar menos o más según equipo, horas, experiencia y presupuesto, con modo guiado y panorámico (diseño en `FUTURE.md`).
+- **"Faltan X días"** y avance ponderado por esfuerzo, además del avance por número de tareas.
+- **Ruta crítica** resaltada y grafo de dependencias entre tareas dibujado en el timeline.
+- **Filtros y búsqueda** por departamento, fase, estado y ejecutor.
+- **Historial visible** del plan (los registros `plan_events` y `plan_log` ya existen) y actividad reciente.
+- **Exportar** (PDF, CSV, calendario `.ics`), vista de impresión y enlace de solo lectura.
+- **Recordatorios** cuando un tercero tarda más de lo previsto.
+- **Notas por paso,** edición en la propia pantalla y reordenar arrastrando.
+- **Duplicar planes, versiones, comparación** y escenarios "qué pasaría si".
+- **Varias personas en un plan,** con roles.
+- **Estimaciones que aprenden** de los tiempos reales (necesita datos de uso).
+
+### Experiencia
+- Modo oscuro y atajos de teclado.
+- PWA y mejoras para móvil.
+
+### Desarrollo
+- Mutación automática y pruebas basadas en propiedades con herramienta (hoy la mutación es manual), pruebas visuales de regresión y un umbral de cobertura.
+- Documentación OpenAPI de la API y un cliente con tipos.
+- Un modo de desarrollo sin base de datos (los planes en memoria, que se pierden al reiniciar).
+- Partir `plan.js` (casi 1.000 líneas) en módulos.
+- Que `npm run dev`, `start` y `migrate` no exijan `server/.env` cuando las variables ya están en el entorno (`--env-file-if-exists`: la documentación de Node la sitúa en la 22.9, sin verificar aquí; el README pide Node 22).
