@@ -54,7 +54,7 @@ const ConfidenceSchema = z.number().int().min(0).max(MAX_CONFIDENCE);
 /** What the user did with an item: the signal the plan learns from over time */
 const FeedbackSchema = z.enum(["accepted", "edited", "deleted"]);
 
-const DepartmentSchema = z.strictObject({
+export const DepartmentSchema = z.strictObject({
   id: IdSchema,
   name: text(MAX_NAME),
   tier: TierSchema,
@@ -67,7 +67,7 @@ export type TimelineUnit = (typeof TIMELINE_UNITS)[number];
 
 // A phase is only a group of tasks. Its place on the timeline is optional, in units of the plan's
 // timeline; it needs the timeline to mean anything (checked on the whole plan below)
-const PhaseSchema = z.strictObject({
+export const PhaseSchema = z.strictObject({
   id: IdSchema,
   name: text(MAX_NAME),
   order: z.number().int().min(0),
@@ -262,7 +262,7 @@ const AspectSchema = z.discriminatedUnion("kind", [
 const link = { from: IdSchema, to: IdSchema };
 const ORDER_TYPES = ["blocks", "follows"] as const;
 
-const RelationSchema = z
+export const RelationSchema = z
   .discriminatedUnion("level", [
     // "feeds": the target step uses the result of the source (an AI step). Step level only.
     z.strictObject({ ...link, level: z.literal("step"), type: z.enum([...ORDER_TYPES, "feeds"]) }),

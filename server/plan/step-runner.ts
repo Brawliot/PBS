@@ -8,6 +8,7 @@ import { z } from "zod";
 import { MAX_OUTPUT_QUESTIONS, MAX_STEP_TEXT, type Plan, type Step } from "./plan-model.js";
 import { feedersOf } from "./step-graph.js";
 import { readableOutput, roundsUsed } from "./step-rules.js";
+import { FactProposalSchema, MAX_FACT_PROPOSALS, MAX_REQUESTS, RequestSchema, type FactProposal, type Request } from "./agents/contract.js";
 
 // Unmeasured limits, tune with real runs. The first two must fit what an output can store.
 /** Kept as a contract for the tests (no product code calls it yet): the limit of questions a runner may return in one round. */
@@ -34,10 +35,15 @@ export const RunnerOutputSchema = z.strictObject({
   summary: z.string().trim().min(1).max(MAX_STEP_TEXT),
   document: z.string().trim().min(1).max(MAX_DOCUMENT_TEXT),
   questions: z.array(z.string().trim().min(1).max(MAX_QUESTION_LENGTH)).max(MAX_QUESTIONS_PER_ROUND),
+  /** Optional: facts the step proposes (kept as proposed until the person confirms them) */
+  facts: z.array(FactProposalSchema).max(MAX_FACT_PROPOSALS).optional(),
+  /** Optional: requests to the plan level or to a department */
+  requests: z.array(RequestSchema).max(MAX_REQUESTS).optional(),
 });
 
 /** Kept as a contract for the tests (no product code calls it yet): the type of an answer that passed RunnerOutputSchema. */
 export type RunnerOutput = z.infer<typeof RunnerOutputSchema>;
+export type { FactProposal, Request };
 
 /** Kept as a contract for the tests (no product code calls it yet): the interface that a real runner implements. */
 export interface StepRunner {

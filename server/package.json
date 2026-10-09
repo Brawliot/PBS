@@ -9,7 +9,8 @@
     "start": "tsx --env-file=.env server.ts",
     "typecheck": "tsc",
     "migrate": "tsx --env-file=.env db/migrate-cli.ts",
-    "perf": "tsx test/perf/perf.ts"
+    "perf": "tsx test/perf/perf.ts",
+    "agents:real-plan": "tsx --env-file=.env scripts/real-plan-agent.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",

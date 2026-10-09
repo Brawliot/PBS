@@ -57,6 +57,28 @@ La fase 2 se da por cerrada. Lo que sigue son decisiones ya tomadas y pendientes
 - **Flujo fijo, no agentes libres:** el esqueleto fijo, una llamada de planificación, una llamada por departamento en paralelo y los pasos de cada tarea generados cuando se necesitan.
 - **Después,** el modelo real nivel por nivel, de arriba abajo, comprobado contra un conjunto de ejemplos (ver "Evaluación de modelos").
 
+### Estado: contratos (P11)
+
+Hecho, sin pantallas ni rutas, y probado solo con ejecutores falsos (`server/test/plan/agents/`):
+
+- **Pipeline común** (`plan/agents/contract.ts`): esquema, copia del plan revisada con `checkPlan`, juez de relevancia (Jev), y conversión a propuestas con `createProposal`. Reintentos: 3 intentos en total (`MAX_AGENT_ATTEMPTS`) solo para errores que un nuevo intento puede arreglar. Si sigue fallando, un error tipado y nada guardado.
+- **Plan** (`plan-agent.ts`): generar (fases, tiers, relaciones entre departamentos) y revisar (choques, duplicados, huecos y órdenes que faltan entre tareas propuestas; los ajustes son propuestas).
+- **Departamento** (`department-agent.ts`): una llamada por departamento, en paralelo; todo o nada si una falla. Los ids de tarea llevan el prefijo del departamento.
+- **Tarea** (`task-agent.ts`): pasos de una tarea, bajo demanda. Cada paso pasa por `StepSchema`.
+- **Paso** (`step-runner.ts`): la salida acepta `facts` y `requests` opcionales. Lo anterior sigue igual.
+- **Modelo real**: `openai-model.ts` (mismo endpoint y variables que la fase 1) y `jev-judge.ts` (reutiliza `callJev`). En los tests nunca se llaman.
+- **Script manual** (`server/scripts/real-plan-agent.ts`, `npm run agents:real-plan`): sin `AGENTS_REAL=1` no envía nada. Con él, una sola llamada de OpenAI sobre el plan del restaurante, y Jev solo con `AGENTS_JEV=1`.
+
+Decisiones que quedan abiertas y se revisan con datos reales:
+
+1. **Confianza fija (50) de las tareas y pasos propuestos.** El modelo no la devuelve todavía.
+2. **`strict: false` en el JSON schema de OpenAI**, porque el modo estricto exige todos los campos obligatorios. La respuesta se valida de nuevo con zod, así que el schema es una pista y no la puerta.
+3. **Hechos de departamento y de plan.** Un paso puede proponer un hecho con `proposeFact` (con su paso). Los hechos que salen de departamento o de plan solo se validan contra el catálogo; convertirlos en hechos propuestos queda para la rebanada de departamentos.
+4. **Sin Jev por defecto en el script.** La relevancia se comprueba cuando hay juez; el script manual deja `checked: false` si no se pide.
+5. **Los ids de los contratos** usan `IdSchema` de `plan-model.ts`. `server/ids.ts` solo tiene el patrón UUID.
+
+Pendiente antes de la primera rebanada visible: la calibración de la fase 1 con claves reales (ver arriba) y el conjunto de evaluación de 6 casos.
+
 ---
 
 ## Pendiente de cerrar de la fase 1
