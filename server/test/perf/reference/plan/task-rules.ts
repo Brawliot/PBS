@@ -40,12 +40,11 @@ function insideRelations(steps: readonly Step[], relations: Relations): Relation
  * started is ready (all blocked, or only rejected steps left); otherwise not started.
  * Assumption: "blocked" also covers a task that cannot start yet because it depends on something.
  */
-export function taskStatus(steps: readonly Step[], relations: Relations): TaskStatus {
+export function taskStatus(steps: readonly Step[], relations: Relations, allSteps: readonly Step[] = steps): TaskStatus {
   if (steps.length === 0) return "not_started";
   if (steps.every((step) => step.status === "done")) return "done";
   if (steps.some((step) => ACTIVE.includes(step.status) || step.status === "done")) return "in_progress";
-  const inside = insideRelations(steps, relations);
-  const anyReady = steps.some((step) => step.status === "not_started" && readiness(step, steps, inside) === "ready");
+  const anyReady = steps.some((step) => step.status === "not_started" && readiness(step, allSteps, relations) === "ready");
   return anyReady ? "not_started" : "blocked";
 }
 
@@ -90,9 +89,9 @@ export function taskDepartments(task: Pick<Task, "primaryDepartmentId">, steps: 
   return { primary: task.primaryDepartmentId, secondary };
 }
 
-export function summarizeTask(task: Task, steps: readonly Step[], relations: Relations): TaskSummary {
+export function summarizeTask(task: Task, steps: readonly Step[], relations: Relations, allSteps: readonly Step[] = steps): TaskSummary {
   return {
-    status: taskStatus(steps, relations),
+    status: taskStatus(steps, relations, allSteps),
     automation: taskAutomation(steps),
     effortHours: taskEffortHours(steps),
     elapsed: taskElapsedDays(steps, relations),

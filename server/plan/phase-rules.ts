@@ -5,7 +5,7 @@
  */
 
 import type { Plan, TimelineUnit } from "./plan-model.js";
-import type { PlanIndex } from "./plan-index.js";
+import { stepGraph, type PlanIndex } from "./plan-index.js";
 import { cycleIn } from "./step-rules.js";
 import { taskStatus, type TaskStatus } from "./task-rules.js";
 import { orderOf } from "./order.js";
@@ -36,15 +36,18 @@ export function timelineUnit(timelineChoice: string): TimelineUnit {
 }
 
 /**
- * The status of each task of the phase, computed from its steps and the relations between them. With an
- * index, the steps and relations of each task come from it (the same ones, so the same statuses).
+ * The status of each task of the phase, computed from its steps and the relations between them. A task can
+ * wait on a step of another task, so the graph of the whole plan is passed to every task (the index keeps
+ * one; without an index it is built here, once). With an index, the steps and relations of each task come
+ * from it (the same ones, so the same statuses).
  */
 export function phaseTaskStatuses(plan: Plan, phaseId: string, index?: PlanIndex): TaskStatus[] {
+  const graph = index?.graph ?? stepGraph(plan.steps, plan.relations);
   return plan.tasks
     .filter((task) => task.phaseId === phaseId)
     .map((task) => {
-      if (index) return taskStatus(index.stepsOfTask.get(task.id) ?? [], index.insideRelations.get(task.id) ?? []);
-      return taskStatus(plan.steps.filter((step) => step.taskId === task.id), plan.relations);
+      if (index) return taskStatus(index.stepsOfTask.get(task.id) ?? [], index.insideRelations.get(task.id) ?? [], graph);
+      return taskStatus(plan.steps.filter((step) => step.taskId === task.id), plan.relations, graph);
     });
 }
 

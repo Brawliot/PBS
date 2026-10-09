@@ -62,7 +62,7 @@ export function derivePlan(plan: Plan): DerivedPlan {
 
   const tasks: Record<string, TaskSummary> = {};
   for (const task of plan.tasks) {
-    tasks[task.id] = summarizeTask(task, index.stepsOfTask.get(task.id) ?? [], index.insideRelations.get(task.id) ?? []);
+    tasks[task.id] = summarizeTask(task, index.stepsOfTask.get(task.id) ?? [], index.insideRelations.get(task.id) ?? [], index.graph);
   }
 
   const phases: Record<string, PhaseDerived> = {};
@@ -71,10 +71,9 @@ export function derivePlan(plan: Plan): DerivedPlan {
   }
 
   const departments: Record<string, DepartmentProgress> = {};
-  const relationsOf = (taskId: string) => index.insideRelations.get(taskId) ?? [];
   for (const department of plan.departments) {
     const node = departmentNode(plan, department.id, index);
-    if (node) departments[department.id] = departmentProgress(node, plan.relations, relationsOf);
+    if (node) departments[department.id] = departmentProgress(node, plan.relations, index.graph);
   }
 
   const placeholders: DerivedPlan["placeholders"] = {};

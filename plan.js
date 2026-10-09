@@ -460,7 +460,7 @@
     const text = missing.length
       ? `To define: waiting for ${missing.map(keyLabel).join(', ')}.`
       : obsolete
-        ? 'To define: the suggestion for this task came from a decision that has changed. Reject it to suggest again.'
+        ? 'To define: the suggestion for this task came from a decision that has changed. Retire it to suggest again.'
         : waiting.length
           ? 'To define: a suggestion for this task is waiting for your decision.'
           : 'To define: every decision it waits for is confirmed. You can suggest tasks on the decisions page.';
@@ -746,11 +746,12 @@
       ? pending.map((item) => {
           const summary = derived.proposals[item.id] ?? { tasks: 0, steps: 0, titles: [], obsolete: false };
           const forTask = item.reason.taskId ? byId(plan.tasks, item.reason.taskId)?.title : null;
-          // An obsolete suggestion can only be rejected: accepting it would be refused
+          // An obsolete suggestion stays listed until it is retired: accepting it would be refused, so the
+          // only action is rejecting it (the server logs it as proposal_rejected, like any rejection)
           return el(
             'article',
             { class: 'step', 'data-proposal-id': item.id },
-            el('h3', { class: 'step__title' }, 'Suggested tasks'),
+            el('h3', { class: 'step__title' }, 'Suggested tasks', summary.obsolete ? el('span', { class: 'badge' }, 'Obsolete') : null),
             summary.obsolete ? el('p', { class: 'notice' }, 'This suggestion came from a decision that has changed.') : null,
             facts([
               ['For', forTask ?? 'A decision'],
@@ -761,7 +762,7 @@
               'div',
               { class: 'actions', role: 'group', 'aria-label': 'Suggestion decision' },
               summary.obsolete ? null : el('button', { type: 'button', class: 'btn btn--dark', disabled: busy ? true : undefined, on: { click: () => post(`/proposals/${enc(item.id)}/accept`, {}) } }, 'Accept'),
-              el('button', { type: 'button', class: 'btn btn--outline', disabled: busy ? true : undefined, on: { click: () => post(`/proposals/${enc(item.id)}/reject`, {}) } }, 'Reject'),
+              el('button', { type: 'button', class: 'btn btn--outline', disabled: busy ? true : undefined, on: { click: () => post(`/proposals/${enc(item.id)}/reject`, {}) } }, summary.obsolete ? 'Retire' : 'Reject'),
             ),
           );
         })

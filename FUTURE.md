@@ -17,12 +17,23 @@ Cosas que no pertenecen a las fases ya construidas ni a su salida a producción,
 
 Lo que falta para dar la fase 2 por terminada y pasar a la 3. Primero lo funcional (son decisiones), luego los supuestos sin calibrar, y al final el cierre.
 
-### Funcionalidad: decisiones tomadas (por implementar)
-1. **Lo obsoleto se deja marcado.** Un elemento derivado de un hecho cambiado queda visible con la etiqueta "obsoleta" y la persona decide si lo retira; nada desaparece solo. La acción de retirar se registra en `plan_log`.
-2. **`feedback: "deleted"` se conserva como retirado.** Deja de contar, pero queda en el historial. Revisar que el servidor lo escriba en vez de que solo `plan.js` lo oculte.
+### Funcionalidad: decisiones tomadas
+
+**Hechas**
+1. **Lo obsoleto se deja marcado.** Una propuesta pendiente cuyo hecho ya no está confirmado queda listada con la etiqueta "Obsolete" y no se puede aceptar. Se retira con "Retire", que llama a `reject` (no hay acción nueva: rechazar una propuesta ya es retirarla, y se registra como `proposal_rejected` en `plan_log`). Nada desaparece solo.
+5. **Mandan las relaciones entre pasos.** `taskStatus` lee lo que los pasos de la tarea esperan de otras tareas, con el grafo del plan entero. Una tarea sin trabajo empezado cuyos pasos esperan a pasos sin hacer de otras tareas figura "blocked"; una tarea con todos los pasos "done" sigue "done". `taskElapsedDays` no cuenta esas esperas (ver "Known limitations" del README).
+
+**Por implementar**
+2. **`feedback: "deleted"` se conserva como retirado.** Deja de contar, pero queda en el historial. *Parado antes de implementar, porque es bastante mayor de lo previsto.* Hoy ningún código del servidor escribe `feedback`, ni en tareas ni en pasos. Para hacerlo bien hacen falta decisiones de producto:
+   - Qué acción de servidor lo escribe. Los pasos pasan por `applyPlanAction`; las tareas no tienen historial, así que harían falta dos caminos. Y el registro (`plan_log`) tiene un CHECK con sus tipos, así que una acción nueva necesita una migración.
+   - Un paso retirado, ¿libera a los pasos que espera? Propuesta: sí, no bloquea ni alimenta, pero es una decisión de producto.
+   - Retirar una tarea, ¿retira también sus pasos?
+   - Qué se toca: estados, progreso de fases y departamentos, `readiness`, `availableActions`, tiempo transcurrido y las relaciones que apuntan a un elemento retirado (`checkPlan` no debe quedarse con referencias rotas).
+   - Los obsoletos derivados de un hecho cambiado (tareas y pasos con `derivedFrom`, `derived.stale`) hoy solo aparecen en una lista de la página de decisiones, sin acción para retirarlos. Dependen de esta decisión.
+
+**Aparcadas**
 3. **Edición manual mínima.** Solo lo que ya existe (acciones sobre pasos), renombrar y añadir cosas sencillas. La edición libre queda aparcada.
 4. **Vista de grupos aparcada.** La ruta `#/group/:id` sigue reservada; no bloquea nada.
-5. **Mandan las relaciones entre pasos.** Una tarea no se considera terminada mientras lo que necesita de otras tareas no esté listo. `taskStatus` debe tenerlo en cuenta como ya hace `readiness`.
 
 ### Supuestos sin calibrar (aprobar, cambiar o aparcar cada uno)
 - Catálogo de aspectos de dependencia entre departamentos, claves de hechos y valores de `product_type` (`department-catalog.ts`, `fact-catalog.ts`).

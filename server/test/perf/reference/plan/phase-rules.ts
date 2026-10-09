@@ -37,7 +37,7 @@ export function timelineUnit(timelineChoice: string): TimelineUnit {
 export function phaseTaskStatuses(plan: Plan, phaseId: string): TaskStatus[] {
   return plan.tasks
     .filter((task) => task.phaseId === phaseId)
-    .map((task) => taskStatus(plan.steps.filter((step) => step.taskId === task.id), plan.relations));
+    .map((task) => taskStatus(plan.steps.filter((step) => step.taskId === task.id), plan.relations, plan.steps));
 }
 
 /**

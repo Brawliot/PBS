@@ -108,4 +108,26 @@ describe("plan decisions on PostgreSQL", { skip: url ? false : "TEST_DATABASE_UR
       ]),
     );
   });
+
+  test("an obsolete suggestion stays listed until it is retired, and retiring it logs proposal_rejected", async () => {
+    const id = await newPlan();
+    const get = () => handlePlanRequest({ method: "GET", path: `/api/plan/${id}`, body: "", repo: plans, reports: undefined, now: () => NOW, env: {} });
+    await post(`/api/plan/${id}/facts`, { key: { kind: "catalog", id: "product_type" }, value: { kind: "catalog", id: "mobile_game" }, confirm: true, expectedVersion: 1 });
+    const asked = await post(`/api/plan/${id}/gaps/plan-product-development/proposal`, { expectedVersion: 2 });
+    const proposalId = (asked.body as { plan: { proposals: { id: string }[] } }).plan.proposals[0].id;
+    // web_app replaces mobile_game: the suggestion is obsolete, and nothing removes it
+    await post(`/api/plan/${id}/facts`, { key: { kind: "catalog", id: "product_type" }, value: { kind: "catalog", id: "web_app" }, confirm: true, expectedVersion: 3 });
+    const listed = (await get()).body as { version: number; plan: { proposals: { id: string; status: string }[] }; derived: { proposals: Record<string, { obsolete: boolean }> } };
+    assert.deepEqual(listed.plan.proposals.map((item) => [item.id, item.status]), [[proposalId, "pending"]]);
+    assert.equal(listed.derived.proposals[proposalId].obsolete, true);
+    // It cannot be accepted, and retiring it (reject) is the only way out
+    assert.equal((await post(`/api/plan/${id}/proposals/${proposalId}/accept`, { expectedVersion: 4 })).status, 409);
+    const retired = await post(`/api/plan/${id}/proposals/${proposalId}/reject`, { expectedVersion: 4 });
+    assert.equal(retired.status, 200);
+    const { rows } = await pool.query("SELECT kind, actor, ref_id FROM plan_log WHERE plan_id = $1 AND ref_id = $2 ORDER BY id", [id, proposalId]);
+    assert.deepEqual(rows, [
+      { kind: "proposal_created", actor: "user", ref_id: proposalId },
+      { kind: "proposal_rejected", actor: "user", ref_id: proposalId },
+    ]);
+  });
 });

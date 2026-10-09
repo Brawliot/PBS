@@ -2,11 +2,13 @@
  * What a task is, computed from its steps. A task stores only its identity and its primary
  * department; status, mode, effort, elapsed time and secondary departments are always
  * derived here, so they cannot disagree with the steps. Pure functions over the steps of one
- * task and the step-level relations: a relation that does not join two steps of this task is
- * ignored (what a task needs from another one is a task-level matter).
+ * task and the step-level relations. The status also reads the relations that come from steps of
+ * other tasks (what a step waits for, wherever it is); the elapsed time reads only the relations
+ * that join two steps of this task (assumption: the time of a wait on another task is not counted).
  */
 
 import type { Plan, Step, Task } from "./plan-model.js";
+import { stepGraph, type StepGraph } from "./plan-index.js";
 import { readiness, topologicalOrder } from "./step-graph.js";
 
 type Relations = Plan["relations"];
@@ -35,17 +37,22 @@ function insideRelations(steps: readonly Step[], relations: Relations): Relation
 }
 
 /**
- * In order: no steps is not started; all done is done; any active step, or a done step with
- * others unfinished, is in progress; with nothing active, blocked when no step that has not
- * started is ready (all blocked, or only rejected steps left); otherwise not started.
+ * In order: no steps is not started; all done is done (the work already done is not reopened, even
+ * if something outside is still open); any active step, or a done step with others unfinished, is in
+ * progress; with nothing active, blocked when no step that has not started is ready (all blocked, or
+ * only rejected steps left); otherwise not started.
+ * "Ready" counts what the step waits for in any task: a blocker or a feeder in another task that is
+ * not met makes the step blocked. `graph` is the graph of the whole plan (buildPlanIndex keeps one), so
+ * each task reads it instead of searching the plan again. Without it, only the given steps are known,
+ * and a step that waits for anything else is blocked.
  * Assumption: "blocked" also covers a task that cannot start yet because it depends on something.
  */
-export function taskStatus(steps: readonly Step[], relations: Relations): TaskStatus {
+export function taskStatus(steps: readonly Step[], relations: Relations, graph?: StepGraph): TaskStatus {
   if (steps.length === 0) return "not_started";
   if (steps.every((step) => step.status === "done")) return "done";
   if (steps.some((step) => ACTIVE.includes(step.status) || step.status === "done")) return "in_progress";
-  const inside = insideRelations(steps, relations);
-  const anyReady = steps.some((step) => step.status === "not_started" && readiness(step, steps, inside) === "ready");
+  const lookup = graph ?? stepGraph(steps, relations);
+  const anyReady = steps.some((step) => step.status === "not_started" && readiness(step, steps, relations, lookup) === "ready");
   return anyReady ? "not_started" : "blocked";
 }
 
@@ -90,9 +97,9 @@ export function taskDepartments(task: Pick<Task, "primaryDepartmentId">, steps: 
   return { primary: task.primaryDepartmentId, secondary };
 }
 
-export function summarizeTask(task: Task, steps: readonly Step[], relations: Relations): TaskSummary {
+export function summarizeTask(task: Task, steps: readonly Step[], relations: Relations, graph?: StepGraph): TaskSummary {
   return {
-    status: taskStatus(steps, relations),
+    status: taskStatus(steps, relations, graph),
     automation: taskAutomation(steps),
     effortHours: taskEffortHours(steps),
     elapsed: taskElapsedDays(steps, relations),

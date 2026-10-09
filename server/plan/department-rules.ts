@@ -6,6 +6,7 @@
 import { isCatalogAspect } from "./department-catalog.js";
 import type { Plan } from "./plan-model.js";
 import type { DepartmentNode } from "./plan-tree.js";
+import type { StepGraph } from "./plan-index.js";
 import { taskStatus } from "./task-rules.js";
 
 type Relations = Plan["relations"];
@@ -52,20 +53,16 @@ export interface DepartmentProgress {
   done: number;
 }
 
-/** Tasks the department is responsible for, by status. Tasks where it only participates do not count (optional assumption). */
 /**
- * `relationsOf` gives the step relations of a task (what taskStatus reads); without it, the whole list is
- * searched for each task. Both give the same status.
+ * Tasks the department is responsible for, by status. Tasks where it only participates do not count (optional assumption).
+ * `graph` is the graph of the whole plan, so a task waiting on a step of another task counts as blocked
+ * (see taskStatus); without it, only the steps of each task are known.
  */
-export function departmentProgress(
-  node: DepartmentNode,
-  relations: Relations,
-  relationsOf?: (taskId: string) => Relations,
-): DepartmentProgress {
+export function departmentProgress(node: DepartmentNode, relations: Relations, graph?: StepGraph): DepartmentProgress {
   const progress: DepartmentProgress = { total: 0, notStarted: 0, inProgress: 0, blocked: 0, done: 0 };
-  for (const { task, steps } of node.responsible) {
+  for (const { steps } of node.responsible) {
     progress.total++;
-    const status = taskStatus(steps, relationsOf ? relationsOf(task.id) : relations);
+    const status = taskStatus(steps, relations, graph);
     if (status === "not_started") progress.notStarted++;
     else if (status === "in_progress") progress.inProgress++;
     else if (status === "blocked") progress.blocked++;

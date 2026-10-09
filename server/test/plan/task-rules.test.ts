@@ -2,6 +2,7 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import type { Plan, Step, Task } from "../../plan/plan-model.js";
 import { applyStepAction } from "../../plan/step-actions.js";
+import { stepGraph } from "../../plan/plan-index.js";
 import {
   WORKDAY_HOURS,
   summarizeTask,
@@ -89,11 +90,50 @@ describe("taskStatus: the precedence, branch by branch", () => {
     assert.equal(taskStatus([feeder, step("b")], [rel("feeds", "a", "b")]), "not_started");
   });
 
-  test("relations that do not join two steps of the task are ignored", () => {
-    assert.equal(taskStatus([step("a")], [rel("blocks", "x", "a")]), "not_started"); // x belongs to another task
+  test("a step of another task blocks only while that step is not done (the graph of the whole plan)", () => {
+    // Without the graph, the other task's step is unknown, so it is not met: the step is blocked
+    assert.equal(taskStatus([step("a")], [rel("blocks", "x", "a")]), "blocked");
+    // With the graph of the plan, its status decides
+    const relations = [rel("blocks", "x", "a")];
+    for (const status of ["not_started", "running", "waiting_user", "waiting_third_party", "rejected"] as const) {
+      const steps = [step("a"), step("x", { taskId: "t2", status })];
+      assert.equal(taskStatus([steps[0]], relations, stepGraph(steps, relations)), "blocked", status);
+    }
+    const steps = [step("a"), step("x", { taskId: "t2", status: "done" })];
+    assert.equal(taskStatus([steps[0]], relations, stepGraph(steps, relations)), "not_started");
+    // What this task blocks in another one does not hold that one back
     assert.equal(taskStatus([step("a")], [rel("blocks", "a", "x")]), "not_started");
+    // A loop among steps of other tasks does not touch this one
     assert.equal(taskStatus([step("a")], [rel("blocks", "x", "y"), rel("blocks", "y", "x")]), "not_started");
-    assert.equal(taskStatus([step("a", { status: "rejected" }), step("b")], [rel("blocks", "x", "b"), rel("blocks", "a", "b")]), "blocked");
+  });
+
+  test("a feeder of another task counts as met only with a confirmed output", () => {
+    const relations = [rel("feeds", "x", "a")];
+    const feeder = (outputs?: unknown[]) => {
+      const steps = [step("a"), ai("x", { taskId: "t2", status: "rejected", outputs })];
+      return taskStatus([steps[0]], relations, stepGraph(steps, relations));
+    };
+    assert.equal(feeder([confirmed]), "not_started");
+    assert.equal(feeder([{ ...confirmed, state: "draft", confirmedAt: undefined }]), "blocked");
+    assert.equal(feeder(), "blocked");
+  });
+
+  test("a task with all steps done stays done, even while a step of another task is open", () => {
+    const relations = [rel("blocks", "x", "a")];
+    const steps = [step("a", { status: "done" }), step("x", { taskId: "t2" })];
+    assert.equal(taskStatus([steps[0]], relations, stepGraph(steps, relations)), "done");
+  });
+
+  test("a task with one step free to start is not blocked by the others", () => {
+    const relations = [rel("blocks", "x", "b")];
+    const steps = [step("a"), step("b"), step("x", { taskId: "t2" })];
+    assert.equal(taskStatus([steps[0], steps[1]], relations, stepGraph(steps, relations)), "not_started");
+  });
+
+  test("a task that has started stays in progress whatever waits on other tasks", () => {
+    const relations = [rel("blocks", "x", "b")];
+    const steps = [step("a", { status: "done" }), step("b"), step("x", { taskId: "t2" })];
+    assert.equal(taskStatus([steps[0], steps[1]], relations, stepGraph(steps, relations)), "in_progress");
   });
 
   test("task and department relations are not step relations", () => {
@@ -298,5 +338,16 @@ describe("summarizeTask", () => {
     const before = structuredClone({ steps, relations });
     summarizeTask(task, steps, relations);
     assert.deepEqual({ steps, relations }, before);
+  });
+});
+
+describe("summarizeTask with the graph of the plan", () => {
+  test("the status counts the steps of other tasks, and the rest of the summary is the same", () => {
+    const steps = [step("a", { effortHours: 2 }), step("x", { taskId: "t2" })];
+    const relations = [rel("blocks", "x", "a")];
+    const summary = summarizeTask(task, [steps[0]], relations, stepGraph(steps, relations));
+    assert.equal(summary.status, "blocked");
+    assert.equal(summary.effortHours, 2);
+    assert.deepEqual(summarizeTask(task, [steps[0]], relations).status, "blocked");
   });
 });

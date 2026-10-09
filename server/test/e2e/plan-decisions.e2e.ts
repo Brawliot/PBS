@@ -227,7 +227,10 @@ async function scenarioObsolete(browser: any): Promise<string> {
   const obsolete = page.locator("article[data-proposal-id]");
   await obsolete.waitFor();
   assert.match(await obsolete.textContent() ?? "", /This suggestion came from a decision that has changed\./);
+  assert.equal(await obsolete.locator(".badge", { hasText: "Obsolete" }).count(), 1, "the obsolete label");
   assert.equal(await obsolete.getByRole("button", { name: "Accept", exact: true }).count(), 0, "no Accept on an obsolete suggestion");
+  assert.equal(await obsolete.getByRole("button", { name: "Reject", exact: true }).count(), 0, "no Reject on an obsolete suggestion");
+  assert.equal(await obsolete.getByRole("button", { name: "Retire", exact: true }).count(), 1, "Retire on an obsolete suggestion");
   await obsolete.screenshot({ path: join(SHOTS, "obsolete-suggestion-1280x720.png") });
   await page.setViewportSize({ width: 390, height: 780 });
   await obsolete.screenshot({ path: join(SHOTS, "obsolete-suggestion-390x780.png") });
@@ -236,14 +239,14 @@ async function scenarioObsolete(browser: any): Promise<string> {
   await page.goto(`${BASE}/plan.html?id=${id}#/task/plan-product-development`);
   await page.waitForSelector("#view h1");
   const note = page.locator("#view .notice").first();
-  assert.match(await note.textContent() ?? "", /came from a decision that has changed\. Reject it to suggest again\./);
+  assert.match(await note.textContent() ?? "", /came from a decision that has changed\. Retire it to suggest again\./);
   await page.screenshot({ path: join(SHOTS, "gap-obsolete-390x780.png") });
   await page.setViewportSize({ width: 1280, height: 720 });
   await page.screenshot({ path: join(SHOTS, "gap-obsolete-1280x720.png") });
 
   // Rejected: the gap asks again, with the current value
   await page.goto(`${BASE}/plan.html?id=${id}#/decisions`);
-  await page.locator("article[data-proposal-id]").getByRole("button", { name: "Reject" }).click();
+  await page.locator("article[data-proposal-id]").getByRole("button", { name: "Retire", exact: true }).click();
   await page.locator("article[data-proposal-id]").waitFor({ state: "detached" });
   await page.locator('li[data-task-id="plan-product-development"]').getByRole("button", { name: "Suggest tasks" }).click();
   const fresh = page.locator("article[data-proposal-id]");
@@ -252,7 +255,7 @@ async function scenarioObsolete(browser: any): Promise<string> {
   await fresh.getByRole("button", { name: "Accept", exact: true }).click();
   await page.locator("details.fold summary", { hasText: "Decided suggestions" }).waitFor();
   await context.close();
-  return "obsolete: no Accept and its notice, reject, then suggest again with the current value";
+  return "obsolete: label, no Accept or Reject, Retire, then suggest again with the current value";
 }
 
 /** Reject and suggest again with the same value, four times: nothing is left blocked */

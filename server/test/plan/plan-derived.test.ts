@@ -31,8 +31,9 @@ describe("derivePlan on the restaurant plan", () => {
           elapsed: { ok: true, days: 0.25 },
           departments: { primary: "finance", secondary: [] },
         },
+        // Its only step waits for steps of two other tasks, which are not done: blocked, not started
         "t-permits": {
-          status: "not_started",
+          status: "blocked",
           automation: "manual",
           effortHours: 2,
           elapsed: { ok: true, days: 0.25 },
@@ -54,7 +55,7 @@ describe("derivePlan on the restaurant plan", () => {
         f3: { status: "blocked", progress: { total: 1, done: 0, percent: 0 } },
       },
       departments: {
-        legal: { total: 2, notStarted: 2, inProgress: 0, blocked: 0, done: 0 },
+        legal: { total: 2, notStarted: 1, inProgress: 0, blocked: 1, done: 0 },
         finance: { total: 2, notStarted: 2, inProgress: 0, blocked: 0, done: 0 },
       },
       // The plan has no facts, gaps or proposals: nothing to grow with yet

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { departmentProgress, departmentRelationProblems } from "../../plan/department-rules.js";
 import type { DepartmentNode, TaskNode } from "../../plan/plan-tree.js";
 import type { Plan, Step, Task } from "../../plan/plan-model.js";
+import { stepGraph } from "../../plan/plan-index.js";
 
 const DEPARTMENTS = [{ id: "legal" }, { id: "finance" }, { id: "marketing" }];
 type Relation = Plan["relations"][number];
@@ -149,5 +150,16 @@ describe("departmentProgress", () => {
     ]);
     const progress = departmentProgress(node, []);
     assert.equal(progress.notStarted + progress.inProgress + progress.blocked + progress.done, progress.total);
+  });
+});
+
+describe("departmentProgress with the graph of the plan", () => {
+  test("a task waiting on a step of another task is blocked, until that step is done", () => {
+    const steps = [{ id: "a", taskId: "t1", status: "not_started", events: [] }, { id: "x", taskId: "t2", status: "running", events: [] }] as unknown as Step[];
+    const relations = [{ level: "step", type: "blocks", from: "x", to: "a" }] as Relation[];
+    const node = departmentNode([taskNode("t1", [steps[0]])]);
+    assert.equal(departmentProgress(node, relations, stepGraph(steps, relations)).blocked, 1);
+    steps[1] = { ...steps[1], status: "done" } as Step;
+    assert.deepEqual(departmentProgress(node, relations, stepGraph(steps, relations)), { total: 1, notStarted: 1, inProgress: 0, blocked: 0, done: 0 });
   });
 });

@@ -4,7 +4,7 @@
  */
 
 import { isCatalogAspect } from "./department-catalog.js";
-import type { Plan } from "./plan-model.js";
+import type { Plan, Step } from "./plan-model.js";
 import type { DepartmentNode } from "./plan-tree.js";
 import { taskStatus } from "./task-rules.js";
 
@@ -53,11 +53,11 @@ export interface DepartmentProgress {
 }
 
 /** Tasks the department is responsible for, by status. Tasks where it only participates do not count (optional assumption). */
-export function departmentProgress(node: DepartmentNode, relations: Relations): DepartmentProgress {
+export function departmentProgress(node: DepartmentNode, relations: Relations, allSteps: readonly Step[]): DepartmentProgress {
   const progress: DepartmentProgress = { total: 0, notStarted: 0, inProgress: 0, blocked: 0, done: 0 };
   for (const { steps } of node.responsible) {
     progress.total++;
-    const status = taskStatus(steps, relations);
+    const status = taskStatus(steps, relations, allSteps);
     if (status === "not_started") progress.notStarted++;
     else if (status === "in_progress") progress.inProgress++;
     else if (status === "blocked") progress.blocked++;
