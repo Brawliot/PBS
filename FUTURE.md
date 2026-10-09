@@ -79,6 +79,25 @@ Decisiones que quedan abiertas y se revisan con datos reales:
 
 Pendiente antes de la primera rebanada visible: la calibración de la fase 1 con claves reales (ver arriba) y el conjunto de evaluación de 6 casos.
 
+### Estado: primera rebanada (el nivel plan, en pantalla)
+
+Hecho, probado con ejecutores falsos (tests y e2e en Chromium):
+
+- **Botón "Suggest plan structure"** en Decisions. Solo se pulsa a mano; nunca se llama al cargar la página. Una estructura pendiente a la vez.
+- **Propuesta de estructura** (`plan-structure.ts`): fases, cambios de tier por departamento, relaciones entre departamentos (con aspecto) y, como texto de solo lectura, peticiones y preguntas. Aceptar la aplica entera y vuelve a comprobar el plan; rechazar no cambia nada. La aplicación es una sola función para la propuesta y para la respuesta del agente.
+- **Hechos del plan**: origen `agent` (nivel `plan`), sin paso. Los confirma solo la persona.
+- **Ruta** `POST /api/plan/:id/agents/structure`: síncrona, con indicador de carga. Los códigos de fallo están en el README.
+- **Informe de la idea**: `ReportRepository.getByPlanId`. Sin informe (p. ej. el plan demo) responde `no_report`.
+- **Límites compartidos** (`STRUCTURE_LIMITS` en `plan-model.ts`) para el modelo y el contrato del agente.
+
+Lo que queda, en orden:
+
+1. **Calibración con claves reales**: una prueba a mano con el plan de un informe real (ver los pasos de prueba en la entrega de la rebanada).
+2. **Trabajo en segundo plano** si las esperas (hasta ~270 s en el peor caso) molestan o pasan del tiempo de espera de Node: un almacén de trabajos como el del planner.
+3. **Control de coste**: límite de llamadas por plan y por día antes de desplegar (ver "Known limitations" en el README).
+4. **Hechos y estructura obsoletos**: marcar una estructura cuando cambia un hecho del que salió, como ya se hace con las tareas de un hueco.
+5. **Nivel departamento** y después tareas y pasos (rebanadas siguientes).
+
 ---
 
 ## Pendiente de cerrar de la fase 1

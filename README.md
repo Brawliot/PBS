@@ -53,6 +53,8 @@ Read from the environment in `server/.env` (loaded by `--env-file=.env`).
 | `DB_IDLE_TIMEOUT_MS` | No | `server/db/pool.ts` | Milliseconds a connection may stay idle before it is closed. Default `30000`. |
 | `DB_STATEMENT_TIMEOUT_MS` | No | `server/db/pool.ts` | Milliseconds a single statement may run; PostgreSQL cancels it after this (error `57014`). Default `10000`. |
 
+The plan assistant (`POST /api/plan/:id/agents/structure`) reads the same four keys as the planner: `OPENAI_API_KEY` and `OPENAI_MODEL` for the model, `TYPESAFE_API_KEY` and `JEV_MODEL` for the relevance judge. If one is missing, the route answers `503` and makes no call (`server/plan/agents/configured-agents.ts`).
+
 The four `DB_` limits must be positive whole numbers. Any other value stops the server at start, and the message names the variable.
 
 **SSL to PostgreSQL** is set by `DATABASE_URL` itself, with the usual `sslmode` parameter (for example `?sslmode=require`). The server does not add or change it.
@@ -212,6 +214,23 @@ A gap is a task that waits for facts (`placeholder`). When its facts are confirm
 | `POST /api/plan/:id/gaps/:taskId/proposal` | `{ expectedVersion }` | `201`. The proposal is in `plan.proposals`, and `derived.proposals` lists its tasks and titles. |
 | `POST /api/plan/:id/proposals/:proposalId/accept` | `{ expectedVersion }` | `200`. The tasks are added and the gap no longer waits. |
 | `POST /api/plan/:id/proposals/:proposalId/reject` | `{ expectedVersion }` | `200` |
+| `POST /api/plan/:id/agents/structure` | `{ expectedVersion }` | `201`. Asks the plan-level assistant for the structure of the plan (phases, tiers, relations between departments), from the idea of its report. See below. |
+
+#### The plan structure from the assistant
+
+`POST /api/plan/:id/agents/structure` asks the assistant once. Its answer is only proposed: one pending proposal with `reason: { "scope": "plan" }` and its `structure` (in `plan.proposals`, and summarised in `derived.proposals[id].structure` with names instead of ids), and the facts it found, as proposed facts with `from: { "kind": "agent", "level": "plan" }`. The person accepts or rejects the structure as a whole (`/accept`, `/reject`); the facts are confirmed one by one, as any other fact. Accepting applies the phases, the tiers and the relations, and checks the plan again first. The requests and questions of the assistant are text for the person and are never applied.
+
+The call is synchronous: it waits for the assistant, with up to three tries of the model and of the judge. Its failures:
+
+| Code | Status | When |
+| --- | --- | --- |
+| `assistant_unavailable` | `503` | The model or the judge is not configured, or it did not answer on every try. |
+| `suggestion_invalid` | `502` | The answer did not fit the plan on every try, or one of its facts does not fit the catalogue. |
+| `no_report` | `409` | The plan was not made from a report (the demo plan), so there is no idea to work from. |
+| `duplicate_pending` | `409` | A structure is already waiting for a decision. Refused before the assistant is called. |
+| `version_conflict` | `409` | The plan changed while the assistant was thinking. Nothing from the suggestion is saved. |
+
+A failure saves nothing. The server log gets one line with the code of the failure, never the prompts or the answer.
 
 The success body is the one of a step action: `{ id, version, plan, derived }`. Errors use the same shape as the step actions, `{ error, code }`, with one fixed text per code. A stale `expectedVersion` gives `409 version_conflict`; the page then reloads the plan. A step whose history has reached its limit (200 events) answers `409 events_full` to every action, and a change that would take the plan's document over 5 MiB of JSON (`MAX_DOCUMENT_BYTES`, not calibrated yet) answers `409 plan_too_large`. Both leave the plan as it was.
 
@@ -237,7 +256,8 @@ server/
   request.ts            Body reading, validation and limits for the planner request
   plan-routes.ts        Plan API as a pure function: routes, status codes, development routes, facts and proposals
   plan/                 Plan model, rules, checks, derived values, and the plan and report repositories
-  plan/agents/          Agent contracts by level (plan, department, task, step), the shared pipeline and the real model adapters (OpenAI, Jev)
+  plan/plan-structure.ts  The plan structure: applied to a copy, proposed, and applied when accepted
+  plan/agents/          Agent contracts by level (plan, department, task, step), the shared pipeline and the real model adapters (OpenAI, Jev), and the agents built from the environment
   scripts/              Manual scripts that use the real model (not run by the tests)
   db/                   PostgreSQL: migrations (SQL files and their runner), plan and report repositories
   planner/
@@ -262,7 +282,9 @@ server/
 - **No authentication.** The login and register dialogs do not send anything (`// TODO: send data` in `script.js`). The login gate is off (`REQUIRE_LOGIN = false` in `script.js`) for testing.
 - **No rate limiting and no cost protection.** Every planner request calls paid APIs: a request that asks for questions makes one Jev and one OpenAI call; a final request (or one with no questions left) makes three Jev calls. Add rate limits and spending controls before deploying.
 - **Placeholders in the UI.** "View my projects" only shows a notice.
-- **Agents are not connected to the API yet.** The contracts in `server/plan/agents/` are tested with fake models only. Their answers are checked and turned into proposals, but no route calls them, and no error code of the agents has a text for the user yet. The first screen that uses them is the next slice.
+- **Only the plan level of the agents is connected.** `POST /api/plan/:id/agents/structure` is the one route that calls a model; the department and task levels are contracts tested with fake models only.
+- **Each suggestion costs money and waits.** A structure suggestion calls OpenAI and Jev up to three times each, and it is only made when the person presses "Suggest plan structure" (never when the page opens). Its worst wait is about three times (60 s for OpenAI plus 30 s for Jev), that is about 270 s, close to the 300 s request timeout Node uses by default. It is synchronous for now; a background job would be the fix if the waits grow. Only one structure can wait at a time.
+- **A structure is not re-checked against the facts it was made from.** If a fact changes after the suggestion, the structure stays pending and is still accepted if it fits the plan, unlike the tasks of a gap (they are marked obsolete).
 - **Suggestions only from templates.** A gap is expanded only for the `mobile_game` and `web_app` product types. Other values answer `needs_ai` until the AI is built. A rejected suggestion can be asked again: the new one takes the next free id (`-2`, `-3`...), up to 20 tries, and then `id_taken`. A pending suggestion whose decision has changed is marked obsolete (`derived.proposals[id].obsolete`). It stays listed, with the label Obsolete, until it is retired: the screen's Retire button calls `reject` (logged as `proposal_rejected`). Accepting it gives `409 not_confirmed`, and nothing removes a suggestion by itself.
 - **Uncalibrated thresholds.** The question-policy numbers (`POLICY` in `question-policy.ts`) and the validation thresholds (`SUPPORT_MIN`, `CHECK_MIN`, `CORE_MIN`, `IMPORTANT_MIN` in `planner-validation-handler.ts`) are estimates and have not been tuned on real data.
 - **Elapsed time ignores waits on other tasks.** A task's status counts the steps of other tasks (a task whose steps all wait on other tasks is blocked), but its elapsed time only counts the relations between its own steps.

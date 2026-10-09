@@ -35,6 +35,14 @@ export class PgReportRepository implements ReportRepository {
     return { id: row.id, report: checkedReport(row.report), planId: row.plan_id };
   }
 
+  async getByPlanId(planId: string, userId: string): Promise<StoredReport | undefined> {
+    // plan_id is UNIQUE in the reports table, so this reads at most one row (and the index serves the lookup)
+    const { rows } = await this.pool.query<ReportRow>("SELECT id, report, plan_id FROM reports WHERE plan_id = $1 AND user_id = $2", [planId, userId]);
+    const row = rows[0];
+    if (!row) return undefined;
+    return { id: row.id, report: checkedReport(row.report), planId: row.plan_id };
+  }
+
   async attachPlan(id: string, userId: string, planId: string): Promise<AttachResult> {
     const { rows } = await this.pool.query<{ plan_id: string }>(
       "UPDATE reports SET plan_id = $3 WHERE id = $1 AND user_id = $2 AND plan_id IS NULL RETURNING plan_id",

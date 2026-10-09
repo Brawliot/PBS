@@ -160,7 +160,7 @@ describe("proposals: from a gap, accept and reject", () => {
     await call(repo, "POST", `/api/plan/${id}/gaps/${GAP}/proposal`, { expectedVersion: version });
     assert.deepEqual(await call(repo, "POST", `/api/plan/${id}/gaps/${GAP}/proposal`, { expectedVersion: version + 1 }), {
       status: 409,
-      body: { error: "A proposal for this task is already waiting for a decision", code: "duplicate_pending" },
+      body: { error: "A suggestion of this kind is already waiting for a decision", code: "duplicate_pending" },
     });
   });
 

@@ -42,7 +42,10 @@
     invalid_proposal: 'This suggestion is not valid.',
     unknown_reason: 'This suggestion refers to something that is no longer in the plan.',
     too_large: 'This suggestion is too large to add.',
-    duplicate_pending: 'A suggestion for this task is already waiting for a decision.',
+    duplicate_pending: 'A suggestion of this kind is already waiting for a decision.',
+    assistant_unavailable: 'The assistant is not available right now. Try again later.',
+    suggestion_invalid: "The assistant's suggestion was not usable. Try again.",
+    no_report: 'This plan was not made from a report, so there is no idea to work from.',
     id_taken: 'A suggestion for this task was already made.',
     already_decided: 'This suggestion was already decided.',
     needs_ai: 'There is no ready-made suggestion for this decision yet.',
@@ -654,6 +657,36 @@
     );
   }
 
+  /** A plan structure waiting for a decision: accepted or rejected as a whole. Its texts are read-only. */
+  function structureCard(item, summary) {
+    const structure = summary.structure;
+    const list = (items) => el('ul', { class: 'list' }, items.map((text) => el('li', { class: 'output' }, text)));
+    return el(
+      'article',
+      { class: 'step', 'data-proposal-id': item.id, 'data-structure': 'true' },
+      el('h3', { class: 'step__title' }, 'Plan structure'),
+      el('p', { class: 'row__meta' }, 'The phases, tiers and relations below change the plan only when you accept them.'),
+      el('h3', { class: 'step__sub' }, 'Phases'),
+      el('ol', { class: 'list' }, structure.phases.map((name) => el('li', { class: 'output' }, name))),
+      el('h3', { class: 'step__sub' }, 'Tiers'),
+      structure.tiers.length
+        ? list(structure.tiers.map((change) => `${change.department}: ${TIER[change.from] ?? change.from} to ${TIER[change.to] ?? change.to}`))
+        : el('p', { class: 'empty' }, 'No department changes its tier.'),
+      el('h3', { class: 'step__sub' }, 'Relations between departments'),
+      structure.relations.length
+        ? list(structure.relations.map((link) => `${link.from} ${link.type === 'blocks' ? 'blocks' : 'follows'} ${link.to}: ${link.aspect}`))
+        : el('p', { class: 'empty' }, 'No relations between departments.'),
+      structure.requests.length ? [el('h3', { class: 'step__sub' }, 'Requests'), list(structure.requests)] : null,
+      structure.questions.length ? [el('h3', { class: 'step__sub' }, 'Questions'), list(structure.questions)] : null,
+      el(
+        'div',
+        { class: 'actions', role: 'group', 'aria-label': 'Structure decision' },
+        el('button', { type: 'button', class: 'btn btn--dark', disabled: busy ? true : undefined, on: { click: () => post(`/proposals/${enc(item.id)}/accept`, {}) } }, 'Accept'),
+        el('button', { type: 'button', class: 'btn btn--outline', disabled: busy ? true : undefined, on: { click: () => post(`/proposals/${enc(item.id)}/reject`, {}) } }, 'Reject'),
+      ),
+    );
+  }
+
   // ---- Decisions: facts to confirm, a new decision, gaps, and suggestions
   function decisionsView() {
     const { plan, derived, catalog } = data;
@@ -742,9 +775,21 @@
         )
       : el('p', { class: 'empty' }, 'Nothing is left to define.');
 
+    // One plan structure at a time: the button asks for one only when none is waiting
+    const structurePending = pending.some((item) => item.structure !== undefined);
+    const structureAction = structurePending
+      ? el('p', { class: 'notice' }, 'A plan structure is waiting for your decision below.')
+      : el(
+          'div',
+          { class: 'actions' },
+          el('button', { type: 'button', class: 'btn btn--outline', disabled: busy ? true : undefined, on: { click: () => post('/agents/structure', {}) } }, 'Suggest plan structure'),
+          el('p', { class: 'row__meta' }, 'Asks the assistant for the phases, tiers and relations of this plan. Nothing changes until you accept it.'),
+        );
+
     const proposalItems = pending.length
       ? pending.map((item) => {
           const summary = derived.proposals[item.id] ?? { tasks: 0, steps: 0, titles: [], obsolete: false };
+          if (item.structure !== undefined && summary.structure) return structureCard(item, summary);
           const forTask = item.reason.taskId ? byId(plan.tasks, item.reason.taskId)?.title : null;
           // An obsolete suggestion stays listed until it is retired: accepting it would be refused, so the
           // only action is rejecting it (the server logs it as proposal_rejected, like any rejection)
@@ -773,7 +818,7 @@
           'details',
           { class: 'fold' },
           el('summary', {}, `Decided suggestions (${decided.length})`),
-          el('ul', { class: 'plain-list' }, decided.map((item) => el('li', {}, `${item.status === 'accepted' ? 'Accepted' : 'Rejected'}: ${derived.proposals[item.id]?.titles.join(', ') ?? item.id}`))),
+          el('ul', { class: 'plain-list' }, decided.map((item) => el('li', {}, `${item.status === 'accepted' ? 'Accepted' : 'Rejected'}: ${item.structure !== undefined ? 'plan structure' : derived.proposals[item.id]?.titles.join(', ') ?? item.id}`))),
         )
       : null;
 
@@ -794,6 +839,7 @@
         el('h2', { class: 'section' }, 'To define'),
         gapItems,
         el('h2', { class: 'section' }, 'Suggestions'),
+        structureAction,
         proposalItems,
         decidedFold,
       ],

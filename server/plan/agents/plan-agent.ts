@@ -8,9 +8,10 @@
 
 import { z } from "zod";
 import { type AgentContext, type AgentDeps, type AgentResult, AnswerExtrasSchema, clip, fail, judgeRelevance, keepsPlanValid, shortText, withAttempts } from "./contract.js";
-import { IdSchema, LIMITS, PhaseSchema, RelationSchema, parsePlan, type Plan, type Relation } from "../plan-model.js";
+import { IdSchema, LIMITS, PhaseSchema, RelationSchema, STRUCTURE_LIMITS, type Plan, type Relation, type Structure } from "../plan-model.js";
+import { applyStructure } from "../plan-structure.js";
 
-export const MAX_PLAN_RELATIONS = 40;
+export const MAX_PLAN_RELATIONS = STRUCTURE_LIMITS.relations;
 export const MAX_REVIEW_FINDINGS = 20;
 export const MAX_REVIEW_TASK_IDS = 10;
 export const MAX_REVIEW_ADJUSTMENTS = 10;
@@ -35,28 +36,25 @@ export interface PlanGenerateResult {
 }
 
 /**
- * The answer applied to a copy of the base plan: its phases replace the old ones, the tiers change the
- * departments, and its relations are added to the plan's own. Undefined when a reference is unknown or a
- * relation is not a department one; checkPlan decides the rest (keepsPlanValid).
+ * The structure an answer proposes (plan-structure.ts): its phases, tiers and department relations, and its
+ * requests and questions as text ("Plan: ..." or "department: ..."). Undefined when a relation is not a department one.
  */
-export function applyPlanGenerate(base: Plan, output: PlanGenerateOutput): Plan | undefined {
-  const known = new Set(base.departments.map((department) => department.id));
-  if (output.tiers.some((item) => !known.has(item.departmentId))) return undefined;
+export function structureOf(output: PlanGenerateOutput): Structure | undefined {
   if (output.relations.some((relation) => relation.level !== "department")) return undefined;
-  const departments = base.departments.map((department) => ({
-    ...department,
-    tier: output.tiers.find((item) => item.departmentId === department.id)?.tier ?? department.tier,
-  }));
-  try {
-    return parsePlan({
-      ...base,
-      departments,
-      phases: output.phases,
-      relations: [...base.relations, ...output.relations],
-    });
-  } catch {
-    return undefined;
-  }
+  return {
+    phases: output.phases,
+    tiers: output.tiers,
+    // The check above keeps only department relations: the type is narrowed here, the schema is the same
+    relations: output.relations as Structure["relations"],
+    requests: output.requests.map((request) => `${request.to === "plan" ? "Plan" : request.to}: ${request.text}`),
+    questions: output.questions,
+  };
+}
+
+/** The answer applied to a copy of the base plan (see applyStructure); undefined when it does not fit the plan */
+export function applyPlanGenerate(base: Plan, output: PlanGenerateOutput): Plan | undefined {
+  const structure = structureOf(output);
+  return structure && applyStructure(base, structure);
 }
 
 const PLAN_GENERATE_SYSTEM = `You plan the structure of a business from its idea. You PROPOSE; you do not decide.

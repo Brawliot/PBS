@@ -12,14 +12,14 @@
 import { z } from "zod";
 import { newProblems } from "../plan-actions.js";
 import { checkPlan } from "../plan-check.js";
-import { FactTermSchema, IdSchema, type FactTerm, type Plan } from "../plan-model.js";
+import { FactTermSchema, IdSchema, STRUCTURE_LIMITS, type FactTerm, type Plan } from "../plan-model.js";
 import { isAllowedFact, isFactKeyId } from "../fact-catalog.js";
 
 // Unmeasured limits, tune with real runs (the same kind as the step contract's)
 /** Most attempts at one agent call: the first try plus two retries */
 export const MAX_AGENT_ATTEMPTS = 3;
 /** Characters of one text an agent may return (a question, a request, a finding) */
-export const MAX_AGENT_TEXT = 300;
+export const MAX_AGENT_TEXT = STRUCTURE_LIMITS.text;
 /** Characters of the idea the agents receive. The person's text is cut to this, never refused */
 export const MAX_AGENT_IDEA = 2000;
 /** Confirmed facts an agent receives as context: the most recent ones, when there are more */
@@ -27,9 +27,9 @@ export const MAX_AGENT_FACTS = 50;
 /** Facts an agent may propose in one answer */
 export const MAX_FACT_PROPOSALS = 10;
 /** Requests an agent may send in one answer (to the plan level or to a department) */
-export const MAX_REQUESTS = 5;
+export const MAX_REQUESTS = STRUCTURE_LIMITS.requests;
 /** Questions an agent may ask the person in one answer */
-export const MAX_AGENT_QUESTIONS = 5;
+export const MAX_AGENT_QUESTIONS = STRUCTURE_LIMITS.questions;
 
 export const AGENT_ERRORS = [
   "agent_failed",

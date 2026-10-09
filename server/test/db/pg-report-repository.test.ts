@@ -100,4 +100,15 @@ describe("PgReportRepository on PostgreSQL", { skip: url ? false : "TEST_DATABAS
     const plan = await plans.create("local", "Mine", restaurantPlan());
     assert.deepEqual(await reports.attachPlan(id, "someone-else", plan.id), { ok: false, code: "not_found" });
   });
+
+  test("the report of a plan is found by the plan's id, for its owner only; a plan with no report has none", async () => {
+    const report = reportWith();
+    const id = await reports.create("local", report);
+    const plan = await plans.create("local", "Linked", restaurantPlan());
+    await reports.attachPlan(id, "local", plan.id);
+    assert.deepEqual(await reports.getByPlanId(plan.id, "local"), { id, report, planId: plan.id });
+    assert.equal(await reports.getByPlanId(plan.id, "someone-else"), undefined);
+    const demo = await plans.create("local", "Demo", restaurantPlan());
+    assert.equal(await reports.getByPlanId(demo.id, "local"), undefined);
+  });
 });

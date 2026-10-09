@@ -20,6 +20,8 @@ export interface ReportRepository {
   /** Stores a report of the user and returns its id. Throws ReportStoreError if the report does not pass parseReport. */
   create(userId: string, report: unknown): Promise<string>;
   get(id: string, userId: string): Promise<StoredReport | undefined>;
+  /** The report a plan was made from. Undefined when the plan has none (a demo plan): the plan then has no idea to work from. */
+  getByPlanId(planId: string, userId: string): Promise<StoredReport | undefined>;
   /**
    * Links a plan to the report, once. If the report already has a plan, that plan is returned and
    * nothing changes (attached: false). Atomic: two calls at once give the same plan.

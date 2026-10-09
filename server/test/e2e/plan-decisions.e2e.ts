@@ -18,6 +18,10 @@ import { watch, assertNoProblems } from "./watch.mjs";
 import { InMemoryPlanRepository } from "../../plan/plan-repository-memory.js";
 import { buildPlanSkeleton } from "../../plan/plan-skeleton.js";
 import { reportWith } from "../plan/report-fixtures.js";
+import { InMemoryReportRepository } from "../../plan/report-repository-memory.js";
+import type { AgentDeps } from "../../plan/agents/contract.js";
+import type { Plan } from "../../plan/plan-model.js";
+import { FakeJudge, FakeModel } from "../plan/agents/fakes.js";
 
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE ?? "playwright");
@@ -67,25 +71,32 @@ async function write(repo: InMemoryPlanRepository, id: string, path: string, bod
 }
 
 /** Answers the plan API with the real routes; anything else (the pages, the scripts) goes to the server */
-async function serveApi(repo: InMemoryPlanRepository, route: any) {
+async function serveApi(repo: InMemoryPlanRepository, route: any, ai?: Ai) {
   const request = route.request();
   const result = await handlePlanRequest({
     method: request.method(),
     path: new URL(request.url()).pathname,
     body: request.postData() ?? "",
     repo,
-    reports: undefined,
+    reports: ai?.reports,
+    agents: ai?.agents,
     now: () => new Date().toISOString(),
     env: {},
   });
   await route.fulfill({ status: result.status, contentType: "application/json", body: JSON.stringify(result.body) });
 }
 
-async function openPlan(browser: any, repo: InMemoryPlanRepository, id: string, hash: string, size = { width: 1280, height: 720 }) {
+/** The report and the assistant of the plan level, for the scenarios that use them (the others have none) */
+interface Ai {
+  reports: InMemoryReportRepository;
+  agents: AgentDeps;
+}
+
+async function openPlan(browser: any, repo: InMemoryPlanRepository, id: string, hash: string, size = { width: 1280, height: 720 }, ai?: Ai) {
   const context = await browser.newContext({ viewport: size });
   const page = await context.newPage();
   await watch(page, `plan page ${hash}`);
-  await page.route("**/api/plan/**", (route: any) => serveApi(repo, route));
+  await page.route("**/api/plan/**", (route: any) => serveApi(repo, route, ai));
   await page.goto(`${BASE}/plan.html?id=${id}${hash}`);
   await page.waitForSelector("#view h1");
   return { context, page };
@@ -281,11 +292,88 @@ async function scenarioCycle(browser: any): Promise<string> {
   return "cycle: reject and suggest again four times, then accept";
 }
 
+/** A plan made from a report, so the assistant has its idea; the answer is built from the plan's own departments and phases */
+async function planWithReport(repo: InMemoryPlanRepository): Promise<{ id: string; ai: Ai; model: FakeModel }> {
+  const id = await newPlan(repo);
+  const reports = new InMemoryReportRepository();
+  const reportId = await reports.create("local", reportWith());
+  await reports.attachPlan(reportId, "local", id);
+  const answer = (plan: Plan) => {
+    const [first, second] = plan.departments;
+    return {
+      // The first phase is renamed, so the accepted structure is visible on the other pages
+      phases: plan.phases.map((phase, index) => (index === 0 ? { ...phase, name: "Launch preparation" } : phase)),
+      // Light, not core: the first department starts as core in the skeleton, so the change must be visible
+      tiers: [{ departmentId: first.id, tier: "light" }],
+      relations: second ? [{ level: "department", from: first.id, to: second.id, type: "blocks", aspect: { kind: "catalog", id: "budget" } }] : [],
+      facts: [{ key: { kind: "catalog", id: "launch_channel" }, value: { kind: "other", text: "Delivery app" } }],
+      requests: [{ to: "plan", text: "Confirm the opening date" }],
+      questions: ["Do you want delivery?"],
+    };
+  };
+  const plan = (await repo.get(id, "local"))!.plan;
+  const model = new FakeModel([answer(plan)]);
+  return { id, ai: { reports, agents: { model, judge: new FakeJudge([true]) } }, model };
+}
+
+async function scenarioStructure(browser: any): Promise<string> {
+  const repo = new InMemoryPlanRepository();
+  const { id, ai, model } = await planWithReport(repo);
+  const before = (await repo.get(id, "local"))!;
+  const { context, page } = await openPlan(browser, repo, id, "#/decisions", undefined, ai);
+
+  // The suggestion is asked for by the button, and only then
+  assert.equal(model.requests.length, 0, "nothing is asked when the page opens");
+  await page.getByRole("button", { name: "Suggest plan structure" }).click();
+  const card = page.locator("article[data-structure]");
+  await card.waitFor();
+  const text = (await card.textContent()) ?? "";
+  assert.match(text, /Launch preparation/);
+  assert.match(text, /Legal & Compliance: .* to Light/);
+  await card.screenshot({ path: join(SHOTS, "structure-card.png") });
+
+  // The facts it found wait in the list of facts to confirm, as the assistant's
+  const fact = page.locator("li[data-fact-id]", { hasText: "Launch channel: Delivery app" });
+  await fact.waitFor();
+  assert.match((await fact.textContent()) ?? "", /Suggested by the assistant/);
+
+  // A second suggestion is not offered while this one waits
+  assert.equal(await page.getByRole("button", { name: "Suggest plan structure" }).count(), 0);
+
+  // Accepting it changes the phases and the tiers, on the plan page
+  await card.getByRole("button", { name: "Accept" }).click();
+  await card.waitFor({ state: "detached" });
+  const after = (await repo.get(id, "local"))!;
+  assert.equal(after.plan.phases[0].name, "Launch preparation");
+  assert.equal(after.plan.departments.find((department) => department.id === before.plan.departments[0].id)?.tier, "light");
+  // The other pages show the accepted phases too
+  await page.goto(`${BASE}/plan.html?id=${id}#/timeline`);
+  await page.getByText("Launch preparation").first().waitFor();
+  await context.close();
+  return "structure: suggest, see the card and the fact, accept, and the phases and tiers change";
+}
+
+async function scenarioStructureFailure(browser: any): Promise<string> {
+  const repo = new InMemoryPlanRepository();
+  const { id, ai } = await planWithReport(repo);
+  // The assistant fails on every try: the screen says so and nothing is saved
+  ai.agents.model = new FakeModel([new Error("provider down")]);
+  const version = (await repo.get(id, "local"))!.version;
+  const { context, page } = await openPlan(browser, repo, id, "#/decisions", undefined, ai);
+  await page.getByRole("button", { name: "Suggest plan structure" }).click();
+  await notice(page).waitFor();
+  assert.match((await notice(page).textContent()) ?? "", /The assistant is not available right now/);
+  assert.equal(await page.locator("article[data-structure]").count(), 0, "no card is shown");
+  assert.equal((await repo.get(id, "local"))!.version, version, "nothing is saved");
+  await context.close();
+  return "structure failure: the assistant fails after its tries, the screen says so, nothing is saved";
+}
+
 const server = await startServer();
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ["--no-sandbox"] });
 let failed = 0;
 try {
-  for (const scenario of [scenarioDecisions, scenarioNeedsAi, scenarioStale, scenarioError, scenarioScreens, scenarioObsolete, scenarioCycle]) {
+  for (const scenario of [scenarioDecisions, scenarioNeedsAi, scenarioStale, scenarioError, scenarioScreens, scenarioObsolete, scenarioCycle, scenarioStructure, scenarioStructureFailure]) {
     try {
       console.log("ok -", await scenario(browser));
     } catch (error) {

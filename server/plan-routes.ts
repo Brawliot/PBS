@@ -11,7 +11,10 @@ import { derivePlan } from "./plan/plan-derived.js";
 import { buildPlanSkeleton } from "./plan/plan-skeleton.js";
 import { EVENT_ACTIONS, FactTermSchema, IdSchema, type Plan } from "./plan/plan-model.js";
 import { applyProposalAction, createProposal, proposeExpansion, type ProposalError } from "./plan/proposals.js";
+import { createStructureProposal, hasPendingStructure, type StructureProposalError } from "./plan/plan-structure.js";
 import { confirmFact, proposeFact, rejectFact, type FactActionError } from "./plan/fact-actions.js";
+import { contextOf, type AgentDeps, type AgentError } from "./plan/agents/contract.js";
+import { runPlanGenerate, structureOf } from "./plan/agents/plan-agent.js";
 import { FACT_KEYS, PRODUCT_TYPES } from "./plan/fact-catalog.js";
 import { devRoutesAllowed } from "./security.js";
 import { UUID } from "./ids.js";
@@ -33,6 +36,8 @@ export interface PlanRequest {
   repo: PlanRepository | undefined;
   /** The reports the planner kept. Undefined together with repo when there is no database. */
   reports?: ReportRepository | undefined;
+  /** The model and the judge of the agents. Undefined when they are not configured: the agent routes then answer 503. */
+  agents?: AgentDeps | undefined;
   /** Injected clock: an ISO 8601 UTC instant */
   now: () => string;
   env: Record<string, string | undefined>;
@@ -48,6 +53,7 @@ export type ErrorCode =
   | PlanActionError
   | FactActionError
   | ProposalError
+  | StructureProposalError
   | "invalid_body"
   | "unknown_task"
   | "version_conflict"
@@ -56,6 +62,9 @@ export type ErrorCode =
   | "skeleton_failed"
   | "plan_too_large"
   | "storage_unavailable"
+  | "no_report"
+  | "assistant_unavailable"
+  | "suggestion_invalid"
   | "internal_error";
 
 // One fixed text per code. The status of each step action is listed here, so none is left without one.
@@ -90,12 +99,16 @@ export const FAILURE: Record<ErrorCode, { status: number; error: string }> = {
   invalid_proposal: { status: 400, error: "The proposal is not valid" },
   unknown_reason: { status: 400, error: "The proposal refers to something not in the plan" },
   too_large: { status: 400, error: "The proposal is too large" },
-  duplicate_pending: { status: 409, error: "A proposal for this task is already waiting for a decision" },
+  duplicate_pending: { status: 409, error: "A suggestion of this kind is already waiting for a decision" },
   id_taken: { status: 409, error: "An id of the proposal is already in use" },
   already_decided: { status: 409, error: "This proposal was already decided" },
   needs_ai: { status: 409, error: "There is no ready-made suggestion for this decision yet." },
   not_available: { status: 409, error: "This is not available in the current state of the plan" },
   plan_too_large: { status: 409, error: "This change would make the plan too large to store" },
+  // The assistant of the plan level: unavailable (503), or an answer that does not fit the plan (502)
+  no_report: { status: 409, error: "This plan was not made from a report, so there is no idea to work from" },
+  assistant_unavailable: { status: 503, error: "The assistant is not available right now. Try again later." },
+  suggestion_invalid: { status: 502, error: "The assistant's suggestion was not usable. Try again." },
 };
 
 const fail = (code: ErrorCode): PlanResponse => ({
@@ -156,6 +169,8 @@ async function route(request: PlanRequest): Promise<PlanResponse> {
 
   const fake = path.match(/^\/api\/dev\/plan\/([^/]+)\/steps\/([^/]+)\/fake-output$/);
   if (isDev && method === "POST" && fake) return fakeOutput(request, fake[1], fake[2]);
+  const structure = path.match(/^\/api\/plan\/([^/]+)\/agents\/structure$/);
+  if (method === "POST" && structure) return suggestStructure(request, structure[1]);
   const fakeProposal = path.match(/^\/api\/dev\/plan\/([^/]+)\/facts\/fake-proposal$/);
   if (isDev && method === "POST" && fakeProposal) return fakeFactProposal(request, fakeProposal[1]);
 
@@ -296,6 +311,62 @@ async function decideProposal(request: PlanRequest, id: string, proposalId: stri
       return { ok: true, plan: result.plan, logs: [{ kind, actor: "user", refId: proposalId, at }] };
     },
     200,
+  );
+}
+
+/** The assistant's failures: no usable answer at all is unavailable (503), an answer that does not fit the plan is invalid (502) */
+const assistantFailure = (code: AgentError): ErrorCode => (code === "agent_failed" || code === "relevance_unavailable" ? "assistant_unavailable" : "suggestion_invalid");
+
+/**
+ * POST /api/plan/:id/agents/structure: the plan level suggests the structure of the plan, from the idea of the
+ * report it was made from. What comes back is only proposed: one pending structure proposal and the facts the
+ * assistant found, saved in one write under the version that was read. The call waits for the assistant (up to
+ * MAX_AGENT_ATTEMPTS tries), so a failure saves nothing. A second suggestion while one is pending is refused
+ * before the assistant is called, so it costs nothing.
+ */
+async function suggestStructure(request: PlanRequest, id: string): Promise<PlanResponse> {
+  const body = parseBody(request.body, VersionBody);
+  if (!body) return fail("invalid_body");
+  if (!UUID.test(id)) return fail("not_found");
+  if (!request.repo || !request.reports) return fail("storage_unavailable");
+  if (!request.agents) return fail("assistant_unavailable");
+  const stored = await request.repo.get(id, LOCAL_USER);
+  if (!stored) return fail("not_found");
+  if (body.expectedVersion !== stored.version) return fail("version_conflict");
+  if (hasPendingStructure(stored.plan)) return fail("duplicate_pending");
+  const report = await request.reports.getByPlanId(id, LOCAL_USER);
+  if (!report) return fail("no_report");
+
+  // No lock is held while the assistant thinks: the write below checks the version read here
+  const answer = await runPlanGenerate(request.agents, contextOf(report.report.input.idea, stored.plan), stored.plan);
+  if (!answer.ok) {
+    // Only the code is logged: the prompts and the answer stay out of the log
+    console.error("Plan structure suggestion failed:", answer.code);
+    return fail(assistantFailure(answer.code));
+  }
+  const structure = structureOf(answer.value.output);
+  if (!structure) return fail("suggestion_invalid");
+  const facts = answer.value.output.facts;
+
+  return changeDecisions(
+    request,
+    id,
+    stored.version,
+    (plan, at) => {
+      const created = createStructureProposal(plan, structure, { now: () => at });
+      if (!created.ok) return { ok: false, code: created.code === "duplicate_pending" ? "duplicate_pending" : "suggestion_invalid" };
+      const logs: PlanLogRecord[] = [{ kind: "proposal_created", actor: "ai", refId: created.proposal.id, at }];
+      let next = created.plan;
+      for (const fact of facts) {
+        const made = proposeFact(next, { key: fact.key, value: fact.value, agentLevel: "plan" }, { now: () => at, actor: "ai" });
+        // One fact that does not fit fails the whole suggestion: nothing is kept half-done
+        if (!made.ok) return { ok: false, code: "suggestion_invalid" };
+        next = made.plan;
+        logs.push({ kind: "fact_proposed", actor: "ai", refId: made.fact.id, at });
+      }
+      return { ok: true, plan: next, logs };
+    },
+    201,
   );
 }
 

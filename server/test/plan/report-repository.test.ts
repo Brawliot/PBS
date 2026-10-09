@@ -89,3 +89,20 @@ describe("InMemoryReportRepository: attachPlan", () => {
     assert.equal((await repo.get(id, "local"))?.planId, null);
   });
 });
+
+describe("InMemoryReportRepository: the report of a plan", () => {
+  test("the report is found by the id of its plan, for its owner only", async () => {
+    const repo = new InMemoryReportRepository();
+    const report = reportWith();
+    const id = await repo.create("local", report);
+    await repo.attachPlan(id, "local", "plan-a");
+    assert.deepEqual(await repo.getByPlanId("plan-a", "local"), { id, report, planId: "plan-a" });
+    assert.equal(await repo.getByPlanId("plan-a", "someone-else"), undefined);
+  });
+
+  test("a plan with no report (a demo plan) has none", async () => {
+    const repo = new InMemoryReportRepository();
+    await repo.create("local", reportWith());
+    assert.equal(await repo.getByPlanId("plan-without-report", "local"), undefined);
+  });
+});

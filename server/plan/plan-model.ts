@@ -34,6 +34,10 @@ export const MAX_PROPOSALS = 100;
 export const MAX_DERIVED_FROM = 20;
 export const MAX_WAITS_FOR = 5;
 export const PROPOSAL_LIMITS = { tasks: 20, steps: 60, relations: 120 };
+// The plan structure proposed by the plan level (phases, tiers, department relations). Unmeasured: tune with real runs
+export const STRUCTURE_LIMITS = { phases: LIMITS.phases, tiers: LIMITS.departments, relations: 40, requests: 5, questions: 5, text: 300 };
+/** Requests and questions kept in a structure: the agent's text, plus the department it is sent to */
+export const MAX_STRUCTURE_TEXT = 400;
 
 // Ids end up in URLs (#/task/t12): short, lowercase and stable
 export const IdSchema = z.string().max(MAX_ID).regex(/^[a-z0-9][a-z0-9_-]*$/);
@@ -262,13 +266,15 @@ const AspectSchema = z.discriminatedUnion("kind", [
 const link = { from: IdSchema, to: IdSchema };
 const ORDER_TYPES = ["blocks", "follows"] as const;
 
+const DepartmentRelationSchema = z.strictObject({ ...link, level: z.literal("department"), type: z.enum(ORDER_TYPES), aspect: AspectSchema });
+
 export const RelationSchema = z
   .discriminatedUnion("level", [
     // "feeds": the target step uses the result of the source (an AI step). Step level only.
     z.strictObject({ ...link, level: z.literal("step"), type: z.enum([...ORDER_TYPES, "feeds"]) }),
     z.strictObject({ ...link, level: z.literal("task"), type: z.enum(ORDER_TYPES) }),
     z.strictObject({ ...link, level: z.literal("phase"), type: z.enum(ORDER_TYPES) }),
-    z.strictObject({ ...link, level: z.literal("department"), type: z.enum(ORDER_TYPES), aspect: AspectSchema }),
+    DepartmentRelationSchema,
   ])
   .refine((relation) => relation.from !== relation.to, {
     error: "A relation needs two different elements",
@@ -285,10 +291,14 @@ export const FactTermSchema = z.discriminatedUnion("kind", [
 ]);
 export const FACT_STATUSES = ["proposed", "confirmed", "superseded", "rejected"] as const;
 
-/** Where a fact came from: the person, or an AI step (and the version of its output, if any) */
+/**
+ * Where a fact came from: the person, an AI step (and the version of its output, if any), or an agent of the
+ * plan or a department level (no step: the agent proposes the fact about the whole plan or one department)
+ */
 const FactSourceSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("user") }),
   z.strictObject({ kind: z.literal("step"), stepId: IdSchema, version: z.number().int().min(1).optional() }),
+  z.strictObject({ kind: z.literal("agent"), level: z.enum(["plan", "department"]) }),
 ]);
 
 /** A project fact: something the person has confirmed about the business (or proposed, and not yet). */
@@ -325,19 +335,58 @@ export const PROPOSAL_STATUSES = ["pending", "accepted", "rejected"] as const;
  * A proposal: tasks, steps and relations the person can accept or reject. Nothing in it is in the plan
  * until it is accepted. "resolves" is the gap it fills, if the reason is a gap.
  */
-const ProposalSchema = z.strictObject({
-  id: IdSchema,
-  status: z.enum(PROPOSAL_STATUSES),
-  reason: z.union([z.strictObject({ factId: IdSchema }), z.strictObject({ taskId: IdSchema })]),
-  resolves: IdSchema.optional(),
-  add: z.strictObject({
-    tasks: z.array(TaskSchema).max(PROPOSAL_LIMITS.tasks),
-    steps: z.array(StepSchema).max(PROPOSAL_LIMITS.steps),
-    relations: z.array(RelationSchema).max(PROPOSAL_LIMITS.relations),
-  }),
-  createdAt: DateTimeSchema,
-  decidedAt: DateTimeSchema.optional(),
+/**
+ * The structure of the plan as the plan level proposes it: phases, the tier of each department, the relations
+ * between departments, and the requests and questions for the person (text only, shown and never applied).
+ */
+const StructureTextSchema = text(MAX_STRUCTURE_TEXT);
+export const StructureSchema = z.strictObject({
+  phases: z.array(PhaseSchema).min(1).max(STRUCTURE_LIMITS.phases),
+  tiers: z.array(z.strictObject({ departmentId: IdSchema, tier: TierSchema })).max(STRUCTURE_LIMITS.tiers),
+  relations: z.array(DepartmentRelationSchema).max(STRUCTURE_LIMITS.relations),
+  requests: z.array(StructureTextSchema).max(STRUCTURE_LIMITS.requests),
+  questions: z.array(StructureTextSchema).max(STRUCTURE_LIMITS.questions),
 });
+export type Structure = z.infer<typeof StructureSchema>;
+
+/** What a proposal is about: a fact, a gap (a task), or the plan as a whole (its structure) */
+const ProposalReasonSchema = z.union([
+  z.strictObject({ factId: IdSchema }),
+  z.strictObject({ taskId: IdSchema }),
+  z.strictObject({ scope: z.literal("plan") }),
+]);
+
+/**
+ * A proposal: tasks, steps and relations the person can accept or reject. Nothing in it is in the plan
+ * until it is accepted. "resolves" is the gap it fills, if the reason is a gap. A structure proposal has the
+ * plan scope, an empty "add", and its structure; the two kinds never mix.
+ */
+const ProposalSchema = z
+  .strictObject({
+    id: IdSchema,
+    status: z.enum(PROPOSAL_STATUSES),
+    reason: ProposalReasonSchema,
+    resolves: IdSchema.optional(),
+    add: z.strictObject({
+      tasks: z.array(TaskSchema).max(PROPOSAL_LIMITS.tasks),
+      steps: z.array(StepSchema).max(PROPOSAL_LIMITS.steps),
+      relations: z.array(RelationSchema).max(PROPOSAL_LIMITS.relations),
+    }),
+    structure: StructureSchema.optional(),
+    createdAt: DateTimeSchema,
+    decidedAt: DateTimeSchema.optional(),
+  })
+  .superRefine((proposal, ctx) => {
+    const isStructure = proposal.structure !== undefined;
+    if (isStructure !== ("scope" in proposal.reason)) {
+      ctx.addIssue({ code: "custom", message: "Only a plan structure has the plan scope", path: ["reason"] });
+    }
+    if (!isStructure) return;
+    const { tasks, steps, relations } = proposal.add;
+    if (tasks.length + steps.length + relations.length > 0 || proposal.resolves !== undefined) {
+      ctx.addIssue({ code: "custom", message: "A plan structure adds nothing else", path: ["add"] });
+    }
+  });
 
 export const PlanSchema = z
   .strictObject({

@@ -8,6 +8,7 @@ import { checkPlan } from "./plan-check.js";
 import { newProblems } from "./plan-actions.js";
 import { parsePlan, PROPOSAL_LIMITS, type Plan, type Proposal, type Task } from "./plan-model.js";
 import { templateFor, type ProposalAdd } from "./proposal-templates.js";
+import { materializeStructure } from "./plan-structure.js";
 
 export const PROPOSAL_ERRORS = [
   "wrong_actor",
@@ -107,6 +108,8 @@ function acceptable(
   if (taken.has(input.id)) return "id_taken";
 
   const reason = input.reason;
+  // A reason of the plan scope belongs to a structure (plan-structure.ts), never to an ordinary proposal
+  if ("scope" in reason) return "invalid_proposal";
   if ("factId" in reason) {
     const fact = (plan.facts ?? []).find((candidate) => candidate.id === reason.factId);
     if (!fact) return "unknown_reason";
@@ -175,6 +178,13 @@ export function applyProposalAction(
   if (action === "reject") {
     const rejected: Proposal = { ...proposal, status: "rejected", decidedAt: at };
     return { ok: true, plan: { ...plan, proposals: plan.proposals!.map((item) => (item.id === proposalId ? rejected : item)) }, proposal: rejected };
+  }
+
+  // A structure is applied as a whole, and checked again against the plan as it is now
+  if (proposal.structure !== undefined) {
+    const accepted = materializeStructure(plan, proposal, at);
+    if (!accepted || newProblems(checkPlan(plan), checkPlan(accepted)).length > 0) return fail("invalid_result");
+    return { ok: true, plan: accepted, proposal: accepted.proposals!.find((item) => item.id === proposalId)! };
   }
 
   // Accepting checks again: the facts or the gap may have changed since the proposal was made

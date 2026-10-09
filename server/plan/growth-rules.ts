@@ -74,7 +74,9 @@ export function proposalProblems(plan: Plan): PlanProblem[] {
   const problems: PlanProblem[] = [];
 
   (plan.proposals ?? []).forEach((proposal, index) => {
-    const reasonKnown = "factId" in proposal.reason ? facts.has(proposal.reason.factId) : taskIds.has(proposal.reason.taskId);
+    // A structure's reason is the plan itself, so there is nothing to look up
+    const reason = proposal.reason;
+    const reasonKnown = "scope" in reason ? true : "factId" in reason ? facts.has(reason.factId) : taskIds.has(reason.taskId);
     if (!reasonKnown) problems.push({ code: "proposal_reason_unknown", level: "proposal", index, ids: [proposal.id] });
 
     // A pending proposal resolves a gap that is still open; a decided one names a task that exists (its gap may be closed)

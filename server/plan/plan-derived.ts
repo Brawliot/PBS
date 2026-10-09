@@ -10,7 +10,7 @@ import { buildPlanIndex } from "./plan-index.js";
 import { factKeyId } from "./fact-catalog.js";
 import { staleItems } from "./fact-actions.js";
 import { expandable, isObsolete } from "./proposals.js";
-import type { FactTerm, Plan } from "./plan-model.js";
+import type { FactTerm, Plan, Structure } from "./plan-model.js";
 import { departmentProgress, type DepartmentProgress } from "./department-rules.js";
 import { phaseProgress, phaseStatus, type PhaseStatus } from "./phase-rules.js";
 import { departmentNode } from "./plan-tree.js";
@@ -28,6 +28,15 @@ export interface PhaseDerived {
   progress: { total: number; done: number; percent: number };
 }
 
+/** A structure waiting for a decision, in words the screen can show: names instead of ids, the tiers from and to */
+export interface StructureSummary {
+  phases: string[];
+  tiers: { department: string; from: string; to: string }[];
+  relations: { from: string; to: string; type: string; aspect: string }[];
+  requests: string[];
+  questions: string[];
+}
+
 export interface DerivedPlan {
   problems: PlanProblem[];
   steps: Record<string, StepDerived>;
@@ -42,9 +51,31 @@ export interface DerivedPlan {
   stale: { taskIds: string[]; stepIds: string[] };
   /**
    * The pending proposals: what each one would add, the titles of its tasks, and whether it is obsolete
-   * (a fact it comes from is no longer confirmed, so accepting it is refused)
+   * (a fact it comes from is no longer confirmed, so accepting it is refused). A structure proposal has its
+   * StructureSummary; no other proposal does.
    */
-  proposals: Record<string, { tasks: number; steps: number; relations: number; titles: string[]; obsolete: boolean }>;
+  proposals: Record<string, { tasks: number; steps: number; relations: number; titles: string[]; obsolete: boolean; structure?: StructureSummary }>;
+}
+
+/** The structure as names and words: the departments by name, relations and aspects as text */
+function summarizeStructure(plan: Plan, structure: Structure): StructureSummary {
+  const department = (id: string) => plan.departments.find((candidate) => candidate.id === id);
+  const name = (id: string) => department(id)?.name ?? id;
+  return {
+    phases: structure.phases.map((phase) => phase.name),
+    tiers: structure.tiers.flatMap((item) => {
+      const current = department(item.departmentId);
+      return current ? [{ department: current.name, from: current.tier, to: item.tier }] : [];
+    }),
+    relations: structure.relations.map((relation) => ({
+      from: name(relation.from),
+      to: name(relation.to),
+      type: relation.type,
+      aspect: relation.aspect.kind === "catalog" ? [relation.aspect.id, relation.aspect.note].filter(Boolean).join(": ") : relation.aspect.note,
+    })),
+    requests: structure.requests,
+    questions: structure.questions,
+  };
 }
 
 export function derivePlan(plan: Plan): DerivedPlan {
@@ -92,6 +123,7 @@ export function derivePlan(plan: Plan): DerivedPlan {
       relations: proposal.add.relations.length,
       titles: proposal.add.tasks.map((task) => task.title),
       obsolete: isObsolete(plan, proposal),
+      ...(proposal.structure && { structure: summarizeStructure(plan, proposal.structure) }),
     };
   }
 

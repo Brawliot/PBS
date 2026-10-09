@@ -38,6 +38,8 @@ export interface ProposeInput {
   stepId?: string;
   /** The version of that step's output the fact comes from, if any */
   version?: number;
+  /** Required for an agent of the plan or a department level (actor "ai"), which has no step: the fact is about the whole level */
+  agentLevel?: "plan" | "department";
 }
 
 const fail = (code: FactActionError): FactRefusal => ({ ok: false, code });
@@ -60,13 +62,18 @@ export function proposeFact(plan: Plan, input: ProposeInput, options: FactAction
   if (!isAllowedFact(input.key, input.value)) return fail("invalid_fact");
 
   let from: Fact["from"];
-  if (options.actor === "ai") {
+  if (options.actor === "ai" && input.agentLevel !== undefined) {
+    // An agent's fact comes from its level, never from a step: the two origins do not mix
+    if (input.stepId !== undefined || input.version !== undefined) return fail("invalid_fact");
+    from = { kind: "agent", level: input.agentLevel };
+  } else if (options.actor === "ai") {
     if (input.stepId === undefined) return fail("unknown_step");
     const step = plan.steps.find((candidate) => candidate.id === input.stepId);
     if (!step) return fail("unknown_step");
     if (step.executor !== "ai") return fail("wrong_actor");
     from = { kind: "step", stepId: step.id, ...(input.version !== undefined && { version: input.version }) };
   } else {
+    if (input.agentLevel !== undefined) return fail("invalid_fact");
     if (input.stepId !== undefined || input.version !== undefined) return fail("invalid_fact");
     from = { kind: "user" };
   }

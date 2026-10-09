@@ -31,6 +31,12 @@ export class InMemoryReportRepository implements ReportRepository {
     return { id: row.id, report: checkedReport(JSON.parse(row.document)), planId: row.planId };
   }
 
+  async getByPlanId(planId: string, userId: string): Promise<StoredReport | undefined> {
+    const row = [...this.rows.values()].find((candidate) => candidate.planId === planId && candidate.userId === userId);
+    if (!row) return undefined;
+    return { id: row.id, report: checkedReport(JSON.parse(row.document)), planId: row.planId };
+  }
+
   async attachPlan(id: string, userId: string, planId: string): Promise<AttachResult> {
     const row = this.rows.get(id);
     if (!row || row.userId !== userId) return { ok: false, code: "not_found" };

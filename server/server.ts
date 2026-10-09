@@ -15,6 +15,7 @@ import { PgPlanRepository } from "./db/pg-plan-repository.js";
 import { createPool } from "./db/pool.js";
 import { PgReportRepository } from "./db/pg-report-repository.js";
 import { handlePlanRequest, isPlanPath, LOCAL_USER } from "./plan-routes.js";
+import { agentsFromEnv } from "./plan/agents/configured-agents.js";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -29,6 +30,8 @@ setInterval(() => jobs.sweep(), 60_000).unref();
 const pool = process.env.DATABASE_URL ? createPool(process.env.DATABASE_URL) : undefined;
 const planRepository = pool && new PgPlanRepository(pool);
 const reportRepository = pool && new PgReportRepository(pool);
+// The plan level's assistant: real only when its keys are set (the agent routes answer 503 otherwise)
+const agents = agentsFromEnv(process.env);
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -76,6 +79,7 @@ async function planRoute(req: IncomingMessage, res: ServerResponse, path: string
       body,
       repo: planRepository,
       reports: reportRepository,
+      agents,
       now: () => new Date().toISOString(),
       env: process.env,
     });

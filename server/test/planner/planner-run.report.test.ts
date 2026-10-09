@@ -92,6 +92,7 @@ describe("runPlanner keeps the report of the runs that end with one", () => {
         throw Object.assign(new Error(`insert failed for ${secret}`), { code: "23505" });
       },
       get: async () => undefined,
+      getByPlanId: async () => undefined,
       attachPlan: async () => ({ ok: false, code: "not_found" }),
     };
     const log = silenceConsoleError();
@@ -109,6 +110,7 @@ describe("runPlanner keeps the report of the runs that end with one", () => {
         throw new ReportStoreError("invalid_report");
       },
       get: async () => undefined,
+      getByPlanId: async () => undefined,
       attachPlan: async () => ({ ok: false, code: "not_found" }),
     };
     const log = silenceConsoleError();
