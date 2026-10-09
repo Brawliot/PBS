@@ -17,12 +17,12 @@ Cosas que no pertenecen a las fases ya construidas ni a su salida a producción,
 
 Lo que falta para dar la fase 2 por terminada y pasar a la 3. Primero lo funcional (son decisiones), luego los supuestos sin calibrar, y al final el cierre.
 
-### Funcionalidad que hay que decidir
-1. **Retirar lo obsoleto.** Lo derivado de un hecho cambiado hoy solo se lista. Decidir si se retira, se rehace o se deja, y la acción de la persona con su registro en `plan_log`. Descrito en `PRODUCTION.md`, "Pendiente de la fase 2".
-2. **El significado de `feedback: "deleted"`.** `plan.js` lo oculta y nada del servidor lo escribe. Mantenerlo, sustituirlo por el registro de decisiones o quitarlo.
-3. **Edición manual mínima del plan.** Decidir si la persona puede añadir, renombrar o retirar tareas y pasos a mano en esta fase, o se aparca.
-4. **Vista de grupos.** La ruta `#/group/:id` está reservada sin vista, y el plan no recuerda si el negocio es "pequeño" (grupos) o "grande" (departamentos). Implementarla o quitar la ruta.
-5. **Estado de una tarea y relaciones entre pasos de distintas tareas.** `taskStatus` las ignora y `readiness` las tiene en cuenta. Asumirlo o cambiarlo.
+### Funcionalidad: decisiones tomadas (por implementar)
+1. **Lo obsoleto se deja marcado.** Un elemento derivado de un hecho cambiado queda visible con la etiqueta "obsoleta" y la persona decide si lo retira; nada desaparece solo. La acción de retirar se registra en `plan_log`.
+2. **`feedback: "deleted"` se conserva como retirado.** Deja de contar, pero queda en el historial. Revisar que el servidor lo escriba en vez de que solo `plan.js` lo oculte.
+3. **Edición manual mínima.** Solo lo que ya existe (acciones sobre pasos), renombrar y añadir cosas sencillas. La edición libre queda aparcada.
+4. **Vista de grupos aparcada.** La ruta `#/group/:id` sigue reservada; no bloquea nada.
+5. **Mandan las relaciones entre pasos.** Una tarea no se considera terminada mientras lo que necesita de otras tareas no esté listo. `taskStatus` debe tenerlo en cuenta como ya hace `readiness`.
 
 ### Supuestos sin calibrar (aprobar, cambiar o aparcar cada uno)
 - Catálogo de aspectos de dependencia entre departamentos, claves de hechos y valores de `product_type` (`department-catalog.ts`, `fact-catalog.ts`).
