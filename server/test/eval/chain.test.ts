@@ -44,7 +44,7 @@ test("the full chain reaches the steps level with every level ok, no new problem
   assert.equal(run.levels[0].counts["hechos confirmados"], restaurant.facts.length);
   assert.equal(run.levels[3].counts["tareas elegidas"], 2);
   assert.equal(run.levels[4].counts["caracteres del documento"] > 0, true);
-  assert.deepEqual(run.expectations, [{ id: "legal-licences", description: restaurant.expectations[0].description, passed: true }]);
+  assert.deepEqual(run.expectations, [{ id: restaurant.expectations[0].id, description: restaurant.expectations[0].description, passed: true }]);
   assert.deepEqual(run.relations.departments, ["«Legal & Compliance» debe estar lista antes que «Finance»"]);
   assert.ok(run.relations.tasks.some((text) => text.includes("debe estar lista antes que")), "the task order is read in words");
   assert.ok(Object.keys(run.tasksByDepartment).includes("Legal & Compliance"));

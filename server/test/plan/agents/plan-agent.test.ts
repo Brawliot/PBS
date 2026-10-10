@@ -182,3 +182,47 @@ describe("the plan level: review findings name tasks, except a gap", () => {
     assert.match(model.requests[0].system, /at least\s+one/);
   });
 });
+
+describe("the review's text for Jev: the findings with the titles of the tasks they name", () => {
+  const proposed = [
+    { id: "legal-a", title: "Draft terms", departmentId: firstDept.id, phaseId: base.phases[0].id },
+    { id: "legal-b", title: "Publish terms", departmentId: firstDept.id, phaseId: base.phases[0].id },
+  ];
+  /** A judge that keeps what it is given, so the test can read the text Jev received */
+  class RecordingJudge {
+    readonly seen: string[] = [];
+    async judge(_idea: string, text: string): Promise<boolean> {
+      this.seen.push(text);
+      return true;
+    }
+  }
+  const reviewOf = (findings: unknown[]) => ({ findings, adjustments: [], facts: [], requests: [], questions: [] });
+
+  test("a finding goes to Jev with the titles of the tasks it names, in brackets", async () => {
+    const judge = new RecordingJudge();
+    const answer = reviewOf([{ kind: "clash", taskIds: ["legal-a", "legal-b"], text: "Contradict each other" }]);
+    await runPlanReview({ model: new FakeModel([answer]), judge, attempts: 1 }, { idea: "idea", proposed }, base);
+    assert.equal(judge.seen[0], "clash: Contradict each other [Draft terms; Publish terms]");
+  });
+
+  test("a gap goes to Jev with its text only: it names no task", async () => {
+    const judge = new RecordingJudge();
+    await runPlanReview({ model: new FakeModel([reviewOf([{ kind: "gap", taskIds: [], text: "Nobody covers the licence" }])]), judge, attempts: 1 }, { idea: "idea", proposed }, base);
+    assert.equal(judge.seen[0], "gap: Nobody covers the licence");
+  });
+
+  test("a task id with no known title is left out of the text: no error, the rest stays", async () => {
+    const judge = new RecordingJudge();
+    const answer = reviewOf([{ kind: "missing_order", taskIds: ["legal-a", "t-menu"], text: "Draft first" }]);
+    const result = await runPlanReview({ model: new FakeModel([answer]), judge, attempts: 1 }, { idea: "idea", proposed }, base);
+    assert.equal(result.ok, true);
+    assert.equal(judge.seen[0], "missing_order: Draft first [Draft terms; Menu]");
+  });
+
+  test("the text Jev reads is cut to the limit of an idea, as before", async () => {
+    const judge = new RecordingJudge();
+    const long = Array.from({ length: 20 }, () => ({ kind: "gap", taskIds: [], text: "x".repeat(300) }));
+    await runPlanReview({ model: new FakeModel([reviewOf(long)]), judge, attempts: 1 }, { idea: "idea", proposed }, base);
+    assert.equal(judge.seen[0].length, 2000);
+  });
+});

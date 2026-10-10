@@ -253,6 +253,24 @@ function planReviewUser(input: PlanReviewInput, plan: Plan): string {
   ].join("\n");
 }
 
+/**
+ * The titles of the tasks a finding names, read from the proposed tasks and the plan. A gap names no task, so it has none;
+ * an id with no known title is left out, never an error.
+ */
+export function findingTitles(finding: { kind: string; taskIds: string[] }, plan: Plan, proposed: ProposedTask[]): string[] {
+  if (finding.kind === "gap") return [];
+  return finding.taskIds.flatMap((id) => {
+    const title = proposed.find((task) => task.id === id)?.title ?? plan.tasks.find((task) => task.id === id)?.title;
+    return title === undefined ? [] : [title];
+  });
+}
+
+/** One finding as the judge reads it: its kind and text, then the titles of the tasks it names, in brackets */
+function findingLine(finding: { kind: string; text: string; taskIds: string[] }, plan: Plan, proposed: ProposedTask[]): string {
+  const titles = findingTitles(finding, plan, proposed);
+  return `${finding.kind}: ${finding.text}${titles.length > 0 ? ` [${titles.join("; ")}]` : ""}`;
+}
+
 /** One review call. Its answer is checked for references, then judged for relevance. Retried per policy. */
 export function runPlanReview(deps: AgentDeps, input: PlanReviewInput, plan: Plan): Promise<AgentResult<{ output: PlanReviewOutput; checked: boolean }>> {
   return withAttempts(async () => {
@@ -267,7 +285,10 @@ export function runPlanReview(deps: AgentDeps, input: PlanReviewInput, plan: Pla
     const problem = reviewReferenceProblem(plan, input.proposed, parsed.data);
     if (problem !== undefined) return fail("invalid_output", problem);
 
-    const proposed = clip(parsed.data.findings.map((finding) => `${finding.kind}: ${finding.text}`).join("\n") || "no findings");
+    // Jev reads the finding with the titles of the tasks it names: a finding about "tasks" means nothing without them
+    const proposed = clip(
+      parsed.data.findings.map((finding) => findingLine(finding, plan, input.proposed)).join("\n") || "no findings",
+    );
     const relevance = await judgeRelevance(deps.judge, input.idea, proposed);
     if (!relevance.ok) return relevanceFailure(relevance.code);
     return { ok: true, value: { output: parsed.data, checked: relevance.value.checked } };

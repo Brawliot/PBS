@@ -60,10 +60,11 @@ export const CASES: EvalCase[] = [
     ],
     expectations: [
       {
-        id: "legal-licences",
-        description: "Un departamento Legal propone una tarea sobre licencias o permisos",
+        // The skeleton already has "Obtain licences": this asks for what the skeleton does not have
+        id: "legal-company-lease",
+        description: "Legal propone algo de constitución de la sociedad, contrato de alquiler o cumplimiento sanitario",
         departments: ["legal"],
-        pattern: /licen|permis|sanit|autoriz/i,
+        pattern: /constitu|incorporat|sociedad|compan|entity|contrat|lease|alquiler|arrendamiento|higiene|hygiene|haccp|food safety|sanitari|health/i,
       },
     ],
   },
@@ -118,10 +119,11 @@ export const CASES: EvalCase[] = [
     ],
     expectations: [
       {
+        // Without "licen": the skeleton's "Obtain licences" would pass it. This asks for the professional side
         id: "credentials-insurance",
-        description: "Alguna tarea trata de la titulación, el registro profesional o los seguros",
+        description: "Alguna tarea trata de la titulación profesional, el colegio, el registro o los seguros",
         departments: null,
-        pattern: /titul|colegi|registro|seguro|póliza|poliza|acredit|licen/i,
+        pattern: /titul|colegi|registro profesional|professional (registration|register|body|credential)|seguro|insurance|póliza|poliza|acredit|credential|qualification/i,
       },
     ],
   },

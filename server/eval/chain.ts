@@ -82,6 +82,15 @@ export interface LevelRecord {
   problems?: number;
 }
 
+/** What the review of the plan level read and found: where its tasks came from, and each finding with its task titles */
+export interface ReviewSummary {
+  /** "departamentos reales": the tasks the departments of the same run proposed. "sintética": the fixed ones (synthetic.ts) */
+  source: "departamentos reales" | "sintética";
+  /** Each finding: its kind, and the titles of the tasks it names (none for a gap). Never its text */
+  findings: { kind: string; titles: string[] }[];
+  adjustments: number;
+}
+
 export interface CaseRun {
   caseId: string;
   label: string;
@@ -92,6 +101,8 @@ export interface CaseRun {
   expectations?: ExpectationResult[];
   /** Which runner produced the case: the chain stops at its first failure, the levels run each on its own */
   mode?: "chain" | "levels";
+  /** The review of the levels mode, when it ran: its source and its findings (titles and kinds only) */
+  review?: ReviewSummary;
   relations: { departments: string[]; tasks: string[] };
   tasksByDepartment: Record<string, string[]>;
 }

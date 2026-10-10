@@ -13,13 +13,15 @@ export interface ExpectationResult {
   passed: boolean;
 }
 
-/** Whether an AI task of the plan meets each expectation. Skeleton tasks (rules, not agents) never count. */
+/**
+ * Whether a task of the plan meets each expectation. Every task counts: the ones the skeleton already has (the rules of
+ * the plan) and the ones the agents proposed, so an expectation does not fail on a topic the plan already covers.
+ */
 export function evaluateExpectations(expectations: Expectation[], plan: Plan): ExpectationResult[] {
-  const proposed = plan.tasks.filter((task) => task.origin.kind === "ai");
   return expectations.map((expectation) => ({
     id: expectation.id,
     description: expectation.description,
-    passed: proposed.some(
+    passed: plan.tasks.some(
       (task) => (expectation.departments === null || expectation.departments.includes(task.primaryDepartmentId)) && expectation.pattern.test(task.title),
     ),
   }));

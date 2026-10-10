@@ -271,6 +271,15 @@ Hallazgos que no se tocaron y quedan para decidir:
 
 Grabar y repetir: `EVAL_RECORD=1` guarda por cada llamada el rol y la respuesta del modelo, o el veredicto de Jev, en `server/eval-output/recordings/<run>/<caso>.jsonl` (ignorada por git). Nunca el prompt, las claves ni las cabeceras. `--replay <carpeta>` vuelve a ejecutar el caso con esas respuestas: sin red, sin claves, sin cliente. Sirve para volver a pasar las validaciones tras un cambio de código sin gastar nada. Si una llamada no tiene respuesta grabada, falla como un error del modelo: una grabación que no encaja con el código se ve como fallo, no como acierto.
 
+**Primera evaluación real por niveles (fase 3, revisión).** El caso restaurante pasó plan, departamentos (10 de 10 a la primera), tareas y pasos. La revisión falló tres veces con `not_relevant`. La causa estaba en la evaluación y en el texto del juez, no en el modelo: la revisión leía tareas sintéticas ("Revisar el trabajo de …") que no tienen nada que ver con un restaurante, y a Jev le llegaba cada hallazgo como "tipo: texto" sin los títulos de las tareas que nombra. Lo que se hizo:
+- **Jev recibe los títulos.** Cada hallazgo llega con los títulos de las tareas que nombra, entre corchetes; un hueco (`gap`) solo lleva su texto. Afecta también a la revisión de producción, que usa la misma función.
+- **La revisión lee lo que propusieron los departamentos de la misma ejecución.** Si ninguno propuso tareas, usa las sintéticas, y el informe dice cuál de las dos fuentes usó. El resultado de la revisión no depende de que los departamentos pasen: siempre se ejecuta.
+- **El informe cuenta la revisión.** Hallazgos por tipo, ajustes, y para cada hallazgo el tipo y los títulos de las tareas que nombra (un hueco se marca "sin tarea"). El texto libre del hallazgo nunca se escribe.
+- **Las comprobaciones cuentan las tareas del esqueleto.** La expectativa de licencias del restaurante y la de titulación de fisioterapia las cumplía ya el esqueleto ("Obtain licences"), así que se sustituyeron por expectativas que exigen trabajo de la IA. Las otras dos ya no las cumple el esqueleto.
+- **Las relaciones entre departamentos salen del nivel de plan.** Antes el informe decía "ninguna" en el modo por niveles.
+
+Lección: **una revisión no se puede juzgar sobre tareas inventadas, y el juez necesita el contexto de lo que mira.** Si el juez solo ve el tipo de hallazgo, no puede decir que encaja, y eso parece un fallo del modelo cuando es de la evaluación. Antes de culpar a un nivel, hay que comprobar que recibe lo que debe. Lo que no está probado: que la revisión con tareas reales encuentre de verdad los duplicados que hay (Conduct Market Research, proveedores, licencias); eso lo dirá la siguiente evaluación real.
+
 **Falta.**
 - **Comparar dos ejecuciones.** Hoy cada informe es independiente. Hace falta un comando que compare dos JSON (antes y después de cambiar un prompt o un modelo) y marque lo que empeoró.
 - **Crecer a 30-50 casos.** Hoy son cuatro. Hay que añadir los cinco ejemplos de la calibración de la fase 1 y casos de cada sector.

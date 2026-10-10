@@ -7,7 +7,7 @@
  */
 
 import type { AttemptFailure } from "../plan/agents/contract.js";
-import type { CaseRun, DepartmentOutcome, LevelRecord, Tokens } from "./chain.js";
+import type { CaseRun, DepartmentOutcome, LevelRecord, ReviewSummary, Tokens } from "./chain.js";
 
 /** One level of the summary table: whether it passed, its code, and the reasons of its failed attempts (labels and counts) */
 export interface LevelSummary {
@@ -24,6 +24,20 @@ export function levelSummaryOf(run: CaseRun): LevelSummary[] {
     code: level.code ?? null,
     reasons: reasonsOf(level.failures).map(([reason, count]) => ({ reason, count })),
   }));
+}
+
+/** The findings of a review as one short line per kind: how many, and the titles each names ("sin tarea" for a gap) */
+export function reviewLines(review: ReviewSummary): string[] {
+  const kinds = ["clash", "duplicate", "gap", "missing_order"];
+  const lines = [`Fuente de las tareas revisadas: ${review.source}. Ajustes propuestos: ${review.adjustments}.`, ""];
+  const counts = kinds.map((kind) => `${kind} ${review.findings.filter((finding) => finding.kind === kind).length}`);
+  lines.push(`Hallazgos por tipo: ${counts.join(", ")}.`, "");
+  if (review.findings.length === 0) lines.push("- ninguno");
+  for (const finding of review.findings) {
+    const named = finding.kind === "gap" ? "(sin tarea)" : finding.titles.length > 0 ? finding.titles.join(" · ") : "(sin título conocido)";
+    lines.push(`- ${finding.kind}: ${named}`);
+  }
+  return lines;
 }
 
 /** The table of the levels of one case, first in its Markdown: a row per level, the state and the main reasons */
@@ -149,6 +163,7 @@ export function caseJson(report: CaseReport, prices: Prices | undefined): string
   return `${JSON.stringify(
     {
       levelSummary: levelSummaryOf(run),
+      review: run.review ?? null,
       heuristic: true,
       notice: HEURISTIC_NOTICE,
       case: { id: run.caseId, label: run.label, mode: run.mode ?? "chain" },
@@ -201,6 +216,11 @@ export function caseMarkdown(report: CaseReport, prices: Prices | undefined): st
     lines.push("");
   }
 
+  lines.push("## Revisión del plan", "");
+  if (run.review === undefined) lines.push("No ejecutada.");
+  else lines.push(...reviewLines(run.review));
+  lines.push("");
+
   lines.push("## Comprobaciones (heurísticas)", "");
   if (run.expectations === undefined) lines.push("No evaluadas: no hay plan de departamentos sobre el que comprobarlas (el nivel de departamentos no salió).");
   else for (const item of run.expectations) lines.push(`- ${item.passed ? "[cumple]" : "[no cumple]"} ${item.description}`);
@@ -235,6 +255,7 @@ export function summaryMarkdown(reports: CaseReport[], notRun: string[], prices:
   };
   const lines: string[] = [`# Resumen de la evaluación`, "", `${info.startedAt}${info.mode ? ` · modo ${info.mode}` : ""} · Modelo OpenAI: \`${info.models.openai}\` · Modelo Jev: \`${info.models.jev}\``, "", `> ${HEURISTIC_NOTICE}`, ""];
   lines.push(...summaryLevelLines(reports));
+  lines.push(...summaryReviewLines(reports));
   lines.push("| Caso | Parada | Llamadas al modelo | Llamadas a Jev | Tiempo (s) | Comprobaciones que cumplen |", "| --- | --- | --- | --- | --- | --- |");
   for (const report of reports) {
     const checks = report.run.expectations;
@@ -263,6 +284,19 @@ export function summaryMarkdown(reports: CaseReport[], notRun: string[], prices:
   if (cost !== undefined) lines.push(`- Coste estimado: ${formatDollars(cost)} (según los precios de EVAL_PRICE_*; una estimación, no una factura)`);
   else lines.push("- Coste: no se calcula (define las cuatro variables EVAL_PRICE_* para verlo).");
   return `${lines.join("\n")}\n`;
+}
+
+/** The review of each case in the summary: its source and the count of each kind of finding, one row per case */
+function summaryReviewLines(reports: CaseReport[]): string[] {
+  const rows = reports.filter((report) => report.run.review !== undefined);
+  if (rows.length === 0) return [];
+  const lines = ["## Revisión del plan", "", "| Caso | Fuente | clash | duplicate | gap | missing_order | ajustes |", "| --- | --- | --- | --- | --- | --- | --- |"];
+  for (const report of rows) {
+    const review = report.run.review!;
+    const count = (kind: string) => review.findings.filter((finding) => finding.kind === kind).length;
+    lines.push(`| ${report.run.label} (r${report.info.repetition}) | ${review.source} | ${count("clash")} | ${count("duplicate")} | ${count("gap")} | ${count("missing_order")} | ${review.adjustments} |`);
+  }
+  return [...lines, ""];
 }
 
 /**

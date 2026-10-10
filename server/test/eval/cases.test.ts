@@ -40,23 +40,27 @@ function planWith(tasks: Task[]): Plan {
 
 test("an expectation passes when an AI task of an allowed department matches, and fails otherwise", () => {
   const restaurant = CASES[0] as EvalCase;
-  const hit = planWith([aiTask("legal-a", "Solicitar la licencia de actividad", "legal")]);
+  const hit = planWith([aiTask("legal-a", "Constituir la sociedad y firmar el contrato de alquiler", "legal")]);
   assert.equal(evaluateExpectations(restaurant.expectations, hit)[0].passed, true);
 
-  const otherDepartment = planWith([aiTask("marketing-a", "Solicitar la licencia de actividad", "marketing")]);
+  const otherDepartment = planWith([aiTask("marketing-a", "Constituir la sociedad y firmar el contrato de alquiler", "marketing")]);
   assert.equal(evaluateExpectations(restaurant.expectations, otherDepartment)[0].passed, false, "the department must be one of the allowed ones");
 
-  const unrelated = planWith([aiTask("legal-b", "Contratar a un abogado de empresa", "legal")]);
+  const unrelated = planWith([aiTask("legal-b", "Revisar el calendario de reuniones del equipo", "legal")]);
   assert.equal(evaluateExpectations(restaurant.expectations, unrelated)[0].passed, false);
+
+  // The licence is in the skeleton already: a proposal about it does not meet the expectation that asks for more
+  const licence = planWith([aiTask("legal-c", "Solicitar la licencia de actividad", "legal")]);
+  assert.equal(evaluateExpectations(restaurant.expectations, licence)[0].passed, false);
 });
 
-test("a rule task of the skeleton never meets an expectation: only the agents' tasks count", () => {
+test("the tasks the skeleton already has count too: a rule task that matches meets the expectation", () => {
   const restaurant = CASES[0] as EvalCase;
   const base = buildPlanSkeleton(restaurant.report());
   if (!base.ok) throw new Error("no skeleton");
-  const ruleTask = base.plan.tasks.find((task) => /licen/i.test(task.title) && task.primaryDepartmentId === "legal");
-  assert.ok(ruleTask, "the skeleton has a licence task, so the test means something");
-  assert.equal(evaluateExpectations(restaurant.expectations, base.plan)[0].passed, false);
+  assert.equal(evaluateExpectations(restaurant.expectations, base.plan)[0].passed, false, "the skeleton alone does not cover the expectation");
+  const covered = { ...base.plan, tasks: base.plan.tasks.map((task) => (task.id === "obtain-licences" ? { ...task, title: "Constituir la sociedad" } : task)) };
+  assert.equal(evaluateExpectations(restaurant.expectations, covered)[0].passed, true);
 });
 
 test("the marketplace expectation reads the payments, and a non-payment title fails", () => {

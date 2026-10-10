@@ -12,7 +12,7 @@ export function section(user: string, tag: string): any {
 }
 
 const TITLES: Record<string, string> = {
-  legal: "Solicitar la licencia municipal de actividad",
+  legal: "Constituir la sociedad y firmar el contrato de alquiler",
   finance: "Revisar los cobros y los pagos a los profesionales",
   product: "Diseñar la interfaz de la aplicación",
   technology: "Desarrollar la plataforma de reservas",
