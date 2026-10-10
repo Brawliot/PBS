@@ -183,6 +183,12 @@
 
   // TODO: replace with the real session state once there is a backend.
   const isLoggedIn = false;
+  const userName = ''; // TODO: the name of the real user; its first letter fills the profile circle until there are photos
+
+  // The header shows one of two states: Log In / Register, or the profile circle with "View my projects" on its right
+  document.getElementById('nav-guest').hidden = isLoggedIn;
+  document.getElementById('nav-user').hidden = !isLoggedIn;
+  document.getElementById('avatar').textContent = (userName.trim()[0] || '?').toUpperCase();
 
   // TESTING ONLY: the login requirement is switched off so the send flow (title exit,
   // loader, request) can be tried without a session. Set to true to bring the
@@ -688,7 +694,7 @@
   });
 
   // View my projects: show coming soon notice
-  document.querySelector('.hero__projects').addEventListener('click', () => {
+  document.querySelector('.nav__projects').addEventListener('click', () => {
     showToast('Projects are not available yet.');
   });
 

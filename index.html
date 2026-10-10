@@ -16,8 +16,14 @@
 
   <header class="header">
     <nav class="nav">
-      <button type="button" class="nav__login" data-auth="login">Log In</button>
-      <button type="button" class="btn btn--dark" data-auth="register">Register</button>
+      <div class="nav__guest" id="nav-guest">
+        <button type="button" class="nav__login" data-auth="login">Log In</button>
+        <button type="button" class="btn btn--dark" data-auth="register">Register</button>
+      </div>
+      <div class="nav__user" id="nav-user" hidden>
+        <span class="avatar" id="avatar" role="img" aria-label="Your profile">?</span>
+        <button type="button" class="btn btn--dark nav__projects">View my projects</button>
+      </div>
     </nav>
   </header>
 
@@ -29,8 +35,6 @@
       </div>
       <p class="hero__subtitle">Plan &amp; Execute your Business</p>
     </div>
-
-    <button type="button" class="btn btn--dark hero__projects">View my projects</button>
 
     <form class="search" action="#" novalidate>
       <div class="search__bar">

@@ -31,6 +31,11 @@
   --danger: #b42318;
   --tint: rgba(99, 102, 241, 0.22);
   --shadow: 0 18px 40px rgba(39, 39, 39, 0.18);
+  --shadow-soft: 0 6px 14px rgba(39, 39, 39, 0.18);   /* button lift on hover */
+  --ring: 0 0 0 6px rgba(39, 39, 39, 0.12);           /* halo of the slider thumb while pressed */
+  --surface-hover: #f3f3f7;                           /* outline button on hover */
+  --danger-bg: #fdf0ee;                               /* danger button on hover */
+  --danger-strong: #8f1c12;                           /* danger button text and border on hover */
 }
 
 /* ==========================================================================
@@ -86,10 +91,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
   transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease,
     border-color 0.15s ease, opacity 0.15s ease, color 0.15s ease;
 }
-.btn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(39, 39, 39, 0.18); }
+.btn:hover { transform: translateY(-1px); box-shadow: var(--shadow-soft); }
 .btn--dark:hover { background: var(--dark-hover); }
-.btn--outline:hover { background: #f3f3f7; border-color: var(--dark); }
-.btn--danger:hover { background: #fdf0ee; color: #8f1c12; border-color: #8f1c12; }
+.btn--outline:hover { background: var(--surface-hover); border-color: var(--dark); }
+.btn--danger:hover { background: var(--danger-bg); color: var(--danger-strong); border-color: var(--danger-strong); }
 .btn:active { transform: translateY(0) scale(0.97); box-shadow: none; }
 .nav__login:hover, .auth__link:hover { opacity: 0.65; }
 .nav__login:active, .auth__link:active { transform: scale(0.96); }
@@ -105,6 +110,15 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .nav { display: flex; justify-content: flex-end; align-items: center; gap: 32px; }
 .nav__login { border: 0; background: transparent; color: var(--dark); font-size: 18px; }
 .nav .btn { height: auto; padding: 14px 34px; border-width: 0; font-size: 18px; }
+/* Two header states, one shown at a time (script.js): guest, or signed in (profile photo, then the projects button on its right) */
+.nav__guest { display: flex; align-items: center; gap: inherit; }
+.nav__user { display: flex; align-items: center; gap: 20px; }
+.avatar {
+  width: 48px; height: 48px; border-radius: 50%; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--dark); color: var(--white); font-size: 20px; font-weight: 800;
+  border: 2px solid var(--white); box-shadow: var(--shadow-soft); user-select: none;
+}
 
 /* ==========================================================================
    Hero
@@ -122,13 +136,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .hero__subtitle {
   font-family: "Open Sans", sans-serif; font-size: clamp(22px, 3vw, 34px);
   color: var(--gray-text); letter-spacing: -0.04em; margin-top: 8px;
-}
-
-/* Same look as the Register button in the nav */
-.hero__projects {
-  height: auto; margin-top: 3vh; padding: 14px 34px; border-width: 0; font-size: 18px;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease,
-    opacity 0.35s ease, visibility 0s;
 }
 
 /* While the idea is being sent:
@@ -155,7 +162,6 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 body.is-loading .hero__title { opacity: 0; transition-delay: 0.1s; }
 body.is-loading .hero__subtitle { opacity: 0; transform: translateY(10px); }
-body.is-loading .hero__projects { opacity: 0; visibility: hidden; pointer-events: none; transition: opacity 0.35s ease, visibility 0s 0.35s; }
 body.is-loading .hero__loader {
   opacity: 1; visibility: visible;
   /* --loader-dy is set from script.js: distance from the title to the screen centre */
@@ -246,8 +252,8 @@ body.is-finishing .hero__loader { opacity: 0; transition: opacity 0.35s ease; }
 }
 .range:hover::-webkit-slider-thumb { transform: scale(1.12); }
 .range:hover::-moz-range-thumb { transform: scale(1.12); }
-.range:active::-webkit-slider-thumb { transform: scale(1.25); box-shadow: 0 0 0 6px rgba(39, 39, 39, 0.12); }
-.range:active::-moz-range-thumb { transform: scale(1.25); box-shadow: 0 0 0 6px rgba(39, 39, 39, 0.12); }
+.range:active::-webkit-slider-thumb { transform: scale(1.25); box-shadow: var(--ring); }
+.range:active::-moz-range-thumb { transform: scale(1.25); box-shadow: var(--ring); }
 .range:not(.is-set)::-webkit-slider-thumb { background: var(--thumb-unset); }
 .range:not(.is-set)::-moz-range-thumb { background: var(--thumb-unset); }
 .range[aria-invalid="true"] { outline: 2px solid var(--danger); outline-offset: 4px; }
@@ -434,6 +440,14 @@ body.has-result .hero { display: none; }
 .toast__close:hover { background: var(--gray-light); color: var(--black); }
 
 /* ==========================================================================
+   Home page on a short desktop window: the page scrolls instead of cutting the filters off.
+   The wordmark gives way first (down to its minimum height); on a normal window nothing changes.
+   Only the home page (the one with a .hero): the plan page scrolls inside .plan.
+   ========================================================================== */
+body:has(> .hero) { overflow-y: auto; }
+.hero ~ .giant { min-height: 40px; }
+
+/* ==========================================================================
    Giant wordmark (endless loop to the right)
    ========================================================================== */
 .giant {
@@ -527,7 +541,6 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
   /* Adjust hero spacing and text sizes */
   .hero { padding: 2vh 16px 0; }
   .hero__brand { --title-size: clamp(56px, 10vw, 96px); }
-  .hero__projects { margin-top: 2.5vh; padding: 12px 28px; font-size: 16px; }
 
   /* Adjust search bar */
   .search { --bar-h: max(10vh, 56px); margin-top: 2.5vh; }
@@ -615,7 +628,6 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
   .hero { padding: 1.5vh 12px 0; }
   .hero__brand { --title-size: clamp(48px, 12vw, 72px); }
   .hero__subtitle { font-size: clamp(16px, 3vw, 22px); }
-  .hero__projects { margin-top: 2vh; height: 40px; padding: 8px 20px; font-size: 14px; }
 
   /* Compact search */
   .search { --bar-h: max(9vh, 48px); margin-top: 2vh; }
