@@ -34,6 +34,8 @@ export const MAX_PROPOSALS = 100;
 export const MAX_DERIVED_FROM = 20;
 export const MAX_WAITS_FOR = 5;
 export const PROPOSAL_LIMITS = { tasks: 20, steps: 60, relations: 120 };
+/** Notes of a proposal (read-only text: requests, questions and review findings). Added after the first version: optional */
+export const PROPOSAL_NOTE_LIMITS = { notes: 20, text: 400 };
 // The plan structure proposed by the plan level (phases, tiers, department relations). Unmeasured: tune with real runs
 export const STRUCTURE_LIMITS = { phases: LIMITS.phases, tiers: LIMITS.departments, relations: 40, requests: 5, questions: 5, text: 300 };
 /** Requests and questions kept in a structure: the agent's text, plus the department it is sent to */
@@ -373,6 +375,7 @@ const ProposalSchema = z
       relations: z.array(RelationSchema).max(PROPOSAL_LIMITS.relations),
     }),
     structure: StructureSchema.optional(),
+    notes: z.array(text(PROPOSAL_NOTE_LIMITS.text)).max(PROPOSAL_NOTE_LIMITS.notes).optional(),
     createdAt: DateTimeSchema,
     decidedAt: DateTimeSchema.optional(),
   })

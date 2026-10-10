@@ -215,6 +215,7 @@ A gap is a task that waits for facts (`placeholder`). When its facts are confirm
 | `POST /api/plan/:id/proposals/:proposalId/accept` | `{ expectedVersion }` | `200`. The tasks are added and the gap no longer waits. |
 | `POST /api/plan/:id/proposals/:proposalId/reject` | `{ expectedVersion }` | `200` |
 | `POST /api/plan/:id/agents/structure` | `{ expectedVersion }` | `201`. Asks the plan-level assistant for the structure of the plan (phases, tiers, relations between departments), from the idea of its report. See below. |
+| `POST /api/plan/:id/agents/departments` | `{ expectedVersion }` | `201`. Asks the assistant for the tasks of every department that has none pending, then a review of the plan level over them. See below. |
 
 #### The plan structure from the assistant
 
@@ -231,6 +232,36 @@ The call is synchronous: it waits for the assistant, with up to three tries of t
 | `version_conflict` | `409` | The plan changed while the assistant was thinking. Nothing from the suggestion is saved. |
 
 A failure saves nothing. The server log gets one line with the code of the failure, never the prompts or the answer.
+
+#### The tasks of each department from the assistant
+
+`POST /api/plan/:id/agents/departments` runs the department level, pressed by hand on the Decisions page ("Suggest tasks for all departments"). It runs in this order, and the checks that cost nothing come before any call:
+
+1. The body, the id, the storage and the assistant (`invalid_body`, `not_found`, `storage_unavailable`, `assistant_unavailable`).
+2. The version (`version_conflict`), then a structure waiting for a decision (`not_available`: decide the structure first, the tasks sit in its phases), then no confirmed fact (`no_confirmed_facts`), then every department already having a pending task proposal (`duplicate_pending`). Nothing is called on these.
+3. The idea of the report (`no_report` without one).
+4. One call per department that has no pending proposal, in parallel and at most `MAX_PARALLEL_DEPARTMENTS` (5) at once. A department sees only: the idea, the confirmed facts, the phases, its own tasks, the confirmed outputs of AI steps of other departments that feed its steps, and the order relations that touch it. It never sees another department's proposal.
+5. One review of the plan level over all the tasks proposed: clashes, duplicates, gaps and missing orders.
+
+The answer is only proposed. One pending proposal per department that proposed a task (`origin: ai`, `reason: { factId }`, tasks grouped by phase, and its order relations between tasks), and the facts the departments proposed as proposed facts with `from: { "kind": "agent", "level": "department" }`. A fact with the same key and value as one the plan has (proposed or confirmed) is not proposed again. Each proposal has read-only `notes` (at most 20, each at most 400 characters): the requests and questions of its department, the review's findings that name one of its tasks, and the suggested orders, as text (`Suggested order: <A> before <B>`). A finding or order that names no proposed task goes to the first proposal. An order is never applied by itself: the person accepts or rejects each department's proposal.
+
+The whole call is one write under the version that was read, with its log entries (`proposal_created` and `fact_proposed`, actor `ai`). Either everything is saved or nothing is. The call waits for the assistant with a limit of 240 seconds for the whole of it; longer than that, the answer is `assistant_unavailable`, and the work still running is thrown away without a write. This is under the 300 seconds Node allows a request by default, so the answer is always ours to send. It is synchronous, not a job like the planner's: the screen waits with the loader, and a job would add a poll for no gain while there is one call of this kind at a time.
+
+| Code | Status | When |
+| --- | --- | --- |
+| `no_confirmed_facts` | `409` | No decision is confirmed yet, so there is nothing to build on. Refused before any call. |
+| `not_available` | `409` | A structure is waiting for a decision. Refused before any call. |
+| `duplicate_pending` | `409` | Every department already has a pending task proposal. Refused before any call. |
+| `no_report` | `409` | The plan was not made from a report, so there is no idea to work from. |
+| `assistant_unavailable` | `503` | The model or the judge is not configured, a department or the review did not answer on every try, or the 240 seconds ran out. |
+| `suggestion_invalid` | `502` | An answer did not fit the plan, or one of the facts does not fit the catalogue. |
+| `version_conflict` | `409` | The plan changed while the assistant was thinking. Nothing from the suggestion is saved. |
+
+A press with nothing to add answers `200` with the plan unchanged (the screen says so), and saves nothing.
+
+**Cost:** one press makes one call per department that has no pending proposal (up to `LIMITS.departments`, 20) plus one review call. Each call has up to three tries, and each try is one OpenAI call and one Jev call. The worst case is therefore about 3 × (20 + 1) model calls and as many judge calls.
+
+**Known limits of this level:** a department that proposes no task makes no proposal, so its requests and questions are not kept. The review sees only the tasks of this press, not those of pending proposals of an earlier press, so a clash with one of those is not seen. The orders of the review are text: they are never added as relations.
 
 The success body is the one of a step action: `{ id, version, plan, derived }`. Errors use the same shape as the step actions, `{ error, code }`, with one fixed text per code. A stale `expectedVersion` gives `409 version_conflict`; the page then reloads the plan. A step whose history has reached its limit (200 events) answers `409 events_full` to every action, and a change that would take the plan's document over 5 MiB of JSON (`MAX_DOCUMENT_BYTES`, not calibrated yet) answers `409 plan_too_large`. Both leave the plan as it was.
 
@@ -257,6 +288,8 @@ server/
   plan-routes.ts        Plan API as a pure function: routes, status codes, development routes, facts and proposals
   plan/                 Plan model, rules, checks, derived values, and the plan and report repositories
   plan/plan-structure.ts  The plan structure: applied to a copy, proposed, and applied when accepted
+  plan/agents/department-input.ts  The input of one department call, built from confirmed things and its own parts only
+  plan/agents/department-suggestion.ts  The tasks of all departments: the calls, the review, the notes and the deadline
   plan/agents/          Agent contracts by level (plan, department, task, step), the shared pipeline and the real model adapters (OpenAI, Jev), and the agents built from the environment
   scripts/              Manual scripts that use the real model (not run by the tests)
   db/                   PostgreSQL: migrations (SQL files and their runner), plan and report repositories
@@ -282,7 +315,7 @@ server/
 - **No authentication.** The login and register dialogs do not send anything (`// TODO: send data` in `script.js`). The login gate is off (`REQUIRE_LOGIN = false` in `script.js`) for testing.
 - **No rate limiting and no cost protection.** Every planner request calls paid APIs: a request that asks for questions makes one Jev and one OpenAI call; a final request (or one with no questions left) makes three Jev calls. Add rate limits and spending controls before deploying.
 - **Placeholders in the UI.** "View my projects" only shows a notice.
-- **Only the plan level of the agents is connected.** `POST /api/plan/:id/agents/structure` is the one route that calls a model; the department and task levels are contracts tested with fake models only.
+- **Only the plan and department levels of the agents are connected.** `POST /api/plan/:id/agents/structure` and `POST /api/plan/:id/agents/departments` are the routes that call a model. The task level is a contract tested with fake models only: its steps are not built yet.
 - **Each suggestion costs money and waits.** A structure suggestion calls OpenAI and Jev up to three times each, and it is only made when the person presses "Suggest plan structure" (never when the page opens). Its worst wait is about three times (60 s for OpenAI plus 30 s for Jev), that is about 270 s, close to the 300 s request timeout Node uses by default. It is synchronous for now; a background job would be the fix if the waits grow. Only one structure can wait at a time.
 - **A structure is not re-checked against the facts it was made from.** If a fact changes after the suggestion, the structure stays pending and is still accepted if it fits the plan, unlike the tasks of a gap (they are marked obsolete).
 - **Suggestions only from templates.** A gap is expanded only for the `mobile_game` and `web_app` product types. Other values answer `needs_ai` until the AI is built. A rejected suggestion can be asked again: the new one takes the next free id (`-2`, `-3`...), up to 20 tries, and then `id_taken`. A pending suggestion whose decision has changed is marked obsolete (`derived.proposals[id].obsolete`). It stays listed, with the label Obsolete, until it is retired: the screen's Retire button calls `reject` (logged as `proposal_rejected`). Accepting it gives `409 not_confirmed`, and nothing removes a suggestion by itself.

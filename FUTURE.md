@@ -96,7 +96,32 @@ Lo que queda, en orden:
 2. **Trabajo en segundo plano** si las esperas (hasta ~270 s en el peor caso) molestan o pasan del tiempo de espera de Node: un almacén de trabajos como el del planner.
 3. **Control de coste**: límite de llamadas por plan y por día antes de desplegar (ver "Known limitations" en el README).
 4. **Hechos y estructura obsoletos**: marcar una estructura cuando cambia un hecho del que salió, como ya se hace con las tareas de un hueco.
-5. **Nivel departamento** y después tareas y pasos (rebanadas siguientes).
+5. **Nivel departamento**: hecho en la segunda rebanada (ver abajo).
+
+
+### Estado: segunda rebanada (las tareas por departamento, en pantalla)
+
+Hecho, probado con ejecutores falsos (tests, e2e en Chromium y las pruebas con base de datos):
+
+- **Botón "Suggest tasks for all departments"** en Decisions. Solo se pulsa a mano. Con una estructura pendiente o sin ningún hecho confirmado no se ofrece: aparece un aviso.
+- **Ruta** `POST /api/plan/:id/agents/departments`: una llamada por departamento sin propuesta pendiente (en paralelo, como mucho 5 a la vez), y después una revisión del nivel plan sobre todas las tareas. Todo o nada, en una sola escritura. Códigos y coste, en el README.
+- **Entrada de cada departamento** (`department-input.ts`): la idea, solo los hechos confirmados, sus propias tareas, las salidas confirmadas de pasos de IA de otros departamentos que alimentan los suyos (nunca un borrador) y sus relaciones de orden, con el texto del aspecto.
+- **Propuestas por departamento**: una por departamento con tareas, agrupadas por fase, con su orden en lenguaje natural y notas de solo lectura (peticiones, preguntas y hallazgos de la revisión). Aceptar o rechazar, cada una por separado.
+- **Hechos de los departamentos**: origen `agent` (nivel `department`), sin duplicar los que el plan ya tiene. Los confirma solo la persona.
+- **Modelo**: `Proposal.notes` opcional, con límites (`PROPOSAL_NOTE_LIMITS`). Solo aditivo: los planes guardados se leen igual y la versión del esquema no cambia.
+- **Decisión de espera**: síncrona con un límite de 240 s para todo, por debajo de los 300 s que Node da a una petición. Un almacén de trabajos como el del planner obligaría a sondear desde la pantalla sin ganar nada, porque hoy hay una sola llamada de este tipo a la vez.
+- **Un fallo de reutilización corregido**: una propuesta pendiente de un departamento ya no bloquea a otro que cite el mismo hecho (antes, `duplicate_pending` tumbaba toda la pasada).
+- **Prompts**: una frase que fija la dirección de "blocks" y "follows" (con un ejemplo). El de revisión decía lo contrario para "follows", y se alineó.
+
+Lo que queda, en orden:
+
+1. **Calibración con claves reales**: una pasada a mano con el plan de un informe real, midiendo el tiempo y la calidad de las tareas y de la revisión.
+2. **Ajustes de orden como acción**: hoy son texto en las notas y no se aplican solos. Convertirlos en relaciones aceptables por separado, cuando la revisión sea fiable.
+3. **Notas de los departamentos sin tareas**: si un departamento no propone tareas, sus peticiones y preguntas se pierden. Guardarlas en una propuesta de notas, o en la estructura.
+4. **Revisión contra las propuestas pendientes de una pasada anterior**: hoy la revisión solo ve las tareas de esta pasada.
+5. **Estructura y hechos obsoletos**: una estructura no se marca como obsoleta cuando cambia un hecho del que salió.
+6. **Los pasos son la rebanada 3**: cada tarea aceptada aparece en su departamento sin pasos ("This task has no steps."). Los pasos y la llamada de tarea vienen después.
+7. **Control de coste**: límite de pulsaciones por plan y por día antes de desplegar (ver "Known limitations" en el README).
 
 ---
 

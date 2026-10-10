@@ -50,6 +50,7 @@
     already_decided: 'This suggestion was already decided.',
     needs_ai: 'There is no ready-made suggestion for this decision yet.',
     not_available: 'This is not available right now.',
+    no_confirmed_facts: 'Confirm at least one decision first, so the assistant has something to build on.',
   };
   const FACT_KEY_LABEL = {
     product_type: 'Product type',
@@ -687,6 +688,39 @@
     );
   }
 
+  /** Tasks one department proposed (the assistant's, not a template or a gap): shown in their own card */
+  const isDepartmentProposal = (item) => item.structure === undefined && item.add.tasks.some((task) => task.origin.kind === 'ai');
+
+  /** The tasks one department proposed: grouped by phase, the order between them in plain words, and the notes (read-only) */
+  function departmentCard(item) {
+    const { plan, derived } = data;
+    const department = item.add.tasks[0].primaryDepartmentId;
+    const titleOf = (id) => byId(item.add.tasks, id)?.title ?? id;
+    const groups = [...plan.phases]
+      .sort((a, b) => a.order - b.order)
+      .map((phase) => ({ phase, tasks: item.add.tasks.filter((task) => task.phaseId === phase.id) }))
+      .filter((group) => group.tasks.length > 0);
+    const orders = (item.add.relations ?? []).map((link) =>
+      link.type === 'blocks' ? `${titleOf(link.from)} must be done before ${titleOf(link.to)}` : `${titleOf(link.from)} comes after ${titleOf(link.to)}`,
+    );
+    const obsolete = derived.proposals[item.id]?.obsolete === true;
+    return el(
+      'article',
+      { class: 'step', 'data-proposal-id': item.id, 'data-department-id': department },
+      el('h3', { class: 'step__title' }, `Tasks for ${deptName(department)}`, obsolete ? el('span', { class: 'badge' }, 'Obsolete') : null),
+      obsolete ? el('p', { class: 'notice' }, 'This suggestion came from a decision that has changed.') : null,
+      groups.map((group) => [el('h3', { class: 'step__sub' }, group.phase.name), el('ol', { class: 'list' }, group.tasks.map((task) => el('li', { class: 'output' }, task.title)))]),
+      orders.length ? [el('h3', { class: 'step__sub' }, 'Order'), el('ul', { class: 'list' }, orders.map((text) => el('li', { class: 'output' }, text)))] : null,
+      item.notes?.length ? [el('h3', { class: 'step__sub' }, 'Notes (read only)'), el('ul', { class: 'list' }, item.notes.map((text) => el('li', { class: 'output' }, text)))] : null,
+      el(
+        'div',
+        { class: 'actions', role: 'group', 'aria-label': 'Department decision' },
+        obsolete ? null : el('button', { type: 'button', class: 'btn btn--dark', disabled: busy ? true : undefined, on: { click: () => post(`/proposals/${enc(item.id)}/accept`, {}) } }, 'Accept'),
+        el('button', { type: 'button', class: 'btn btn--outline', disabled: busy ? true : undefined, on: { click: () => post(`/proposals/${enc(item.id)}/reject`, {}) } }, obsolete ? 'Retire' : 'Reject'),
+      ),
+    );
+  }
+
   // ---- Decisions: facts to confirm, a new decision, gaps, and suggestions
   function decisionsView() {
     const { plan, derived, catalog } = data;
@@ -786,8 +820,23 @@
           el('p', { class: 'row__meta' }, 'Asks the assistant for the phases, tiers and relations of this plan. Nothing changes until you accept it.'),
         );
 
-    const proposalItems = pending.length
-      ? pending.map((item) => {
+    // The tasks of each department have their own section below, so the list here keeps the other suggestions
+    const otherPending = pending.filter((item) => !isDepartmentProposal(item));
+    const departmentCards = pending.filter(isDepartmentProposal).map(departmentCard);
+    // Asked for all departments at once: not while a structure waits (the tasks sit in its phases), and only with a confirmed decision
+    const departmentAction = structurePending
+      ? el('p', { class: 'row__meta' }, 'Decide the plan structure first: the tasks sit in its phases.')
+      : confirmed.length === 0
+        ? el('p', { class: 'row__meta' }, 'Confirm at least one decision first, so the assistant has something to build on.')
+        : el(
+            'div',
+            { class: 'actions' },
+            el('button', { type: 'button', class: 'btn btn--outline', disabled: busy ? true : undefined, on: { click: () => post('/agents/departments', {}) } }, 'Suggest tasks for all departments'),
+            el('p', { class: 'row__meta' }, 'Asks the assistant for the tasks of every department, in one pass. Nothing changes until you accept a department.'),
+          );
+
+    const proposalItems = otherPending.length
+      ? otherPending.map((item) => {
           const summary = derived.proposals[item.id] ?? { tasks: 0, steps: 0, titles: [], obsolete: false };
           if (item.structure !== undefined && summary.structure) return structureCard(item, summary);
           const forTask = item.reason.taskId ? byId(plan.tasks, item.reason.taskId)?.title : null;
@@ -841,6 +890,9 @@
         el('h2', { class: 'section' }, 'Suggestions'),
         structureAction,
         proposalItems,
+        el('h2', { class: 'section' }, 'Tasks by department'),
+        departmentAction,
+        departmentCards.length ? departmentCards : el('p', { class: 'empty' }, 'No department tasks are waiting.'),
         decidedFold,
       ],
     };
@@ -992,8 +1044,10 @@
       });
       const result = await response.json().catch(() => ({}));
       if (response.ok) {
+        // The version does not move when the assistant had nothing new to add: nothing was saved then
+        const unchanged = result.version === data.version;
         data = { ...data, version: result.version, plan: result.plan, derived: result.derived };
-        notice = { text: `Saved. The plan is at version ${result.version}.` };
+        notice = { text: unchanged ? 'The assistant found nothing new to add, so nothing was saved.' : `Saved. The plan is at version ${result.version}.` };
       } else if (response.status === 409 && result.code === 'version_conflict') {
         await reload();
         notice = { text: ERROR_TEXT.version_conflict, error: true };

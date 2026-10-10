@@ -9,11 +9,12 @@ import { restaurantPlan } from "./plan/demo-plan.js";
 import { applyPlanAction, type PlanActionError } from "./plan/plan-actions.js";
 import { derivePlan } from "./plan/plan-derived.js";
 import { buildPlanSkeleton } from "./plan/plan-skeleton.js";
-import { EVENT_ACTIONS, FactTermSchema, IdSchema, type Plan } from "./plan/plan-model.js";
+import { EVENT_ACTIONS, FactTermSchema, IdSchema, parsePlan, type FactTerm, type Plan } from "./plan/plan-model.js";
 import { applyProposalAction, createProposal, proposeExpansion, type ProposalError } from "./plan/proposals.js";
 import { createStructureProposal, hasPendingStructure, type StructureProposalError } from "./plan/plan-structure.js";
 import { confirmFact, proposeFact, rejectFact, type FactActionError } from "./plan/fact-actions.js";
-import { contextOf, type AgentDeps, type AgentError } from "./plan/agents/contract.js";
+import { contextOf, keepsPlanValid, type AgentDeps, type AgentError } from "./plan/agents/contract.js";
+import { DEPARTMENTS_DEADLINE_MS, departmentsWithPendingTasks, suggestDepartmentTasks, withDeadline } from "./plan/agents/department-suggestion.js";
 import { runPlanGenerate, structureOf } from "./plan/agents/plan-agent.js";
 import { FACT_KEYS, PRODUCT_TYPES } from "./plan/fact-catalog.js";
 import { devRoutesAllowed } from "./security.js";
@@ -38,6 +39,8 @@ export interface PlanRequest {
   reports?: ReportRepository | undefined;
   /** The model and the judge of the agents. Undefined when they are not configured: the agent routes then answer 503. */
   agents?: AgentDeps | undefined;
+  /** How long a department suggestion may wait for the assistant. Undefined: DEPARTMENTS_DEADLINE_MS (tests set a short one). */
+  agentTimeoutMs?: number;
   /** Injected clock: an ISO 8601 UTC instant */
   now: () => string;
   env: Record<string, string | undefined>;
@@ -65,6 +68,7 @@ export type ErrorCode =
   | "no_report"
   | "assistant_unavailable"
   | "suggestion_invalid"
+  | "no_confirmed_facts"
   | "internal_error";
 
 // One fixed text per code. The status of each step action is listed here, so none is left without one.
@@ -109,6 +113,7 @@ export const FAILURE: Record<ErrorCode, { status: number; error: string }> = {
   no_report: { status: 409, error: "This plan was not made from a report, so there is no idea to work from" },
   assistant_unavailable: { status: 503, error: "The assistant is not available right now. Try again later." },
   suggestion_invalid: { status: 502, error: "The assistant's suggestion was not usable. Try again." },
+  no_confirmed_facts: { status: 409, error: "Confirm at least one decision first, so the assistant has something to build on." },
 };
 
 const fail = (code: ErrorCode): PlanResponse => ({
@@ -171,6 +176,8 @@ async function route(request: PlanRequest): Promise<PlanResponse> {
   if (isDev && method === "POST" && fake) return fakeOutput(request, fake[1], fake[2]);
   const structure = path.match(/^\/api\/plan\/([^/]+)\/agents\/structure$/);
   if (method === "POST" && structure) return suggestStructure(request, structure[1]);
+  const departments = path.match(/^\/api\/plan\/([^/]+)\/agents\/departments$/);
+  if (method === "POST" && departments) return suggestDepartments(request, departments[1]);
   const fakeProposal = path.match(/^\/api\/dev\/plan\/([^/]+)\/facts\/fake-proposal$/);
   if (isDev && method === "POST" && fakeProposal) return fakeFactProposal(request, fakeProposal[1]);
 
@@ -364,6 +371,83 @@ async function suggestStructure(request: PlanRequest, id: string): Promise<PlanR
         next = made.plan;
         logs.push({ kind: "fact_proposed", actor: "ai", refId: made.fact.id, at });
       }
+      return { ok: true, plan: next, logs };
+    },
+    201,
+  );
+}
+
+/** Whether a fact with this key and value is already proposed or confirmed: such a fact is not proposed again */
+const sameTerm = (a: FactTerm, b: FactTerm) => (a.kind === "catalog" && b.kind === "catalog" ? a.id === b.id : a.kind === "other" && b.kind === "other" && a.text === b.text);
+
+/**
+ * POST /api/plan/:id/agents/departments: the assistant proposes the tasks of every department that has none
+ * pending, one call per department in parallel, then one review of the plan level. Everything comes back as
+ * proposals (one per department) and proposed facts, saved in one write under the version that was read. A
+ * failure of any call, of the review, or a wait longer than DEPARTMENTS_DEADLINE_MS saves nothing. The checks
+ * that cost nothing run before any call: a structure waiting (not_available), no confirmed fact to build on
+ * (no_confirmed_facts), and every department already pending (duplicate_pending).
+ */
+async function suggestDepartments(request: PlanRequest, id: string): Promise<PlanResponse> {
+  const body = parseBody(request.body, VersionBody);
+  if (!body) return fail("invalid_body");
+  if (!UUID.test(id)) return fail("not_found");
+  if (!request.repo || !request.reports) return fail("storage_unavailable");
+  if (!request.agents) return fail("assistant_unavailable");
+  const stored = await request.repo.get(id, LOCAL_USER);
+  if (!stored) return fail("not_found");
+  if (body.expectedVersion !== stored.version) return fail("version_conflict");
+  // The structure changes the phases the tasks sit in: it is decided first
+  if (hasPendingStructure(stored.plan)) return fail("not_available");
+  if (!(stored.plan.facts ?? []).some((fact) => fact.status === "confirmed")) return fail("no_confirmed_facts");
+  const pending = departmentsWithPendingTasks(stored.plan);
+  if (stored.plan.departments.length > 0 && stored.plan.departments.every((department) => pending.has(department.id))) return fail("duplicate_pending");
+  const report = await request.reports.getByPlanId(id, LOCAL_USER);
+  if (!report) return fail("no_report");
+
+  // No lock is held while the assistant thinks: the write below checks the version read here
+  const answer = await withDeadline(
+    suggestDepartmentTasks(request.agents, stored.plan, report.report.input.idea, { now: request.now }),
+    request.agentTimeoutMs ?? DEPARTMENTS_DEADLINE_MS,
+  );
+  if (answer === undefined) {
+    console.error("Department suggestion failed: timeout");
+    return fail("assistant_unavailable");
+  }
+  if (!answer.ok) {
+    console.error("Department suggestion failed:", answer.code);
+    return fail(assistantFailure(answer.code));
+  }
+  const { proposals, facts } = answer.value;
+  if (proposals.length === 0) return { status: 200, body: { id, version: stored.version, plan: stored.plan, derived: derivePlan(stored.plan) } };
+
+  return changeDecisions(
+    request,
+    id,
+    stored.version,
+    (plan, at) => {
+      let next = plan;
+      const logs: PlanLogRecord[] = [];
+      for (const proposal of proposals) {
+        next = { ...next, proposals: [...(next.proposals ?? []), proposal] };
+        logs.push({ kind: "proposal_created", actor: "ai", refId: proposal.id, at });
+      }
+      for (const fact of facts) {
+        // The same key and value as a fact the plan has (proposed or confirmed) is not proposed again
+        const known = (next.facts ?? []).some((item) => (item.status === "proposed" || item.status === "confirmed") && sameTerm(item.key, fact.key) && sameTerm(item.value, fact.value));
+        if (known) continue;
+        const made = proposeFact(next, { key: fact.key, value: fact.value, agentLevel: "department" }, { now: () => at, actor: "ai" });
+        // One fact that does not fit fails the whole suggestion: nothing is kept half-done
+        if (!made.ok) return { ok: false, code: "suggestion_invalid" };
+        next = made.plan;
+        logs.push({ kind: "fact_proposed", actor: "ai", refId: made.fact.id, at });
+      }
+      try {
+        parsePlan(next);
+      } catch {
+        return { ok: false, code: "suggestion_invalid" };
+      }
+      if (!keepsPlanValid(plan, next)) return { ok: false, code: "suggestion_invalid" };
       return { ok: true, plan: next, logs };
     },
     201,

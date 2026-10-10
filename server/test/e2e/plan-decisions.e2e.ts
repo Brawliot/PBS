@@ -369,11 +369,115 @@ async function scenarioStructureFailure(browser: any): Promise<string> {
   return "structure failure: the assistant fails after its tries, the screen says so, nothing is saved";
 }
 
+/** A model that answers from its role, for the scenarios where several departments are asked at once */
+class RoleModel {
+  readonly roles: string[] = [];
+  constructor(private readonly answer: (role: string) => unknown) {}
+  async complete(request: { role: string }): Promise<unknown> {
+    this.roles.push(request.role);
+    const answer = this.answer(request.role);
+    if (answer instanceof Error) throw answer;
+    return structuredClone(answer);
+  }
+}
+
+/** A plan with a confirmed decision (the assistant builds on it), and an assistant that answers by role */
+async function planForDepartments(repo: InMemoryPlanRepository, answer: (role: string, plan: Plan, factId: string) => unknown) {
+  const { id, ai } = await planWithReport(repo);
+  const at = (await repo.get(id, "local"))!.version;
+  const confirmed = await handlePlanRequest({
+    method: "POST",
+    path: `/api/plan/${id}/facts`,
+    body: JSON.stringify({ key: { kind: "catalog", id: "product_type" }, value: { kind: "catalog", id: "web_app" }, confirm: true, expectedVersion: at }),
+    repo,
+    reports: ai.reports,
+    now: () => new Date().toISOString(),
+    env: {},
+  });
+  assert.equal(confirmed.status, 201);
+  const stored = (await repo.get(id, "local"))!;
+  const factId = stored.plan.facts!.find((fact) => fact.status === "confirmed")!.id;
+  const model = new RoleModel((role) => answer(role, stored.plan, factId));
+  ai.agents.model = model;
+  return { id, ai, model, plan: stored.plan };
+}
+
+/** One task per department, cited on the confirmed fact; the review sees all of them clash on the budget */
+function departmentAnswer(role: string, plan: Plan, factId: string): unknown {
+  if (role === "plan_review") {
+    return {
+      findings: [{ kind: "clash", taskIds: plan.departments.map((department) => `${department.id}-scope`), text: "Both departments plan the same budget" }],
+      adjustments: [],
+      facts: [],
+      requests: [],
+      questions: [],
+    };
+  }
+  const department = plan.departments.find((candidate) => `department_${candidate.id}` === role)!;
+  return {
+    tasks: [{ id: `${department.id}-scope`, phaseId: plan.phases[0].id, title: `Scope of ${department.name}`, derivedFrom: [factId] }],
+    relations: [],
+    facts: [],
+    requests: department.id === plan.departments[0].id ? [{ to: "plan", text: "Confirm the opening date" }] : [],
+    questions: [],
+  };
+}
+
+async function scenarioDepartments(browser: any): Promise<string> {
+  const repo = new InMemoryPlanRepository();
+  const { id, ai, model, plan } = await planForDepartments(repo, departmentAnswer);
+  const { context, page } = await openPlan(browser, repo, id, "#/decisions", undefined, ai);
+
+  // Asked by the button only, never when the page opens
+  assert.equal(model.roles.length, 0, "nothing is asked when the page opens");
+  await page.getByRole("button", { name: "Suggest tasks for all departments" }).click();
+  const cards = page.locator("article[data-department-id]");
+  await cards.first().waitFor();
+  assert.equal(await cards.count(), plan.departments.length, "one card per department");
+  const first = plan.departments[0];
+  const card = page.locator(`article[data-department-id="${first.id}"]`);
+  const text = (await card.textContent()) ?? "";
+  assert.ok(text.includes(`Scope of ${first.name}`), "the card has the task");
+  assert.ok(text.includes("clash: Both departments plan the same budget"), "the review's finding is a note of the card");
+  await card.screenshot({ path: join(SHOTS, "departments-card.png") });
+
+  // Accepting one card: its task shows on its department page, and the task has no steps yet
+  await card.getByRole("button", { name: "Accept" }).click();
+  await card.waitFor({ state: "detached" });
+  await page.goto(`${BASE}/plan.html?id=${id}#/dept/${first.id}`);
+  await page.getByText(`Scope of ${first.name}`).first().waitFor();
+  await page.screenshot({ path: join(SHOTS, "department-after-accept.png") });
+  await page.goto(`${BASE}/plan.html?id=${id}#/task/${encodeURIComponent(`${first.id}-scope`)}`);
+  await page.getByText("This task has no steps.").waitFor();
+  await page.screenshot({ path: join(SHOTS, "task-after-accept.png") });
+  const stored = (await repo.get(id, "local"))!;
+  assert.ok(stored.plan.tasks.some((task) => task.id === `${first.id}-scope`), "the accepted task is in the plan");
+  await context.close();
+  return "departments: asked by the button, one card per department, accepted, the task shows with no steps";
+}
+
+async function scenarioDepartmentsFailure(browser: any): Promise<string> {
+  const repo = new InMemoryPlanRepository();
+  // The second department fails on every try: the screen says so, and nothing of the others is kept
+  const { id, ai } = await planForDepartments(repo, (role, plan, factId) =>
+    role === `department_${plan.departments[1].id}` ? new Error("provider down") : departmentAnswer(role, plan, factId),
+  );
+  const version = (await repo.get(id, "local"))!.version;
+  const { context, page } = await openPlan(browser, repo, id, "#/decisions", undefined, ai);
+  await page.getByRole("button", { name: "Suggest tasks for all departments" }).click();
+  await notice(page).waitFor();
+  assert.match((await notice(page).textContent()) ?? "", /The assistant is not available right now/);
+  assert.equal(await page.locator("article[data-department-id]").count(), 0, "no card is shown");
+  assert.equal((await repo.get(id, "local"))!.version, version, "nothing is saved");
+  await context.close();
+  return "departments failure: one department fails after its tries, the screen says so, nothing is saved";
+}
+
 const server = await startServer();
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ["--no-sandbox"] });
 let failed = 0;
 try {
-  for (const scenario of [scenarioDecisions, scenarioNeedsAi, scenarioStale, scenarioError, scenarioScreens, scenarioObsolete, scenarioCycle, scenarioStructure, scenarioStructureFailure]) {
+  for (const scenario of [scenarioDecisions, scenarioNeedsAi, scenarioStale, scenarioError, scenarioScreens, scenarioObsolete, scenarioCycle, scenarioStructure, scenarioStructureFailure, scenarioDepartments, scenarioDepartmentsFailure]) {
     try {
       console.log("ok -", await scenario(browser));
     } catch (error) {
