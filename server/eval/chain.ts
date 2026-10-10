@@ -27,7 +27,8 @@ import type { Budget } from "./budget.js";
 import type { EvalCase } from "./cases.js";
 import { type ExpectationResult, evaluateExpectations, describeRelations, tasksByDepartment } from "./checks.js";
 
-export type LevelName = "setup" | "plan" | "departments" | "tasks" | "steps";
+/** The levels of the chain, and the review of the plan level, which the levels mode measures on its own */
+export type LevelName = "setup" | "plan" | "departments" | "review" | "tasks" | "steps";
 export type Counts = Record<string, number>;
 
 /** One call as the adapters report it (see openai-model.ts and jev-judge.ts). Never a prompt or an answer */
@@ -89,6 +90,8 @@ export interface CaseRun {
   stoppedBy?: string;
   /** The heuristic checks, when the departments level finished */
   expectations?: ExpectationResult[];
+  /** Which runner produced the case: the chain stops at its first failure, the levels run each on its own */
+  mode?: "chain" | "levels";
   relations: { departments: string[]; tasks: string[] };
   tasksByDepartment: Record<string, string[]>;
 }
@@ -113,31 +116,31 @@ export type Outcome = { ok: true; plan: Plan } | { ok: false; code: string };
 const fail = (code: string): Outcome => ({ ok: false, code });
 
 /** What one level counts while it runs */
-interface Stage {
+export interface Stage {
   counts: Counts;
   newProblems: number;
 }
 
-const add = (stage: Stage, key: string, n: number = 1) => {
+export const add = (stage: Stage, key: string, n: number = 1) => {
   stage.counts[key] = (stage.counts[key] ?? 0) + n;
 };
 
 /** Accepting must not add a problem: the plan after it is checked against the plan before (newProblems) */
-function acceptance(stage: Stage, before: Plan, after: Plan): Outcome {
+export function acceptance(stage: Stage, before: Plan, after: Plan): Outcome {
   const added = newProblems(checkPlan(before), checkPlan(after)).length;
   stage.newProblems += added;
   return added === 0 ? { ok: true, plan: after } : fail("new_problems");
 }
 
 /** The person accepts a proposal: applyProposalAction, then the check above */
-function accept(stage: Stage, plan: Plan, proposalId: string, at: string): Outcome {
+export function accept(stage: Stage, plan: Plan, proposalId: string, at: string): Outcome {
   const result = applyProposalAction(plan, proposalId, "accept", { now: () => at, actor: "user" });
   if (!result.ok) return fail(result.code);
   return acceptance(stage, plan, result.plan);
 }
 
 /** Facts the agents proposed, kept as the routes keep them: the same key and value once is not proposed again */
-function proposeAgentFacts(stage: Stage, plan: Plan, facts: FactProposal[], agentLevel: "plan" | "department", at: string): Outcome {
+export function proposeAgentFacts(stage: Stage, plan: Plan, facts: FactProposal[], agentLevel: "plan" | "department", at: string): Outcome {
   let next = plan;
   for (const fact of facts) {
     const known = (next.facts ?? []).some(
@@ -176,7 +179,7 @@ interface Measure {
  * Runs one level and measures it. Once the budget is used up, the level does not start, and any failure of it is
  * recorded as budget_exhausted (the agents turn a refused call into an ordinary failed attempt).
  */
-async function measured(level: LevelName, deps: ChainDeps, work: (stage: Stage) => Promise<Outcome>): Promise<Measure> {
+export async function measured(level: LevelName, deps: ChainDeps, work: (stage: Stage) => Promise<Outcome>): Promise<Measure> {
   const stage: Stage = { counts: {}, newProblems: 0 };
   const empty = (code: string): LevelRecord => ({
     level,
@@ -250,7 +253,7 @@ export function departmentOutcomes(failures: AttemptFailure[], departmentIds: st
 }
 
 /** The first step: the skeleton of the report, and the facts of the case confirmed by the person */
-function setup(evalCase: EvalCase, report: Report, deps: ChainDeps, stage: Stage): Outcome {
+export function setup(evalCase: EvalCase, report: Report, deps: ChainDeps, stage: Stage): Outcome {
   const skeleton = buildPlanSkeleton(report);
   if (!skeleton.ok) return fail("skeleton_failed");
   let plan = skeleton.plan;
@@ -270,7 +273,7 @@ function setup(evalCase: EvalCase, report: Report, deps: ChainDeps, stage: Stage
 }
 
 /** The plan level: the structure proposed, then accepted as a whole */
-async function planLevel(plan: Plan, idea: string, deps: ChainDeps, stage: Stage): Promise<Outcome> {
+export async function planLevel(plan: Plan, idea: string, deps: ChainDeps, stage: Stage): Promise<Outcome> {
   const at = deps.now();
   const answer = await runPlanGenerate(deps.agents, contextOf(idea, plan), plan);
   if (!answer.ok) return fail(answer.code);
@@ -322,7 +325,7 @@ async function departmentsLevel(plan: Plan, idea: string, deps: ChainDeps, stage
 }
 
 /** The task level: steps for up to taskCount tasks, from different departments, each accepted by the person */
-async function tasksLevel(plan: Plan, idea: string, deps: ChainDeps, stage: Stage, chosen: string[]): Promise<Outcome> {
+export async function tasksLevel(plan: Plan, idea: string, deps: ChainDeps, stage: Stage, chosen: string[]): Promise<Outcome> {
   const at = deps.now();
   const candidates = taskCandidates(plan);
   if (candidates.length === 0) return fail("no_tasks");
@@ -362,7 +365,7 @@ async function tasksLevel(plan: Plan, idea: string, deps: ChainDeps, stage: Stag
 }
 
 /** The steps level: the first AI step of the chosen tasks that is ready is launched, run, and its output attached */
-async function stepsLevel(plan: Plan, idea: string, deps: ChainDeps, stage: Stage, chosen: string[]): Promise<Outcome> {
+export async function stepsLevel(plan: Plan, idea: string, deps: ChainDeps, stage: Stage, chosen: string[]): Promise<Outcome> {
   const ready = plan.steps.filter(
     (step) => step.executor === "ai" && chosen.includes(step.taskId) && readiness(step, plan.steps, plan.relations) === "ready",
   );
@@ -439,6 +442,7 @@ export async function runCase(evalCase: EvalCase, deps: ChainDeps): Promise<Case
     return {
       caseId: evalCase.id,
       label: evalCase.label,
+      mode: "chain",
       levels,
       ...(stoppedBy !== undefined && { stoppedBy }),
       ...(expectations !== undefined && { expectations }),

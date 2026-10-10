@@ -9,6 +9,33 @@
 import type { AttemptFailure } from "../plan/agents/contract.js";
 import type { CaseRun, DepartmentOutcome, LevelRecord, Tokens } from "./chain.js";
 
+/** One level of the summary table: whether it passed, its code, and the reasons of its failed attempts (labels and counts) */
+export interface LevelSummary {
+  level: LevelRecord["level"];
+  ok: boolean;
+  code: string | null;
+  reasons: { reason: string; count: number }[];
+}
+
+export function levelSummaryOf(run: CaseRun): LevelSummary[] {
+  return run.levels.map((level) => ({
+    level: level.level,
+    ok: level.ok,
+    code: level.code ?? null,
+    reasons: reasonsOf(level.failures).map(([reason, count]) => ({ reason, count })),
+  }));
+}
+
+/** The table of the levels of one case, first in its Markdown: a row per level, the state and the main reasons */
+function levelTableLines(run: CaseRun): string[] {
+  const lines = ["## Resumen por nivel", "", "| Nivel | Estado | Código | Motivos principales |", "| --- | --- | --- | --- |"];
+  for (const item of levelSummaryOf(run)) {
+    const reasons = item.reasons.length === 0 ? "-" : item.reasons.map((reason) => `${reason.reason} ${reason.count}`).join(", ");
+    lines.push(`| ${item.level} | ${item.ok ? "ok" : "fallo"} | ${item.code ?? "-"} | ${reasons} |`);
+  }
+  return [...lines, ""];
+}
+
 export const HEURISTIC_NOTICE =
   "Las comprobaciones son HEURÍSTICAS (una expresión regular sobre los títulos de las tareas): detectan que falta un tema, no que el plan sea bueno. La dirección de las flechas entre departamentos y tareas no se puede comprobar de forma automática: léela una persona.";
 
@@ -121,9 +148,10 @@ export function caseJson(report: CaseReport, prices: Prices | undefined): string
   const cost = costOf(totals, prices);
   return `${JSON.stringify(
     {
+      levelSummary: levelSummaryOf(run),
       heuristic: true,
       notice: HEURISTIC_NOTICE,
-      case: { id: run.caseId, label: run.label },
+      case: { id: run.caseId, label: run.label, mode: run.mode ?? "chain" },
       run: info,
       budget,
       stoppedBy: run.stoppedBy ?? null,
@@ -145,6 +173,7 @@ export function caseMarkdown(report: CaseReport, prices: Prices | undefined): st
   const lines: string[] = [];
   lines.push(`# ${run.label}`, "", `\`${run.caseId}\` · ${info.startedAt} · repetición ${info.repetition} de ${info.repetitions}`);
   lines.push(`Modelo OpenAI: \`${info.models.openai}\` · Modelo Jev: \`${info.models.jev}\``, "", `> ${HEURISTIC_NOTICE}`, "");
+  lines.push(...levelTableLines(run));
 
   lines.push("## Niveles", "");
   lines.push("| Nivel | Estado | Código | Llamadas al modelo | Llamadas a Jev | Veredictos de Jev | Tiempo (s) | Tokens modelo (entrada/salida) | Tokens Jev (entrada/salida) | Intentos fallidos (motivo) | Recuentos |");
@@ -173,7 +202,7 @@ export function caseMarkdown(report: CaseReport, prices: Prices | undefined): st
   }
 
   lines.push("## Comprobaciones (heurísticas)", "");
-  if (run.expectations === undefined) lines.push("No evaluadas: el nivel de departamentos no terminó.");
+  if (run.expectations === undefined) lines.push("No evaluadas: no hay plan de departamentos sobre el que comprobarlas (el nivel de departamentos no salió).");
   else for (const item of run.expectations) lines.push(`- ${item.passed ? "[cumple]" : "[no cumple]"} ${item.description}`);
   lines.push("");
 
@@ -194,7 +223,7 @@ export function caseMarkdown(report: CaseReport, prices: Prices | undefined): st
 }
 
 /** The summary of the whole run: one line per case, the totals, the cost if it is known, and the cases not run */
-export function summaryMarkdown(reports: CaseReport[], notRun: string[], prices: Prices | undefined, info: { startedAt: string; models: RunInfo["models"]; limit: number; used: number; exhausted: boolean }): string {
+export function summaryMarkdown(reports: CaseReport[], notRun: string[], prices: Prices | undefined, info: { startedAt: string; models: RunInfo["models"]; limit: number; used: number; exhausted: boolean; mode?: string }): string {
   const totals: Totals = {
     modelCalls: reports.reduce((sum, report) => sum + report.totals.modelCalls, 0),
     judgeCalls: reports.reduce((sum, report) => sum + report.totals.judgeCalls, 0),
@@ -204,7 +233,8 @@ export function summaryMarkdown(reports: CaseReport[], notRun: string[], prices:
       judge: sumTokens(reports.map((report) => report.totals.tokens.judge)),
     },
   };
-  const lines: string[] = [`# Resumen de la evaluación`, "", `${info.startedAt} · Modelo OpenAI: \`${info.models.openai}\` · Modelo Jev: \`${info.models.jev}\``, "", `> ${HEURISTIC_NOTICE}`, ""];
+  const lines: string[] = [`# Resumen de la evaluación`, "", `${info.startedAt}${info.mode ? ` · modo ${info.mode}` : ""} · Modelo OpenAI: \`${info.models.openai}\` · Modelo Jev: \`${info.models.jev}\``, "", `> ${HEURISTIC_NOTICE}`, ""];
+  lines.push(...summaryLevelLines(reports));
   lines.push("| Caso | Parada | Llamadas al modelo | Llamadas a Jev | Tiempo (s) | Comprobaciones que cumplen |", "| --- | --- | --- | --- | --- | --- |");
   for (const report of reports) {
     const checks = report.run.expectations;
@@ -233,6 +263,28 @@ export function summaryMarkdown(reports: CaseReport[], notRun: string[], prices:
   if (cost !== undefined) lines.push(`- Coste estimado: ${formatDollars(cost)} (según los precios de EVAL_PRICE_*; una estimación, no una factura)`);
   else lines.push("- Coste: no se calcula (define las cuatro variables EVAL_PRICE_* para verlo).");
   return `${lines.join("\n")}\n`;
+}
+
+/**
+ * The summary's table by level: a row per level, a column per case and repetition. Each cell says ok, or the failure with
+ * its main reasons. Only levels, labels and counts: never a prompt, a key or an answer.
+ */
+function summaryLevelLines(reports: CaseReport[]): string[] {
+  if (reports.length === 0) return [];
+  const names = [...new Set(reports.flatMap((report) => report.run.levels.map((level) => level.level)))];
+  const header = reports.map((report) => `${report.run.label} (r${report.info.repetition})`);
+  const lines = ["## Resumen por nivel", "", `| Nivel | ${header.join(" | ")} |`, `| --- | ${header.map(() => "---").join(" | ")} |`];
+  for (const name of names) {
+    const cells = reports.map((report) => {
+      const level = report.run.levels.find((item) => item.level === name);
+      if (level === undefined) return "no ejecutado";
+      if (level.ok) return "ok";
+      const reasons = reasonsOf(level.failures).map(([reason, count]) => `${reason} ${count}`).join(", ");
+      return `fallo: ${level.code ?? "?"}${reasons ? ` (${reasons})` : ""}`;
+    });
+    lines.push(`| ${name} | ${cells.join(" | ")} |`);
+  }
+  return [...lines, ""];
 }
 
 function sumTokens(list: Tokens[]): Tokens {

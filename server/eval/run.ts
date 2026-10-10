@@ -6,12 +6,15 @@
  */
 
 import { mkdir, writeFile } from "node:fs/promises";
+import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { type AgentDeps, type AttemptFailure, MAX_AGENT_ATTEMPTS } from "../plan/agents/contract.js";
 import { buildPlanSkeleton } from "../plan/plan-skeleton.js";
 import { createBudget, withBudget } from "./budget.js";
 import { type CallLogEntry, type CaseRun, type ChainDeps, runCase } from "./chain.js";
 import { CASES, type EvalCase } from "./cases.js";
+import { runLevels } from "./levels.js";
+import { readRecording, recordDeps, recordingWriter, replayDeps } from "./record.js";
 import { type CaseReport, type Prices, caseJson, caseMarkdown, summaryMarkdown, totalsOf } from "./report.js";
 
 export const REQUIRED_ENV = ["OPENAI_API_KEY", "OPENAI_MODEL", "TYPESAFE_API_KEY", "JEV_MODEL"] as const;
@@ -53,19 +56,39 @@ export interface EvalOptions {
   cases?: EvalCase[];
 }
 
+/** The runners of a case: the levels (each on its own, the default) or the chain (end to end, stops at its first failure) */
+export const MODES = ["levels", "chain"] as const;
+export type Mode = (typeof MODES)[number];
+
 export interface Arguments {
   cases: EvalCase[];
   repeat: number;
+  mode: Mode;
+  /** The folder of a recording to replay (no network, no key). Undefined for a real run */
+  replay?: string;
 }
 
-/** The command line: --case <id> (one case, the default: restaurant), --all, --repeat <n> (1 to 3) */
+/**
+ * The command line: --case <id> (one case, the default: restaurant), --all, --repeat <n> (1 to 3), --mode levels|chain
+ * (levels by default), --replay <folder> (the recordings of a run, see record.ts)
+ */
 export function parseArguments(argv: string[], cases: EvalCase[]): Arguments | string {
   let chosen: EvalCase[] = [cases.find((item) => item.id === "restaurant") ?? cases[0]];
   let repeat = 1;
+  let mode: Mode = "levels";
+  let replay: string | undefined;
   for (let index = 0; index < argv.length; index++) {
     const arg = argv[index];
     if (arg === "--all") chosen = cases;
-    else if (arg === "--case") {
+    else if (arg === "--mode") {
+      const value = argv[++index];
+      if (!(MODES as readonly string[]).includes(value)) return `--mode takes one of: ${MODES.join(", ")}.`;
+      mode = value as Mode;
+    } else if (arg === "--replay") {
+      const folder = argv[++index];
+      if (!folder) return "--replay takes the folder of a recording.";
+      replay = folder;
+    } else if (arg === "--case") {
       const id = argv[++index];
       const found = cases.find((item) => item.id === id);
       if (!found) return `Unknown case "${id ?? ""}". The cases are: ${cases.map((item) => item.id).join(", ")}.`;
@@ -76,7 +99,7 @@ export function parseArguments(argv: string[], cases: EvalCase[]): Arguments | s
       repeat = value;
     } else return `Unknown option "${arg}". Use --case <id>, --all or --repeat <n>.`;
   }
-  return { cases: chosen, repeat };
+  return { cases: chosen, repeat, mode, ...(replay !== undefined && { replay }) };
 }
 
 /** A whole number from the environment, or the default when it is not set. Undefined when it is set and not valid */
@@ -108,11 +131,13 @@ const stampOf = (iso: string): string => iso.slice(0, 19).replace(/:/g, "-");
 
 export async function runEvaluation(options: EvalOptions): Promise<number> {
   const { env, print } = options;
-  if (env.AGENTS_EVAL !== "1") {
+  // A replay sends nothing: it needs no key and no AGENTS_EVAL. A real run is guarded as before
+  const replaying = options.argv.includes("--replay");
+  if (!replaying && env.AGENTS_EVAL !== "1") {
     print("Nothing sent. Set AGENTS_EVAL=1 to run the evaluation: it makes real calls to OpenAI and Jev, and they cost money.");
     return 0;
   }
-  const missing = REQUIRED_ENV.filter((name) => !env[name]);
+  const missing = replaying ? [] : REQUIRED_ENV.filter((name) => !env[name]);
   if (missing.length > 0) {
     print(`Missing in server/.env: ${missing.join(", ")}. Nothing sent.`);
     return 1;
@@ -133,8 +158,12 @@ export async function runEvaluation(options: EvalOptions): Promise<number> {
     print("EVAL_MAX_CALLS must be a whole number of 1 or more. Nothing sent.");
     return 1;
   }
+  if (parsed.replay !== undefined && !existsSync(parsed.replay)) {
+    print(`--replay: the folder "${parsed.replay}" does not exist. Nothing read.`);
+    return 1;
+  }
 
-  const { cases, repeat } = parsed;
+  const { cases, repeat, mode, replay } = parsed;
   const estimates = cases.map((evalCase) => {
     const skeleton = buildPlanSkeleton(evalCase.report());
     const departments = skeleton.ok ? skeleton.plan.departments.length : 0;
@@ -146,6 +175,8 @@ export async function runEvaluation(options: EvalOptions): Promise<number> {
 
   const { prices, incomplete } = pricesOf(env);
   const models = { openai: env.OPENAI_MODEL ?? "", jev: env.JEV_MODEL ?? "" };
+  print(`Mode: ${mode}${mode === "levels" ? " (each level on its own; the default)" : " (end to end, stops at the first failure)"}`);
+  if (replay !== undefined) print(`Replay of ${replay}: no network, no key, no client. The answers are the recorded ones.`);
   print(`Cases: ${cases.length} (${cases.map((item) => item.id).join(", ")}) · repetitions: ${repeat} · tasks per case: ${tasks}`);
   for (const item of estimates) {
     print(`  ${item.evalCase.id}: ${item.departments} departments, ${item.modelCalls} model calls, ${item.min}-${item.max} calls with Jev`);
@@ -160,12 +191,22 @@ export async function runEvaluation(options: EvalOptions): Promise<number> {
   await mkdir(options.outputDir, { recursive: true });
   const calls: CallLogEntry[] = [];
   const failures: AttemptFailure[] = [];
-  const agents = options.makeAgents(
-    (entry) => calls.push(entry),
-    (failure) => failures.push(failure),
-  );
+  // A replay builds no client: the answers come from the recording folder, one file per case
+  const agents: AgentDeps | undefined =
+    replay === undefined
+      ? options.makeAgents(
+          (entry) => calls.push(entry),
+          (failure) => failures.push(failure),
+        )
+      : undefined;
   const startedAt = options.now();
   const stamp = stampOf(startedAt);
+  // EVAL_RECORD=1 keeps the model's answers and Jev's verdicts, one folder per run (never the prompts: see record.ts)
+  const recordFolder = env.EVAL_RECORD === "1" && replay === undefined ? join(options.outputDir, "recordings", stamp) : undefined;
+  if (recordFolder !== undefined) {
+    mkdirSync(recordFolder, { recursive: true });
+    print(`Recording the answers in ${recordFolder} (the prompts are never written).`);
+  }
   const reports: CaseReport[] = [];
   const notRun: string[] = [];
   let used = 0;
@@ -178,9 +219,22 @@ export async function runEvaluation(options: EvalOptions): Promise<number> {
         notRun.push(name);
         continue;
       }
+      let caseAgents: AgentDeps;
+      if (replay !== undefined) {
+        const file = join(replay, `${name}.jsonl`);
+        if (!existsSync(file)) {
+          print(`${name}: no recording in ${replay}, not run.`);
+          continue;
+        }
+        caseAgents = { ...replayDeps(readRecording(file)), onFailure: (failure) => failures.push(failure) };
+      } else if (recordFolder !== undefined && agents !== undefined) {
+        caseAgents = recordDeps(agents, recordingWriter(recordFolder, name));
+      } else {
+        caseAgents = agents!;
+      }
       const budget = createBudget(remaining);
-      const deps: ChainDeps = { agents: withBudget(agents, budget), budget, calls, failures, now: options.now, clock: options.clock, taskCount: tasks };
-      const run: CaseRun = await runCase(evalCase, deps);
+      const deps: ChainDeps = { agents: withBudget(caseAgents, budget), budget, calls, failures, now: options.now, clock: options.clock, taskCount: tasks };
+      const run: CaseRun = mode === "chain" ? await runCase(evalCase, deps) : await runLevels(evalCase, deps);
       used += budget.used;
 
       const report: CaseReport = {
@@ -194,15 +248,22 @@ export async function runEvaluation(options: EvalOptions): Promise<number> {
       await writeFile(`${base}.json`, caseJson(report, prices));
       await writeFile(`${base}.md`, caseMarkdown(report, prices));
 
-      const stopped = run.stoppedBy === undefined ? "reached the last level" : `stopped with ${run.stoppedBy}`;
+      const stopped = run.stoppedBy === undefined ? (mode === "chain" ? "reached the last level" : levelsLine(run)) : `stopped with ${run.stoppedBy}`;
       print(`${name}: ${stopped} · ${report.totals.modelCalls} model calls, ${report.totals.judgeCalls} Jev calls · ${seconds(report.totals.ms)} s`);
       print(`  written: ${base}.md and .json`);
     }
   }
 
-  const summary = summaryMarkdown(reports, notRun, prices, { startedAt, models, limit, used, exhausted: used >= limit });
+  const summary = summaryMarkdown(reports, notRun, prices, { startedAt, models, limit, used, exhausted: used >= limit, mode });
   await writeFile(join(options.outputDir, `${stamp}-resumen.md`), summary);
   print(`Total: ${used} of ${limit} calls. Summary: ${join(options.outputDir, `${stamp}-resumen.md`)}`);
   if (notRun.length > 0) print(`Not run, the cap was used up: ${notRun.join(", ")}`);
   return 0;
+}
+
+/** The line of a levels case: how many of its levels passed, and the ones that failed with their code */
+function levelsLine(run: CaseRun): string {
+  const failed = run.levels.filter((level) => !level.ok);
+  if (failed.length === 0) return "every level passed";
+  return `${run.levels.length - failed.length} of ${run.levels.length} levels passed; failed: ${failed.map((level) => `${level.level} (${level.code ?? "?"})`).join(", ")}`;
 }
