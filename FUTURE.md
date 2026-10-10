@@ -280,6 +280,18 @@ Grabar y repetir: `EVAL_RECORD=1` guarda por cada llamada el rol y la respuesta 
 
 Lección: **una revisión no se puede juzgar sobre tareas inventadas, y el juez necesita el contexto de lo que mira.** Si el juez solo ve el tipo de hallazgo, no puede decir que encaja, y eso parece un fallo del modelo cuando es de la evaluación. Antes de culpar a un nivel, hay que comprobar que recibe lo que debe. Lo que no está probado: que la revisión con tareas reales encuentre de verdad los duplicados que hay (Conduct Market Research, proveedores, licencias); eso lo dirá la siguiente evaluación real.
 
+**Relevancia de los departamentos (fase 3, siguiente arreglo).** En SaaS y marketplace, HR o Health (y en un caso Finance) no encajaban con el negocio, Jev lo rechazaba tres veces, y como la regla es todo o nada, el nivel entero fallaba. Lo que se hizo:
+- **Un departamento puede no tener nada que proponer.** El prompt lo dice con todas las letras: la lista de tareas vacía es una respuesta válida, y una tarea inventada es peor que ninguna. El peso del departamento (core, important, light) se explica para que el modelo sepa cuánto proponer. Una lista vacía ya se aceptaba sin llamar a Jev; ahora el prompt también lo pide, y un test lo fija.
+- **Jev sabe de qué departamento se habla.** El texto que recibe empieza por el nombre del departamento, y después los títulos. "Recruit staff" no es lo mismo bajo HR que bajo Technology.
+- **Relaciones en los dos sentidos.** El prompt añade un segundo ejemplo donde la tarea existente va antes que la nueva, y dice que el orden lo decide el trabajo real, no si la tarea es nueva. Y pide no encadenar tareas solo para listarlas. El validador no cambió.
+- **La revisión no se ejecuta sin propuestas.** Si ningún departamento propuso tareas, la revisión queda "no evaluada" y no gasta llamadas. Antes se ejecutaba sobre tareas inventadas, y eso no decía nada. Las tareas sintéticas de la revisión se quitaron; las del nivel de tareas se mantienen.
+- **Un rechazo del plan dice qué regla rompió.** Cuando `checkPlan` rechaza una respuesta del nivel plan, o una propuesta de departamento o tarea, el motivo lleva los códigos de las reglas (p. ej. `duplicate_relation`), nunca ids ni textos. El informe los muestra junto a cada intento fallido y en el resumen.
+- **El informe marca los departamentos con lista vacía** en una línea propia, sin cambiar la de departamentos a la primera, con reintentos y fallidos.
+
+Lección: **a un departamento hay que dejarle decir "no tengo nada que proponer", y a Jev hay que darle contexto (de qué departamento y de qué negocio habla).** Un fallo de todo o nada que nace de un departamento irrelevante no es un fallo del modelo ni del nivel: es una regla que no contempla un caso normal.
+
+Decisión pendiente (del dueño, aplazada hasta ver los resultados de este arreglo): **¿un departamento irrelevante debe tumbar el nivel entero?** Hoy sí (todo o nada). Las opciones son: mantenerlo (la propuesta es completa o no hay nada), o que un departamento sin propuesta válida se quede fuera sin tumbar a los demás. La segunda relaja la regla del producto, así que no se toca aquí.
+
 **Falta.**
 - **Comparar dos ejecuciones.** Hoy cada informe es independiente. Hace falta un comando que compare dos JSON (antes y después de cambiar un prompt o un modelo) y marque lo que empeoró.
 - **Crecer a 30-50 casos.** Hoy son cuatro. Hay que añadir los cinco ejemplos de la calibración de la fase 1 y casos de cada sector.

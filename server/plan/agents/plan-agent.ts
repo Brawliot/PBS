@@ -21,6 +21,7 @@ import {
   fail,
   invalidShape,
   judgeRelevance,
+  addedProblemCodes,
   keepsPlanValid,
   relevanceFailure,
   reportTo,
@@ -131,7 +132,7 @@ export function runPlanGenerate(deps: AgentDeps, context: AgentContext, base: Pl
 
     const applied = applyPlanGenerate(base, parsed.data);
     if (!applied) return fail("invalid_result", "structure");
-    if (!keepsPlanValid(base, applied)) return fail("invalid_result", "plan_check");
+    if (!keepsPlanValid(base, applied)) return fail("invalid_result", "plan_check", addedProblemCodes(base, applied));
 
     const proposed = clip(
       [

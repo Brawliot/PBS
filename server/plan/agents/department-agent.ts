@@ -87,14 +87,22 @@ Return:
   - derivedFrom: the ids of the confirmed facts it comes from, copied exactly from the "id" of the items in
     <confirmed_facts> (at least one). If in doubt, cite the most relevant one.
   Do not repeat a task the department already has.
+  An empty list is a valid answer: if this department has no relevant work for THIS business, return "tasks": [] (and no
+  relations). An invented task is worse than none. The "tier" in <department> says how central the department is to this
+  business: core = central, its work is needed; important = needed, propose what this business needs; light = marginal,
+  propose only what this business really needs, and an empty list is often the right answer.
 - relations: the order between your tasks, each {"from": id, "to": id, "type": "blocks" or "follows"}.
   Each relation joins a NEW task of yours with another NEW task of yours, or a NEW task of yours with a task of
   <own_tasks> (use that task's id exactly as it is written there). Never join two tasks of <own_tasks>, and never a
   task of another department. from and to must differ. "A blocks B" means A must be ready BEFORE B;
   "B follows A" means B comes AFTER A. Example for the department "legal", where "obtain-licences" is in <own_tasks>:
   {"from":"legal-register-business","to":"obtain-licences","type":"blocks"} means legal-register-business is done
-  before obtain-licences. A task that comes first must not sit in a LATER phase than the task after it.
-  The relations must not form a loop.
+  before obtain-licences. The other way round is just as valid: for the department "operations", where "verify-location"
+  is in <own_tasks>, {"from":"verify-location","to":"operations-design-layout","type":"blocks"} means verify-location is
+  done before operations-design-layout. The order is decided by the real work, not by whether a task is new or already
+  exists: an existing task can come before a new one or after it. Relate two tasks only when one really cannot start
+  before the other; do not chain tasks just to list them in order. A task that comes first must not sit in a LATER
+  phase than the task after it. The relations must not form a loop.
 - facts, requests and questions: only when something is missing. A request is {"to": "plan" or a department id, "text": ...}.
   A question is a text.
 
@@ -206,9 +214,10 @@ export function runDepartmentTasks(
       { id: freeProposalId(plan, `agent-${input.department.id}`), reason: { factId: output.tasks[0].derivedFrom[0] }, add },
       { now: options.now },
     );
-    if (!created.ok) return fail(agentErrorOf(created.code), created.code);
+    if (!created.ok) return fail(agentErrorOf(created.code), created.code, created.problems);
 
-    const judged = clip(output.tasks.map((task) => task.title).join("\n"));
+    // Jev reads the department's name with the titles: "Recruit staff" means one thing under HR and another under Technology
+    const judged = clip([`Department: ${input.department.name}`, ...output.tasks.map((task) => task.title)].join("\n"));
     const relevance = await judgeRelevance(deps.judge, input.context.idea, judged);
     if (!relevance.ok) return relevanceFailure(relevance.code);
     return { ok: true, value: { output, proposal: created.proposal, checked: relevance.value.checked } };

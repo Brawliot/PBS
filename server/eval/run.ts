@@ -263,7 +263,12 @@ export async function runEvaluation(options: EvalOptions): Promise<number> {
 
 /** The line of a levels case: how many of its levels passed, and the ones that failed with their code */
 function levelsLine(run: CaseRun): string {
-  const failed = run.levels.filter((level) => !level.ok);
-  if (failed.length === 0) return "every level passed";
-  return `${run.levels.length - failed.length} of ${run.levels.length} levels passed; failed: ${failed.map((level) => `${level.level} (${level.code ?? "?"})`).join(", ")}`;
+  // A level that did not run is neither passed nor failed: it is listed on its own
+  const skipped = run.levels.filter((level) => level.notEvaluated !== undefined);
+  const failed = run.levels.filter((level) => !level.ok && level.notEvaluated === undefined);
+  const passed = run.levels.length - failed.length - skipped.length;
+  const parts = [`${passed} of ${run.levels.length} levels passed`];
+  if (failed.length > 0) parts.push(`failed: ${failed.map((level) => `${level.level} (${level.code ?? "?"})`).join(", ")}`);
+  if (skipped.length > 0) parts.push(`not evaluated: ${skipped.map((level) => `${level.level} (${level.notEvaluated})`).join(", ")}`);
+  return parts.join("; ");
 }

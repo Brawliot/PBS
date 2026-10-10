@@ -259,7 +259,11 @@ describe("proposals", () => {
     const big = input("p1", { add: { tasks: Array.from({ length: 21 }, (_, i) => task(`big-${i}`, "f2", ["fact-product_type"])), steps: [], relations: [] } });
     assert.deepEqual(createProposal(plan, big, now), { ok: false, code: "too_large" });
     const badDepartment = input("p1", { add: { tasks: [], steps: [{ ...step("bad", "t-plan", ["fact-product_type"]), departmentId: "nobody" }], relations: [] } });
-    assert.deepEqual(createProposal(plan, badDepartment, now), { ok: false, code: "invalid_result" });
+    // The refusal carries the codes of the rules it breaks (since the plan's failure reasons): checked on the code and those codes
+    const refused = createProposal(plan, badDepartment, now);
+    assert.equal(refused.ok, false);
+    assert.equal(refused.ok === false && refused.code, "invalid_result");
+    assert.equal(refused.ok === false && refused.problems, "unknown_department");
   });
 
   test("one pending proposal per reason: the second one is refused until the first is decided", () => {

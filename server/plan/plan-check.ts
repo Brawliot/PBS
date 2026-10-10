@@ -203,3 +203,8 @@ export function checkPlan(plan: Plan): PlanProblem[] {
   problems.push(...growthProblems(plan));
   return problems;
 }
+
+/** The distinct codes of some checkPlan problems, sorted and comma-separated: fixed labels only, never an id or a value */
+export function problemCodes(problems: PlanProblem[]): string {
+  return [...new Set(problems.map((problem) => problem.code))].sort().join(", ");
+}

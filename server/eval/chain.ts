@@ -56,6 +56,8 @@ export interface DepartmentOutcome {
   outcome: "first_try" | "retried" | "failed";
   failedAttempts: number;
   reason?: FailureReason;
+  /** True when the department answered with an empty list: nothing to propose for this business (levels mode only) */
+  empty?: boolean;
 }
 
 export interface LevelRecord {
@@ -80,12 +82,17 @@ export interface LevelRecord {
   newProblems: number;
   /** Problems of the plan after the level, when it finished */
   problems?: number;
+  /**
+   * Set when the level did not run at all, and why (the levels mode: the review needs proposals from the departments).
+   * Neither a pass nor a failure: it has no calls, no code, and it is shown as "no evaluada"
+   */
+  notEvaluated?: string;
 }
 
 /** What the review of the plan level read and found: where its tasks came from, and each finding with its task titles */
 export interface ReviewSummary {
-  /** "departamentos reales": the tasks the departments of the same run proposed. "sintética": the fixed ones (synthetic.ts) */
-  source: "departamentos reales" | "sintética";
+  /** The tasks the departments of the same run proposed: the review never reads invented ones */
+  source: "departamentos reales";
   /** Each finding: its kind, and the titles of the tasks it names (none for a gap). Never its text */
   findings: { kind: string; titles: string[] }[];
   adjustments: number;

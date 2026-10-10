@@ -207,7 +207,7 @@ export function runTaskSteps(
       { id: freeProposalId(plan, `agent-${input.task.id}`), reason: { factId: output.steps[0].derivedFrom[0] }, add },
       { now: options.now },
     );
-    if (!created.ok) return fail(agentErrorOf(created.code), created.code);
+    if (!created.ok) return fail(agentErrorOf(created.code), created.code, created.problems);
 
     const relevance = await judgeRelevance(deps.judge, input.context.idea, clip(output.steps.map((step) => step.text).join("\n")));
     if (!relevance.ok) return relevanceFailure(relevance.code);

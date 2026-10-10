@@ -11,7 +11,7 @@
 
 import { z, type ZodError } from "zod";
 import { newProblems } from "../plan-actions.js";
-import { checkPlan } from "../plan-check.js";
+import { checkPlan, problemCodes } from "../plan-check.js";
 import { FactTermSchema, IdSchema, STRUCTURE_LIMITS, type FactTerm, type Plan } from "../plan-model.js";
 import { FACT_KEYS, PRODUCT_TYPES, isAllowedFact, isFactKeyId } from "../fact-catalog.js";
 import { PROPOSAL_ERRORS, type ProposalError } from "../proposals.js";
@@ -206,6 +206,11 @@ export async function judgeRelevance(
  */
 export function keepsPlanValid(before: Plan, after: Plan): boolean {
   return newProblems(checkPlan(before), checkPlan(after)).length === 0;
+}
+
+/** The codes of the problems a copy of the plan would add, when the answer is applied to it (see keepsPlanValid) */
+export function addedProblemCodes(before: Plan, after: Plan): string {
+  return problemCodes(newProblems(checkPlan(before), checkPlan(after)));
 }
 
 /** The text a judge reads about a proposal: titles and summaries only, cut to the limit */

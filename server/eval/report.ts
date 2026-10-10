@@ -13,15 +13,24 @@ import type { CaseRun, DepartmentOutcome, LevelRecord, ReviewSummary, Tokens } f
 export interface LevelSummary {
   level: LevelRecord["level"];
   ok: boolean;
+  /** "ok", "fallo", or "no evaluada" (the level did not run: neither a pass nor a failure) */
+  status: "ok" | "fallo" | "no evaluada";
   code: string | null;
+  /** Why the level did not run, when it did not */
+  notEvaluated: string | null;
   reasons: { reason: string; count: number }[];
 }
+
+/** The state of a level as the reports show it */
+export const statusOf = (level: LevelRecord): LevelSummary["status"] => (level.notEvaluated !== undefined ? "no evaluada" : level.ok ? "ok" : "fallo");
 
 export function levelSummaryOf(run: CaseRun): LevelSummary[] {
   return run.levels.map((level) => ({
     level: level.level,
     ok: level.ok,
+    status: statusOf(level),
     code: level.code ?? null,
+    notEvaluated: level.notEvaluated ?? null,
     reasons: reasonsOf(level.failures).map(([reason, count]) => ({ reason, count })),
   }));
 }
@@ -45,7 +54,8 @@ function levelTableLines(run: CaseRun): string[] {
   const lines = ["## Resumen por nivel", "", "| Nivel | Estado | Código | Motivos principales |", "| --- | --- | --- | --- |"];
   for (const item of levelSummaryOf(run)) {
     const reasons = item.reasons.length === 0 ? "-" : item.reasons.map((reason) => `${reason.reason} ${reason.count}`).join(", ");
-    lines.push(`| ${item.level} | ${item.ok ? "ok" : "fallo"} | ${item.code ?? "-"} | ${reasons} |`);
+    const code = item.notEvaluated ?? item.code ?? "-";
+    lines.push(`| ${item.level} | ${item.status} | ${code} | ${item.status === "no evaluada" ? "-" : reasons} |`);
   }
   return [...lines, ""];
 }
@@ -149,6 +159,12 @@ export function departmentsText(outcomes: DepartmentOutcome[]): string {
   return `${count("first_try")} a la primera, ${count("retried")} con reintentos, ${failed.length} fallaron del todo: ${list}`;
 }
 
+/** The departments that answered with an empty list: nothing to propose for this business. Their ids only */
+export function emptyDepartmentsText(outcomes: DepartmentOutcome[]): string {
+  const empty = outcomes.filter((item) => item.empty === true).map((item) => item.id);
+  return `${empty.length} con la lista vacía (nada que proponer)${empty.length > 0 ? `: ${empty.join(", ")}` : ""}`;
+}
+
 /** The counts of a level as one short text: the numbers that show what the level produced */
 function countsText(level: LevelRecord): string {
   const parts = Object.entries(level.counts).map(([key, value]) => `${key} ${value}`);
@@ -200,6 +216,8 @@ export function caseMarkdown(report: CaseReport, prices: Prices | undefined): st
   }
   lines.push("");
 
+  for (const level of run.levels) if (level.departments) lines.push(`Departamentos: ${departmentsText(level.departments)}. ${emptyDepartmentsText(level.departments)}.`, "");
+
   lines.push("## Totales del caso", "");
   lines.push(`- Llamadas al modelo: ${totals.modelCalls} · llamadas a Jev: ${totals.judgeCalls} · tiempo: ${seconds(totals.ms)} s`);
   lines.push(`- Tokens modelo: ${tokenPair(totals.tokens.model)} · tokens Jev: ${tokenPair(totals.tokens.judge)}`);
@@ -212,12 +230,15 @@ export function caseMarkdown(report: CaseReport, prices: Prices | undefined): st
   if (failing.length > 0) {
     lines.push("## Fallos de los agentes", "", "Cada intento fallido, con el motivo de la regla que rompió la respuesta. Nunca su contenido.", "");
     for (const level of failing) lines.push(`- ${level.level}: ${failuresText(level)}`);
+    for (const level of failing) {
+      for (const failure of level.failures) lines.push(`  - ${failure.role}, intento ${failure.attempt}: ${failure.reason}${failure.detail ? ` (${failure.detail})` : ""}`);
+    }
     for (const level of run.levels) if (level.departments) lines.push(`- Departamentos: ${departmentsText(level.departments)}`);
     lines.push("");
   }
 
   lines.push("## Revisión del plan", "");
-  if (run.review === undefined) lines.push("No ejecutada.");
+  if (run.review === undefined) lines.push(`No evaluada: ${run.levels.find((level) => level.level === "review")?.notEvaluated ?? "no ejecutada"}.`);
   else lines.push(...reviewLines(run.review));
   lines.push("");
 
@@ -279,6 +300,8 @@ export function summaryMarkdown(reports: CaseReport[], notRun: string[], prices:
       if (departments) lines.push(`- ${report.run.label} (repetición ${report.info.repetition}), departamentos: ${departmentsText(departments)}`);
     }
     lines.push(`- Motivos en toda la ejecución: ${reasonsText(failing.flatMap(({ level }) => level.failures))}`);
+    const codes = problemCodeCounts(failing.flatMap(({ level }) => level.failures));
+    if (codes.length > 0) lines.push(`- Reglas del plan que rompieron las respuestas (checkPlan): ${codes.map(([code, count]) => `${code} ${count}`).join(", ")}`);
   }
   const cost = costOf(totals, prices);
   if (cost !== undefined) lines.push(`- Coste estimado: ${formatDollars(cost)} (según los precios de EVAL_PRICE_*; una estimación, no una factura)`);
@@ -288,11 +311,15 @@ export function summaryMarkdown(reports: CaseReport[], notRun: string[], prices:
 
 /** The review of each case in the summary: its source and the count of each kind of finding, one row per case */
 function summaryReviewLines(reports: CaseReport[]): string[] {
-  const rows = reports.filter((report) => report.run.review !== undefined);
-  if (rows.length === 0) return [];
+  if (reports.length === 0) return [];
   const lines = ["## Revisión del plan", "", "| Caso | Fuente | clash | duplicate | gap | missing_order | ajustes |", "| --- | --- | --- | --- | --- | --- | --- |"];
-  for (const report of rows) {
-    const review = report.run.review!;
+  for (const report of reports) {
+    const review = report.run.review;
+    if (review === undefined) {
+      const reason = report.run.levels.find((level) => level.level === "review")?.notEvaluated ?? "no ejecutada";
+      lines.push(`| ${report.run.label} (r${report.info.repetition}) | no evaluada: ${reason} | - | - | - | - | - |`);
+      continue;
+    }
     const count = (kind: string) => review.findings.filter((finding) => finding.kind === kind).length;
     lines.push(`| ${report.run.label} (r${report.info.repetition}) | ${review.source} | ${count("clash")} | ${count("duplicate")} | ${count("gap")} | ${count("missing_order")} | ${review.adjustments} |`);
   }
@@ -312,6 +339,7 @@ function summaryLevelLines(reports: CaseReport[]): string[] {
     const cells = reports.map((report) => {
       const level = report.run.levels.find((item) => item.level === name);
       if (level === undefined) return "no ejecutado";
+      if (level.notEvaluated !== undefined) return `no evaluada (${level.notEvaluated})`;
       if (level.ok) return "ok";
       const reasons = reasonsOf(level.failures).map(([reason, count]) => `${reason} ${count}`).join(", ");
       return `fallo: ${level.code ?? "?"}${reasons ? ` (${reasons})` : ""}`;
@@ -319,6 +347,19 @@ function summaryLevelLines(reports: CaseReport[]): string[] {
     lines.push(`| ${name} | ${cells.join(" | ")} |`);
   }
   return [...lines, ""];
+}
+
+/**
+ * The codes of the plan rules that refused some answers (plan_check, invalid_result), most frequent first. The codes are
+ * fixed labels of checkPlan, the detail of each failure holds only those, never a value.
+ */
+export function problemCodeCounts(failures: AttemptFailure[]): [string, number][] {
+  const counts = new Map<string, number>();
+  for (const failure of failures) {
+    if (failure.reason !== "plan_check" && failure.reason !== "invalid_result") continue;
+    for (const code of (failure.detail ?? "").split(", ").filter((item) => item !== "")) counts.set(code, (counts.get(code) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]);
 }
 
 function sumTokens(list: Tokens[]): Tokens {

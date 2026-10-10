@@ -7,7 +7,7 @@ import type { AgentRequest } from "../../plan/agents/contract.js";
 import { CASES, type EvalCase } from "../../eval/cases.js";
 import { parseArguments, runEvaluation, type EvalOptions } from "../../eval/run.js";
 import { recordDeps, readRecording } from "../../eval/record.js";
-import { syntheticReviewTasks, withSyntheticTasks } from "../../eval/synthetic.js";
+import { withSyntheticTasks } from "../../eval/synthetic.js";
 import { z } from "zod";
 import { confirmFact, proposeFact } from "../../plan/fact-actions.js";
 import { buildPlanSkeleton } from "../../plan/plan-skeleton.js";
@@ -94,8 +94,9 @@ test("the levels mode is the default: five levels, each on its own, and a failur
   assert.deepEqual(
     json.levels.map((level: { ok: boolean }) => level.ok),
     [false, false, false, true, true],
-    "the three broken levels fail; the tasks and the steps still run and pass",
+    "the broken levels fail; the review is not evaluated (no department proposed) and the tasks and the steps still run and pass",
   );
+  assert.equal(json.levels[2].notEvaluated, "departamentos sin propuestas");
   rmSync(run.outputDir, { recursive: true, force: true });
 });
 
@@ -108,8 +109,9 @@ test("the summary of each level names its failure: the label of the rule that br
   assert.deepEqual(byLevel.plan.reasons, [{ reason: "schema", count: 3 }]);
   assert.equal(byLevel.departments.code, "invalid_output");
   assert.deepEqual(byLevel.departments.reasons, [{ reason: "id_prefix", count: 3 }]);
-  assert.equal(byLevel.review.code, "invalid_output");
-  assert.deepEqual(byLevel.review.reasons, [{ reason: "schema", count: 3 }]);
+  assert.equal(byLevel.review.status, "no evaluada", "no department proposed, so the review does not run");
+  assert.equal(byLevel.review.notEvaluated, "departamentos sin propuestas");
+  assert.deepEqual(byLevel.review.reasons, []);
   assert.equal(byLevel.tasks.ok, true);
   assert.equal(byLevel.steps.ok, true);
   const finance = json.levels.find((level: { level: string }) => level.level === "departments").departments.find((item: { id: string }) => item.id === "finance");
@@ -252,14 +254,9 @@ test("a replay reads what the recording holds: a hand-made line of a role is the
   rmSync(folder, { recursive: true, force: true });
 });
 
-test("the synthetic inputs: the review reads one task per department and a duplicate on purpose; the tasks level gets two per department", () => {
+test("the tasks level input: two synthetic tasks per department, and none without a confirmed fact to cite", () => {
   const skeleton = buildPlanSkeleton(CASES[0].report());
   assert.ok(skeleton.ok);
-  const review = syntheticReviewTasks(skeleton.plan);
-  assert.equal(new Set(review.map((task) => task.departmentId)).size, 3);
-  const titles = review.map((task) => task.title);
-  assert.ok(new Set(titles).size < titles.length, "one title is proposed twice");
-
   assert.equal(withSyntheticTasks(skeleton.plan), undefined, "no confirmed fact, no synthetic tasks");
   const proposed = proposeFact(skeleton.plan, { key: { kind: "catalog", id: "product_type" }, value: { kind: "catalog", id: "service" } }, { now: () => "2026-10-10T10:00:00Z", actor: "user" });
   assert.ok(proposed.ok);

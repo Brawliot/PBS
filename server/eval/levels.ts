@@ -6,9 +6,9 @@
  * - plan: the skeleton of the case, with the facts the person confirms (setup, as the chain does, not a level here).
  * - departments: the same skeleton, one call per department, all accepted by the person. The review is NOT inside: it is
  *   measured on its own, as in the chain it is part of the all-or-nothing of the departments.
- * - review: the tasks the departments of the SAME run proposed, when there are some; otherwise the fixed tasks of three
- *   departments, with a duplicate on purpose (synthetic.ts). Its result does not wait for the departments to pass: it
- *   always runs, and says where its tasks came from.
+ * - review: the tasks the departments of the SAME run proposed. When none were proposed (the departments failed, or had
+ *   nothing to add) the review does not run: it is "no evaluada", with its reason, and no call is made. Reviewing invented
+ *   tasks would only test the judge against nothing.
  * - tasks: the skeleton with two synthetic AI tasks per department, no steps; EVAL_TASKS of them get steps.
  * - steps: the skeleton's own AI steps (the research steps the plan starts with), launched and run as in the chain.
  *
@@ -25,7 +25,10 @@ import type { Plan } from "../plan/plan-model.js";
 import { type CaseRun, type ChainDeps, type LevelRecord, type Outcome, type ReviewSummary, type Stage, accept, add, departmentOutcomes, measured, planLevel, proposeAgentFacts, setup, stepsLevel, tasksLevel } from "./chain.js";
 import type { EvalCase } from "./cases.js";
 import { describeRelations, evaluateExpectations, tasksByDepartment } from "./checks.js";
-import { syntheticReviewTasks, withSyntheticTasks } from "./synthetic.js";
+import { withSyntheticTasks } from "./synthetic.js";
+
+/** Why the review did not run when no department proposed a task. The same text as the report shows */
+export const NO_PROPOSALS = "departamentos sin propuestas";
 
 /** The departments level without the review: one call per department, its proposals and facts accepted by the person */
 export async function departmentsOnlyLevel(plan: Plan, idea: string, deps: ChainDeps, stage: Stage): Promise<Outcome> {
@@ -54,34 +57,35 @@ export async function departmentsOnlyLevel(plan: Plan, idea: string, deps: Chain
 /** The kinds of finding the review reports, in the order the report shows them */
 const REVIEW_KINDS = ["clash", "duplicate", "gap", "missing_order"] as const;
 
-/**
- * The tasks the review reads: the ones the departments of this run proposed (they are in the plan after the departments
- * level, and not in the skeleton), or the fixed synthetic ones when no department proposed any.
- */
-export function reviewTasksOf(skeleton: Plan, afterDepartments: Plan | undefined): { source: ReviewSummary["source"]; proposed: ProposedTask[] } {
+/** The tasks the departments of this run proposed: in the plan after the departments level, and not in the skeleton */
+export function proposedOf(skeleton: Plan, afterDepartments: Plan | undefined): ProposedTask[] {
   const known = new Set(skeleton.tasks.map((task) => task.id));
-  const real: ProposedTask[] = (afterDepartments?.tasks ?? [])
+  return (afterDepartments?.tasks ?? [])
     .filter((task) => !known.has(task.id) && task.origin.kind === "ai")
     .map((task) => ({ id: task.id, title: task.title, departmentId: task.primaryDepartmentId, phaseId: task.phaseId }));
-  if (real.length > 0) return { source: "departamentos reales", proposed: real };
-  return { source: "sintética", proposed: syntheticReviewTasks(skeleton) };
+}
+
+/** A level that did not run: no call, no code, and its reason. It is neither a pass nor a failure */
+function notEvaluatedRecord(level: LevelRecord["level"], reason: string): LevelRecord {
+  const zero = { input: 0, output: 0, missing: 0 };
+  return { level, ok: false, notEvaluated: reason, failures: [], modelCalls: 0, judgeCalls: 0, verdicts: [], ms: 0, tokens: { model: zero, judge: zero }, counts: {}, newProblems: 0 };
 }
 
 /**
  * The review on its own, read once: its findings and adjustments are counted and their titles kept, never applied. The
  * summary is always returned, even when the call failed (no findings then): the source is known before the call.
  */
-export async function reviewLevel(plan: Plan, idea: string, deps: ChainDeps, stage: Stage, tasks: { source: ReviewSummary["source"]; proposed: ProposedTask[] }): Promise<{ outcome: Outcome; summary: ReviewSummary }> {
-  const summary: ReviewSummary = { source: tasks.source, findings: [], adjustments: 0 };
-  add(stage, "tareas propuestas", tasks.proposed.length);
-  add(stage, "departamentos", new Set(tasks.proposed.map((task) => task.departmentId)).size);
-  const answer = await runPlanReview(deps.agents, { idea, proposed: tasks.proposed }, plan);
+export async function reviewLevel(plan: Plan, idea: string, deps: ChainDeps, stage: Stage, proposed: ProposedTask[]): Promise<{ outcome: Outcome; summary: ReviewSummary }> {
+  const summary: ReviewSummary = { source: "departamentos reales", findings: [], adjustments: 0 };
+  add(stage, "tareas propuestas", proposed.length);
+  add(stage, "departamentos", new Set(proposed.map((task) => task.departmentId)).size);
+  const answer = await runPlanReview(deps.agents, { idea, proposed }, plan);
   if (!answer.ok) return { outcome: { ok: false, code: answer.code }, summary };
 
   const { findings, adjustments } = answer.value.output;
   for (const kind of REVIEW_KINDS) add(stage, `hallazgos: ${kind}`, findings.filter((finding) => finding.kind === kind).length);
   add(stage, "ajustes", adjustments.length);
-  summary.findings = findings.map((finding) => ({ kind: finding.kind, titles: findingTitles(finding, plan, tasks.proposed) }));
+  summary.findings = findings.map((finding) => ({ kind: finding.kind, titles: findingTitles(finding, plan, proposed) }));
   summary.adjustments = adjustments.length;
   return { outcome: { ok: true, plan }, summary };
 }
@@ -114,17 +118,24 @@ export async function runLevels(evalCase: EvalCase, deps: ChainDeps): Promise<Ca
   const departments = await run("departments", from((plan, stage) => departmentsOnlyLevel(plan, idea, deps, stage)));
   const departmentsRecord = levels[levels.length - 1];
   if (departmentsRecord.code !== "budget_exhausted" && start.ok) {
-    departmentsRecord.departments = departmentOutcomes(departmentsRecord.failures, start.plan.departments.map((department) => department.id));
+    const outcomes = departmentOutcomes(departmentsRecord.failures, start.plan.departments.map((department) => department.id));
+    // A department that passed with no task of its own answered with an empty list: it had nothing to propose
+    const withTasks = new Set(proposedOf(start.plan, departments?.ok ? departments.plan : undefined).map((task) => task.departmentId));
+    for (const item of outcomes) if (item.outcome !== "failed" && !withTasks.has(item.id)) item.empty = true;
+    departmentsRecord.departments = outcomes;
   }
 
-  // The review reads the tasks of this run's departments (or the synthetic ones) and reports where they came from
+  // The review reads the tasks the departments of this run proposed. With none, it is not run at all: no call is spent
   let review: ReviewSummary | undefined;
-  await run("review", async (stage) => {
-    if (!start.ok) return start;
-    const result = await reviewLevel(start.plan, idea, deps, stage, reviewTasksOf(start.plan, departments?.ok ? departments.plan : undefined));
-    review = result.summary;
-    return result.outcome;
-  });
+  const proposed = start.ok ? proposedOf(start.plan, departments?.ok ? departments.plan : undefined) : [];
+  if (start.ok && proposed.length === 0) levels.push(notEvaluatedRecord("review", NO_PROPOSALS));
+  else
+    await run("review", async (stage) => {
+      if (!start.ok) return start;
+      const result = await reviewLevel(start.plan, idea, deps, stage, proposed);
+      review = result.summary;
+      return result.outcome;
+    });
 
   const chosen: string[] = [];
   await run(

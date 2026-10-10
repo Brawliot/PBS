@@ -4,7 +4,7 @@
  * A proposal is checked when it is created and again when it is accepted (the facts may have changed).
  */
 
-import { checkPlan } from "./plan-check.js";
+import { checkPlan, problemCodes } from "./plan-check.js";
 import { newProblems } from "./plan-actions.js";
 import { parsePlan, PROPOSAL_LIMITS, type Plan, type Proposal, type Task } from "./plan-model.js";
 import { templateFor, type ProposalAdd } from "./proposal-templates.js";
@@ -37,7 +37,8 @@ export interface ProposalInput {
   add: ProposalAdd;
 }
 
-export type ProposalResult = { ok: true; plan: Plan; proposal: Proposal } | { ok: false; code: ProposalError };
+/** A refused proposal: its code, and (for invalid_result) the codes of the checkPlan problems it would add, comma-separated */
+export type ProposalResult = { ok: true; plan: Plan; proposal: Proposal } | { ok: false; code: ProposalError; problems?: string };
 export type DecisionResult = { ok: true; plan: Plan; proposal: Proposal } | { ok: false; code: ProposalError };
 
 const fail = (code: ProposalError) => ({ ok: false as const, code });
@@ -159,7 +160,8 @@ export function createProposal(plan: Plan, input: ProposalInput, options: { now:
   }
   // Simulated acceptance: it must not add a problem the plan did not already have
   const accepted = materialize(plan, proposal, options.now());
-  if (newProblems(checkPlan(plan), checkPlan(accepted)).length > 0) return fail("invalid_result");
+  const added = newProblems(checkPlan(plan), checkPlan(accepted));
+  if (added.length > 0) return { ok: false, code: "invalid_result", problems: problemCodes(added) };
   return { ok: true, plan: next, proposal };
 }
 

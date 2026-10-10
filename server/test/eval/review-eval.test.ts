@@ -76,28 +76,26 @@ test("the review reads the tasks the departments of the same run proposed, not t
   rmSync(run.outputDir, { recursive: true, force: true });
 });
 
-test("when the departments fail, the review uses the synthetic tasks and the report says so", async () => {
+test("when the departments fail, the review does not run: no call is spent, and every table says it is not evaluated", async () => {
   const run = options({}, new EvalModel(departmentsBreak));
   assert.equal(await runEvaluation(run), 0);
-  const review = run.model.requests.find((request) => request.role === "plan_review")!;
-  assert.ok(reviewedTitles(review).some((title) => title.startsWith("Revisar el trabajo de")), "the synthetic tasks are read");
+  assert.equal(run.model.requests.filter((request) => request.role === "plan_review").length, 0, "no review call");
   const json = caseJsonOf(run.outputDir);
-  assert.equal(json.review.source, "sintética");
+  assert.equal(json.review, null);
   const markdown = readFileSync(join(run.outputDir, readdirSync(run.outputDir).find((item) => item.endsWith("-restaurant.md"))!), "utf8");
-  assert.match(markdown, /Fuente de las tareas revisadas: sintética/);
+  assert.match(markdown, /\| review \| no evaluada \| departamentos sin propuestas \|/);
+  assert.match(markdown, /No evaluada: departamentos sin propuestas\./);
+  const summary = readFileSync(join(run.outputDir, readdirSync(run.outputDir).find((item) => item.endsWith("-resumen.md"))!), "utf8");
+  assert.match(summary, /no evaluada \(departamentos sin propuestas\)/);
+  assert.match(summary, /no evaluada: departamentos sin propuestas/);
+  assert.match(run.lines.join("\n"), /not evaluated: review \(departamentos sin propuestas\)/);
+  // The failure of the departments is still a failure, and it is seen as one
+  assert.match(markdown, /\| departments \| fallo \| invalid_output \|/);
   rmSync(run.outputDir, { recursive: true, force: true });
 });
 
-test("the review runs whether or not the departments pass, and a failed review stops no other level", async () => {
-  // Departments broken: the review still runs, on the synthetic tasks
-  const broken = options({}, new EvalModel(departmentsBreak));
-  await runEvaluation(broken);
-  const byLevelBroken = Object.fromEntries(caseJsonOf(broken.outputDir).levelSummary.map((item: { level: string; ok: boolean }) => [item.level, item.ok]));
-  assert.equal(byLevelBroken.departments, false);
-  assert.equal(byLevelBroken.review, true);
-  rmSync(broken.outputDir, { recursive: true, force: true });
-
-  // Review broken: tasks and steps still pass
+test("a failed review stops no other level, and it runs when the departments proposed", async () => {
+  // Departments pass, the review fails: the review is a failure, and the others still run
   const reviewBroken = options({}, new EvalModel((request) => (request.role === "plan_review" ? { findings: [{ kind: "clash", taskIds: [], text: "x" }], adjustments: [], facts: [], requests: [], questions: [] } : validAnswer(request))));
   await runEvaluation(reviewBroken);
   const byLevel = Object.fromEntries(caseJsonOf(reviewBroken.outputDir).levelSummary.map((item: { level: string; ok: boolean }) => [item.level, item.ok]));
@@ -201,3 +199,35 @@ function expectationTests() {
     });
   }
 }
+
+test("the report shows the rule of the plan that refused an answer, by its code, and never the answer's text", async () => {
+  const duplicated = (request: AgentRequest) => {
+    if (request.role !== "plan_generate") return validAnswer(request);
+    const relation = { level: "department", from: "legal", to: "finance", type: "blocks", aspect: { kind: "other", note: SENTINEL } };
+    return { phases: section(request.user, "phases"), tiers: [], relations: [relation, relation], facts: [], requests: [], questions: [] };
+  };
+  const run = options({}, new EvalModel(duplicated));
+  await runEvaluation(run);
+  const markdown = readFileSync(join(run.outputDir, readdirSync(run.outputDir).find((item) => item.endsWith("-restaurant.md"))!), "utf8");
+  assert.match(markdown, /- plan_generate, intento 1: plan_check \(duplicate_relation\)/);
+  const summary = readFileSync(join(run.outputDir, readdirSync(run.outputDir).find((item) => item.endsWith("-resumen.md"))!), "utf8");
+  assert.match(summary, /Reglas del plan que rompieron las respuestas \(checkPlan\): duplicate_relation \d+/);
+  assert.equal(everythingWritten(run.outputDir).includes(SENTINEL), false, "no text of the answer");
+  rmSync(run.outputDir, { recursive: true, force: true });
+});
+
+test("a department with an empty list is not a failure: it is named as having nothing to propose, and the review still runs", async () => {
+  const emptyMarketing = (request: AgentRequest) =>
+    request.role === "department_marketing" ? { tasks: [], relations: [], facts: [], requests: [], questions: [] } : validAnswer(request);
+  const run = options({}, new EvalModel(emptyMarketing));
+  await runEvaluation(run);
+  const json = caseJsonOf(run.outputDir);
+  const byLevel = Object.fromEntries(json.levelSummary.map((item: { level: string; ok: boolean }) => [item.level, item.ok]));
+  assert.equal(byLevel.departments, true, "the empty answer passes the level");
+  assert.equal(byLevel.review, true, "the review runs with the tasks of the others");
+  const departments = json.levels.find((level: { level: string }) => level.level === "departments").departments;
+  assert.equal(departments.find((item: { id: string }) => item.id === "marketing").empty, true);
+  const markdown = readFileSync(join(run.outputDir, readdirSync(run.outputDir).find((item) => item.endsWith("-restaurant.md"))!), "utf8");
+  assert.match(markdown, /Departamentos: .*\. 1 con la lista vacía \(nada que proponer\): marketing\./);
+  rmSync(run.outputDir, { recursive: true, force: true });
+});
