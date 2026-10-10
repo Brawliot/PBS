@@ -96,6 +96,7 @@ test("the cost is written only when the four prices are all there", () => {
       modelCalls: 1,
       judgeCalls: 1,
       verdicts: ["fits"],
+      failures: [],
       ms: 5,
       tokens: { model: { input: 1_000_000, output: 500_000, missing: 0 }, judge: { input: 1_000_000, output: 0, missing: 0 } },
       counts: {},

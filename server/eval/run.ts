@@ -7,7 +7,7 @@
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { type AgentDeps, MAX_AGENT_ATTEMPTS } from "../plan/agents/contract.js";
+import { type AgentDeps, type AttemptFailure, MAX_AGENT_ATTEMPTS } from "../plan/agents/contract.js";
 import { buildPlanSkeleton } from "../plan/plan-skeleton.js";
 import { createBudget, withBudget } from "./budget.js";
 import { type CallLogEntry, type CaseRun, type ChainDeps, runCase } from "./chain.js";
@@ -42,8 +42,11 @@ export interface EvalOptions {
   now: () => string;
   /** Milliseconds, from a monotonic clock */
   clock: () => number;
-  /** The real agents, with each adapter call reported to `record`. Called only when the run is allowed to go ahead */
-  makeAgents: (record: (entry: CallLogEntry) => void) => AgentDeps;
+  /**
+   * The real agents, with each adapter call reported to `record` and each failed attempt to `failed`. Called only when
+   * the run is allowed to go ahead
+   */
+  makeAgents: (record: (entry: CallLogEntry) => void, failed: (failure: AttemptFailure) => void) => AgentDeps;
   outputDir: string;
   print: (line: string) => void;
   /** The cases to choose from. The defined ones when omitted */
@@ -156,7 +159,11 @@ export async function runEvaluation(options: EvalOptions): Promise<number> {
 
   await mkdir(options.outputDir, { recursive: true });
   const calls: CallLogEntry[] = [];
-  const agents = options.makeAgents((entry) => calls.push(entry));
+  const failures: AttemptFailure[] = [];
+  const agents = options.makeAgents(
+    (entry) => calls.push(entry),
+    (failure) => failures.push(failure),
+  );
   const startedAt = options.now();
   const stamp = stampOf(startedAt);
   const reports: CaseReport[] = [];
@@ -172,7 +179,7 @@ export async function runEvaluation(options: EvalOptions): Promise<number> {
         continue;
       }
       const budget = createBudget(remaining);
-      const deps: ChainDeps = { agents: withBudget(agents, budget), budget, calls, now: options.now, clock: options.clock, taskCount: tasks };
+      const deps: ChainDeps = { agents: withBudget(agents, budget), budget, calls, failures, now: options.now, clock: options.clock, taskCount: tasks };
       const run: CaseRun = await runCase(evalCase, deps);
       used += budget.used;
 

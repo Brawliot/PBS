@@ -6,7 +6,8 @@
  * Dollars: only when the four price variables are set (per million tokens). Without all four, no cost is written.
  */
 
-import type { CaseRun, LevelRecord, Tokens } from "./chain.js";
+import type { AttemptFailure } from "../plan/agents/contract.js";
+import type { CaseRun, DepartmentOutcome, LevelRecord, Tokens } from "./chain.js";
 
 export const HEURISTIC_NOTICE =
   "Las comprobaciones son HEURÍSTICAS (una expresión regular sobre los títulos de las tareas): detectan que falta un tema, no que el plan sea bueno. La dirección de las flechas entre departamentos y tareas no se puede comprobar de forma automática: léela una persona.";
@@ -85,6 +86,28 @@ const seconds = (ms: number): string => (ms / 1000).toFixed(1);
 
 const tokenPair = (tokens: Tokens): string => `${tokens.input}/${tokens.output}${tokens.missing > 0 ? ` (${tokens.missing} sin dato)` : ""}`;
 
+/** The count of each reason of some failed attempts, the most frequent first. Labels only, never a detail or a value */
+export function reasonsOf(failures: AttemptFailure[]): [string, number][] {
+  const counts = new Map<string, number>();
+  for (const failure of failures) counts.set(failure.reason, (counts.get(failure.reason) ?? 0) + 1);
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+}
+
+const reasonsText = (failures: AttemptFailure[]): string => reasonsOf(failures).map(([reason, count]) => `${reason} ${count}`).join(", ");
+
+/** The failed attempts of a level as one short text: how many, and the reasons */
+function failuresText(level: LevelRecord): string {
+  return level.failures.length === 0 ? "-" : `${level.failures.length} (${reasonsText(level.failures)})`;
+}
+
+/** The departments of a level as one line: how many passed at once, how many were retried, and the ids of those that failed */
+export function departmentsText(outcomes: DepartmentOutcome[]): string {
+  const count = (outcome: DepartmentOutcome["outcome"]) => outcomes.filter((item) => item.outcome === outcome).length;
+  const failed = outcomes.filter((item) => item.outcome === "failed");
+  const list = failed.length === 0 ? "ninguno" : failed.map((item) => `${item.id} (${item.reason ?? "sin motivo"})`).join(", ");
+  return `${count("first_try")} a la primera, ${count("retried")} con reintentos, ${failed.length} fallaron del todo: ${list}`;
+}
+
 /** The counts of a level as one short text: the numbers that show what the level produced */
 function countsText(level: LevelRecord): string {
   const parts = Object.entries(level.counts).map(([key, value]) => `${key} ${value}`);
@@ -124,11 +147,11 @@ export function caseMarkdown(report: CaseReport, prices: Prices | undefined): st
   lines.push(`Modelo OpenAI: \`${info.models.openai}\` · Modelo Jev: \`${info.models.jev}\``, "", `> ${HEURISTIC_NOTICE}`, "");
 
   lines.push("## Niveles", "");
-  lines.push("| Nivel | Estado | Código | Llamadas al modelo | Llamadas a Jev | Veredictos de Jev | Tiempo (s) | Tokens modelo (entrada/salida) | Tokens Jev (entrada/salida) | Recuentos |");
-  lines.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
+  lines.push("| Nivel | Estado | Código | Llamadas al modelo | Llamadas a Jev | Veredictos de Jev | Tiempo (s) | Tokens modelo (entrada/salida) | Tokens Jev (entrada/salida) | Intentos fallidos (motivo) | Recuentos |");
+  lines.push("| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |");
   for (const level of run.levels) {
     lines.push(
-      `| ${level.level} | ${level.ok ? "ok" : "fallo"} | ${level.code ?? "-"} | ${level.modelCalls} | ${level.judgeCalls} | ${level.verdicts.join(", ") || "-"} | ${seconds(level.ms)} | ${tokenPair(level.tokens.model)} | ${tokenPair(level.tokens.judge)} | ${countsText(level)} |`,
+      `| ${level.level} | ${level.ok ? "ok" : "fallo"} | ${level.code ?? "-"} | ${level.modelCalls} | ${level.judgeCalls} | ${level.verdicts.join(", ") || "-"} | ${seconds(level.ms)} | ${tokenPair(level.tokens.model)} | ${tokenPair(level.tokens.judge)} | ${failuresText(level)} | ${countsText(level)} |`,
     );
   }
   lines.push("");
@@ -140,6 +163,14 @@ export function caseMarkdown(report: CaseReport, prices: Prices | undefined): st
   if (cost !== undefined) lines.push(`- Coste estimado: ${formatDollars(cost)}`);
   lines.push(`- Presupuesto del caso: ${budget.used} de ${budget.limit} llamadas${budget.exhausted ? " · PRESUPUESTO AGOTADO: el caso se detuvo" : ""}`);
   lines.push(`- Parada: ${run.stoppedBy ?? "ninguna (el caso llegó al último nivel)"}`, "");
+
+  const failing = run.levels.filter((level) => level.failures.length > 0);
+  if (failing.length > 0) {
+    lines.push("## Fallos de los agentes", "", "Cada intento fallido, con el motivo de la regla que rompió la respuesta. Nunca su contenido.", "");
+    for (const level of failing) lines.push(`- ${level.level}: ${failuresText(level)}`);
+    for (const level of run.levels) if (level.departments) lines.push(`- Departamentos: ${departmentsText(level.departments)}`);
+    lines.push("");
+  }
 
   lines.push("## Comprobaciones (heurísticas)", "");
   if (run.expectations === undefined) lines.push("No evaluadas: el nivel de departamentos no terminó.");
@@ -185,6 +216,19 @@ export function summaryMarkdown(reports: CaseReport[], notRun: string[], prices:
   lines.push(`- Tokens modelo: ${tokenPair(totals.tokens.model)} · tokens Jev: ${tokenPair(totals.tokens.judge)}`);
   lines.push(`- Presupuesto de la ejecución: ${info.used} de ${info.limit} llamadas${info.exhausted ? " · PRESUPUESTO AGOTADO" : ""}`);
   if (notRun.length > 0) lines.push(`- No ejecutados por el presupuesto: ${notRun.join(", ")}`);
+  const failing = reports.flatMap((report) => report.run.levels.filter((level) => level.failures.length > 0).map((level) => ({ report, level })));
+  if (failing.length > 0) {
+    lines.push("", "## Fallos de los agentes", "", "Motivos de los intentos fallidos. Solo etiquetas, recuentos e ids de departamento.", "");
+    lines.push("| Caso | Nivel | Intentos fallidos | Motivos |", "| --- | --- | --- | --- |");
+    for (const { report, level } of failing) {
+      lines.push(`| ${report.run.label} (repetición ${report.info.repetition}) | ${level.level} | ${level.failures.length} | ${reasonsText(level.failures)} |`);
+    }
+    for (const report of reports) {
+      const departments = report.run.levels.find((level) => level.level === "departments")?.departments;
+      if (departments) lines.push(`- ${report.run.label} (repetición ${report.info.repetition}), departamentos: ${departmentsText(departments)}`);
+    }
+    lines.push(`- Motivos en toda la ejecución: ${reasonsText(failing.flatMap(({ level }) => level.failures))}`);
+  }
   const cost = costOf(totals, prices);
   if (cost !== undefined) lines.push(`- Coste estimado: ${formatDollars(cost)} (según los precios de EVAL_PRICE_*; una estimación, no una factura)`);
   else lines.push("- Coste: no se calcula (define las cuatro variables EVAL_PRICE_* para verlo).");

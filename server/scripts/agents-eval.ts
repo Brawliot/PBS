@@ -21,9 +21,10 @@ runEvaluation({
   argv: process.argv.slice(2),
   now: () => new Date().toISOString(),
   clock: () => performance.now(),
-  makeAgents: (record) => ({
+  makeAgents: (record, failed) => ({
     model: openAIModel({ onCall: (call) => record({ kind: "model", ...call }) }),
     judge: jevJudge({ onCall: (call) => record({ kind: "judge", ...call }) }),
+    onFailure: failed,
   }),
   outputDir: join(here, "..", "eval-output"),
   print: (line) => console.log(line),

@@ -15,6 +15,7 @@ function depsWith(model: EvalModel, judge: EvalJudge, options: { limit?: number;
     agents: withBudget({ model, judge }, budget),
     budget,
     calls: options.calls ?? [],
+    failures: [],
     now,
     clock,
     taskCount: options.taskCount ?? 2,
@@ -89,7 +90,7 @@ test("the hard cap refuses the next call before it is made, and the chain stops 
   const model = new EvalModel();
   const judge = new EvalJudge();
   const budget = createBudget(5);
-  const deps: ChainDeps = { agents: withBudget({ model, judge }, budget), budget, calls: [], now, clock, taskCount: 2 };
+  const deps: ChainDeps = { agents: withBudget({ model, judge }, budget), budget, calls: [], failures: [], now, clock, taskCount: 2 };
   const run = await runCase(restaurant, deps);
 
   assert.equal(model.requests.length + judge.calls, 5, "the fakes received exactly the calls allowed, no more");
@@ -103,7 +104,7 @@ test("a case that starts with the budget used up does not call anything", async 
   const model = new EvalModel();
   const judge = new EvalJudge();
   const budget = createBudget(0);
-  const deps: ChainDeps = { agents: withBudget({ model, judge }, budget), budget, calls: [], now, clock, taskCount: 2 };
+  const deps: ChainDeps = { agents: withBudget({ model, judge }, budget), budget, calls: [], failures: [], now, clock, taskCount: 2 };
   const run = await runCase(restaurant, deps);
   assert.equal(model.requests.length, 0);
   assert.equal(judge.calls, 0);

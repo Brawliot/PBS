@@ -17,7 +17,7 @@ import { checkPlan } from "../plan/plan-check.js";
 import { readiness } from "../plan/step-graph.js";
 import type { Plan } from "../plan/plan-model.js";
 import type { Report } from "../plan/report.js";
-import { type AgentDeps, type FactProposal, contextOf } from "../plan/agents/contract.js";
+import { type AgentDeps, type AttemptFailure, type FactProposal, type FailureReason, contextOf } from "../plan/agents/contract.js";
 import { runPlanGenerate, structureOf } from "../plan/agents/plan-agent.js";
 import { suggestDepartmentTasks } from "../plan/agents/department-suggestion.js";
 import { buildTaskInput } from "../plan/agents/task-input.js";
@@ -47,11 +47,25 @@ export interface Tokens {
   missing: number;
 }
 
+/** What became of one department in the departments level: its failed attempts, and the reason of the last one when it failed */
+export interface DepartmentOutcome {
+  /** The department's id (from the plan, never from a model answer) */
+  id: string;
+  /** first_try: no attempt failed. retried: some failed, and the call still passed. failed: the call ended without a proposal */
+  outcome: "first_try" | "retried" | "failed";
+  failedAttempts: number;
+  reason?: FailureReason;
+}
+
 export interface LevelRecord {
   level: LevelName;
   ok: boolean;
   /** The code of the first failure: an agent's code, or one of the codes below */
   code?: string;
+  /** Every failed attempt of this level, in order: its role, number, code, reason and (for a schema) the paths. Never a value */
+  failures: AttemptFailure[];
+  /** The departments level only: what became of each department */
+  departments?: DepartmentOutcome[];
   /** Calls to the model, retries included */
   modelCalls: number;
   /** Calls to Jev, retries included */
@@ -85,6 +99,8 @@ export interface ChainDeps {
   budget: Budget;
   /** Filled by the adapters' onCall: the tokens and times of the calls that were made */
   calls: CallLogEntry[];
+  /** Filled by the agents' onFailure: every failed attempt, in order. A level keeps the ones it made */
+  failures: AttemptFailure[];
   now: () => string;
   /** Milliseconds, from a monotonic clock */
   clock: () => number;
@@ -169,6 +185,7 @@ async function measured(level: LevelName, deps: ChainDeps, work: (stage: Stage) 
     modelCalls: 0,
     judgeCalls: 0,
     verdicts: [],
+    failures: [],
     ms: 0,
     tokens: { model: { input: 0, output: 0, missing: 0 }, judge: { input: 0, output: 0, missing: 0 } },
     counts: {},
@@ -178,6 +195,7 @@ async function measured(level: LevelName, deps: ChainDeps, work: (stage: Stage) 
 
   const started = deps.clock();
   const calls = deps.calls.length;
+  const failed = deps.failures.length;
   const model = deps.budget.counts.model;
   const judge = deps.budget.counts.judge;
   const verdicts = deps.budget.verdicts.length;
@@ -207,6 +225,7 @@ async function measured(level: LevelName, deps: ChainDeps, work: (stage: Stage) 
     modelCalls: deps.budget.counts.model - model,
     judgeCalls: deps.budget.counts.judge - judge,
     verdicts: deps.budget.verdicts.slice(verdicts),
+    failures: deps.failures.slice(failed),
     ms: Math.round(deps.clock() - started),
     tokens: { model: tokens("model"), judge: tokens("judge") },
     counts: stage.counts,
@@ -214,6 +233,20 @@ async function measured(level: LevelName, deps: ChainDeps, work: (stage: Stage) 
     ...(outcome.ok && { problems: checkPlan(outcome.plan).length }),
   };
   return { record, ...(outcome.ok && { plan: outcome.plan }) };
+}
+
+/**
+ * What became of each department of the level, from its failed attempts (the role of each is department_<id>). A
+ * department with a final failure ended without a proposal; one with failures only, before a pass, was retried.
+ */
+export function departmentOutcomes(failures: AttemptFailure[], departmentIds: string[]): DepartmentOutcome[] {
+  return departmentIds.map((id) => {
+    const own = failures.filter((failure) => failure.role === `department_${id}`);
+    if (own.length === 0) return { id, outcome: "first_try", failedAttempts: 0 };
+    const last = own.find((failure) => failure.final);
+    if (last === undefined) return { id, outcome: "retried", failedAttempts: own.length };
+    return { id, outcome: "failed", failedAttempts: own.length, reason: last.reason };
+  });
 }
 
 /** The first step: the skeleton of the report, and the facts of the case confirmed by the person */
@@ -391,7 +424,11 @@ export async function runCase(evalCase: EvalCase, deps: ChainDeps): Promise<Case
 
   if (!(await run("setup", async (stage) => setup(evalCase, report, deps, stage)))) return finish();
   if (!(await run("plan", async (stage) => planLevel(current!, idea, deps, stage)))) return finish();
-  if (!(await run("departments", async (stage) => departmentsLevel(current!, idea, deps, stage)))) return finish();
+  const departmentIds = current!.departments.map((department) => department.id);
+  const departmentsDone = await run("departments", async (stage) => departmentsLevel(current!, idea, deps, stage));
+  // Not when the budget stopped the level before it ran: no department was asked, so none passed or failed
+  if (levels[levels.length - 1].code !== "budget_exhausted") levels[levels.length - 1].departments = departmentOutcomes(levels[levels.length - 1].failures, departmentIds);
+  if (!departmentsDone) return finish();
   expectations = evaluateExpectations(evalCase.expectations, current!);
   if (!(await run("tasks", async (stage) => tasksLevel(current!, idea, deps, stage, chosen)))) return finish();
   await run("steps", async (stage) => stepsLevel(current!, idea, deps, stage, chosen));
