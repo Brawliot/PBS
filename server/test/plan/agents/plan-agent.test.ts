@@ -142,3 +142,43 @@ describe("the plan level: review", () => {
     assert.equal(JSON.stringify(base), before);
   });
 });
+
+describe("the plan level: review findings name tasks, except a gap", () => {
+  const proposed = [{ id: "legal-a", title: "Draft terms", departmentId: firstDept.id, phaseId: base.phases[0].id }];
+  const finding = (kind: string, taskIds: string[]) => ({ findings: [{ kind, taskIds, text: "x" }], adjustments: [], facts: [], requests: [], questions: [] });
+
+  test("a gap with no task named (an empty list) is accepted: the work is not covered by any task", () => {
+    assert.equal(PlanReviewSchema.safeParse(finding("gap", [])).success, true);
+  });
+
+  test("a gap that names a task is still accepted", () => {
+    assert.equal(PlanReviewSchema.safeParse(finding("gap", ["legal-a"])).success, true);
+  });
+
+  test("clash, duplicate and missing_order with no task named are refused by the schema", () => {
+    for (const kind of ["clash", "duplicate", "missing_order"]) {
+      const result = PlanReviewSchema.safeParse(finding(kind, []));
+      assert.equal(result.success, false, kind);
+      assert.match(result.error?.issues.map((issue) => issue.path.join(".")).join(" ") ?? "", /taskIds/);
+    }
+  });
+
+  test("ten task ids is the most a finding may name; eleven is refused, for a gap as for the others", () => {
+    const ten = Array.from({ length: 10 }, (_, index) => `legal-t${index}`);
+    assert.equal(PlanReviewSchema.safeParse(finding("clash", ten)).success, true);
+    assert.equal(PlanReviewSchema.safeParse(finding("clash", [...ten, "legal-t10"])).success, false);
+    assert.equal(PlanReviewSchema.safeParse(finding("gap", [...ten, "legal-t10"])).success, false);
+  });
+
+  test("a gap with no task goes through the review as an accepted answer", async () => {
+    const result = await runPlanReview({ model: new FakeModel([finding("gap", [])]), judge: null, attempts: 1 }, { idea: "idea", proposed }, base);
+    assert.equal(result.ok, true);
+  });
+
+  test("the review prompt says a gap names no task and the others name at least one", async () => {
+    const model = new FakeModel([finding("gap", [])]);
+    await runPlanReview({ model, judge: null, attempts: 1 }, { idea: "idea", proposed }, base);
+    assert.match(model.requests[0].system, /A GAP names NO task: its "taskIds" is the empty list \[\]/);
+    assert.match(model.requests[0].system, /at least\s+one/);
+  });
+});

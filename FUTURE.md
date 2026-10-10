@@ -218,6 +218,55 @@ Lo que se hizo para que no vuelva a pasar:
 
 Si el arreglo de los prompts no bastara (el modelo sigue sin poner el prefijo), la siguiente opción sería que el servidor añadiera el prefijo él mismo. No se hace ahora por dos razones: el modelo se corregiría sin que nadie lo viera (el informe dejaría de mostrar el fallo), y la regla del producto es que las respuestas se validan, no se reparan. Primero se mide con el informe si el prompt basta.
 
+**Auditoría de validadores (hecha, fase 3).** Lección de los tres fallos reales: cada uno era un validador más estricto de lo que un modelo sensato hace. Un modelo que sigue el prompt propone ids naturales, ordena sus tareas respecto a las que ya tiene, y no puede nombrar una tarea cuando el hallazgo es un hueco. Los modelos falsos de los tests siempre devuelven respuestas que ya cumplen las reglas, así que no lo detectan. Por eso cada validador se audita contra lo que un modelo sensato hace, no contra lo que el código dice que quiere, y las respuestas realistas (las imperfectas, pero plausibles) van en un catálogo con su resultado esperado (`server/test/plan/agents/realistic-answers.test.ts`). El servidor valida; no repara.
+
+Cambios que salieron de la auditoría:
+- **La revisión del plan acepta un hueco sin tarea.** Un hallazgo `gap` lleva `taskIds: []`; `clash`, `duplicate` y `missing_order` siguen exigiendo al menos una tarea. El prompt lo dice, y el reparto de notas manda el hueco a la primera propuesta (con test).
+- **El título de una tarea de departamento tiene el límite del plan (200).** Antes el agente aceptaba 300 y el servidor rechazaba después (`invalid_proposal`), sin reintento. Ahora el esquema rechaza a 200 y se reintenta.
+- **Los prompts dicen los límites que ya se cumplen:** ids de 64 caracteres, título de 200, esfuerzo hasta 1000 horas y espera hasta 3650 días; "si dudas, cita el hecho más relevante" (la cita es obligatoria y el servidor ya exige un hecho confirmado antes de llamar); y "devuelve solo los campos descritos" (el esquema sigue siendo estricto: un campo extra se rechaza, no se borra).
+
+Tabla de la auditoría (agente · restricción · ¿puede un modelo sensato incumplirla? · qué se hizo):
+
+| Agente | Restricción | ¿Un modelo sensato puede incumplirla? | Qué se hizo |
+| --- | --- | --- | --- |
+| Plan, generar | `phases` mínimo 1 | No: debe conservar todas las fases | Mantener (caso `plan-no-phases`) |
+| Plan, generar | Máximos de fases, niveles, relaciones, hechos, peticiones, preguntas (40, 5, 5) | Raro | Mantener; decisión del dueño |
+| Plan, generar | Texto de 300 caracteres | Sí, en respuestas verbosas | Mantener (tamaño máximo); decisión del dueño |
+| Plan, generar | Nombre de fase de 120 caracteres | Raro | Mantener; decisión del dueño |
+| Plan, generar | Ids en minúsculas, ids de departamento y de fase existentes | No: el prompt las lista | Mantener |
+| Plan, generar | Relación de departamento con origen distinto del destino y aspecto del catálogo | No | Mantener |
+| Plan, generar | Relación duplicada o con bucle (`checkPlan`) | Raro | Mantener; `checkPlan` no se toca |
+| Plan, generar | Campos extra (esquema estricto) | Sí, puede añadir un campo | Prompt: "devuelve solo los campos descritos". Esquema sin cambios |
+| Plan, revisar | `taskIds` mínimo 1 en cada hallazgo | **Sí: un hueco no nombra tarea** | **Cambiado** (Parte 1): `gap` puede ir vacío; el resto exige 1. Prompt y tests |
+| Plan, revisar | `taskIds` máximo 10, hallazgos máximo 20, ajustes máximo 10 | Raro | Mantener (casos `review-eleven-tasks`); decisión del dueño |
+| Plan, revisar | Referencias a tareas inexistentes y ajustes a sí mismo o repetidos | No | Mantener (`task_ref`, `relation_ref`) |
+| Departamento | Ids con el prefijo del departamento | No, si el prompt lo dice (regresión 1) | Mantener (`id_prefix`) |
+| Departamento | Id de 64 caracteres como máximo | Sí, en ids largos | Prompt lo dice. Esquema sin cambios |
+| Departamento | Título de 300 caracteres en el esquema, 200 en el plan | **Sí: se rechazaba tarde y sin reintento** | **Cambiado**: el esquema usa `MAX_TITLE` (200); prompt lo dice |
+| Departamento | `derivedFrom` mínimo 1 | Sí, si no encuentra cita. El servidor ya exige un hecho confirmado (`no_confirmed_facts`) | Mantener (la propuesta necesita un motivo). Prompt: "si dudas, cita la más relevante" |
+| Departamento | Relación nueva↔nueva o nueva↔tarea propia (regresión 2) | No | Ya cambiado antes; mantener (`relation_existing_only`, `relation_ref`) |
+| Departamento | Hechos citados dentro de los 50 más recientes | No: el modelo ve esa misma lista | Mantener (`fact_unknown`) |
+| Departamento | Máximos de tareas (20) y relaciones (30) | Raro | Mantener; el prompt los dice |
+| Departamento | Hechos del catálogo (clave e id) | No: el prompt lista el catálogo | Mantener (`fact_catalog`) |
+| Departamento | Campos extra (esquema estricto) | Sí | Prompt. Esquema sin cambios |
+| Tarea | Máximos de pasos (60) y relaciones (120) | Raro | Mantener; el prompt los dice |
+| Tarea | Id de paso con el prefijo de la tarea | No | Mantener (`id_prefix`) |
+| Tarea | Id de paso de 64 caracteres como máximo | Sí, en ids largos | Prompt lo dice |
+| Tarea | Horas hasta 1000 y días hasta 3650 | Raro, pero el prompt no lo decía | Prompt lo dice. Límites sin cambios; decisión del dueño |
+| Tarea | `derivedFrom` mínimo 1 | Igual que en departamento | Prompt: "si dudas, cita la más relevante" |
+| Tarea | Usuario con modo, IA sin modo, `accepted_output` solo para IA (`step_rules`) | No: el prompt lo dice | Mantener |
+| Tarea | `feeds` solo desde un paso de IA | No: el prompt lo dice | Mantener (`invalid_result`, caso `task-feeds-from-user`) |
+| Paso | Resumen de 1000 caracteres | Sí, si es verboso | Mantener; decisión del dueño |
+| Paso | Documento no vacío (mínimo 1) | No: el prompt dice que no esté vacío | Mantener |
+| Paso | Documento de 20000 caracteres | Sí, en documentos largos | Mantener (lo que cabe en un resultado); decisión del dueño |
+| Paso | Hasta 5 preguntas de 300 caracteres | Sí, si quiere preguntar más | Mantener (validar, no recortar); decisión del dueño |
+| Paso | Peticiones solo a `plan` o a un departamento conocido (`request_target`) | No | Mantener |
+| Paso | Campos extra (esquema estricto) | Sí | Prompt. Esquema sin cambios |
+
+Hallazgos que no se tocaron y quedan para decidir:
+- **Ids entre propuestas pendientes.** `createProposal` (proposals.ts) comprueba los ids contra las tareas y pasos del plan y contra las propuestas, pero no contra las tareas de otras propuestas pendientes. Hoy los prefijos por departamento y por tarea lo evitan, pero no hay una comprobación explícita.
+- **`invalid_proposal` no se reintenta.** `RETRYABLE` (contract.ts) no lo incluye, así que un fallo de la propuesta termina en el primer intento. El cambio del título era el caso práctico; el resto de códigos de la propuesta se mantiene igual.
+
 **Falta.**
 - **Comparar dos ejecuciones.** Hoy cada informe es independiente. Hace falta un comando que compare dos JSON (antes y después de cambiar un prompt o un modelo) y marque lo que empeoró.
 - **Crecer a 30-50 casos.** Hoy son cuatro. Hay que añadir los cinco ejemplos de la calibración de la fase 1 y casos de cada sector.
@@ -225,6 +274,7 @@ Si el arreglo de los prompts no bastara (el modelo sigue sin poner el prefijo), 
 - **Comprobaciones más fuertes.** Las expresiones regulares detectan un tema ausente, no un mal plan. Con más casos convendrá una revisión humana por caso o un juez dedicado.
 - **Tokens sin dato.** Si OpenAI o Jev no envían el recuento de tokens, el informe lo marca como "sin dato" y el coste queda por debajo de lo real. Jev no expone el código de estado de sus errores (`callJev` no lo devuelve), así que sus fallos se registran sin código.
 - **La fase 1 se evalúa aparte.** Este sistema mide los agentes de la fase 3; el análisis de Jev y OpenAI de la fase 1 tiene su propia medida (la calibración de arriba).
+- **Modo por niveles y repetición desde grabaciones (pendiente, partes 4 y 5 de este paso).** La evaluación actual sigue de punta a punta y se para en el primer fallo. Falta el modo `--mode levels`, que pruebe cada nivel desde su propio punto de partida (con tareas sintéticas fijas para el nivel de tareas) y muestre un resumen por nivel; y grabar las respuestas reales del modelo con `EVAL_RECORD=1` para repetir una ejecución sin gastar.
 - **Ejecución manual.** No corre en CI: cada ejecución cuesta dinero y la decide la persona que la lanza.
 
 ---

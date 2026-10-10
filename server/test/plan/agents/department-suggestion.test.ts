@@ -245,3 +245,33 @@ describe("the limits of the calls", () => {
   });
 });
 
+
+describe("the suggestion of all departments: a gap that names no task", () => {
+  test("a gap with an empty taskIds list is noted on the first proposal, as text, and nothing is applied", async () => {
+    const { plan, factId } = setup();
+    const model = new RoleModel((role) =>
+      role === "plan_review"
+        ? { findings: [{ kind: "gap", taskIds: [], text: "Nobody covers the licence" }], adjustments: [], ...EXTRAS }
+        : tasksFor(role.replace("department_", ""), factId),
+    );
+    const result = await suggestDepartmentTasks({ model, judge: null, attempts: 1 }, plan, IDEA, { now });
+    if (!result.ok) throw new Error(result.code);
+    const [first, second] = result.value.proposals;
+    assert.deepEqual(first.notes, ["gap: Nobody covers the licence"]);
+    assert.equal(second.notes, undefined);
+    // The note is text only: no task is added to the plan by the review
+    assert.equal(result.value.proposals.flatMap((proposal) => proposal.add.tasks).length, 2);
+    assert.equal(first.add.tasks.some((task) => task.title === "Nobody covers the licence"), false);
+  });
+
+  test("a clash with an empty taskIds list is refused by the review: the whole suggestion fails as invalid_output", async () => {
+    const { plan, factId } = setup();
+    const model = new RoleModel((role) =>
+      role === "plan_review"
+        ? { findings: [{ kind: "clash", taskIds: [], text: "x" }], adjustments: [], ...EXTRAS }
+        : tasksFor(role.replace("department_", ""), factId),
+    );
+    const result = await suggestDepartmentTasks({ model, judge: null, attempts: 1 }, plan, IDEA, { now });
+    assert.deepEqual(result, { ok: false, code: "invalid_output" });
+  });
+});
