@@ -837,6 +837,8 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
 .waiting { font-weight: 800; margin-top: 10px; }
 .outputs .list { list-style: decimal; padding-left: 20px; }
 .output { padding: 6px 0; }
+/* The document of an AI step: kept as written (line breaks), wrapped, and never read as HTML */
+.document { margin: 8px 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--white); font: inherit; font-size: 15px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .questions { padding-left: 14px; font-size: 15px; }
 
 .actions { display: flex; flex-wrap: wrap; gap: 10px; }

@@ -105,6 +105,9 @@
   let busy = false;
   let notice = null;
   let lastHash = null;
+  // The AI step the assistant is working on (its Start or its answers), and the answers typed so far, kept across renders
+  let working = null;
+  const answerDrafts = {};
 
   // ---- DOM helpers: children are text or nodes, never HTML
   function el(tag, props = {}, ...children) {
@@ -141,6 +144,8 @@
   const factLabel = (fact) => `${fact.key.kind === 'catalog' ? keyLabel(fact.key.id) : fact.key.text}: ${termLabel(fact.value)}`;
   const pendingFacts = (plan) => (plan.facts ?? []).filter((fact) => fact.status === 'proposed');
   const pendingProposals = (plan) => (plan.proposals ?? []).filter((item) => item.status === 'pending');
+  /** A suggestion of steps for one task (the steps of a task, from the assistant): it has steps and no tasks */
+  const isStepProposal = (item) => item.structure === undefined && item.add.tasks.length === 0 && item.add.steps.length > 0;
   const planUrl = () => `/api/plan/${enc(planId)}`;
   const visible = (item) => item.feedback !== 'deleted';
   const byId = (list, id) => list.find((item) => item.id === id);
@@ -449,9 +454,22 @@
         el('h2', { class: 'section' }, 'Steps'),
         steps.length
           ? el('ol', { class: 'steps' }, steps.map((step) => el('li', {}, stepCard(step))))
-          : el('p', { class: 'empty' }, 'This task has no steps.'),
+          : el('div', {}, el('p', { class: 'empty' }, 'This task has no steps.'), stepSuggestion(task)),
       ],
     };
+  }
+
+  /** A task without steps: the assistant can propose them, only when the person asks. A gap has none yet; a waiting suggestion is shown instead */
+  function stepSuggestion(task) {
+    if (task.placeholder) return null;
+    const waiting = pendingProposals(data.plan).some((item) => isStepProposal(item) && item.add.steps.some((step) => step.taskId === task.id));
+    if (waiting) return el('p', { class: 'notice' }, 'The steps of this task are waiting for your decision. ', el('a', { href: '#/decisions' }, 'Go to decisions'));
+    return el(
+      'div',
+      { class: 'actions' },
+      el('button', { type: 'button', class: 'btn btn--outline', disabled: busy ? true : undefined, on: { click: () => post(`/agents/tasks/${enc(task.id)}/steps`, {}) } }, 'Suggest steps'),
+      el('p', { class: 'row__meta' }, 'Asks the assistant for the steps of this task. Nothing changes until you accept them.'),
+    );
   }
 
   /** A gap: what it waits for, and where to answer it */
@@ -488,6 +506,7 @@
       el('h3', { class: 'step__title' }, step.text),
       facts(rows),
       waitingForAssistant ? el('p', { class: 'waiting' }, 'Waiting for the assistant') : null,
+      working === step.id ? el('p', { class: 'waiting', role: 'status' }, 'The assistant is working...') : null,
       step.outputs?.length ? outputList(step.outputs) : null,
       actionArea(step, derivedStep.availableActions.filter((action) => action !== 'attach_output'), latest),
     );
@@ -507,6 +526,13 @@
             { class: 'output' },
             el('p', {}, `Version ${output.version}: ${OUTPUT_STATE[output.state]}`),
             el('p', {}, output.summary),
+            output.document ? el('pre', { class: 'document' }, output.document) : null,
+            output.requests?.length
+              ? [
+                  el('h5', { class: 'step__sub' }, 'Requests'),
+                  el('ul', { class: 'plain-list' }, output.requests.map((request) => el('li', {}, `Request to ${request.to === 'plan' ? 'Plan' : deptName(request.to) || request.to}: ${request.text}`))),
+                ]
+              : null,
             output.questions.length
               ? el(
                   'ul',
@@ -531,7 +557,7 @@
     const buttons = available.filter((action) => BUTTON_ACTIONS.includes(action));
     const parts = [];
     if (available.includes('answer') && latest?.state === 'draft' && latest.questions.length) {
-      parts.push(answerForm(step.id, latest.questions));
+      parts.push(answerForm(step.id, latest));
     }
     if (available.includes('submit_proof')) parts.push(proofForm(step.id));
     if (available.includes('change_executor')) parts.push(executorForm(step));
@@ -541,7 +567,17 @@
           'div',
           { class: 'actions', role: 'group', 'aria-label': 'Step actions' },
           buttons.map((action) =>
-            el('button', { type: 'button', class: 'btn btn--outline', disabled: busy ? true : undefined, on: { click: () => send(step.id, { action }) } }, ACTION_LABEL[action]),
+            el(
+              'button',
+              {
+                type: 'button',
+                class: 'btn btn--outline',
+                disabled: busy ? true : undefined,
+                // Starting an AI step runs the assistant: the server does it in the same request as the start
+                on: { click: () => (action === 'launch' && step.executor === 'ai' ? runStep(step.id, { action }) : send(step.id, { action })) },
+              },
+              ACTION_LABEL[action],
+            ),
           ),
         ),
       );
@@ -550,7 +586,10 @@
     return el('div', { class: 'step__actions' }, parts);
   }
 
-  function answerForm(stepId, questions) {
+  function answerForm(stepId, output) {
+    const { questions } = output;
+    // The typed answers are kept by round, so a failed send does not lose them
+    const draftKey = (index) => `${stepId}:${output.version}:${index}`;
     return el(
       'form',
       {
@@ -559,7 +598,7 @@
           submit: (event) => {
             event.preventDefault();
             const answers = questions.map((_, index) => event.currentTarget.elements[`answer-${index}`].value.trim());
-            send(stepId, { action: 'answer', payload: { answers } });
+            runStep(stepId, { action: 'answer', payload: { answers } });
           },
         },
       },
@@ -568,7 +607,18 @@
         questions.map((question, index) =>
           el('div', { class: 'field' }, [
             el('label', { for: `${stepId}-answer-${index}` }, question.question),
-            el('textarea', { id: `${stepId}-answer-${index}`, name: `answer-${index}`, required: true, maxlength: 1000, rows: 2 }),
+            el(
+              'textarea',
+              {
+                id: `${stepId}-answer-${index}`,
+                name: `answer-${index}`,
+                required: true,
+                maxlength: 1000,
+                rows: 2,
+                on: { input: (event) => (answerDrafts[draftKey(index)] = event.currentTarget.value) },
+              },
+              answerDrafts[draftKey(index)] ?? '',
+            ),
           ]),
         ),
       ]),
@@ -721,6 +771,56 @@
     );
   }
 
+  /** A suggestion of steps for one task: each step, who does it, and the order between them, in plain words */
+  function stepsCard(item) {
+    const { plan, derived } = data;
+    const taskId = item.add.steps[0].taskId;
+    const title = byId(plan.tasks, taskId)?.title ?? taskId;
+    const obsolete = derived.proposals[item.id]?.obsolete === true;
+    const textOf = (id) => byId(item.add.steps, id)?.text ?? id;
+    const orders = (item.add.relations ?? []).map((link) => {
+      if (link.type === 'feeds') return `${textOf(link.from)} gives its result to ${textOf(link.to)}`;
+      return link.type === 'blocks' ? `${textOf(link.from)} must be done before ${textOf(link.to)}` : `${textOf(link.from)} comes after ${textOf(link.to)}`;
+    });
+    return el(
+      'article',
+      { class: 'step', 'data-proposal-id': item.id, 'data-task-id': taskId },
+      el('h3', { class: 'step__title' }, `Steps for ${title}`, obsolete ? el('span', { class: 'badge' }, 'Obsolete') : null),
+      obsolete ? el('p', { class: 'notice' }, 'This suggestion came from a decision that has changed.') : null,
+      el(
+        'ol',
+        { class: 'list' },
+        item.add.steps.map((step) =>
+          el(
+            'li',
+            { class: 'output' },
+            el('p', {}, step.text),
+            facts([
+              ['Who', step.mode ? `${EXECUTOR[step.executor]}, ${MODE[step.mode]}` : EXECUTOR[step.executor]],
+              ['Evidence', EVIDENCE[step.evidence.kind]],
+              ['Effort', `${step.effortHours} hours`],
+              ['Waiting', step.waitDays > 0 ? `${step.waitDays} ${plural(step.waitDays, 'day')}` : 'None'],
+            ]),
+          ),
+        ),
+      ),
+      orders.length ? [el('h3', { class: 'step__sub' }, 'Order'), el('ul', { class: 'list' }, orders.map((text) => el('li', { class: 'output' }, text)))] : null,
+      el(
+        'div',
+        { class: 'actions', role: 'group', 'aria-label': 'Steps decision' },
+        obsolete ? null : el('button', { type: 'button', class: 'btn btn--dark', disabled: busy ? true : undefined, on: { click: () => post(`/proposals/${enc(item.id)}/accept`, {}) } }, 'Accept'),
+        el('button', { type: 'button', class: 'btn btn--outline', disabled: busy ? true : undefined, on: { click: () => post(`/proposals/${enc(item.id)}/reject`, {}) } }, obsolete ? 'Retire' : 'Reject'),
+      ),
+    );
+  }
+
+  /** The name of a decided suggestion, in the list of decided ones */
+  function decidedTitle(item) {
+    if (item.structure !== undefined) return 'plan structure';
+    if (isStepProposal(item)) return `steps for ${byId(data.plan.tasks, item.add.steps[0].taskId)?.title ?? 'a task'}`;
+    return data.derived.proposals[item.id]?.titles.join(', ') ?? item.id;
+  }
+
   // ---- Decisions: facts to confirm, a new decision, gaps, and suggestions
   function decisionsView() {
     const { plan, derived, catalog } = data;
@@ -837,6 +937,7 @@
 
     const proposalItems = otherPending.length
       ? otherPending.map((item) => {
+          if (isStepProposal(item)) return stepsCard(item);
           const summary = derived.proposals[item.id] ?? { tasks: 0, steps: 0, titles: [], obsolete: false };
           if (item.structure !== undefined && summary.structure) return structureCard(item, summary);
           const forTask = item.reason.taskId ? byId(plan.tasks, item.reason.taskId)?.title : null;
@@ -867,7 +968,7 @@
           'details',
           { class: 'fold' },
           el('summary', {}, `Decided suggestions (${decided.length})`),
-          el('ul', { class: 'plain-list' }, decided.map((item) => el('li', {}, `${item.status === 'accepted' ? 'Accepted' : 'Rejected'}: ${item.structure !== undefined ? 'plan structure' : derived.proposals[item.id]?.titles.join(', ') ?? item.id}`))),
+          el('ul', { class: 'plain-list' }, decided.map((item) => el('li', {}, `${item.status === 'accepted' ? 'Accepted' : 'Rejected'}: ${decidedTitle(item)}`))),
         )
       : null;
 
@@ -1030,11 +1131,13 @@
   }
 
   /** Every write: the body gets the version the screen shows, and the answer is applied or explained */
-  async function post(path, body, focusSelector = null) {
+  async function post(path, body, focusSelector = null, workingStepId = null) {
     if (busy || !data) return;
     busy = true;
+    working = workingStepId;
     view.inert = true;
     Loader.show();
+    if (working) render({ focusSelector });
     try {
       const response = await fetch(`${planUrl()}${path}`, {
         method: 'POST',
@@ -1058,6 +1161,7 @@
       notice = { text: NETWORK_ERROR, error: true };
     } finally {
       busy = false;
+      working = null;
       view.inert = false;
       await Loader.hide();
     }
@@ -1068,6 +1172,11 @@
   /** A step action: the step keeps the focus afterwards */
   function send(stepId, body) {
     return post(`/steps/${enc(stepId)}/actions`, body, `[data-step-id="${CSS.escape(stepId)}"]`);
+  }
+
+  /** A run of an AI step (Start, or the answers): the server applies the person's action and runs the assistant in one request */
+  function runStep(stepId, body) {
+    return post(`/agents/steps/${enc(stepId)}/run`, body, `[data-step-id="${CSS.escape(stepId)}"]`, stepId);
   }
 
   async function init() {

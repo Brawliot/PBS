@@ -38,7 +38,7 @@ export function openAIModel(): AgentModel {
             json_schema: { name: request.role, strict: false, schema: z.toJSONSchema(request.schema) },
           },
           temperature: 0.3,
-          max_completion_tokens: MAX_AGENT_COMPLETION_TOKENS,
+          max_completion_tokens: request.maxTokens ?? MAX_AGENT_COMPLETION_TOKENS,
         }),
         signal: AbortSignal.timeout(OPENAI_AGENT_TIMEOUT_MS),
       });

@@ -21,7 +21,7 @@ import { reportWith } from "../plan/report-fixtures.js";
 import { InMemoryReportRepository } from "../../plan/report-repository-memory.js";
 import type { AgentDeps } from "../../plan/agents/contract.js";
 import type { Plan } from "../../plan/plan-model.js";
-import { FakeJudge, FakeModel } from "../plan/agents/fakes.js";
+import { FakeJudge, FakeModel, planWithFact } from "../plan/agents/fakes.js";
 
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE ?? "playwright");
@@ -473,11 +473,178 @@ async function scenarioDepartmentsFailure(browser: any): Promise<string> {
   return "departments failure: one department fails after its tries, the screen says so, nothing is saved";
 }
 
+/** Waits until the notice of the page matches: the answer of the last request, not the notice before it */
+const noticeSays = (page: any, text: RegExp) =>
+  page.waitForFunction((source: string) => new RegExp(source).test(document.querySelector("#view > .notice")?.textContent ?? ""), text.source);
+
+/** A stored plan with the report that holds its idea (so the assistant can work on it), and an assistant to set by the scenario */
+async function storedWithReport(repo: InMemoryPlanRepository, plan: Plan): Promise<{ id: string; ai: Ai }> {
+  const stored = await repo.create("local", "Restaurante japonés", plan);
+  const reports = new InMemoryReportRepository();
+  const reportId = await reports.create("local", reportWith());
+  await reports.attachPlan(reportId, "local", stored.id);
+  return { id: stored.id, ai: { reports, agents: { model: new RoleModel(() => new Error("not set")), judge: new FakeJudge([true]) } } };
+}
+
+/** The restaurant plan with one confirmed decision and no steps: every task is free for the assistant to plan */
+const withoutSteps = (): Plan => {
+  const { plan } = planWithFact();
+  return { ...plan, steps: [], relations: plan.relations.filter((relation) => relation.level !== "step") };
+};
+
+/** The steps the assistant proposes for the task "Opening": one AI step, one step of the person, and the order between them */
+const openingSteps = (factId: string) => ({
+  steps: [
+    { id: "t-opening-rent", text: "Compare the rent of three streets", executor: "ai", evidence: "accepted_output", effortHours: 2, waitDays: 0, derivedFrom: [factId] },
+    { id: "t-opening-lease", text: "Sign the lease", executor: "user", mode: "in_person", evidence: "written_confirmation", effortHours: 1, waitDays: 7, derivedFrom: [factId] },
+  ],
+  relations: [{ from: "t-opening-rent", to: "t-opening-lease", type: "blocks" }],
+  facts: [],
+  requests: [],
+  questions: [],
+});
+
+/** One round of the step "Viability": a summary and a document (with markup, which must show as text), a question, a request */
+const viabilityRound = (round: number) => ({
+  summary: `Summary of round ${round}`,
+  document: round === 1 ? "<script>window.__hacked = true</script> <b>bold?</b>\nSecond line of the document" : `Document of round ${round}`,
+  questions: ["Which city?"],
+  facts: [{ key: { kind: "catalog", id: "target_customer" }, value: { kind: "other", text: "Local families" } }],
+  requests: [{ to: "plan", text: "Confirm the opening date" }],
+});
+
+async function scenarioTaskSteps(browser: any): Promise<string> {
+  const repo = new InMemoryPlanRepository();
+  const { id, ai } = await storedWithReport(repo, withoutSteps());
+  const assistant = new RoleModel((role) => (role === "task_steps" ? openingSteps("fact-product_type") : new Error(`not asked: ${role}`)));
+  ai.agents.model = assistant;
+  const { context, page } = await openPlan(browser, repo, id, "#/task/t-opening", { width: 1280, height: 720 }, ai);
+  assert.equal(assistant.roles.length, 0, "nothing is asked when the task opens");
+  await page.screenshot({ path: join(SHOTS, "task-without-steps-1280x720.png") });
+
+  // 1. Suggest the steps: one call, then the suggestion waits in Decisions and the task points to it
+  await page.getByRole("button", { name: "Suggest steps" }).click();
+  await noticeSays(page, /Saved\. The plan is at version 2\./);
+  assert.match((await notice(page).textContent()) ?? "", /Saved\. The plan is at version 2\./);
+  assert.deepEqual(assistant.roles, ["task_steps"]);
+  assert.equal(await page.getByRole("button", { name: "Suggest steps" }).count(), 0, "no second suggestion while one waits");
+  await page.getByRole("link", { name: "Go to decisions" }).click();
+
+  // 2. The card of the decisions page: who does each step, and the order in plain words
+  const card = page.locator('article[data-proposal-id]', { hasText: "Steps for Opening" });
+  await card.waitFor();
+  await card.screenshot({ path: join(SHOTS, "decisions-steps-card-1280x720.png") });
+  const text = (await card.textContent()) ?? "";
+  assert.match(text, /Compare the rent of three streets/);
+  assert.match(text, /AI assistant/);
+  assert.match(text, /You, In person/);
+  assert.match(text, /Compare the rent of three streets must be done before Sign the lease/);
+
+  // 3. Accept: the steps are in the task now
+  await card.getByRole("button", { name: "Accept" }).click();
+  await noticeSays(page, /Saved\. The plan is at version 3\./);
+  assert.match((await notice(page).textContent()) ?? "", /Saved\. The plan is at version 3\./);
+  await page.evaluate(() => (location.hash = "#/task/t-opening"));
+  await page.locator('article[data-step-id="t-opening-rent"]').waitFor();
+  assert.equal(await page.getByText("This task has no steps.").count(), 0);
+  await page.screenshot({ path: join(SHOTS, "task-with-steps-1280x720.png") });
+  await context.close();
+  return "task steps: suggested on demand, decided in Decisions, then shown in the task";
+}
+
+async function scenarioAiStep(browser: any): Promise<string> {
+  const repo = new InMemoryPlanRepository();
+  const { id, ai } = await storedWithReport(repo, planWithFact().plan);
+  let rounds = 0;
+  const assistant = new RoleModel((role) => (role === "step_run" ? viabilityRound(++rounds) : new Error(`not asked: ${role}`)));
+  ai.agents.model = assistant;
+  const { context, page } = await openPlan(browser, repo, id, "#/task/t-viability", { width: 1280, height: 720 }, ai);
+  const step = page.locator('article[data-step-id="s-viability"]');
+  assert.equal(assistant.roles.length, 0, "nothing is asked when the task opens");
+
+  // 1. Start: the server applies the start and runs the assistant in one request; the output shows, document as text
+  await step.getByRole("button", { name: "Start" }).click();
+  await step.locator("pre.document").waitFor();
+  assert.equal(assistant.roles.length, 1);
+  assert.equal((await step.locator("pre.document").textContent()) ?? "", viabilityRound(1).document);
+  assert.equal(await page.locator("#view script").count(), 0, "a document is never run as a script");
+  assert.equal(await page.locator("#view b").count(), 0, "a document is never read as markup");
+  assert.match((await notice(page).textContent()) ?? "", /Saved\. The plan is at version 2\./);
+  await step.screenshot({ path: join(SHOTS, "ai-step-round-1-card-1280x720.png") });
+
+  // 2. Answer the question: round 2 (the first output keeps its summary, but not its document)
+  await page.fill("#s-viability-answer-0", "Milan");
+  await step.getByRole("button", { name: "Send answers" }).click();
+  await step.getByText("Summary of round 2").waitFor();
+  assert.equal(await step.locator("pre.document").count(), 1, "only the latest version keeps its document");
+  assert.match((await notice(page).textContent()) ?? "", /Saved\. The plan is at version 3\./);
+  assert.equal(assistant.roles.length, 2);
+
+  // 3. Round 3: the last one. Its answers are asked, and after it no more answers are offered (the rules have no round left)
+  await page.fill("#s-viability-answer-0", "Porto");
+  await step.getByRole("button", { name: "Send answers" }).click();
+  await step.getByText("Summary of round 3").waitFor();
+  assert.equal(await step.locator("#s-viability-answer-0").count(), 0, "no answer form once the rounds are used");
+  assert.equal(assistant.roles.length, 3);
+  assert.match((await notice(page).textContent()) ?? "", /Saved\. The plan is at version 4\./);
+  await step.screenshot({ path: join(SHOTS, "ai-step-rounds-used-card-1280x720.png") });
+
+  // 4. Confirm the latest output: the person decides, and the step is done
+  await step.getByRole("button", { name: "Confirm output" }).click();
+  await noticeSays(page, /Saved\. The plan is at version 5\./);
+  assert.match((await notice(page).textContent()) ?? "", /Saved\. The plan is at version 5\./);
+
+  // 5. The fact the assistant proposed is waiting in Decisions, with the step as its origin
+  await page.evaluate(() => (location.hash = "#/decisions"));
+  await page.locator("li[data-fact-id]", { hasText: "Local families" }).waitFor();
+  assert.equal(await page.locator("li[data-fact-id]", { hasText: "Local families" }).count(), 1, "the same fact is not proposed twice");
+  await context.close();
+  return "ai step: start, output with its document as text, two answers, no answer form after the third round, confirm, its fact in Decisions";
+}
+
+async function scenarioAiStepFailure(browser: any): Promise<string> {
+  const repo = new InMemoryPlanRepository();
+  const { id, ai } = await storedWithReport(repo, planWithFact().plan);
+  let calls = 0;
+  // The first start works; from the second round on the assistant is down
+  ai.agents.model = new RoleModel((role) => (role !== "step_run" ? new Error("not asked") : ++calls === 1 ? viabilityRound(1) : new Error("provider down")));
+  const { context, page } = await openPlan(browser, repo, id, "#/task/t-viability", { width: 1280, height: 720 }, ai);
+  const step = page.locator('article[data-step-id="s-viability"]');
+
+  await step.getByRole("button", { name: "Start" }).click();
+  await step.locator("pre.document").waitFor();
+  await page.fill("#s-viability-answer-0", "Milan, with a long answer that must survive the failure");
+  await step.getByRole("button", { name: "Send answers" }).click();
+  await noticeSays(page, /The assistant is not available right now/);
+  assert.equal(((await notice(page).textContent()) ?? "").trim(), "The assistant is not available right now. Try again later.");
+  assert.equal(await page.locator('#view > .notice--error').count(), 1, "the error is shown as an error");
+  assert.equal(await page.inputValue("#s-viability-answer-0"), "Milan, with a long answer that must survive the failure", "the typed answer is kept");
+  // The step is as it was before the send: waiting for the person, one output, nothing running
+  assert.match((await step.textContent()) ?? "", /Waiting for you/);
+  assert.equal(await step.getByText("The assistant is working...").count(), 0);
+  assert.equal(await step.locator("pre.document").count(), 1);
+  await page.screenshot({ path: join(SHOTS, "ai-step-failure-1280x720.png") });
+  await context.close();
+
+  // A start that fails leaves the step not started, with nothing added
+  const other = new InMemoryPlanRepository();
+  const second = await storedWithReport(other, planWithFact().plan);
+  second.ai.agents.model = new RoleModel(() => new Error("provider down"));
+  const failed = await openPlan(browser, other, second.id, "#/task/t-viability", { width: 1280, height: 720 }, second.ai);
+  await failed.page.locator('article[data-step-id="s-viability"]').getByRole("button", { name: "Start" }).click();
+  await noticeSays(failed.page, /The assistant is not available right now/);
+  assert.equal(((await notice(failed.page).textContent()) ?? "").trim(), "The assistant is not available right now. Try again later.");
+  assert.equal(await failed.page.locator('article[data-step-id="s-viability"]').getByText("Not started").count(), 1);
+  assert.equal(await failed.page.locator('article[data-step-id="s-viability"] pre.document').count(), 0);
+  await failed.context.close();
+  return "ai step failure: the step stays as it was, the typed answer stays, the error shows";
+}
+
 const server = await startServer();
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ["--no-sandbox"] });
 let failed = 0;
 try {
-  for (const scenario of [scenarioDecisions, scenarioNeedsAi, scenarioStale, scenarioError, scenarioScreens, scenarioObsolete, scenarioCycle, scenarioStructure, scenarioStructureFailure, scenarioDepartments, scenarioDepartmentsFailure]) {
+  for (const scenario of [scenarioDecisions, scenarioNeedsAi, scenarioStale, scenarioError, scenarioScreens, scenarioObsolete, scenarioCycle, scenarioStructure, scenarioStructureFailure, scenarioDepartments, scenarioDepartmentsFailure, scenarioTaskSteps, scenarioAiStep, scenarioAiStepFailure]) {
     try {
       console.log("ok -", await scenario(browser));
     } catch (error) {

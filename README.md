@@ -216,6 +216,8 @@ A gap is a task that waits for facts (`placeholder`). When its facts are confirm
 | `POST /api/plan/:id/proposals/:proposalId/reject` | `{ expectedVersion }` | `200` |
 | `POST /api/plan/:id/agents/structure` | `{ expectedVersion }` | `201`. Asks the plan-level assistant for the structure of the plan (phases, tiers, relations between departments), from the idea of its report. See below. |
 | `POST /api/plan/:id/agents/departments` | `{ expectedVersion }` | `201`. Asks the assistant for the tasks of every department that has none pending, then a review of the plan level over them. See below. |
+| `POST /api/plan/:id/agents/tasks/:taskId/steps` | `{ expectedVersion }` | `201`. Asks the assistant for the steps of one task that has none. Only when the person presses "Suggest steps". See below. |
+| `POST /api/plan/:id/agents/steps/:stepId/run` | `{ action: "launch" \| "answer", payload?, expectedVersion }` | `200`. Starts an AI step (`launch`), or answers its questions (`answer`), and the assistant runs the step, in one write. See below. |
 
 #### The plan structure from the assistant
 
@@ -232,6 +234,59 @@ The call is synchronous: it waits for the assistant, with up to three tries of t
 | `version_conflict` | `409` | The plan changed while the assistant was thinking. Nothing from the suggestion is saved. |
 
 A failure saves nothing. The server log gets one line with the code of the failure, never the prompts or the answer.
+
+#### The steps of one task from the assistant
+
+`POST /api/plan/:id/agents/tasks/:taskId/steps` runs the task level, once, for one task, when the person presses "Suggest steps" on a task that has no steps. Nothing runs when the task opens. The answer is one pending proposal with the steps (`add.steps`, each with its executor, mode, evidence, effort and wait) and their order relations (`blocks`, `follows`, `feeds`), plus the facts the assistant found as proposed facts with `from: { "kind": "agent", "level": "department" }` (the task belongs to a department). Nothing is in the plan until the person accepts the proposal in Decisions, and then the steps are in the task.
+
+The checks that cost nothing come before the call, in this order:
+
+1. The body, the id and the storage, then the assistant (`invalid_body`, `not_found`, `storage_unavailable`, `assistant_unavailable`).
+2. The version (`version_conflict`), then an unknown task (`unknown_task`), then a gap or a task that already has steps (`not_available`), then a pending suggestion of steps for this task (`duplicate_pending`), then no confirmed fact (`no_confirmed_facts`).
+3. The idea of the report (`no_report` without one).
+
+The call is one attempt of the model (up to three tries, each with one Jev call), within the same 240 seconds as the department level. The whole answer is saved in one write under the version that was read, with the log entries `proposal_created` and `fact_proposed` (actor `ai`). A failure, or a wait longer than the limit, saves nothing. An answer with no step saves nothing and answers `200`.
+
+The task's assistant receives the idea, the confirmed facts, the task, the confirmed outputs of AI steps of other tasks that feed its steps (never a draft), and the related tasks as title and direction only (`before` or `after`). Direction: `A blocks B` means A is done before B, and `B follows A` means B comes after A.
+
+| Code | Status | When |
+| --- | --- | --- |
+| `unknown_task` | `404` | The task is not in the plan. Refused before any call. |
+| `not_available` | `409` | The task is a gap (it waits for facts), or it already has steps. Refused before any call. |
+| `duplicate_pending` | `409` | Steps for this task are already waiting for a decision. Refused before any call. |
+| `no_confirmed_facts` | `409` | No decision is confirmed yet. Refused before any call. |
+| `no_report` | `409` | The plan was not made from a report, so there is no idea to work from. |
+| `assistant_unavailable` | `503` | The model or the judge is not configured, the model or Jev did not answer on every try, or the time ran out. |
+| `suggestion_invalid` | `502` | The answer did not fit the plan on every try (a step that does not fit the rules, a relation to an unknown step, a fact the catalogue does not allow). |
+| `version_conflict` | `409` | The plan changed while the assistant was thinking. Nothing is saved. |
+
+#### The run of an AI step
+
+`POST /api/plan/:id/agents/steps/:stepId/run` is the one request that starts an AI step (`action: "launch"`) or answers its questions (`action: "answer"`, with `payload: { answers: [...] }`, one answer per question of the latest output). The person's action, the output of the assistant and the facts it proposes are saved in ONE write, as two history entries: the person's event (`launch` or `answer`, actor `user`) and the output (`attach_output`, actor `ai`). The output has a summary, a document, the questions and the requests, and it stays a draft until the person confirms or rejects it with the buttons of the step (those two are plain step actions).
+
+The order of the checks, so that a refusal never calls the assistant:
+
+1. The body (strict: only `action`, `payload` and `expectedVersion`), the ids, the storage and the assistant (`invalid_body`, `not_found`, `unknown_step`, `storage_unavailable`, `assistant_unavailable`).
+2. The version (`version_conflict`), then the step: a step that is not AI is `not_allowed`, and a plan without a report is `no_report`.
+3. The person's action on a copy of the plan, with the same rules as every step action: `not_ready` (a step waiting for another), `rounds_exceeded` (the step has used its three rounds), `invalid_payload` (the answers do not match the questions). Nothing is called on these.
+4. The assistant, with the step's input: the step, the idea, the confirmed facts, the task and department names, the answers so far, and the confirmed outputs of the steps that feed this one.
+5. Its output, applied to the copy as `attach_output`, and its facts. A fact that is already proposed or confirmed is not proposed again.
+
+If any part fails, nothing is saved and the step stays exactly as it was: never `running` by a failed call. An output that does not fit the plan is `suggestion_invalid` (502).
+
+| Code | Status | When |
+| --- | --- | --- |
+| `not_allowed` | `409` | The step is not an AI step, or the action does not fit its state. |
+| `not_ready` | `409` | The step waits for another step. Refused before any call. |
+| `rounds_exceeded` | `409` | The step has used its three rounds. Refused before any call. |
+| `invalid_payload` | `400` | The answers do not match the questions of the latest output. Refused before any call. |
+| `assistant_unavailable` | `503` | The model or the judge is not configured, the model or Jev did not answer on every try, or the time ran out. |
+| `suggestion_invalid` | `502` | The output did not fit (too long, an extra field, a document with NUL, a fact the catalogue does not allow...) on every try. |
+| `version_conflict` | `409` | The plan changed while the assistant was working. Nothing is saved. |
+
+**Limits of a step.** The document of a step is at most 20,000 characters (`MAX_DOCUMENT_TEXT`), the summary 1,000, and a step has at most five requests (300 characters each) and five questions per round. Only the latest output of a step keeps its document: when a new round is attached, the earlier outputs keep their summary, questions and requests, but not the document, so the plan does not grow with every round. The answer of one call may use up to 8,000 tokens (`STEP_MAX_TOKENS`); an answer cut by that limit is a failure, not a partial document.
+
+**Cost.** One press of Start or Send answers is one round: up to three tries, and each try is one OpenAI call and one Jev call. A step has at most three rounds per attempt, so one attempt costs at most nine OpenAI calls and nine Jev calls. A press of "Suggest steps" is one call with up to three tries (at most three and three).
 
 #### The tasks of each department from the assistant
 
@@ -315,7 +370,7 @@ server/
 - **No authentication.** The login and register dialogs do not send anything (`// TODO: send data` in `script.js`). The login gate is off (`REQUIRE_LOGIN = false` in `script.js`) for testing.
 - **No rate limiting and no cost protection.** Every planner request calls paid APIs: a request that asks for questions makes one Jev and one OpenAI call; a final request (or one with no questions left) makes three Jev calls. Add rate limits and spending controls before deploying.
 - **Placeholders in the UI.** "View my projects" only shows a notice.
-- **Only the plan and department levels of the agents are connected.** `POST /api/plan/:id/agents/structure` and `POST /api/plan/:id/agents/departments` are the routes that call a model. The task level is a contract tested with fake models only: its steps are not built yet.
+- **The levels of the agents are connected one by one, by hand.** The plan level (`agents/structure`), the department level (`agents/departments`), the steps of one task (`agents/tasks/:taskId/steps`) and the run of an AI step (`agents/steps/:stepId/run`) call a model, each only when the person presses its button. The views "Today", a side panel and a dependency diagram are not built: their design is not decided. The document of a step is kept only in its latest output (see above); the document goes to its own table later (see `FUTURE.md`).
 - **Each suggestion costs money and waits.** A structure suggestion calls OpenAI and Jev up to three times each, and it is only made when the person presses "Suggest plan structure" (never when the page opens). Its worst wait is about three times (60 s for OpenAI plus 30 s for Jev), that is about 270 s, close to the 300 s request timeout Node uses by default. It is synchronous for now; a background job would be the fix if the waits grow. Only one structure can wait at a time.
 - **A structure is not re-checked against the facts it was made from.** If a fact changes after the suggestion, the structure stays pending and is still accepted if it fits the plan, unlike the tasks of a gap (they are marked obsolete).
 - **Suggestions only from templates.** A gap is expanded only for the `mobile_game` and `web_app` product types. Other values answer `needs_ai` until the AI is built. A rejected suggestion can be asked again: the new one takes the next free id (`-2`, `-3`...), up to 20 tries, and then `id_taken`. A pending suggestion whose decision has changed is marked obsolete (`derived.proposals[id].obsolete`). It stays listed, with the label Obsolete, until it is retired: the screen's Retire button calls `reject` (logged as `proposal_rejected`). Accepting it gives `409 not_confirmed`, and nothing removes a suggestion by itself.

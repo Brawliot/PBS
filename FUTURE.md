@@ -120,8 +120,34 @@ Lo que queda, en orden:
 3. **Notas de los departamentos sin tareas**: si un departamento no propone tareas, sus peticiones y preguntas se pierden. Guardarlas en una propuesta de notas, o en la estructura.
 4. **Revisión contra las propuestas pendientes de una pasada anterior**: hoy la revisión solo ve las tareas de esta pasada.
 5. **Estructura y hechos obsoletos**: una estructura no se marca como obsoleta cuando cambia un hecho del que salió.
-6. **Los pasos son la rebanada 3**: cada tarea aceptada aparece en su departamento sin pasos ("This task has no steps."). Los pasos y la llamada de tarea vienen después.
+6. ~~**Los pasos son la rebanada 3**~~: hecho en la tercera rebanada (abajo).
 7. **Control de coste**: límite de pulsaciones por plan y por día antes de desplegar (ver "Known limitations" en el README).
+
+### Estado: tercera rebanada (los pasos, en pantalla)
+
+Hecho, probado con ejecutores falsos (tests, e2e en Chromium con capturas y las pruebas con PostgreSQL local):
+
+- **"Suggest steps" en una tarea sin pasos.** Solo al pulsarlo, nunca al abrir la tarea. Si hay pasos esperando decisión, la tarea muestra un aviso con enlace a Decisions. Una tarea hueco no lo ofrece.
+- **Ruta de tarea** `POST /api/plan/:id/agents/tasks/:taskId/steps`: una llamada, hasta tres intentos (y Jev en cada uno), dentro de los 240 s. Las comprobaciones baratas van antes de la llamada. Todo en una escritura: propuesta pendiente y hechos propuestos.
+- **Tarjeta "Steps for <tarea>" en Decisions**: cada paso con quién lo hace, modo, evidencia, esfuerzo y espera, y el orden entre ellos en lenguaje natural. Aceptar o rechazar. Al aceptar, los pasos aparecen en la tarea.
+- **Ejecutor real de paso** (`agents/step-agent.ts`): un `StepRunner` sobre el mismo `AgentModel`, con su propio rol y su límite de tokens. El pipeline: esquema (`runStep`), hechos y peticiones válidos, juez y reintentos.
+- **Ruta de ejecución** `POST /api/plan/:id/agents/steps/:stepId/run` (`launch` o `answer`): la acción de la persona, la salida de la IA y sus hechos, en una escritura con dos eventos del historial. Si algo falla, el paso queda exactamente como estaba. Las comprobaciones que no necesitan la IA (listo, rondas, respuestas) van antes de cualquier llamada.
+- **Salida con documento y peticiones**: `document` y `requests` son campos opcionales, solo aditivos. Se muestran como texto (el documento con saltos de línea, sin HTML).
+- **El documento solo en la última versión.** Al adjuntar una ronda nueva, las anteriores conservan resumen, preguntas y peticiones, pero pierden el documento. Por qué: el plan es un único JSON de 5 MiB como máximo (`MAX_DOCUMENT_BYTES`), y un documento de 20.000 caracteres en cada una de 100 versiones de un paso se comería ese tamaño. Cuando el documento tenga su propia tabla (ver `PRODUCTION.md`), se guardará todo.
+- **Límite de tokens por petición** (`AgentRequest.maxTokens`, por defecto 4.000). El paso pide 8.000. Una respuesta cortada por ese límite cuenta como fallo, no como documento parcial.
+- **Entrada de tarea con las tareas relacionadas** (solo título y dirección `before`/`after`) y una frase en el prompt que fija la dirección de `blocks` y `follows`.
+- **Un choque evitado**: una propuesta de pasos pendiente de una tarea no bloquea a otra que cite el mismo primer hecho (como ya hacían los departamentos).
+
+Lo que queda, en orden:
+
+1. **Calibración con claves reales**: tiempos, calidad de los pasos, si 8.000 tokens bastan para un documento de 20.000 caracteres, y si las 5 preguntas por ronda son suficientes.
+2. **Documento en tabla propia** (ver `PRODUCTION.md`): hoy el documento vive en el JSON del plan y solo la última versión lo conserva.
+3. **Los pasos que dependen de otro ven solo su resumen.** Un paso que recibe la salida de otro no recibe su documento ni sus peticiones: el contexto sería demasiado grande. Decidir si pasar el documento confirmado o una referencia.
+4. **Un hueco que ya existía**: la acción genérica `POST /api/plan/:id/steps/:stepId/actions` deja a la persona aplicar `attach_output` (la regla solo mira al actor si no es `user`). La pantalla no lo ofrece, pero la ruta sí lo acepta. Cerrarlo cambia un test existente (`test/plan/step-availability.test.ts`, el caso de `attach_output` con actor `user`), así que se deja para una decisión aparte.
+5. **Ejecución síncrona de hasta 240 s**, sin progreso en pantalla más que el indicador "The assistant is working...". Un trabajo con sondeo, como el del planner, si las esperas crecen.
+6. **Propuestas de pasos sin origen propio**: la propuesta usa como `reason` el primer hecho de su primer paso. Si ese hecho cambia, la propuesta se marca como obsoleta (como las tareas), pero no hay una forma de regenerar solo sus pasos.
+7. **Prueba con PostgreSQL de la ruta de ejecución**: los tests de las rutas usan el repositorio en memoria. La escritura con dos eventos ya la usa `changePlan` contra PostgreSQL, pero no hay un test propio.
+8. **"Hoy", panel lateral y diagrama de dependencias**: su diseño no está decidido; no se han construido.
 
 ---
 

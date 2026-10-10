@@ -22,6 +22,10 @@ export const MAX_ROUNDS = 3;
 export const MAX_EVENTS = 200;
 // Largest plan document that is stored, in bytes of its JSON text. Unmeasured: tune with real plans
 export const MAX_DOCUMENT_BYTES = 5 * 1024 * 1024;
+// The document an AI step delivers, and its requests. Only the latest output of a step keeps its document (see
+// attach_output in step-actions.ts), so the plan does not grow with every round. Unmeasured: tune with real runs
+export const MAX_DOCUMENT_TEXT = 20_000;
+export const MAX_OUTPUT_REQUESTS = 5;
 // Most output versions over the whole life of a step, across attempts. Unmeasured: every version costs
 // at least two events (a launch or an answer, then attach_output), so MAX_EVENTS / 2 is the most that
 // can ever exist; MAX_EVENTS already bounds the total, this only keeps the schema honest about it.
@@ -134,12 +138,21 @@ export const QuestionSchema = z.strictObject({
   answeredAt: DateTimeSchema.optional(),
 });
 
+/** A request of an AI step: to the plan level or to one department. Text only: shown to the person, never applied */
+const OutputRequestSchema = z.strictObject({
+  to: z.union([z.literal("plan"), IdSchema]),
+  text: text(STRUCTURE_LIMITS.text),
+});
+
 /** One version of what an AI step delivers: a draft stays private to its step until confirmed */
 export const OutputSchema = z.strictObject({
   version: z.number().int().min(1),
   state: z.enum(["draft", "confirmed", "rejected", "superseded"]),
   summary: text(MAX_STEP_TEXT),
   documentRef: IdSchema.optional(),
+  // Optional, added after the first version: the document (latest output only) and the requests of the step
+  document: text(MAX_DOCUMENT_TEXT).optional(),
+  requests: z.array(OutputRequestSchema).max(MAX_OUTPUT_REQUESTS).optional(),
   questions: z.array(QuestionSchema).max(MAX_OUTPUT_QUESTIONS),
   createdAt: DateTimeSchema,
   confirmedAt: DateTimeSchema.optional(),

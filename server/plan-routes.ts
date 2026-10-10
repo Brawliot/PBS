@@ -16,6 +16,9 @@ import { confirmFact, proposeFact, rejectFact, type FactActionError } from "./pl
 import { contextOf, keepsPlanValid, type AgentDeps, type AgentError } from "./plan/agents/contract.js";
 import { DEPARTMENTS_DEADLINE_MS, departmentsWithPendingTasks, suggestDepartmentTasks, withDeadline } from "./plan/agents/department-suggestion.js";
 import { runPlanGenerate, structureOf } from "./plan/agents/plan-agent.js";
+import { buildTaskInput } from "./plan/agents/task-input.js";
+import { hasPendingSteps, runTaskSteps } from "./plan/agents/task-agent.js";
+import { runStepAgent, stepInputOf } from "./plan/agents/step-agent.js";
 import { FACT_KEYS, PRODUCT_TYPES } from "./plan/fact-catalog.js";
 import { devRoutesAllowed } from "./security.js";
 import { UUID } from "./ids.js";
@@ -178,6 +181,10 @@ async function route(request: PlanRequest): Promise<PlanResponse> {
   if (method === "POST" && structure) return suggestStructure(request, structure[1]);
   const departments = path.match(/^\/api\/plan\/([^/]+)\/agents\/departments$/);
   if (method === "POST" && departments) return suggestDepartments(request, departments[1]);
+  const taskSteps = path.match(/^\/api\/plan\/([^/]+)\/agents\/tasks\/([^/]+)\/steps$/);
+  if (method === "POST" && taskSteps) return suggestTaskSteps(request, taskSteps[1], taskSteps[2]);
+  const stepRun = path.match(/^\/api\/plan\/([^/]+)\/agents\/steps\/([^/]+)\/run$/);
+  if (method === "POST" && stepRun) return runAiStep(request, stepRun[1], stepRun[2]);
   const fakeProposal = path.match(/^\/api\/dev\/plan\/([^/]+)\/facts\/fake-proposal$/);
   if (isDev && method === "POST" && fakeProposal) return fakeFactProposal(request, fakeProposal[1]);
 
@@ -452,6 +459,178 @@ async function suggestDepartments(request: PlanRequest, id: string): Promise<Pla
     },
     201,
   );
+}
+
+/**
+ * POST /api/plan/:id/agents/tasks/:taskId/steps: the assistant proposes the steps of ONE task, when the person asks
+ * (one call, never on opening the page). The result is one pending proposal of steps and the facts the assistant
+ * found, saved in one write under the version that was read. A failure, or a wait longer than DEPARTMENTS_DEADLINE_MS,
+ * saves nothing. The checks that cost nothing run before the call: an unknown task (unknown_task), a gap or a task
+ * that already has steps (not_available), a pending suggestion for it (duplicate_pending), no confirmed fact
+ * (no_confirmed_facts) and no report (no_report).
+ */
+async function suggestTaskSteps(request: PlanRequest, id: string, taskId: string): Promise<PlanResponse> {
+  const body = parseBody(request.body, VersionBody);
+  if (!body) return fail("invalid_body");
+  if (!UUID.test(id)) return fail("not_found");
+  if (!IdSchema.safeParse(taskId).success) return fail("unknown_task");
+  if (!request.repo || !request.reports) return fail("storage_unavailable");
+  if (!request.agents) return fail("assistant_unavailable");
+  const stored = await request.repo.get(id, LOCAL_USER);
+  if (!stored) return fail("not_found");
+  if (body.expectedVersion !== stored.version) return fail("version_conflict");
+  const task = stored.plan.tasks.find((candidate) => candidate.id === taskId);
+  if (!task) return fail("unknown_task");
+  if (task.placeholder !== undefined || stored.plan.steps.some((step) => step.taskId === taskId)) return fail("not_available");
+  if (hasPendingSteps(stored.plan, taskId)) return fail("duplicate_pending");
+  if (!(stored.plan.facts ?? []).some((fact) => fact.status === "confirmed")) return fail("no_confirmed_facts");
+  const report = await request.reports.getByPlanId(id, LOCAL_USER);
+  if (!report) return fail("no_report");
+  const input = buildTaskInput(stored.plan, taskId, report.report.input.idea);
+  if (!input) return fail("unknown_task");
+
+  // No lock is held while the assistant thinks: the write below checks the version read here
+  const answer = await withDeadline(
+    runTaskSteps(request.agents, input, stored.plan, { now: request.now }),
+    request.agentTimeoutMs ?? DEPARTMENTS_DEADLINE_MS,
+  );
+  if (answer === undefined) {
+    console.error("Task steps suggestion failed: timeout");
+    return fail("assistant_unavailable");
+  }
+  if (!answer.ok) {
+    console.error("Task steps suggestion failed:", answer.code);
+    return fail(assistantFailure(answer.code));
+  }
+  const { output, proposal } = answer.value;
+  // No step to add: nothing is proposed, nothing is saved
+  if (!proposal) return { status: 200, body: { id, version: stored.version, plan: stored.plan, derived: derivePlan(stored.plan) } };
+
+  return changeDecisions(
+    request,
+    id,
+    stored.version,
+    (plan, at) => {
+      let next: Plan = { ...plan, proposals: [...(plan.proposals ?? []), proposal] };
+      const logs: PlanLogRecord[] = [{ kind: "proposal_created", actor: "ai", refId: proposal.id, at }];
+      for (const fact of output.facts) {
+        const known = (next.facts ?? []).some((item) => (item.status === "proposed" || item.status === "confirmed") && sameTerm(item.key, fact.key) && sameTerm(item.value, fact.value));
+        if (known) continue;
+        // The task belongs to a department: its facts come from the department level
+        const made = proposeFact(next, { key: fact.key, value: fact.value, agentLevel: "department" }, { now: () => at, actor: "ai" });
+        if (!made.ok) return { ok: false, code: "suggestion_invalid" };
+        next = made.plan;
+        logs.push({ kind: "fact_proposed", actor: "ai", refId: made.fact.id, at });
+      }
+      try {
+        parsePlan(next);
+      } catch {
+        return { ok: false, code: "suggestion_invalid" };
+      }
+      if (!keepsPlanValid(plan, next)) return { ok: false, code: "suggestion_invalid" };
+      return { ok: true, plan: next, logs };
+    },
+    201,
+  );
+}
+
+const RunStepBody = z.strictObject({
+  action: z.enum(["launch", "answer"]),
+  payload: z.unknown().optional(),
+  expectedVersion: z.number().int().min(1),
+});
+
+/**
+ * POST /api/plan/:id/agents/steps/:stepId/run: the person starts an AI step (launch) or answers its questions
+ * (answer), and the assistant runs the step. The person's action, the assistant's output and the facts it proposes
+ * are saved in ONE write, as two history entries. The order of the checks: the body, the step (an AI step, else
+ * not_allowed), the person's action on a copy of the plan (not_ready, rounds_exceeded, invalid_payload... before any
+ * call), the assistant, then its output applied to the copy. A failure of any part saves nothing, so the step stays
+ * as it was (and never stays "running").
+ */
+async function runAiStep(request: PlanRequest, id: string, stepId: string): Promise<PlanResponse> {
+  const body = parseBody(request.body, RunStepBody);
+  if (!body) return fail("invalid_body");
+  if (!UUID.test(id)) return fail("not_found");
+  if (!IdSchema.safeParse(stepId).success) return fail("unknown_step");
+  if (!request.repo || !request.reports) return fail("storage_unavailable");
+  if (!request.agents) return fail("assistant_unavailable");
+  const stored = await request.repo.get(id, LOCAL_USER);
+  if (!stored) return fail("not_found");
+  if (body.expectedVersion !== stored.version) return fail("version_conflict");
+  const step = stored.plan.steps.find((candidate) => candidate.id === stepId);
+  if (!step) return fail("unknown_step");
+  if (step.executor !== "ai") return fail("not_allowed");
+  const report = await request.reports.getByPlanId(id, LOCAL_USER);
+  if (!report) return fail("no_report");
+
+  const person = applyPlanAction(stored.plan, stepId, body.action, { now: request.now, actor: "user", payload: body.payload });
+  if (!person.ok) return fail(person.code);
+  const input = stepInputOf(person.plan, stepId, report.report.input.idea);
+  if (!input) return fail("unknown_step");
+
+  // No lock is held while the assistant works: the write below checks the version read here
+  const answer = await withDeadline(
+    runStepAgent(request.agents, input, { knownDepartments: new Set(stored.plan.departments.map((department) => department.id)) }),
+    request.agentTimeoutMs ?? DEPARTMENTS_DEADLINE_MS,
+  );
+  if (answer === undefined) {
+    console.error("Step run failed: timeout");
+    return fail("assistant_unavailable");
+  }
+  if (!answer.ok) {
+    console.error("Step run failed:", answer.code);
+    return fail(assistantFailure(answer.code));
+  }
+  const { output } = answer.value;
+
+  const attached = applyPlanAction(person.plan, stepId, "attach_output", {
+    now: request.now,
+    actor: "ai",
+    payload: { summary: output.summary, document: output.document, requests: output.requests, questions: output.questions },
+  });
+  if (!attached.ok) return fail("suggestion_invalid");
+
+  const at = request.now();
+  const version = attached.plan.steps.find((candidate) => candidate.id === stepId)!.outputs!.at(-1)!.version;
+  let next = attached.plan;
+  const logs: PlanLogRecord[] = [];
+  for (const fact of output.facts ?? []) {
+    const known = (next.facts ?? []).some((item) => (item.status === "proposed" || item.status === "confirmed") && sameTerm(item.key, fact.key) && sameTerm(item.value, fact.value));
+    if (known) continue;
+    const made = proposeFact(next, { key: fact.key, value: fact.value, stepId, version }, { now: () => at, actor: "ai" });
+    if (!made.ok) return fail("suggestion_invalid");
+    next = made.plan;
+    logs.push({ kind: "fact_proposed", actor: "ai", refId: made.fact.id, at });
+  }
+  try {
+    parsePlan(next);
+  } catch {
+    return fail("suggestion_invalid");
+  }
+  if (!keepsPlanValid(stored.plan, next)) return fail("suggestion_invalid");
+
+  const saved = await request.repo.update(
+    id,
+    LOCAL_USER,
+    stored.version,
+    next,
+    [
+      { stepId, event: person.event },
+      { stepId, event: attached.event },
+    ],
+    logs,
+  );
+  if (!saved.ok) return fail(saved.code);
+  return {
+    status: 200,
+    body: {
+      id: saved.stored.id,
+      version: saved.stored.version,
+      plan: saved.stored.plan,
+      derived: derivePlan(saved.stored.plan),
+    },
+  };
 }
 
 /** Development only: a fact proposed by the AI from its first AI step, so the screen has one to show */

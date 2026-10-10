@@ -101,6 +101,8 @@ const PAYLOADS: Record<StepAction, z.ZodType> = {
   attach_output: z.strictObject({
     summary: OutputSchema.shape.summary,
     documentRef: OutputSchema.shape.documentRef,
+    document: OutputSchema.shape.document,
+    requests: OutputSchema.shape.requests,
     questions: z.array(QuestionSchema.shape.question).max(MAX_OUTPUT_QUESTIONS),
   }),
   // One answer per question of the current output, in order
@@ -132,6 +134,9 @@ const REFUSALS: Record<TransitionRefusal, (step: Step) => StepActionError> = {
 const withLatest = (outputs: StepOutput[], change: Partial<StepOutput>): StepOutput[] =>
   outputs.map((output, index) => (index === outputs.length - 1 ? { ...output, ...change } : output));
 
+/** An output that is no longer the latest keeps its summary and questions, but not its document (plan size, see MAX_DOCUMENT_TEXT) */
+const withoutDocument = ({ document: _document, ...rest }: StepOutput): StepOutput => rest;
+
 export function applyStepAction(step: Step, action: StepAction, context: ActionContext): ActionResult {
   // The history has no room left: no action can add an event, so none is applied (see availableActions)
   if (step.events.length >= MAX_EVENTS) return fail("events_full");
@@ -147,6 +152,8 @@ export function applyStepAction(step: Step, action: StepAction, context: ActionC
   const payload = parsed.data as {
     summary: string;
     documentRef?: string;
+    document?: string;
+    requests?: StepOutput["requests"];
     questions: string[];
     answers: string[];
     text: string;
@@ -165,12 +172,14 @@ export function applyStepAction(step: Step, action: StepAction, context: ActionC
   switch (action) {
     case "attach_output": {
       // A refinement replaces the draft it answers; a rejected version stays rejected
-      const previous = isDraft ? withLatest(outputs, { state: "superseded" }) : outputs;
+      const previous = (isDraft ? withLatest(outputs, { state: "superseded" }) : outputs).map(withoutDocument);
       const output: StepOutput = {
         version: outputs.length + 1,
         state: "draft",
         summary: payload.summary,
         ...(payload.documentRef !== undefined && { documentRef: payload.documentRef }),
+        ...(payload.document !== undefined && { document: payload.document }),
+        ...(payload.requests !== undefined && { requests: payload.requests }),
         questions: payload.questions.map((question) => ({ question })),
         createdAt: at,
       };

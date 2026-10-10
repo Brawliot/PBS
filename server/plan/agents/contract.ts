@@ -82,6 +82,8 @@ export interface AgentRequest {
   user: string;
   /** The shape the answer must have. The caller validates it again after the call */
   schema: z.ZodType;
+  /** Most tokens of the answer. The model's default (MAX_AGENT_COMPLETION_TOKENS in openai-model.ts) when omitted */
+  maxTokens?: number;
 }
 
 export interface AgentModel {
