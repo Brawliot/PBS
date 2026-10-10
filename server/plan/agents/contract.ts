@@ -60,6 +60,7 @@ export const OWN_FAILURE_REASONS = [
   "fact_unknown",
   "fact_catalog",
   "relation_ref",
+  "relation_existing_only",
   "task_ref",
   "request_target",
   "step_rules",

@@ -86,10 +86,13 @@ Return:
   - derivedFrom: the ids of the confirmed facts it comes from, copied exactly from the "id" of the items in
     <confirmed_facts> (at least one).
   Do not repeat a task the department already has.
-- relations: the order between YOUR tasks only, each {"from": id, "to": id, "type": "blocks" or "follows"}.
-  from and to must be ids of your tasks, and they must differ. "A blocks B" means A must be ready BEFORE B;
-  "B follows A" means B comes AFTER A. Example for the department "legal": {"from":"legal-a","to":"legal-b","type":"blocks"}:
-  legal-a is done before legal-b. A task that comes first must not sit in a LATER phase than the task after it.
+- relations: the order between your tasks, each {"from": id, "to": id, "type": "blocks" or "follows"}.
+  Each relation joins a NEW task of yours with another NEW task of yours, or a NEW task of yours with a task of
+  <own_tasks> (use that task's id exactly as it is written there). Never join two tasks of <own_tasks>, and never a
+  task of another department. from and to must differ. "A blocks B" means A must be ready BEFORE B;
+  "B follows A" means B comes AFTER A. Example for the department "legal", where "obtain-licences" is in <own_tasks>:
+  {"from":"legal-register-business","to":"obtain-licences","type":"blocks"} means legal-register-business is done
+  before obtain-licences. A task that comes first must not sit in a LATER phase than the task after it.
   The relations must not form a loop.
 - facts, requests and questions: only when something is missing. A request is {"to": "plan" or a department id, "text": ...}.
   A question is a text.
@@ -165,13 +168,18 @@ export function runDepartmentTasks(
 
     const phases = new Set(input.phases.map((phase) => phase.id));
     const ownIds = new Set(output.tasks.map((task) => task.id));
+    const existingIds = new Set(input.ownTasks.map((task) => task.id));
     const facts = new Set(input.context.facts.map((fact) => fact.id));
     // Ids carry the department's prefix, so two departments can never propose the same id
     const prefix = `${input.department.id}-`;
     if (output.tasks.some((task) => !task.id.startsWith(prefix))) return fail("invalid_output", "id_prefix");
     if (output.tasks.some((task) => !phases.has(task.phaseId))) return fail("invalid_output", "phase_unknown");
     if (output.tasks.some((task) => task.derivedFrom.some((id) => !facts.has(id)))) return fail("invalid_output", "fact_unknown");
-    if (output.relations.some((item) => !ownIds.has(item.from) || !ownIds.has(item.to) || item.from === item.to)) return fail("invalid_output", "relation_ref");
+    // A relation joins a new task with a new one, or a new task with one of the department's own tasks. Two own tasks
+    // are not work of this answer, so they are refused on their own label
+    const known = (id: string) => ownIds.has(id) || existingIds.has(id);
+    if (output.relations.some((item) => !known(item.from) || !known(item.to) || item.from === item.to)) return fail("invalid_output", "relation_ref");
+    if (output.relations.some((item) => !ownIds.has(item.from) && !ownIds.has(item.to))) return fail("invalid_output", "relation_existing_only");
     if (!factProposalsValid(output.facts)) return fail("invalid_output", "fact_catalog");
     if (output.tasks.length === 0) return { ok: true, value: { output, checked: false } };
 

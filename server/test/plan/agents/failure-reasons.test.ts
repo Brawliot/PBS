@@ -271,7 +271,8 @@ describe("the prompts state the rules their validators enforce", () => {
     assert.ok(system.includes(`For the department "legal" an id is "legal-obtain-licences"`), "the example of the prefix");
     assert.ok(system.includes("phaseId: one of the phase ids in <phases>"), "the phase ids");
     assert.ok(system.includes('copied exactly from the "id" of the items in'), "the copied fact ids");
-    assert.ok(system.includes("from and to must be ids of your tasks, and they must differ"), "the relation endpoints");
+    assert.ok(system.includes("from and to must differ"), "the relation endpoints");
+    assert.ok(system.includes("Never join two tasks of <own_tasks>"), "a relation may not join two tasks the department already has");
     assert.ok(system.includes(FACT_PROMPT), "the fact format");
     for (const key of FACT_KEYS) assert.ok(system.includes(key), `the catalogue key ${key}`);
     for (const type of PRODUCT_TYPES) assert.ok(system.includes(type), `the product type ${type}`);

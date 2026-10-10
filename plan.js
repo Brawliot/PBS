@@ -745,7 +745,8 @@
   function departmentCard(item) {
     const { plan, derived } = data;
     const department = item.add.tasks[0].primaryDepartmentId;
-    const titleOf = (id) => byId(item.add.tasks, id)?.title ?? id;
+    // A relation may join a new task with a task the department already has: its title is in the plan
+    const titleOf = (id) => byId(item.add.tasks, id)?.title ?? byId(plan.tasks, id)?.title ?? id;
     const groups = [...plan.phases]
       .sort((a, b) => a.order - b.order)
       .map((phase) => ({ phase, tasks: item.add.tasks.filter((task) => task.phaseId === phase.id) }))

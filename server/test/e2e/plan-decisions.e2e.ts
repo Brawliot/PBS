@@ -456,6 +456,44 @@ async function scenarioDepartments(browser: any): Promise<string> {
   return "departments: asked by the button, one card per department, accepted, the task shows with no steps";
 }
 
+/** As departmentAnswer, but the first department's new task comes before a task it already has */
+function departmentRelationAnswer(role: string, plan: Plan, factId: string): unknown {
+  const answer = departmentAnswer(role, plan, factId) as { relations: unknown[] };
+  const first = plan.departments[0];
+  if (role !== `department_${first.id}`) return answer;
+  const own = plan.tasks.find((task) => task.primaryDepartmentId === first.id);
+  assert.ok(own, "the first department has a task of its own");
+  return { ...answer, relations: [{ from: `${first.id}-scope`, to: own.id, type: "blocks" }] };
+}
+
+async function scenarioDepartmentRelation(browser: any): Promise<string> {
+  const repo = new InMemoryPlanRepository();
+  const { id, ai, plan } = await planForDepartments(repo, departmentRelationAnswer);
+  const { context, page } = await openPlan(browser, repo, id, "#/decisions", undefined, ai);
+  await page.getByRole("button", { name: "Suggest tasks for all departments" }).click();
+
+  // The order names the new task and the task the department already has: both titles, never an id
+  const first = plan.departments[0];
+  const own = plan.tasks.find((task) => task.primaryDepartmentId === first.id)!;
+  const card = page.locator(`article[data-department-id="${first.id}"]`);
+  await card.waitFor();
+  const text = (await card.textContent()) ?? "";
+  assert.ok(text.includes(`Scope of ${first.name} must be done before ${own.title}`), "the order shows both titles");
+  assert.ok(!text.includes("undefined") && !text.includes(own.id), "no raw id and no undefined in the card");
+  await card.screenshot({ path: join(SHOTS, "departments-relation-to-existing-card.png") });
+
+  // Accepting keeps the relation in the plan
+  await card.getByRole("button", { name: "Accept" }).click();
+  await card.waitFor({ state: "detached" });
+  const stored = (await repo.get(id, "local"))!;
+  assert.ok(
+    stored.plan.relations.some((relation) => relation.level === "task" && relation.from === `${first.id}-scope` && relation.to === own.id),
+    "the accepted relation is in the plan",
+  );
+  await context.close();
+  return "departments: a new task before a task the department already has shows both titles, and is kept on accept";
+}
+
 async function scenarioDepartmentsFailure(browser: any): Promise<string> {
   const repo = new InMemoryPlanRepository();
   // The second department fails on every try: the screen says so, and nothing of the others is kept
@@ -644,7 +682,7 @@ const server = await startServer();
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ["--no-sandbox"] });
 let failed = 0;
 try {
-  for (const scenario of [scenarioDecisions, scenarioNeedsAi, scenarioStale, scenarioError, scenarioScreens, scenarioObsolete, scenarioCycle, scenarioStructure, scenarioStructureFailure, scenarioDepartments, scenarioDepartmentsFailure, scenarioTaskSteps, scenarioAiStep, scenarioAiStepFailure]) {
+  for (const scenario of [scenarioDecisions, scenarioNeedsAi, scenarioStale, scenarioError, scenarioScreens, scenarioObsolete, scenarioCycle, scenarioStructure, scenarioStructureFailure, scenarioDepartments, scenarioDepartmentRelation, scenarioDepartmentsFailure, scenarioTaskSteps, scenarioAiStep, scenarioAiStepFailure]) {
     try {
       console.log("ok -", await scenario(browser));
     } catch (error) {
