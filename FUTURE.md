@@ -8,7 +8,7 @@ Cosas que no pertenecen a las fases ya construidas ni a su salida a producción,
 |---|---|---|
 | **1. Planner** | La idea, las preguntas y el informe | Hecha. Falta la prueba real con claves y la calibración (abajo) |
 | **2. El plan, sin IA** | Los cuatro niveles (departamento, fase, tarea, paso) con sus reglas, la base de datos, la API, las pantallas, el esqueleto desde el informe, "Build my plan", hechos y propuestas | Cerrada. Arrastra pendientes menores (ver "Fase 2: cerrada y lo que arrastra") |
-| **3. La inteligencia del plan** | Un agente por nivel, con contratos definidos de arriba abajo, y la evaluación de su calidad | En curso (ver "Fase 3") |
+| **3. La inteligencia del plan** | Un agente por nivel (plan, departamentos con su revisión, tareas y pasos), con su evaluación y su informe | Hecha, con limitaciones conocidas. Pendiente de la verificación final del dueño (ver "Fase 3: estado final") |
 | **4. Producto** | Usuarios, "View my projects", retención de datos y despliegue | Pendiente (ver `PRODUCTION.md`) |
 
 ---
@@ -24,7 +24,7 @@ La fase 2 se da por cerrada. Lo que sigue son decisiones ya tomadas y pendientes
 5. **Mandan las relaciones entre pasos.** `taskStatus` lee lo que los pasos de la tarea esperan de otras tareas, con el grafo del plan entero. Una tarea sin trabajo empezado cuyos pasos esperan a pasos sin hacer de otras tareas figura "blocked"; una tarea con todos los pasos "done" sigue "done". `taskElapsedDays` no cuenta esas esperas (ver "Known limitations" del README).
 
 **Aparcadas**
-2. **`feedback: "deleted"` se conserva como retirado.** Deja de contar, pero queda en el historial. *Aparcado: es bastante mayor de lo previsto y hoy no afecta a nadie. Se retoma cuando la fase 3 muestre qué retiros hacen falta.* Hoy ningún código del servidor escribe `feedback`, ni en tareas ni en pasos. Para hacerlo bien hacen falta decisiones de producto:
+2. **`feedback: "deleted"` se conserva como retirado.** Deja de contar, pero queda en el historial. *Aparcado: es bastante mayor de lo previsto y hoy no afecta a nadie. Se retoma cuando haya datos de qué retiros hacen falta.* Hoy ningún código del servidor escribe `feedback`, ni en tareas ni en pasos. Para hacerlo bien hacen falta decisiones de producto:
    - Qué acción de servidor lo escribe. Los pasos pasan por `applyPlanAction`; las tareas no tienen historial, así que harían falta dos caminos. Y el registro (`plan_log`) tiene un CHECK con sus tipos, así que una acción nueva necesita una migración.
    - Un paso retirado, ¿libera a los pasos que espera? Propuesta: sí, no bloquea ni alimenta, pero es una decisión de producto.
    - Retirar una tarea, ¿retira también sus pasos?
@@ -42,171 +42,111 @@ La fase 2 se da por cerrada. Lo que sigue son decisiones ya tomadas y pendientes
 
 ### Cierre y verificación
 - Prueba manual en local con PostgreSQL: el plan de ejemplo, "Build my plan", decisiones y propuestas.
-- Prueba real con claves y calibración de la fase 1 (abajo). Además es requisito para la fase 3.
+- Prueba real con claves y calibración de la fase 1 (abajo). Era requisito de la fase 3 (ver "Fase 3: estado final", apartado f).
 - Recorrido final de punta a punta, y revisar que `README.md`, `PRODUCTION.md` y este documento dicen la verdad.
 - Unificar las ramas: dejar una sola, archivar las demás y decidir si todo pasa a `main` con un pull request.
 - Huecos de tests: que cada código de `FAILURE` tenga su texto en `plan.js`, y la URL de más de 16 KB (431 frente a 400).
 
 ---
 
-## Fase 3: la inteligencia del plan (diseño acordado)
+## Fase 3: estado final
 
-- **Los agentes solo proponen.** Ningún agente edita el plan: devuelve propuestas, hechos propuestas, peticiones y preguntas. El nivel superior las valida (`checkPlan`, y Jev para la relevancia) y la persona acepta o confirma lo importante.
-- **Contratos de arriba abajo,** uno por nivel (plan, departamento, tarea y paso): qué recibe, qué controla y qué devuelve, con sus tipos, límites y un ejecutor falso para los tests. El contrato del paso ya existe (`step-runner.ts`).
-- **Los departamentos no se hablan entre sí:** se comunican por los hechos confirmados, las salidas confirmadas que alimentan a otros pasos y las relaciones con aspecto.
-- **Flujo fijo, no agentes libres:** el esqueleto fijo, una llamada de planificación, una llamada por departamento en paralelo y los pasos de cada tarea generados cuando se necesitan.
-- **Después,** el modelo real nivel por nivel, de arriba abajo, comprobado contra un conjunto de ejemplos (ver "Evaluación de modelos").
+**Estado: hecha, con limitaciones conocidas.** Queda pendiente la verificación final del dueño (apartado f). No hay más cambios de código previstos en esta fase; lo que sigue está descrito aquí para quien lo retome.
 
-### Estado: contratos (P11)
+### a) Qué es y qué se hizo
 
-Hecho, sin pantallas ni rutas, y probado solo con ejecutores falsos (`server/test/plan/agents/`):
+- La fase 3 pone IA en cada nivel del plan. **Los agentes solo proponen; la persona acepta o rechaza.** Una respuesta nunca cambia el plan por sí sola.
+- **Niveles:** el plan (la estructura: fases, nivel de cada departamento y relaciones entre departamentos); los departamentos (sus tareas, una llamada por departamento, en paralelo); la revisión (una sola sobre las tareas de todos los departamentos: choques, duplicados, huecos y órdenes que faltan); la tarea (sus pasos, bajo demanda); y el paso (la ejecución de un paso de IA, con su documento).
+- **Flujo:** esqueleto fijo a partir del informe → estructura del plan → departamentos en paralelo → revisión → pasos de una tarea, cuando la persona los pide → ejecución de un paso de IA, cuando la persona la lanza.
+- **Pantallas:** en Decisions, con los botones "Suggest plan structure", "Suggest tasks for all departments", "Suggest steps" (en una tarea sin pasos) y la ejecución de un paso. Las rutas están en el README.
+- **Todo o nada:** si un nivel falla, no se guarda nada de ese nivel. Cada llamada se escribe en una sola operación con la versión del plan que se leyó.
+- **Validar, no reparar:** cada respuesta se comprueba (esquema, referencias, `checkPlan` y la relevancia por Jev). Si no encaja, se rechaza. El servidor nunca corrige lo que devuelve el modelo.
+- **Hechos de agente:** los agentes pueden proponer hechos (origen `agent`, con su nivel). Solo la persona los confirma.
+- **Evaluación** (`npm run agents:eval`): corre los agentes reales sobre cuatro casos fijos (restaurante, SaaS, fisioterapia y marketplace). Modo por defecto `--mode levels`: cada nivel parte del mismo punto de partida, así que una sola ejecución muestra los fallos de todos. `--mode chain`: de punta a punta, se para en el primer fallo. Grabar y repetir: `EVAL_RECORD=1` guarda rol y respuesta (nunca prompts ni claves), y `--replay` repite sin red ni claves. Tope duro de llamadas (`EVAL_MAX_CALLS`, 100 por caso por defecto). Los informes empiezan por "Resumen por nivel" y no contienen prompts, claves ni texto crudo del modelo. Sin `AGENTS_EVAL=1` no se envía nada.
+- **Modelos:** OpenAI, con el mismo endpoint y las mismas variables que la fase 1; y Jev para la relevancia.
 
-- **Pipeline común** (`plan/agents/contract.ts`): esquema, copia del plan revisada con `checkPlan`, juez de relevancia (Jev), y conversión a propuestas con `createProposal`. Reintentos: 3 intentos en total (`MAX_AGENT_ATTEMPTS`) solo para errores que un nuevo intento puede arreglar. Si sigue fallando, un error tipado y nada guardado.
-- **Plan** (`plan-agent.ts`): generar (fases, tiers, relaciones entre departamentos) y revisar (choques, duplicados, huecos y órdenes que faltan entre tareas propuestas; los ajustes son propuestas).
-- **Departamento** (`department-agent.ts`): una llamada por departamento, en paralelo; todo o nada si una falla. Los ids de tarea llevan el prefijo del departamento.
-- **Tarea** (`task-agent.ts`): pasos de una tarea, bajo demanda. Cada paso pasa por `StepSchema`.
-- **Paso** (`step-runner.ts`): la salida acepta `facts` y `requests` opcionales. Lo anterior sigue igual.
-- **Modelo real**: `openai-model.ts` (mismo endpoint y variables que la fase 1) y `jev-judge.ts` (reutiliza `callJev`). En los tests nunca se llaman.
-- **Script manual** (`server/scripts/real-plan-agent.ts`, `npm run agents:real-plan`): sin `AGENTS_REAL=1` no envía nada. Con él, una sola llamada de OpenAI sobre el plan del restaurante, y Jev solo con `AGENTS_JEV=1`.
+### b) Resultados medidos con la IA real
 
-Decisiones que quedan abiertas y se revisan con datos reales:
+Cifras de las ejecuciones del dueño, tal como las dio. Los nombres de modelo son los que imprime el informe y se citan solo como dato de medición.
 
-1. **Confianza fija (50) de las tareas y pasos propuestos.** El modelo no la devuelve todavía.
-2. **`strict: false` en el JSON schema de OpenAI**, porque el modo estricto exige todos los campos obligatorios. La respuesta se valida de nuevo con zod, así que el schema es una pista y no la puerta.
-3. **Hechos de departamento y de plan.** Un paso puede proponer un hecho con `proposeFact` (con su paso). Los hechos que salen de departamento o de plan solo se validan contra el catálogo; convertirlos en hechos propuestos queda para la rebanada de departamentos.
-4. **Sin Jev por defecto en el script.** La relevancia se comprueba cuando hay juez; el script manual deja `checked: false` si no se pide.
-5. **Los ids de los contratos** usan `IdSchema` de `plan-model.ts`. `server/ids.ts` solo tiene el patrón UUID.
+- **Restaurante y fisioterapia:** pasan los 5 niveles.
+- **Cadena completa del restaurante** (modo `chain`): pasa de punta a punta. 15 llamadas al modelo y 15 a Jev, unos 19 s.
+- **SaaS y marketplace:** fallan en el nivel de departamentos con `not_relevant` de Jev. En SaaS fallan HR y Health (6 intentos); en marketplace, HR (3 intentos). Como la regla es todo o nada, un departamento irrelevante tumba el nivel entero. Su revisión salió fallida solo porque se ejecutó sobre tareas sintéticas (ver el historial: ahora no se ejecuta sin propuestas reales).
+- **Restaurante, modo por niveles:** 10 de 10 departamentos a la primera, con 48 tareas. La revisión encontró 1 duplicado, 3 órdenes que faltaban y 2 huecos, pero dejó sin marcar duplicados evidentes: "Conduct Market Research" en Marketing, Product y Sales; proveedores en Product y Operations; y "Obtain necessary permits and licenses" en Infrastructure frente a "Obtain licences" de Legal.
+- **Reintentos del nivel plan por `plan_check`:** dos casos, sin decir qué regla se rompió. Desde entonces el motivo lleva los códigos de `checkPlan`. Corregido en el código; sin medir en una ejecución real.
+- **Flechas al revés:** dos ejecuciones seguidas pusieron tareas nuevas antes de `verify-location`, cuando debía ir antes. Se añadió un segundo ejemplo en el prompt. Corregido en el código; sin medir.
+- **Coste de los cuatro casos:** modelo, 89.694 tokens de entrada y 21.300 de salida; Jev, 30.120 de entrada y 2.443 de salida.
+- **Coste de un negocio entero:** del orden de 1 dólar con gpt-4o. **Sin verificar:** no se han comprobado los precios, y no se conoce el precio de Jev.
 
-Pendiente antes de la primera rebanada visible: la calibración de la fase 1 con claves reales (ver arriba) y el conjunto de evaluación de 6 casos.
+### c) Limitación conocida principal (el arreglo NO está implementado)
 
-### Estado: primera rebanada (el nivel plan, en pantalla)
+**El problema.** Con ideas de software (SaaS, marketplace), un departamento sin trabajo relevante para el negocio (HR, Health) agota sus reintentos con `not_relevant` de Jev. Como el nivel es todo o nada, el nivel de departamentos entero falla y, en el producto, el botón "Suggest tasks for all departments" da error. Según una estimación del dueño, pasaría en torno a la mitad de los casos de software. **La estimación no está medida.**
 
-Hecho, probado con ejecutores falsos (tests y e2e en Chromium):
+**Causa probable (no confirmada):** el prompt del departamento no deja decir "nada que proponer", así que el modelo inventa tareas genéricas; y a Jev solo le llegan los títulos, sin el nombre del departamento, así que no puede saber si encajan.
 
-- **Botón "Suggest plan structure"** en Decisions. Solo se pulsa a mano; nunca se llama al cargar la página. Una estructura pendiente a la vez.
-- **Propuesta de estructura** (`plan-structure.ts`): fases, cambios de tier por departamento, relaciones entre departamentos (con aspecto) y, como texto de solo lectura, peticiones y preguntas. Aceptar la aplica entera y vuelve a comprobar el plan; rechazar no cambia nada. La aplicación es una sola función para la propuesta y para la respuesta del agente.
-- **Hechos del plan**: origen `agent` (nivel `plan`), sin paso. Los confirma solo la persona.
-- **Ruta** `POST /api/plan/:id/agents/structure`: síncrona, con indicador de carga. Los códigos de fallo están en el README.
-- **Informe de la idea**: `ReportRepository.getByPlanId`. Sin informe (p. ej. el plan demo) responde `no_report`.
-- **Límites compartidos** (`STRUCTURE_LIMITS` en `plan-model.ts`) para el modelo y el contrato del agente.
+**Arreglo propuesto, en cuatro partes:**
+1. **Prompt de departamento:** permitir `tasks: []` (el esquema ya lo permite) y explicar el peso del departamento (`core`, `important`, `light`).
+2. **Texto del juez** en `runDepartmentTasks`: incluir el nombre del departamento, además de los títulos, respetando el recorte.
+3. **Relaciones:** un segundo ejemplo en el prompt, con la tarea existente antes que la nueva ("verify-location" antes de una tarea nueva de operaciones), y la instrucción de no encadenar tareas solo para listarlas. El validador no cambia.
+4. **Evaluación por niveles:** la revisión pasa a "no evaluada" cuando los departamentos no produjeron propuestas, y el motivo de `plan_check` lleva los códigos de las reglas rotas.
 
-Lo que queda, en orden:
+**Hay una implementación de estos cuatro puntos en la rama `claude/phase3-relevance` (commit `211af1e`).** No está incluida en la rama final. Se puede revisar y traer si el dueño lo decide.
 
-1. **Calibración con claves reales**: una prueba a mano con el plan de un informe real (ver los pasos de prueba en la entrega de la rebanada).
-2. **Trabajo en segundo plano** si las esperas (hasta ~270 s en el peor caso) molestan o pasan del tiempo de espera de Node: un almacén de trabajos como el del planner.
-3. **Control de coste**: límite de llamadas por plan y por día antes de desplegar (ver "Known limitations" en el README).
-4. **Hechos y estructura obsoletos**: marcar una estructura cuando cambia un hecho del que salió, como ya se hace con las tareas de un hueco.
-5. **Nivel departamento**: hecho en la segunda rebanada (ver abajo).
+**Decisión abierta (del dueño):** ¿un departamento irrelevante debe seguir tumbando todo el nivel (todo o nada, como ahora), o descartarse solo su propuesta, avisando? La primera opción mantiene la regla del producto. La segunda la relaja, y por eso no se ha tomado aquí.
 
+**Cómo comparar con un modelo mejor, sin tocar código:** cambiar `OPENAI_MODEL` en `server\.env` y repetir `npm run agents:eval -- --all`. Cada ejecución crea su propia carpeta de informes, así que se pueden comparar.
 
-### Estado: segunda rebanada (las tareas por departamento, en pantalla)
+### d) Otros límites conocidos y aceptados
 
-Hecho, probado con ejecutores falsos (tests, e2e en Chromium y las pruebas con base de datos):
+- Los ajustes de orden de la revisión son solo texto en las notas; nunca se aplican solos.
+- Una estructura no se marca como obsoleta si cambia un hecho del que salió.
+- Las peticiones y preguntas de un departamento que no propone tareas se pierden.
+- El límite de 240 s no cancela las llamadas en curso: se siguen pagando.
+- Un plan demasiado grande se detecta después de pagar la llamada.
+- Un paso que depende de otro solo ve el resumen de su salida, no su documento.
+- `invalid_proposal` no se reintenta. Los ids entre propuestas pendientes de distintos departamentos solo los protegen los prefijos, sin comprobación explícita.
+- La revisión detecta pocos duplicados (ver b).
+- El paso pide siempre el máximo de preguntas (5 por ronda). Sin verificar.
+- La confianza de lo propuesto es fija (50); el modelo no la devuelve.
+- El JSON schema que se envía a OpenAI va con `strict` desactivado; la respuesta se valida de nuevo con zod.
+- Algunas relaciones salen encadenadas de forma arbitraria.
+- Las relaciones "feeds" entre tareas solo usan el resumen de la salida del paso.
+- Un hueco ya existente: la acción genérica de paso deja aplicar `attach_output` a la persona. La pantalla no lo ofrece; cerrarlo cambia un test existente, así que se deja para una decisión aparte.
+- La ejecución de un paso es síncrona, de hasta 240 s, con un indicador como único progreso.
+- Los pasos no tienen una forma de regenerar solo su propuesta si cambia el hecho del que salió.
+- Los tests de las rutas de pasos usan el repositorio en memoria; falta un test propio contra PostgreSQL para la escritura con dos eventos.
 
-- **Botón "Suggest tasks for all departments"** en Decisions. Solo se pulsa a mano. Con una estructura pendiente o sin ningún hecho confirmado no se ofrece: aparece un aviso.
-- **Ruta** `POST /api/plan/:id/agents/departments`: una llamada por departamento sin propuesta pendiente (en paralelo, como mucho 5 a la vez), y después una revisión del nivel plan sobre todas las tareas. Todo o nada, en una sola escritura. Códigos y coste, en el README.
-- **Entrada de cada departamento** (`department-input.ts`): la idea, solo los hechos confirmados, sus propias tareas, las salidas confirmadas de pasos de IA de otros departamentos que alimentan los suyos (nunca un borrador) y sus relaciones de orden, con el texto del aspecto.
-- **Propuestas por departamento**: una por departamento con tareas, agrupadas por fase, con su orden en lenguaje natural y notas de solo lectura (peticiones, preguntas y hallazgos de la revisión). Aceptar o rechazar, cada una por separado.
-- **Hechos de los departamentos**: origen `agent` (nivel `department`), sin duplicar los que el plan ya tiene. Los confirma solo la persona.
-- **Modelo**: `Proposal.notes` opcional, con límites (`PROPOSAL_NOTE_LIMITS`). Solo aditivo: los planes guardados se leen igual y la versión del esquema no cambia.
-- **Decisión de espera**: síncrona con un límite de 240 s para todo, por debajo de los 300 s que Node da a una petición. Un almacén de trabajos como el del planner obligaría a sondear desde la pantalla sin ganar nada, porque hoy hay una sola llamada de este tipo a la vez.
-- **Un fallo de reutilización corregido**: una propuesta pendiente de un departamento ya no bloquea a otro que cite el mismo hecho (antes, `duplicate_pending` tumbaba toda la pasada).
-- **Prompts**: una frase que fija la dirección de "blocks" y "follows" (con un ejemplo). El de revisión decía lo contrario para "follows", y se alineó.
+### e) Lo que la fase 3 no incluye (pasa a otras fases)
 
-Lo que queda, en orden:
+- Las vistas "Hoy", el panel lateral y el diagrama de dependencias: son de interfaz, y su diseño no está decidido.
+- Cuentas, límites de uso y control de coste: ver `PRODUCTION.md`.
+- Despliegue: ver `PRODUCTION.md`.
+- Privacidad y moderación de la entrada: ver "Moderación de la entrada".
+- La calibración de la fase 1: ver "Pendiente de cerrar de la fase 1".
 
-1. **Calibración con claves reales**: una pasada a mano con el plan de un informe real, midiendo el tiempo y la calidad de las tareas y de la revisión.
-2. **Ajustes de orden como acción**: hoy son texto en las notas y no se aplican solos. Convertirlos en relaciones aceptables por separado, cuando la revisión sea fiable.
-3. **Notas de los departamentos sin tareas**: si un departamento no propone tareas, sus peticiones y preguntas se pierden. Guardarlas en una propuesta de notas, o en la estructura.
-4. **Revisión contra las propuestas pendientes de una pasada anterior**: hoy la revisión solo ve las tareas de esta pasada.
-5. **Estructura y hechos obsoletos**: una estructura no se marca como obsoleta cuando cambia un hecho del que salió.
-6. ~~**Los pasos son la rebanada 3**~~: hecho en la tercera rebanada (abajo).
-7. **Control de coste**: límite de pulsaciones por plan y por día antes de desplegar (ver "Known limitations" en el README).
+### f) Verificación final pendiente (solo la puede hacer el dueño)
 
-### Estado: tercera rebanada (los pasos, en pantalla)
+- **Prueba a mano en la app con IA real:** aceptar tareas por departamento, pedir pasos de una tarea, ejecutar un paso de IA, responder una pregunta y confirmar el resultado.
+- **Tests con `TEST_DATABASE_URL`** en la rama final. En la última comprobación no estaba definida, y no se ejecutaron.
+- **Los commits con una línea `Co-Authored-By` de un modelo.** Dentro de la cadena de la fase 3 (desde `faa30d9` hasta `b093341`, 11 commits) son cinco: `faa30d9` (Sonnet), `485ff69` (Sonnet), `2cba54e` (Haiku), `4d57b9c` (Haiku) y `5f1847a` (solo dice "Claude", sin nombre de modelo). En toda la rama son 85, incluidos los de las fases 1 y 2. La regla del dueño es no poner nombres de modelo en commits. Qué hacer con ellos es decisión del dueño; no se han reescrito (la historia se conserva tal cual).
+- **La decisión sobre la relevancia** (apartado c), incluida la de traer o no el commit `211af1e`.
+- **Las ejecuciones de evaluación con la IA real** con los cambios de la última revisión: la fila `review` del "Resumen por nivel", las expectativas y los motivos de cada fallo.
 
-Hecho, probado con ejecutores falsos (tests, e2e en Chromium con capturas y las pruebas con PostgreSQL local):
+### Historial de las entregas (consolidado)
 
-- **"Suggest steps" en una tarea sin pasos.** Solo al pulsarlo, nunca al abrir la tarea. Si hay pasos esperando decisión, la tarea muestra un aviso con enlace a Decisions. Una tarea hueco no lo ofrece.
-- **Ruta de tarea** `POST /api/plan/:id/agents/tasks/:taskId/steps`: una llamada, hasta tres intentos (y Jev en cada uno), dentro de los 240 s. Las comprobaciones baratas van antes de la llamada. Todo en una escritura: propuesta pendiente y hechos propuestos.
-- **Tarjeta "Steps for <tarea>" en Decisions**: cada paso con quién lo hace, modo, evidencia, esfuerzo y espera, y el orden entre ellos en lenguaje natural. Aceptar o rechazar. Al aceptar, los pasos aparecen en la tarea.
-- **Ejecutor real de paso** (`agents/step-agent.ts`): un `StepRunner` sobre el mismo `AgentModel`, con su propio rol y su límite de tokens. El pipeline: esquema (`runStep`), hechos y peticiones válidos, juez y reintentos.
-- **Ruta de ejecución** `POST /api/plan/:id/agents/steps/:stepId/run` (`launch` o `answer`): la acción de la persona, la salida de la IA y sus hechos, en una escritura con dos eventos del historial. Si algo falla, el paso queda exactamente como estaba. Las comprobaciones que no necesitan la IA (listo, rondas, respuestas) van antes de cualquier llamada.
-- **Salida con documento y peticiones**: `document` y `requests` son campos opcionales, solo aditivos. Se muestran como texto (el documento con saltos de línea, sin HTML).
-- **El documento solo en la última versión.** Al adjuntar una ronda nueva, las anteriores conservan resumen, preguntas y peticiones, pero pierden el documento. Por qué: el plan es un único JSON de 5 MiB como máximo (`MAX_DOCUMENT_BYTES`), y un documento de 20.000 caracteres en cada una de 100 versiones de un paso se comería ese tamaño. Cuando el documento tenga su propia tabla (ver `PRODUCTION.md`), se guardará todo.
-- **Límite de tokens por petición** (`AgentRequest.maxTokens`, por defecto 4.000). El paso pide 8.000. Una respuesta cortada por ese límite cuenta como fallo, no como documento parcial.
-- **Entrada de tarea con las tareas relacionadas** (solo título y dirección `before`/`after`) y una frase en el prompt que fija la dirección de `blocks` y `follows`.
-- **Un choque evitado**: una propuesta de pasos pendiente de una tarea no bloquea a otra que cite el mismo primer hecho (como ya hacían los departamentos).
+#### Contratos, estructura, departamentos y pasos
 
-Lo que queda, en orden:
+- **Contratos (P11).** Pipeline común (`plan/agents/contract.ts`): esquema, copia del plan revisada con `checkPlan`, juez de relevancia (Jev) y conversión a propuestas con `createProposal`. Hasta 3 intentos (`MAX_AGENT_ATTEMPTS`), solo para errores que un nuevo intento puede arreglar. Si todos fallan, un error tipado y nada guardado. Niveles: plan (`plan-agent.ts`: generar y revisar), departamento (`department-agent.ts`: una llamada por departamento, en paralelo, todo o nada; los ids llevan el prefijo del departamento), tarea (`task-agent.ts`: pasos, cada uno por `StepSchema`) y paso (`step-runner.ts`). Modelo real: `openai-model.ts` (mismo endpoint y variables que la fase 1) y `jev-judge.ts` (reutiliza `callJev`). Los tests nunca llaman a un modelo.
+- **Script manual** (`server/scripts/real-plan-agent.ts`, `npm run agents:real-plan`): sin `AGENTS_REAL=1` no envía nada; con él, una sola llamada a OpenAI sobre el plan del restaurante, y Jev solo con `AGENTS_JEV=1`.
+- **Decisiones de los contratos que siguen vigentes:** la confianza de lo propuesto es fija (50); el JSON schema va con `strict: false`, y la respuesta se valida de nuevo con zod (el schema es una pista, no la puerta); el script manual deja `checked: false` si no se pide Jev; los ids de los contratos usan `IdSchema` de `plan-model.ts`.
+- **Primera rebanada (la estructura en pantalla).** Botón "Suggest plan structure", que solo se pulsa a mano. Propuesta de fases, cambios de tier y relaciones entre departamentos; peticiones y preguntas son texto de solo lectura. Aceptar la aplica entera y comprueba el plan otra vez; rechazar no cambia nada. Ruta `POST /api/plan/:id/agents/structure`, síncrona. Límites compartidos en `STRUCTURE_LIMITS`.
+- **Segunda rebanada (los departamentos en pantalla).** Botón "Suggest tasks for all departments". Ruta `POST /api/plan/:id/agents/departments`: una llamada por departamento sin propuesta pendiente (como mucho 5 a la vez), y después una revisión del nivel plan sobre todas las tareas. Todo o nada, en una sola escritura. Límite de 240 s para todo, por debajo de los 300 s que Node da a una petición. Cada departamento ve solo la idea, los hechos confirmados, sus propias tareas, las salidas confirmadas que le alimentan y sus relaciones de orden. Las propuestas se aceptan o rechazan por departamento, con notas de solo lectura (peticiones, preguntas y hallazgos). Un fallo corregido: una propuesta pendiente de un departamento ya no bloquea a otro que cite el mismo hecho.
+- **Tercera rebanada (los pasos en pantalla).** "Suggest steps" en una tarea sin pasos, solo al pulsarlo. Ruta `POST /api/plan/:id/agents/tasks/:taskId/steps`: una llamada, hasta tres intentos (con Jev en cada uno), dentro de los 240 s; las comprobaciones baratas van antes. Tarjeta "Steps for <tarea>" en Decisions. Ejecución de un paso (`POST /api/plan/:id/agents/steps/:stepId/run`, con `launch` o `answer`): la acción de la persona, la salida de la IA y sus hechos, en una escritura con dos eventos. Si algo falla, el paso queda como estaba.
+- **El documento solo en la última versión.** Al adjuntar una ronda nueva, las anteriores conservan resumen, preguntas y peticiones, pero pierden el documento. Motivo: el plan es un único JSON de 5 MiB como máximo (`MAX_DOCUMENT_BYTES`). Límite de 8.000 tokens por petición del paso; una respuesta cortada por ese límite es un fallo, no un documento parcial.
 
-1. **Calibración con claves reales**: tiempos, calidad de los pasos, si 8.000 tokens bastan para un documento de 20.000 caracteres, y si las 5 preguntas por ronda son suficientes.
-2. **Documento en tabla propia** (ver `PRODUCTION.md`): hoy el documento vive en el JSON del plan y solo la última versión lo conserva.
-3. **Los pasos que dependen de otro ven solo su resumen.** Un paso que recibe la salida de otro no recibe su documento ni sus peticiones: el contexto sería demasiado grande. Decidir si pasar el documento confirmado o una referencia.
-4. **Un hueco que ya existía**: la acción genérica `POST /api/plan/:id/steps/:stepId/actions` deja a la persona aplicar `attach_output` (la regla solo mira al actor si no es `user`). La pantalla no lo ofrece, pero la ruta sí lo acepta. Cerrarlo cambia un test existente (`test/plan/step-availability.test.ts`, el caso de `attach_output` con actor `user`), así que se deja para una decisión aparte.
-5. **Ejecución síncrona de hasta 240 s**, sin progreso en pantalla más que el indicador "The assistant is working...". Un trabajo con sondeo, como el del planner, si las esperas crecen.
-6. **Propuestas de pasos sin origen propio**: la propuesta usa como `reason` el primer hecho de su primer paso. Si ese hecho cambia, la propuesta se marca como obsoleta (como las tareas), pero no hay una forma de regenerar solo sus pasos.
-7. **Prueba con PostgreSQL de la ruta de ejecución**: los tests de las rutas usan el repositorio en memoria. La escritura con dos eventos ya la usa `changePlan` contra PostgreSQL, pero no hay un test propio.
-8. **"Hoy", panel lateral y diagrama de dependencias**: su diseño no está decidido; no se han construido.
+#### Evaluación de los agentes
 
----
-
-## Pendiente de cerrar de la fase 1
-
-Tres comprobaciones con las APIs reales que se dejaron aparcadas para poder avanzar. No cambian la estructura de los datos, así que la fase siguiente puede construirse encima; pero hay que hacerlas.
-
-### 1. Ejecución completa con claves reales
-**Qué es.** Un análisis de principio a fin (idea, preguntas, informe) con Jev y OpenAI de verdad, tras la llegada de los trabajos asíncronos y de la validación en ejecución.
-**Por qué.** Es lo único que no se ha ejercitado con los dos cambios juntos. El riesgo concreto es que el esquema de validación (Zod) sea más estricto que lo que OpenAI devuelve en realidad: los tests pasarían, pero el flujo real fallaría con "The phase 2 analysis returned no usable result".
-**Si falla.** El log del servidor indica qué campo no cumplía el esquema (rutas y códigos, sin valores).
-
-### 2. Calibración
-**Qué es.** Ejecutar casos reales y comprobar que los umbrales dan resultados razonables. Los umbrales son estimaciones sin datos: el límite de preguntas por madurez y los ajustes por compromiso (`POLICY` en `question-policy.ts`), el 50 % de respaldo y de coherencia, y los cortes Core/Important/Light (en `planner-validation-handler.ts`).
-
-| Caso | Qué esperar |
-|---|---|
-| "Una app" (sliders bajos) | 1 pregunta; casi todo sin definir |
-| SaaS para gestión de restaurantes | 2-3 preguntas |
-| Fisioterapia a domicilio | Pregunta si eres fisioterapeuta; no repite lo del formulario |
-| Plataforma de IA de facturación con prototipo y usuarios de prueba | 3-4 preguntas; no pregunta lo que ya se dijo |
-| Marketplace donde la plataforma gestiona los pagos | `money_handling` detectado y `regulatory_load` alto |
-| App de suscripción para clínicas dentales con MVP, Stripe y regulación explícitos | Muchas dimensiones definidas |
-
-**Qué anotar en cada caso** (el JSON final se ve en la pestaña Network): número de preguntas y si son específicas de la idea; dimensiones sin definir; datos sin respaldo y avisos "Worth checking"; áreas Core, Important y Light; tiempo total.
-**Qué ajustar.** Si casi todo sale Core, subir el corte de Core. Si casi todo sale sin respaldo o con avisos, bajar el 50 %. Si una idea vaga recibe demasiadas preguntas, bajar la base de la madurez.
-**Relación con lo que viene.** Esto es la primera ejecución manual de la evaluación de modelos descrita más abajo.
-
-### 3. Ruta de cero preguntas
-**Qué es.** Cuando OpenAI no devuelve preguntas, el servidor calcula el perfil y la validación en la primera respuesta y el front salta directamente al informe, sin popup ni petición final. Casi nunca ocurre de forma natural (el prompt solo le pide lista vacía cuando las respuestas dadas bastan, y en la primera ronda no hay ninguna), así que hay que forzarla.
-**Cómo.**
-1. En `server/server.ts`, dentro de `runPlanner`, sustituye la llamada a `selectQuestions(...)` por `const questions: typeof phase2.questions = [];` (`npm run dev` recarga solo).
-2. Envía una idea cualquiera con los sliders tocados.
-3. Revierte: `git checkout -- server/server.ts`. No lo subas a la rama.
-**Qué comprobar.**
-- En pantalla: el loader gira, no aparece ningún popup, el loader se desvanece, el texto de fondo sube y el informe aparece con su fundido, sin ver ni un instante la página inicial.
-- En Network: un único POST (202) y las consultas GET, ninguna petición con `final: true`; el resultado trae `phase2` con `questions: []`, más `profile` y `validation`, y no trae `questionTotal`.
-- En el informe: la fila "Business" aparece, hay muchas dimensiones sin definir, "Still to define" tiene contenido, y "See full detail", "Start over" y "Build my plan" funcionan.
-- En la terminal del servidor: sin errores. Después, un envío normal (sin el cambio temporal) sigue funcionando.
-**Cobertura de test.** Esta rama no tiene ningún test automático. Cuando se añadan los tests de integración de producción, uno debe simular a OpenAI devolviendo `questions: []` y comprobar que la respuesta trae `profile` y `validation`.
-
----
-
-## Evaluación de modelos
-
-**Qué es.** Un sistema repetible para medir la calidad de lo que devuelven Jev y OpenAI. Consiste en un conjunto fijo de ideas de prueba (empezando por los 5 ejemplos de la calibración y creciendo hasta 30-50) con el resultado esperado de cada una, que se ejecuta automáticamente cada vez que cambia un prompt, un modelo o un umbral.
-
-**Por qué.** El valor del producto depende de lo que devuelven los modelos, y eso cambia sin tocar el código: una versión nueva de un modelo, un retoque de un prompt o un umbral distinto. Sin una medida, no se detecta que algo empeoró.
-
-**Qué se mide.**
-- Número de preguntas por idea (y que crezca con la madurez de la idea).
-- Porcentaje de dimensiones sin definir (una idea vaga debe dejar casi todo sin definir; una completa, casi nada).
-- Porcentaje de datos marcados sin respaldo.
-- Casos concretos esperados (por ejemplo, "si la idea menciona Stripe, `money_handling` es cobro mediante proveedor").
-- Coste y latencia por análisis.
-
-**Relación con lo ya hecho.** La calibración con APIs reales que se hace al cerrar la fase 1 es la primera ejecución manual de esto; aquí se convierte en algo automático y permanente.
-
-**Estado (fase 3: los agentes).** Hecho: `npm run agents:eval` (ver `README.md`) corre los agentes reales sobre cuatro ideas fijas (restaurante japonés en Madrid, SaaS para restaurantes, fisioterapia a domicilio, marketplace con pagos) por la misma cadena de niveles que usa la aplicación, y escribe en `server/eval-output/` un JSON con todas las medidas, un Markdown para leer y un resumen de la ejecución. Por nivel mide: llamadas al modelo (reintentos incluidos), llamadas y veredictos de Jev, tiempo, tokens, recuentos (fases, tareas, pasos, documentos, preguntas, peticiones) y problemas nuevos que aporte cada aceptación. Las comprobaciones por caso son heurísticas (expresiones regulares sobre los títulos) y el informe lo dice. Hay un tope duro de llamadas (`EVAL_MAX_CALLS`, por defecto 100 por caso) que se aplica antes de cada llamada, y el coste en dólares solo se calcula con los cuatro precios configurados.
+Esta parte es el historial detallado de la evaluación. Cada apartado se conserva tal como se escribió, con sus cifras.
 
 **Diagnóstico de fallos (hecho).** La primera ejecución real (caso restaurante) falló en el nivel de departamentos con `invalid_output`: 26 llamadas al modelo y solo 2 a Jev. Ocho de los diez departamentos agotaron sus tres intentos. La causa: el servidor exige que cada id de tarea empiece por el id de su departamento (`legal-…`), para que dos departamentos nunca propongan el mismo id, pero el prompt no se lo decía al modelo, que propuso ids naturales (`obtain-licences`). Los tests con modelos falsos no lo vieron porque el falso ya devolvía ids con prefijo. Además, el informe solo decía `invalid_output`, sin la regla que lo causó.
 
@@ -267,10 +207,6 @@ Hallazgos que no se tocaron y quedan para decidir:
 - **Ids entre propuestas pendientes.** `createProposal` (proposals.ts) comprueba los ids contra las tareas y pasos del plan y contra las propuestas, pero no contra las tareas de otras propuestas pendientes. Hoy los prefijos por departamento y por tarea lo evitan, pero no hay una comprobación explícita.
 - **`invalid_proposal` no se reintenta.** `RETRYABLE` (contract.ts) no lo incluye, así que un fallo de la propuesta termina en el primer intento. El cambio del título era el caso práctico; el resto de códigos de la propuesta se mantiene igual.
 
-**Evaluación por niveles y grabación (hecho, fase 3).** `--mode levels` es el modo por defecto. Cada nivel parte del mismo esqueleto del caso y no depende de los anteriores, así que una sola ejecución muestra los fallos de todos: plan; departamentos (sin la revisión dentro); revisión (sobre tareas fijas de tres departamentos, con una duplicada a propósito); tareas (sobre dos tareas sintéticas por departamento, con el prefijo del departamento y citando un hecho confirmado, y `EVAL_TASKS` de ellas con pasos); y pasos (el primer paso de IA listo del esqueleto, lanzado como en la aplicación). En producción la revisión sigue siendo todo o nada; en la evaluación se mide como nivel propio. Los informes (`.json`, `.md` y `resumen`) empiezan por la tabla "Resumen por nivel": nivel, estado, código y motivos principales. `--mode chain` se mantiene como estaba: de punta a punta, y se para en el primer fallo.
-
-Grabar y repetir: `EVAL_RECORD=1` guarda por cada llamada el rol y la respuesta del modelo, o el veredicto de Jev, en `server/eval-output/recordings/<run>/<caso>.jsonl` (ignorada por git). Nunca el prompt, las claves ni las cabeceras. `--replay <carpeta>` vuelve a ejecutar el caso con esas respuestas: sin red, sin claves, sin cliente. Sirve para volver a pasar las validaciones tras un cambio de código sin gastar nada. Si una llamada no tiene respuesta grabada, falla como un error del modelo: una grabación que no encaja con el código se ve como fallo, no como acierto.
-
 **Primera evaluación real por niveles (fase 3, revisión).** El caso restaurante pasó plan, departamentos (10 de 10 a la primera), tareas y pasos. La revisión falló tres veces con `not_relevant`. La causa estaba en la evaluación y en el texto del juez, no en el modelo: la revisión leía tareas sintéticas ("Revisar el trabajo de …") que no tienen nada que ver con un restaurante, y a Jev le llegaba cada hallazgo como "tipo: texto" sin los títulos de las tareas que nombra. Lo que se hizo:
 - **Jev recibe los títulos.** Cada hallazgo llega con los títulos de las tareas que nombra, entre corchetes; un hueco (`gap`) solo lleva su texto. Afecta también a la revisión de producción, que usa la misma función.
 - **La revisión lee lo que propusieron los departamentos de la misma ejecución.** Si ninguno propuso tareas, usa las sintéticas, y el informe dice cuál de las dos fuentes usó. El resultado de la revisión no depende de que los departamentos pasen: siempre se ejecuta.
@@ -280,6 +216,63 @@ Grabar y repetir: `EVAL_RECORD=1` guarda por cada llamada el rol y la respuesta 
 
 Lección: **una revisión no se puede juzgar sobre tareas inventadas, y el juez necesita el contexto de lo que mira.** Si el juez solo ve el tipo de hallazgo, no puede decir que encaja, y eso parece un fallo del modelo cuando es de la evaluación. Antes de culpar a un nivel, hay que comprobar que recibe lo que debe. Lo que no está probado: que la revisión con tareas reales encuentre de verdad los duplicados que hay (Conduct Market Research, proveedores, licencias); eso lo dirá la siguiente evaluación real.
 
+---
+
+## Pendiente de cerrar de la fase 1
+
+Tres comprobaciones con las APIs reales que se dejaron aparcadas para poder avanzar. No cambian la estructura de los datos, así que la fase siguiente puede construirse encima; pero hay que hacerlas.
+
+### 1. Ejecución completa con claves reales
+**Qué es.** Un análisis de principio a fin (idea, preguntas, informe) con Jev y OpenAI de verdad, tras la llegada de los trabajos asíncronos y de la validación en ejecución.
+**Por qué.** Es lo único que no se ha ejercitado con los dos cambios juntos. El riesgo concreto es que el esquema de validación (Zod) sea más estricto que lo que OpenAI devuelve en realidad: los tests pasarían, pero el flujo real fallaría con "The phase 2 analysis returned no usable result".
+**Si falla.** El log del servidor indica qué campo no cumplía el esquema (rutas y códigos, sin valores).
+
+### 2. Calibración
+**Qué es.** Ejecutar casos reales y comprobar que los umbrales dan resultados razonables. Los umbrales son estimaciones sin datos: el límite de preguntas por madurez y los ajustes por compromiso (`POLICY` en `question-policy.ts`), el 50 % de respaldo y de coherencia, y los cortes Core/Important/Light (en `planner-validation-handler.ts`).
+
+| Caso | Qué esperar |
+|---|---|
+| "Una app" (sliders bajos) | 1 pregunta; casi todo sin definir |
+| SaaS para gestión de restaurantes | 2-3 preguntas |
+| Fisioterapia a domicilio | Pregunta si eres fisioterapeuta; no repite lo del formulario |
+| Plataforma de IA de facturación con prototipo y usuarios de prueba | 3-4 preguntas; no pregunta lo que ya se dijo |
+| Marketplace donde la plataforma gestiona los pagos | `money_handling` detectado y `regulatory_load` alto |
+| App de suscripción para clínicas dentales con MVP, Stripe y regulación explícitos | Muchas dimensiones definidas |
+
+**Qué anotar en cada caso** (el JSON final se ve en la pestaña Network): número de preguntas y si son específicas de la idea; dimensiones sin definir; datos sin respaldo y avisos "Worth checking"; áreas Core, Important y Light; tiempo total.
+**Qué ajustar.** Si casi todo sale Core, subir el corte de Core. Si casi todo sale sin respaldo o con avisos, bajar el 50 %. Si una idea vaga recibe demasiadas preguntas, bajar la base de la madurez.
+**Relación con lo que viene.** Esto es la primera ejecución manual de la evaluación de modelos descrita más abajo.
+
+### 3. Ruta de cero preguntas
+**Qué es.** Cuando OpenAI no devuelve preguntas, el servidor calcula el perfil y la validación en la primera respuesta y el front salta directamente al informe, sin popup ni petición final. Casi nunca ocurre de forma natural (el prompt solo le pide lista vacía cuando las respuestas dadas bastan, y en la primera ronda no hay ninguna), así que hay que forzarla.
+**Cómo.**
+1. En `server/server.ts`, dentro de `runPlanner`, sustituye la llamada a `selectQuestions(...)` por `const questions: typeof phase2.questions = [];` (`npm run dev` recarga solo).
+2. Envía una idea cualquiera con los sliders tocados.
+3. Revierte: `git checkout -- server/server.ts`. No lo subas a la rama.
+**Qué comprobar.**
+- En pantalla: el loader gira, no aparece ningún popup, el loader se desvanece, el texto de fondo sube y el informe aparece con su fundido, sin ver ni un instante la página inicial.
+- En Network: un único POST (202) y las consultas GET, ninguna petición con `final: true`; el resultado trae `phase2` con `questions: []`, más `profile` y `validation`, y no trae `questionTotal`.
+- En el informe: la fila "Business" aparece, hay muchas dimensiones sin definir, "Still to define" tiene contenido, y "See full detail", "Start over" y "Build my plan" funcionan.
+- En la terminal del servidor: sin errores. Después, un envío normal (sin el cambio temporal) sigue funcionando.
+**Cobertura de test.** Esta rama no tiene ningún test automático. Cuando se añadan los tests de integración de producción, uno debe simular a OpenAI devolviendo `questions: []` y comprobar que la respuesta trae `profile` y `validation`.
+
+---
+
+## Evaluación de modelos
+
+**Qué es.** Un sistema repetible para medir la calidad de lo que devuelven Jev y OpenAI. Consiste en un conjunto fijo de ideas de prueba (empezando por los 5 ejemplos de la calibración y creciendo hasta 30-50) con el resultado esperado de cada una, que se ejecuta automáticamente cada vez que cambia un prompt, un modelo o un umbral.
+
+**Por qué.** El valor del producto depende de lo que devuelven los modelos, y eso cambia sin tocar el código: una versión nueva de un modelo, un retoque de un prompt o un umbral distinto. Sin una medida, no se detecta que algo empeoró.
+
+**Qué se mide.**
+- Número de preguntas por idea (y que crezca con la madurez de la idea).
+- Porcentaje de dimensiones sin definir (una idea vaga debe dejar casi todo sin definir; una completa, casi nada).
+- Porcentaje de datos marcados sin respaldo.
+- Casos concretos esperados (por ejemplo, "si la idea menciona Stripe, `money_handling` es cobro mediante proveedor").
+- Coste y latencia por análisis.
+
+**Relación con lo ya hecho.** La calibración con APIs reales que se hace al cerrar la fase 1 es la primera ejecución manual de esto; aquí se convierte en algo automático y permanente.
+
 **Falta.**
 - **Comparar dos ejecuciones.** Hoy cada informe es independiente. Hace falta un comando que compare dos JSON (antes y después de cambiar un prompt o un modelo) y marque lo que empeoró.
 - **Crecer a 30-50 casos.** Hoy son cuatro. Hay que añadir los cinco ejemplos de la calibración de la fase 1 y casos de cada sector.
@@ -287,8 +280,6 @@ Lección: **una revisión no se puede juzgar sobre tareas inventadas, y el juez 
 - **Comprobaciones más fuertes.** Las expresiones regulares detectan un tema ausente, no un mal plan. Con más casos convendrá una revisión humana por caso o un juez dedicado.
 - **Tokens sin dato.** Si OpenAI o Jev no envían el recuento de tokens, el informe lo marca como "sin dato" y el coste queda por debajo de lo real. Jev no expone el código de estado de sus errores (`callJev` no lo devuelve), así que sus fallos se registran sin código.
 - **La fase 1 se evalúa aparte.** Este sistema mide los agentes de la fase 3; el análisis de Jev y OpenAI de la fase 1 tiene su propia medida (la calibración de arriba).
-- **Grabaciones reales.** Las grabaciones (`EVAL_RECORD=1`) y la repetición (`--replay`) están probadas con fakes; falta usarlas con una ejecución real para comprobar que la repetición reproduce el resultado de la ejecución que se grabó. Las grabaciones reales no se suben al repositorio.
-- **Orden de Jev al repetir.** Los departamentos llaman a Jev en paralelo, así que en la repetición los veredictos se leen en el orden grabado y pueden corresponder a otra llamada. Solo se leen como sí o no: cambia a qué llamada pertenece cada veredicto, no cuántos hay.
 - **Ejecución manual.** No corre en CI: cada ejecución cuesta dinero y la decide la persona que la lanza.
 
 ---
@@ -306,7 +297,7 @@ Lección: **una revisión no se puede juzgar sobre tareas inventadas, y el juez 
 
 ## Siguiente fase del producto: "Build my plan"
 
-> **Nota.** El botón "Build my plan" ya crea un plan real desde el informe guardado por el servidor (fase 2, ver `README.md`). El texto de esta sección es el planteamiento original; lo que sigue pendiente de aquí es la generación con IA (fase 3) y la saturación del plan.
+> **Nota.** El botón "Build my plan" ya crea un plan real desde el informe guardado por el servidor (fase 2, ver `README.md`). El texto de esta sección es el planteamiento original. La generación con IA se hizo en la fase 3 (ver "Fase 3: estado final"); lo que sigue pendiente de aquí es la saturación del plan.
 
 **Qué es.** La fase que genera el plan de ejecución a partir del informe. Hoy el botón "Build my plan" solo hace la animación (el loader aparece, el informe se va y, a los tres segundos, vuelve con un aviso de que aún no está disponible). El código tiene un `// TODO` donde irá la petición real.
 
