@@ -71,16 +71,16 @@ Cifras de las ejecuciones del dueño, tal como las dio. Los nombres de modelo so
 
 - **Restaurante y fisioterapia:** pasan los 5 niveles.
 - **Cadena completa del restaurante** (modo `chain`): pasa de punta a punta. 15 llamadas al modelo y 15 a Jev, unos 19 s.
-- **SaaS y marketplace:** fallan en el nivel de departamentos con `not_relevant` de Jev. En SaaS fallan HR y Health (6 intentos); en marketplace, HR (3 intentos). Como la regla es todo o nada, un departamento irrelevante tumba el nivel entero. Su revisión salió fallida solo porque se ejecutó sobre tareas sintéticas (ver el historial: ahora no se ejecuta sin propuestas reales).
+- **SaaS y marketplace:** fallan en el nivel de departamentos con `not_relevant` de Jev. En SaaS fallan HR y Health (6 intentos); en marketplace, HR (3 intentos). Como la regla es todo o nada, un departamento irrelevante tumba el nivel entero. En esta rama, su revisión sale fallida porque se ejecuta con tareas sintéticas, no con las de los departamentos.
 - **Restaurante, modo por niveles:** 10 de 10 departamentos a la primera, con 48 tareas. La revisión encontró 1 duplicado, 3 órdenes que faltaban y 2 huecos, pero dejó sin marcar duplicados evidentes: "Conduct Market Research" en Marketing, Product y Sales; proveedores en Product y Operations; y "Obtain necessary permits and licenses" en Infrastructure frente a "Obtain licences" de Legal.
-- **Reintentos del nivel plan por `plan_check`:** dos casos, sin decir qué regla se rompió. Desde entonces el motivo lleva los códigos de `checkPlan`. Corregido en el código; sin medir en una ejecución real.
-- **Flechas al revés:** dos ejecuciones seguidas pusieron tareas nuevas antes de `verify-location`, cuando debía ir antes. Se añadió un segundo ejemplo en el prompt. Corregido en el código; sin medir.
+- **Reintentos del nivel plan por `plan_check`:** dos casos, sin decir qué regla se rompió. En esta rama el motivo sigue siendo solo `plan_check`, sin códigos. El arreglo que añade los códigos está en `claude/phase3-relevance` (commit `211af1e`), sin medir con la IA real.
+- **Flechas al revés:** dos ejecuciones seguidas pusieron tareas nuevas antes de `verify-location`, cuando debía ir antes. En esta rama el prompt no tiene ese segundo ejemplo. El arreglo está en `claude/phase3-relevance` (commit `211af1e`), sin medir con la IA real.
 - **Coste de los cuatro casos:** modelo, 89.694 tokens de entrada y 21.300 de salida; Jev, 30.120 de entrada y 2.443 de salida.
 - **Coste de un negocio entero:** del orden de 1 dólar con gpt-4o. **Sin verificar:** no se han comprobado los precios, y no se conoce el precio de Jev.
 
 ### c) Limitación conocida principal (el arreglo NO está implementado)
 
-**El problema.** Con ideas de software (SaaS, marketplace), un departamento sin trabajo relevante para el negocio (HR, Health) agota sus reintentos con `not_relevant` de Jev. Como el nivel es todo o nada, el nivel de departamentos entero falla y, en el producto, el botón "Suggest tasks for all departments" da error. Según una estimación del dueño, pasaría en torno a la mitad de los casos de software. **La estimación no está medida.**
+**El problema.** Con ideas de software (SaaS, marketplace), un departamento sin trabajo relevante para el negocio (HR, Health) agota sus reintentos con `not_relevant` de Jev. Como el nivel es todo o nada, el nivel de departamentos entero falla y, en el producto, el botón "Suggest tasks for all departments" da error. Es una estimación del asistente, a partir de que 2 de los 4 casos fallaron (SaaS y marketplace): podría pasar en torno a la mitad de los casos de software. **La estimación no está medida.**
 
 **Causa probable (no confirmada):** el prompt del departamento no deja decir "nada que proponer", así que el modelo inventa tareas genéricas; y a Jev solo le llegan los títulos, sin el nombre del departamento, así que no puede saber si encajan.
 
@@ -90,7 +90,7 @@ Cifras de las ejecuciones del dueño, tal como las dio. Los nombres de modelo so
 3. **Relaciones:** un segundo ejemplo en el prompt, con la tarea existente antes que la nueva ("verify-location" antes de una tarea nueva de operaciones), y la instrucción de no encadenar tareas solo para listarlas. El validador no cambia.
 4. **Evaluación por niveles:** la revisión pasa a "no evaluada" cuando los departamentos no produjeron propuestas, y el motivo de `plan_check` lleva los códigos de las reglas rotas.
 
-**Hay una implementación de estos cuatro puntos en la rama `claude/phase3-relevance` (commit `211af1e`).** No está incluida en la rama final. Se puede revisar y traer si el dueño lo decide.
+**Hay una implementación de estos cuatro puntos en la rama `claude/phase3-relevance` (commit `211af1e`).** No está incluida en la rama final. Se puede revisar y traer si el dueño lo decide. Además de los cuatro puntos, ese commit toca `server/plan/plan-check.ts` (un ayudante `problemCodes` que solo junta y ordena los códigos de problema que ya existen; no añade códigos nuevos), `server/plan/agents/contract.ts` y `server/plan/proposals.ts` (al rechazar una propuesta por `invalid_result`, devuelve esos códigos), y `server/plan/agents/plan-agent.ts`, `department-agent.ts` y `task-agent.ts`, que los reciben como detalle del intento. Sus tests pasan con modelos falsos. **No se ha ejecutado con la IA real.**
 
 **Decisión abierta (del dueño):** ¿un departamento irrelevante debe seguir tumbando todo el nivel (todo o nada, como ahora), o descartarse solo su propuesta, avisando? La primera opción mantiene la regla del producto. La segunda la relaja, y por eso no se ha tomado aquí.
 
@@ -128,7 +128,7 @@ Cifras de las ejecuciones del dueño, tal como las dio. Los nombres de modelo so
 
 - **Prueba a mano en la app con IA real:** aceptar tareas por departamento, pedir pasos de una tarea, ejecutar un paso de IA, responder una pregunta y confirmar el resultado.
 - **Tests con `TEST_DATABASE_URL`** en la rama final. En la última comprobación no estaba definida, y no se ejecutaron.
-- **Los commits con una línea `Co-Authored-By` de un modelo.** Dentro de la cadena de la fase 3 (desde `faa30d9` hasta `b093341`, 11 commits) son cinco: `faa30d9` (Sonnet), `485ff69` (Sonnet), `2cba54e` (Haiku), `4d57b9c` (Haiku) y `5f1847a` (solo dice "Claude", sin nombre de modelo). En toda la rama son 85, incluidos los de las fases 1 y 2. La regla del dueño es no poner nombres de modelo en commits. Qué hacer con ellos es decisión del dueño; no se han reescrito (la historia se conserva tal cual).
+- **Los commits con una línea `Co-Authored-By` de un modelo.** Dentro de la fase 3 son tres: `485ff69`, `2cba54e` y `4d57b9c`. Se comprueba con `git log faa30d9..b093341 --format='%h %s' --grep='Co-Authored-By: Claude [A-Z]'` (ese rango no incluye `faa30d9`). `faa30d9` es el cierre de la fase 2 y también lleva una línea de modelo. `5f1847a` dice solo "Claude" y no cuenta con ese patrón. En toda la rama hay 85 commits con una línea `Co-Authored-By`, incluidos los de las fases 1 y 2. La regla del dueño es no poner nombres de modelo en commits. Qué hacer con ellos es decisión del dueño; no se han reescrito (la historia se conserva tal cual).
 - **La decisión sobre la relevancia** (apartado c), incluida la de traer o no el commit `211af1e`.
 - **Las ejecuciones de evaluación con la IA real** con los cambios de la última revisión: la fila `review` del "Resumen por nivel", las expectativas y los motivos de cada fallo.
 
