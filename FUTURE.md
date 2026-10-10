@@ -53,6 +53,8 @@ La fase 2 se da por cerrada. Lo que sigue son decisiones ya tomadas y pendientes
 
 **Estado: hecha, con limitaciones conocidas.** Queda pendiente la verificación final del dueño (apartado f). No hay más cambios de código previstos en esta fase; lo que sigue está descrito aquí para quien lo retome.
 
+**Rama con la fase 3 completa: `claude/phase3-final`.** Es la punta de la cadena lineal de ramas de la fase (de `faa30d9` a `b093341`, más dos commits de documentación) y la que se fusiona con la rama principal. NO incluye `claude/phase3-relevance` (`211af1e`), que queda aparte como arreglo opcional (apartado c). Las ramas anteriores (`claude/phase3-agent-contracts`, `-slice-plan`, `-slice-departments`, `-slice-steps`, `-evaluation`, `-diagnostics`, `-relations`, `-levels-eval`, `-review-eval`) son antepasadas suyas y no hace falta conservarlas por separado.
+
 ### a) Qué es y qué se hizo
 
 - La fase 3 pone IA en cada nivel del plan. **Los agentes solo proponen; la persona acepta o rechaza.** Una respuesta nunca cambia el plan por sí sola.
@@ -128,7 +130,7 @@ Cifras de las ejecuciones del dueño, tal como las dio. Los nombres de modelo so
 
 - **Prueba a mano en la app con IA real:** aceptar tareas por departamento, pedir pasos de una tarea, ejecutar un paso de IA, responder una pregunta y confirmar el resultado.
 - **Tests con `TEST_DATABASE_URL`** en la rama final. En la última comprobación no estaba definida, y no se ejecutaron.
-- **Los commits con una línea `Co-Authored-By` de un modelo.** Dentro de la fase 3 son tres: `485ff69`, `2cba54e` y `4d57b9c`. Se comprueba con `git log faa30d9..b093341 --format='%h %s' --grep='Co-Authored-By: Claude [A-Z]'` (ese rango no incluye `faa30d9`). `faa30d9` es el cierre de la fase 2 y también lleva una línea de modelo. `5f1847a` dice solo "Claude" y no cuenta con ese patrón. En toda la rama hay 85 commits con una línea `Co-Authored-By`, incluidos los de las fases 1 y 2. La regla del dueño es no poner nombres de modelo en commits. Qué hacer con ellos es decisión del dueño; no se han reescrito (la historia se conserva tal cual).
+- **Los commits con una línea `Co-Authored-By` de un modelo: DECIDIDO, se dejan como están.** El dueño lo ha resuelto ("da igual"): no se reescribe la historia y no hay nada pendiente. Dentro de la fase 3 son tres (`485ff69`, `2cba54e`, `4d57b9c`; se comprueba con `git log faa30d9..b093341 --format='%h %s' --grep='Co-Authored-By: Claude [A-Z]'`, que no incluye `faa30d9`, el cierre de la fase 2, que también la lleva).
 - **La decisión sobre la relevancia** (apartado c), incluida la de traer o no el commit `211af1e`.
 - **Las ejecuciones de evaluación con la IA real** con los cambios de la última revisión: la fila `review` del "Resumen por nivel", las expectativas y los motivos de cada fallo.
 
