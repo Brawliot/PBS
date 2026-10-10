@@ -10,7 +10,8 @@
     "typecheck": "tsc",
     "migrate": "tsx --env-file=.env db/migrate-cli.ts",
     "perf": "tsx test/perf/perf.ts",
-    "agents:real-plan": "tsx --env-file=.env scripts/real-plan-agent.ts"
+    "agents:real-plan": "tsx --env-file=.env scripts/real-plan-agent.ts",
+    "agents:eval": "tsx --env-file=.env scripts/agents-eval.ts"
   },
   "devDependencies": {
     "@types/node": "^26.6.4",

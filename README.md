@@ -55,6 +55,17 @@ Read from the environment in `server/.env` (loaded by `--env-file=.env`).
 
 The plan assistant (`POST /api/plan/:id/agents/structure`) reads the same four keys as the planner: `OPENAI_API_KEY` and `OPENAI_MODEL` for the model, `TYPESAFE_API_KEY` and `JEV_MODEL` for the relevance judge. If one is missing, the route answers `503` and makes no call (`server/plan/agents/configured-agents.ts`).
 
+The evaluation of the agents (`npm run agents:eval`, below) reads the same four keys, and these optional ones. None is needed by the server:
+
+| Variable | Required | Read by | What it does |
+| --- | --- | --- | --- |
+| `AGENTS_EVAL` | For the evaluation | `server/scripts/agents-eval.ts` | Must be `1` for the evaluation to call the models. Without it the script prints `Nothing sent` and stops. |
+| `EVAL_TASKS` | No | `server/eval/run.ts` | Tasks per case that get steps, from different departments, from 1 to 5. Default `2`. |
+| `EVAL_MAX_CALLS` | No | `server/eval/run.ts` | Hard cap of calls to the model and to Jev for the whole run, retries included. Default: 100 per case chosen (400 for `--all`). |
+| `EVAL_PRICE_OPENAI_IN`, `EVAL_PRICE_OPENAI_OUT`, `EVAL_PRICE_JEV_IN`, `EVAL_PRICE_JEV_OUT` | No | `server/eval/report.ts` | Dollars per million tokens (input and output, OpenAI and Jev). The cost is written only when all four are set. |
+
+**Cost.** The evaluation makes real calls and they are billed by OpenAI and Jev. Each case makes between 30 and 90 calls (model and Jev together, with the default two tasks), and the run prints the estimate and the cap before it starts. The prices are not in the code: set them yourself in `server/.env`, from your provider's price list, and the reports show an estimate, not an invoice.
+
 The four `DB_` limits must be positive whole numbers. Any other value stops the server at start, and the message names the variable.
 
 **SSL to PostgreSQL** is set by `DATABASE_URL` itself, with the usual `sslmode` parameter (for example `?sslmode=require`). The server does not add or change it.
@@ -75,6 +86,7 @@ Run from `server/`:
 | `npm run migrate` | `tsx --env-file=.env db/migrate-cli.ts` | Applies the pending migrations in `server/db/migrations` to `DATABASE_URL`. Safe to run again: applied migrations are skipped. |
 | `npm test` | `tsx --test "test/**/*.test.ts"` | Runs all the tests. The PostgreSQL tests run only when `TEST_DATABASE_URL` is set, in their own temporary schema. |
 | `npm run agents:real-plan` | `tsx --env-file=.env scripts/real-plan-agent.ts` | Manual check of the plan level with the real model. Does nothing unless `AGENTS_REAL=1`; then it makes ONE OpenAI call (and one Jev call only with `AGENTS_JEV=1`) and prints the outcome, never the prompt or a key. Not part of `npm test`. |
+| `npm run agents:eval` | `tsx --env-file=.env scripts/agents-eval.ts` | Runs the real agents on four fixed test ideas and writes a report with numbers (calls, verdicts of Jev, time, tokens, cost if the prices are set, and heuristic checks) to `server/eval-output/`. Makes REAL calls and costs money: it sends nothing unless `AGENTS_EVAL=1`. `--case <id>` runs one case (`restaurant` by default: `restaurant`, `saas`, `physio`, `marketplace`), `--all` runs the four, `--repeat <n>` (1 to 3) repeats. See "Evaluación de modelos" in `FUTURE.md`. Not part of `npm test`. |
 | `npm run perf` | `tsx test/perf/perf.ts` | Times the plan rules on synthetic plans of four sizes (parsing, checks, derived values, one step action). It is not part of `npm test`. |
 | `npm run test:e2e` | `node test/e2e/build-my-plan.mjs && tsx test/e2e/plan-decisions.e2e.ts && node test/e2e/loader.e2e.mjs` | Runs the browser checks in Chromium: "Build my plan" (with the planner answered by `page.route`) and the Decisions page (with the real plan routes answering the API). Needs Playwright: set `PLAYWRIGHT_MODULE` to its path if it is not installed here, and `CHROMIUM_PATH` to a Chromium binary if the default one is missing. `SCREENSHOTS` sets where the Decisions screenshots go. |
 
@@ -347,6 +359,7 @@ server/
   plan/agents/department-suggestion.ts  The tasks of all departments: the calls, the review, the notes and the deadline
   plan/agents/          Agent contracts by level (plan, department, task, step), the shared pipeline and the real model adapters (OpenAI, Jev), and the agents built from the environment
   scripts/              Manual scripts that use the real model (not run by the tests)
+  eval/                 Evaluation of the agents: fixed cases, the chain of levels, the call budget and the reports (npm run agents:eval)
   db/                   PostgreSQL: migrations (SQL files and their runner), plan and report repositories
   planner/
     planner-handler.ts          Jev phase 1 (sector, scope, timeline) and the shared Jev call
@@ -358,6 +371,7 @@ server/
   test/planner/         Tests for the handlers, policy, request parsing and the planner runs
   test/plan/            Tests for the plan rules, repositories, reports and routes
   test/db/              Tests for the migrations and the PostgreSQL repositories
+  test/eval/            Tests of the evaluation (fakes only: no network, no keys)
   test/e2e/             Browser checks of "Build my plan" and of the Decisions page (npm run test:e2e)
   test/jobs.test.ts     Tests for the job store (expiry, limits, errors)
   package.json          Scripts and dev dependencies

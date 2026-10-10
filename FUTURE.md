@@ -206,6 +206,17 @@ Tres comprobaciones con las APIs reales que se dejaron aparcadas para poder avan
 
 **Relación con lo ya hecho.** La calibración con APIs reales que se hace al cerrar la fase 1 es la primera ejecución manual de esto; aquí se convierte en algo automático y permanente.
 
+**Estado (fase 3: los agentes).** Hecho: `npm run agents:eval` (ver `README.md`) corre los agentes reales sobre cuatro ideas fijas (restaurante japonés en Madrid, SaaS para restaurantes, fisioterapia a domicilio, marketplace con pagos) por la misma cadena de niveles que usa la aplicación, y escribe en `server/eval-output/` un JSON con todas las medidas, un Markdown para leer y un resumen de la ejecución. Por nivel mide: llamadas al modelo (reintentos incluidos), llamadas y veredictos de Jev, tiempo, tokens, recuentos (fases, tareas, pasos, documentos, preguntas, peticiones) y problemas nuevos que aporte cada aceptación. Las comprobaciones por caso son heurísticas (expresiones regulares sobre los títulos) y el informe lo dice. Hay un tope duro de llamadas (`EVAL_MAX_CALLS`, por defecto 100 por caso) que se aplica antes de cada llamada, y el coste en dólares solo se calcula con los cuatro precios configurados.
+
+**Falta.**
+- **Comparar dos ejecuciones.** Hoy cada informe es independiente. Hace falta un comando que compare dos JSON (antes y después de cambiar un prompt o un modelo) y marque lo que empeoró.
+- **Crecer a 30-50 casos.** Hoy son cuatro. Hay que añadir los cinco ejemplos de la calibración de la fase 1 y casos de cada sector.
+- **Revisión humana de la dirección de las flechas.** Las relaciones entre departamentos y entre tareas se imprimen en lenguaje natural, pero no se pueden comprobar automáticamente: que "A debe estar antes que B" sea lo correcto lo decide una persona.
+- **Comprobaciones más fuertes.** Las expresiones regulares detectan un tema ausente, no un mal plan. Con más casos convendrá una revisión humana por caso o un juez dedicado.
+- **Tokens sin dato.** Si OpenAI o Jev no envían el recuento de tokens, el informe lo marca como "sin dato" y el coste queda por debajo de lo real. Jev no expone el código de estado de sus errores (`callJev` no lo devuelve), así que sus fallos se registran sin código.
+- **La fase 1 se evalúa aparte.** Este sistema mide los agentes de la fase 3; el análisis de Jev y OpenAI de la fase 1 tiene su propia medida (la calibración de arriba).
+- **Ejecución manual.** No corre en CI: cada ejecución cuesta dinero y la decide la persona que la lanza.
+
 ---
 
 ## Moderación de la entrada
