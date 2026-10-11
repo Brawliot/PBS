@@ -93,10 +93,16 @@
     <p class="question__text" id="question-text">Question goes here</p>
     <div class="question__options" id="question-options" role="group" aria-label="Suggested answers" hidden></div>
     <div class="question__field">
-      <input class="question__input" type="text" name="answer" placeholder="Type your answer" aria-labelledby="question-text" autocomplete="off" maxlength="1000">
+      <input class="question__input" type="text" name="answer" placeholder="Type your answer" aria-labelledby="question-text" aria-describedby="question-note" autocomplete="off" maxlength="1000">
       <button class="arrow-btn question__submit" type="submit" aria-label="Send answer">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
       </button>
+    </div>
+    <div class="question__foot">
+      <p class="question__note" id="question-note" hidden></p>
+      <span class="question__count" id="question-count" hidden></span>
+      <button class="question__link" type="button" id="question-back" hidden>Back</button>
+      <button class="question__link" type="button" id="question-cancel">Cancel</button>
     </div>
   </form>
 

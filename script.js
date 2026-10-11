@@ -335,6 +335,7 @@
   // Question flow: the first response carries the questions, asked one by one. Once they are
   // all answered, one final request sends the answers and returns the profile.
   let answers = [];   // { topic, question, answer } given so far
+  let asked = [];     // the question objects answered so far, in the same order as answers (for Back)
   let queue = [];     // received questions not asked yet
   let current = null; // question on screen
   let total = 0;      // number of questions in this session
@@ -344,6 +345,7 @@
 
   const resetFlow = () => {
     answers = [];
+    asked = [];
     queue = [];
     current = null;
     analysis = null;
@@ -631,11 +633,35 @@
 
   const questionProgress = document.getElementById('question-progress');
 
+  const questionNote = document.getElementById('question-note');
+  const questionCount = document.getElementById('question-count');
+  const questionBack = document.getElementById('question-back');
+  const optionsContainer = document.getElementById('question-options');
+  const ANSWER_MAX = Number(answer.maxLength); // 1000: the server's limit for one answer
+  const COUNT_FROM = 900;                      // the counter appears this close to the limit
+
+  // The note under the field: one message at a time (empty answer, limit reached)
+  const showNote = (message) => {
+    questionNote.textContent = message;
+    questionNote.hidden = !message;
+    answer.toggleAttribute('aria-invalid', !!message);
+  };
+
+  // Keeps the counter, the Back button and the option marks in step with the field
+  const refreshQuestionFoot = () => {
+    const length = answer.value.length;
+    questionCount.textContent = `${length} / ${ANSWER_MAX}`;
+    questionCount.hidden = length < COUNT_FROM;
+    questionBack.hidden = answers.length === 0;
+    optionsContainer.querySelectorAll('.question__option').forEach((button) => {
+      button.setAttribute('aria-pressed', String(button.textContent === answer.value));
+    });
+  };
+
   const showQuestion = (text, progress = '', options = []) => {
     if (text) questionText.textContent = text;
     questionProgress.textContent = progress;
 
-    const optionsContainer = document.getElementById('question-options');
     optionsContainer.replaceChildren();
     if (options.length > 0) {
       options.slice(0, 4).forEach((option) => {
@@ -643,9 +669,13 @@
         button.type = 'button';
         button.className = 'question__option';
         button.textContent = option;
+        button.setAttribute('aria-pressed', 'false');
+        // A click marks the option and fills the field; the arrow (or Enter) sends it
         button.addEventListener('click', () => {
           answer.value = option;
-          question.requestSubmit();
+          showNote('');
+          refreshQuestionFoot();
+          answer.focus();
         });
         optionsContainer.append(button);
       });
@@ -654,7 +684,9 @@
       optionsContainer.hidden = true;
     }
 
+    showNote('');
     question.classList.add('is-open');
+    refreshQuestionFoot();
     requestAnimationFrame(() => answer.focus({ preventScroll: true }));
   };
 
@@ -662,24 +694,68 @@
     question.classList.remove('is-open');
     answer.value = '';
     answer.blur();
-    const optionsContainer = document.getElementById('question-options');
     optionsContainer.replaceChildren();
     optionsContainer.hidden = true;
+    showNote('');
+    questionCount.hidden = true;
+    questionBack.hidden = true;
   };
+
+  // Typing clears the message and the option marks; the counter follows the length
+  answer.addEventListener('input', () => {
+    if (answer.value.length >= ANSWER_MAX) showNote(`You have reached the ${ANSWER_MAX}-character limit.`);
+    else showNote('');
+    refreshQuestionFoot();
+  });
 
   question.addEventListener('submit', (e) => {
     e.preventDefault();
     const text = answer.value.trim();
-    if (!text || !current) {
+    if (!current) return;
+    if (!text) {
+      showNote('Type an answer to continue.');
       answer.focus();
       return;
     }
+    asked.push(current);
     answers.push({ topic: current.topic, question: current.question, answer: text });
     current = null;
     answer.value = '';
     if (nextQuestion()) return; // the next one is ready: the popup stays open
     hideQuestion();
     submitIdea(); // all answered: the final request returns the profile
+  });
+
+  // Back: the previous question comes again with its answer in the field, so it can be changed.
+  // The question on screen (if any) goes back to the queue, so nothing is lost.
+  questionBack.addEventListener('click', () => {
+    if (!answers.length) return;
+    const previous = asked.pop();
+    const { answer: previousAnswer } = answers.pop();
+    if (current) queue.unshift(current);
+    queue.unshift(previous);
+    current = null;
+    nextQuestion();
+    answer.value = previousAnswer;
+    refreshQuestionFoot();
+  });
+
+  // Cancel (button or Escape): leaves the questions and the loader, and returns to the idea with the text kept
+  const cancelQuestions = async () => {
+    if (!question.classList.contains('is-open')) return;
+    hideQuestion();
+    resetFlow();
+    await stopLoading();
+    hideSubmitError();
+    status.textContent = 'Analysis cancelled. Your idea is still there.';
+    idea.focus();
+  };
+  document.getElementById('question-cancel').addEventListener('click', cancelQuestions);
+  question.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      cancelQuestions();
+    }
   });
 
   // ---------------------------------------------------------------------------
