@@ -1,3 +1,4 @@
+import { USER } from "../user-ids.js";
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { runPlanner } from "../../planner/planner-run.js";
@@ -51,9 +52,9 @@ describe("runPlanner keeps the report of the runs that end with one", () => {
   test("the final request keeps a report from its own values, with no phase 2, and returns the reportId", async () => {
     mockOutside([]);
     const reports = new InMemoryReportRepository();
-    const result = (await runPlanner(input, answers, true, claims, { reports, owner: "local" })) as Record<string, unknown>;
+    const result = (await runPlanner(input, answers, true, claims, { reports, owner: USER })) as Record<string, unknown>;
     assert.equal(typeof result.reportId, "string");
-    const stored = await reports.get(result.reportId as string, "local");
+    const stored = await reports.get(result.reportId as string, USER);
     assert.deepEqual(stored?.report, { input, answers, jev: result.jev, profile: result.profile, validation: result.validation });
     assert.equal("phase2" in (stored?.report ?? {}), false);
   });
@@ -61,8 +62,8 @@ describe("runPlanner keeps the report of the runs that end with one", () => {
   test("the first round without questions keeps a report that includes phase 2 with no questions", async () => {
     mockOutside([]);
     const reports = new InMemoryReportRepository();
-    const result = (await runPlanner(input, [], false, claims, { reports, owner: "local" })) as Record<string, any>;
-    const stored = await reports.get(result.reportId, "local");
+    const result = (await runPlanner(input, [], false, claims, { reports, owner: USER })) as Record<string, any>;
+    const stored = await reports.get(result.reportId, USER);
     assert.deepEqual(stored?.report.phase2, { ...phase2Reply([]), questions: [] });
     assert.deepEqual(stored?.report.input, input);
     assert.deepEqual(stored?.report.answers, []);
@@ -72,14 +73,14 @@ describe("runPlanner keeps the report of the runs that end with one", () => {
   test("the first round with questions keeps no report and returns no reportId", async () => {
     mockOutside([question]);
     const reports = new InMemoryReportRepository();
-    const result = (await runPlanner(input, [], false, claims, { reports, owner: "local" })) as Record<string, unknown>;
+    const result = (await runPlanner(input, [], false, claims, { reports, owner: USER })) as Record<string, unknown>;
     assert.equal("reportId" in result, false);
     assert.equal(reports.rows.size, 0);
   });
 
   test("without a repository the run works as before, with no reportId", async () => {
     mockOutside([]);
-    const result = (await runPlanner(input, [], false, claims, { owner: "local" })) as Record<string, unknown>;
+    const result = (await runPlanner(input, [], false, claims, { owner: USER })) as Record<string, unknown>;
     assert.equal("reportId" in result, false);
     assert.ok(result.profile);
   });
@@ -96,7 +97,7 @@ describe("runPlanner keeps the report of the runs that end with one", () => {
       attachPlan: async () => ({ ok: false, code: "not_found" }),
     };
     const log = silenceConsoleError();
-    const result = (await runPlanner(input, [], false, claims, { reports: failing, owner: "local" })) as Record<string, unknown>;
+    const result = (await runPlanner(input, [], false, claims, { reports: failing, owner: USER })) as Record<string, unknown>;
     assert.equal("reportId" in result, false);
     assert.ok(result.profile, "the run still returns its report");
     assert.deepEqual(log.mock.calls.map((call) => call.arguments), [["Report not kept:", "23505"]]);
@@ -114,7 +115,7 @@ describe("runPlanner keeps the report of the runs that end with one", () => {
       attachPlan: async () => ({ ok: false, code: "not_found" }),
     };
     const log = silenceConsoleError();
-    const result = (await runPlanner(input, [], false, claims, { reports: refusing, owner: "local" })) as Record<string, unknown>;
+    const result = (await runPlanner(input, [], false, claims, { reports: refusing, owner: USER })) as Record<string, unknown>;
     assert.equal("reportId" in result, false);
     assert.deepEqual(log.mock.calls.map((call) => call.arguments), [["Report not kept:", "invalid_report"]]);
   });

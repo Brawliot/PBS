@@ -1,3 +1,4 @@
+import { USER } from "../user-ids.js";
 import { beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { handlePlanRequest, type PlanResponse } from "../../plan-routes.js";
@@ -11,7 +12,6 @@ import { FakeJudge, FakeModel, NOW } from "./agents/fakes.js";
 import { silenceConsoleError } from "../planner/helpers.js";
 import "../planner/helpers.js";
 
-const LOCAL = "local";
 const IDEA = "A bakery with delivery in the city centre";
 
 interface Store {
@@ -25,6 +25,7 @@ function setup(): Store {
 
 function route(store: Store, method: string, path: string, body: unknown = undefined, agents?: AgentDeps): Promise<PlanResponse> {
   return handlePlanRequest({
+    userId: USER,
     method,
     path,
     body: body === undefined ? "" : typeof body === "string" ? body : JSON.stringify(body),
@@ -39,11 +40,11 @@ function route(store: Store, method: string, path: string, body: unknown = undef
 /** A plan made from a report with the idea above, through the real route (so it is linked to its report) */
 async function linkedPlan(store: Store): Promise<{ id: string; version: number }> {
   const report = { ...reportWith(), input: { ...reportWith().input, idea: IDEA } };
-  const reportId = await store.reports.create(LOCAL, report);
+  const reportId = await store.reports.create(USER, report);
   const created = await route(store, "POST", "/api/plan", { reportId });
   assert.equal(created.status, 201);
   const id = (created.body as { id: string }).id;
-  return { id, version: (await store.plans.get(id, LOCAL))!.version };
+  return { id, version: (await store.plans.get(id, USER))!.version };
 }
 
 /** The answer the plan level would give for this plan: its own phases, one tier, one relation and one fact */
@@ -82,7 +83,7 @@ describe("POST /api/plan/:id/agents/structure: a suggestion that is saved", () =
   test("the structure and the facts are proposed, with their logs, and nothing else changes", async () => {
     const store = setup();
     const { id, version } = await linkedPlan(store);
-    const before = (await store.plans.get(id, LOCAL))!.plan;
+    const before = (await store.plans.get(id, USER))!.plan;
     const model = new PlanAwareModel(() => answerFor(before));
     const response = await route(store, "POST", `/api/plan/${id}/agents/structure`, { expectedVersion: version }, agentsWith(model));
 
@@ -117,7 +118,7 @@ describe("POST /api/plan/:id/agents/structure: a suggestion that is saved", () =
   test("a suggestion with no facts still makes the structure proposal", async () => {
     const store = setup();
     const { id, version } = await linkedPlan(store);
-    const plan = (await store.plans.get(id, LOCAL))!.plan;
+    const plan = (await store.plans.get(id, USER))!.plan;
     const response = await route(store, "POST", `/api/plan/${id}/agents/structure`, { expectedVersion: version }, agentsWith(new FakeModel([answerFor(plan, [])])));
     assert.equal(response.status, 201);
     assert.equal(store.plans.rows.get(id)!.log.length, 1);
@@ -133,43 +134,43 @@ describe("POST /api/plan/:id/agents/structure: failures save nothing", () => {
     assert.deepEqual(response.body, { error: "The assistant is not available right now. Try again later.", code: "assistant_unavailable" });
     assert.equal(response.status, 503);
     assert.equal(model.requests.length, 3, "the call is tried three times");
-    assert.equal((await store.plans.get(id, LOCAL))!.version, version);
+    assert.equal((await store.plans.get(id, USER))!.version, version);
     assert.deepEqual(log.mock.calls.map((call) => call.arguments), [["Plan structure suggestion failed:", "agent_failed"]]);
   });
 
   test("Jev is unavailable on every try: 503, nothing saved", async () => {
     const store = setup();
     const { id, version } = await linkedPlan(store);
-    const plan = (await store.plans.get(id, LOCAL))!.plan;
+    const plan = (await store.plans.get(id, USER))!.plan;
     const model = new FakeModel([answerFor(plan)]);
     const response = await route(store, "POST", `/api/plan/${id}/agents/structure`, { expectedVersion: version }, agentsWith(model, [new Error("Jev down")]));
     assert.equal(response.status, 503);
     assert.equal((response.body as { code: string }).code, "assistant_unavailable");
     assert.equal(model.requests.length, 3);
-    assert.equal((await store.plans.get(id, LOCAL))!.version, version);
+    assert.equal((await store.plans.get(id, USER))!.version, version);
   });
 
   test("an answer that does not fit the plan is retried, then 502, nothing saved", async () => {
     const store = setup();
     const { id, version } = await linkedPlan(store);
-    const plan = (await store.plans.get(id, LOCAL))!.plan;
+    const plan = (await store.plans.get(id, USER))!.plan;
     const broken = { ...answerFor(plan), tiers: [{ departmentId: "ghost", tier: "light" }] };
     const model = new FakeModel([broken]);
     const response = await route(store, "POST", `/api/plan/${id}/agents/structure`, { expectedVersion: version }, agentsWith(model));
     assert.equal(response.status, 502);
     assert.equal((response.body as { code: string }).code, "suggestion_invalid");
     assert.equal(model.requests.length, 3);
-    assert.equal((await store.plans.get(id, LOCAL))!.plan.proposals, undefined);
+    assert.equal((await store.plans.get(id, USER))!.plan.proposals, undefined);
   });
 
   test("a fact that does not fit the catalogue fails the whole suggestion: 502, no half-saved structure", async () => {
     const store = setup();
     const { id, version } = await linkedPlan(store);
-    const plan = (await store.plans.get(id, LOCAL))!.plan;
+    const plan = (await store.plans.get(id, USER))!.plan;
     const badFact = [{ key: { kind: "catalog", id: "launch_channel" }, value: { kind: "catalog", id: "not_a_real_value" } }];
     const response = await route(store, "POST", `/api/plan/${id}/agents/structure`, { expectedVersion: version }, agentsWith(new FakeModel([answerFor(plan, badFact)])));
     assert.equal(response.status, 502);
-    const stored = await store.plans.get(id, LOCAL);
+    const stored = await store.plans.get(id, USER);
     assert.equal(stored!.version, version);
     assert.equal(stored!.plan.proposals, undefined, "the structure is not kept without its facts");
   });
@@ -177,19 +178,19 @@ describe("POST /api/plan/:id/agents/structure: failures save nothing", () => {
   test("the plan changed while the assistant was thinking: 409 version_conflict, nothing from the suggestion saved", async () => {
     const store = setup();
     const { id, version } = await linkedPlan(store);
-    const plan = (await store.plans.get(id, LOCAL))!.plan;
+    const plan = (await store.plans.get(id, USER))!.plan;
     // Another window saves the plan (a version bump) before the answer comes back
     const racing = new PlanAwareModel(
       () => answerFor(plan),
       async () => {
-        const current = await store.plans.get(id, LOCAL);
-        await store.plans.update(id, LOCAL, current!.version, current!.plan, []);
+        const current = await store.plans.get(id, USER);
+        await store.plans.update(id, USER, current!.version, current!.plan, []);
       },
     );
     const response = await route(store, "POST", `/api/plan/${id}/agents/structure`, { expectedVersion: version }, agentsWith(racing));
     assert.equal(response.status, 409);
     assert.equal((response.body as { code: string }).code, "version_conflict");
-    const stored = await store.plans.get(id, LOCAL);
+    const stored = await store.plans.get(id, USER);
     assert.equal(stored!.version, version + 1, "only the other window's save is there");
     assert.equal(stored!.plan.proposals, undefined);
   });
@@ -206,7 +207,7 @@ describe("POST /api/plan/:id/agents/structure: refusals before the assistant is 
 
   test("a plan with no report has no idea to work from: 409 no_report, no call", async () => {
     const store = setup();
-    const plan = await store.plans.create(LOCAL, "Demo", restaurantPlan());
+    const plan = await store.plans.create(USER, "Demo", restaurantPlan());
     const model = new FakeModel([answerFor(plan.plan)]);
     const response = await route(store, "POST", `/api/plan/${plan.id}/agents/structure`, { expectedVersion: 1 }, agentsWith(model));
     assert.equal(response.status, 409);
@@ -217,11 +218,11 @@ describe("POST /api/plan/:id/agents/structure: refusals before the assistant is 
   test("a second suggestion while one is pending is refused before the assistant is called", async () => {
     const store = setup();
     const { id, version } = await linkedPlan(store);
-    const plan = (await store.plans.get(id, LOCAL))!.plan;
+    const plan = (await store.plans.get(id, USER))!.plan;
     const model = new FakeModel([answerFor(plan)]);
     const agents = agentsWith(model);
     assert.equal((await route(store, "POST", `/api/plan/${id}/agents/structure`, { expectedVersion: version }, agents)).status, 201);
-    const nextVersion = (await store.plans.get(id, LOCAL))!.version;
+    const nextVersion = (await store.plans.get(id, USER))!.version;
     assert.equal(model.requests.length, 1);
 
     const second = await route(store, "POST", `/api/plan/${id}/agents/structure`, { expectedVersion: nextVersion }, agents);
@@ -233,7 +234,7 @@ describe("POST /api/plan/:id/agents/structure: refusals before the assistant is 
   test("an old version is refused with version_conflict, and no call is made", async () => {
     const store = setup();
     const { id, version } = await linkedPlan(store);
-    const plan = (await store.plans.get(id, LOCAL))!.plan;
+    const plan = (await store.plans.get(id, USER))!.plan;
     const model = new FakeModel([answerFor(plan)]);
     const response = await route(store, "POST", `/api/plan/${id}/agents/structure`, { expectedVersion: version + 5 }, agentsWith(model));
     assert.equal(response.status, 409);

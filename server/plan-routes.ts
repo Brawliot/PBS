@@ -27,13 +27,11 @@ import { PlanTooLargeError, StoredPlanError } from "./plan/plan-repository.js";
 import type { AttachResult, ReportRepository } from "./plan/report-repository.js";
 import type { StepAction, StepActor } from "./plan/step-actions.js";
 
-/** The one user until authentication exists. Every repository call is scoped to it; server.ts and this file are the only places that name it. */
-export const LOCAL_USER = "local";
-
-
 export interface PlanRequest {
   method: string;
   path: string;
+  /** The user the request acts for: every repository call is scoped to it. server.ts decides it; this file never does. */
+  userId: string;
   /** The raw body, as read from the socket (empty for GET) */
   body: string;
   /** Undefined when DATABASE_URL is not set: the plan routes then answer 503 */
@@ -194,7 +192,7 @@ async function route(request: PlanRequest): Promise<PlanResponse> {
 async function getPlan(request: PlanRequest, id: string): Promise<PlanResponse> {
   if (!UUID.test(id)) return fail("not_found");
   if (!request.repo) return fail("storage_unavailable");
-  const stored = await request.repo.get(id, LOCAL_USER);
+  const stored = await request.repo.get(id, request.userId);
   if (!stored) return fail("not_found");
   return { status: 200, body: { ...storedBody(stored), derived: derivePlan(stored.plan), catalog: CATALOG } };
 }
@@ -228,13 +226,13 @@ async function changeDecisions(
 ): Promise<PlanResponse> {
   if (!UUID.test(id)) return fail("not_found");
   if (!request.repo) return fail("storage_unavailable");
-  const stored = await request.repo.get(id, LOCAL_USER);
+  const stored = await request.repo.get(id, request.userId);
   if (!stored) return fail("not_found");
   if (expectedVersion !== null && expectedVersion !== stored.version) return fail("version_conflict");
 
   const result = decide(stored.plan, request.now());
   if (!result.ok) return fail(result.code);
-  const saved = await request.repo.update(id, LOCAL_USER, stored.version, result.plan, [], result.logs);
+  const saved = await request.repo.update(id, request.userId, stored.version, result.plan, [], result.logs);
   if (!saved.ok) return fail(saved.code);
   return {
     status,
@@ -344,11 +342,11 @@ async function suggestStructure(request: PlanRequest, id: string): Promise<PlanR
   if (!UUID.test(id)) return fail("not_found");
   if (!request.repo || !request.reports) return fail("storage_unavailable");
   if (!request.agents) return fail("assistant_unavailable");
-  const stored = await request.repo.get(id, LOCAL_USER);
+  const stored = await request.repo.get(id, request.userId);
   if (!stored) return fail("not_found");
   if (body.expectedVersion !== stored.version) return fail("version_conflict");
   if (hasPendingStructure(stored.plan)) return fail("duplicate_pending");
-  const report = await request.reports.getByPlanId(id, LOCAL_USER);
+  const report = await request.reports.getByPlanId(id, request.userId);
   if (!report) return fail("no_report");
 
   // No lock is held while the assistant thinks: the write below checks the version read here
@@ -401,7 +399,7 @@ async function suggestDepartments(request: PlanRequest, id: string): Promise<Pla
   if (!UUID.test(id)) return fail("not_found");
   if (!request.repo || !request.reports) return fail("storage_unavailable");
   if (!request.agents) return fail("assistant_unavailable");
-  const stored = await request.repo.get(id, LOCAL_USER);
+  const stored = await request.repo.get(id, request.userId);
   if (!stored) return fail("not_found");
   if (body.expectedVersion !== stored.version) return fail("version_conflict");
   // The structure changes the phases the tasks sit in: it is decided first
@@ -409,7 +407,7 @@ async function suggestDepartments(request: PlanRequest, id: string): Promise<Pla
   if (!(stored.plan.facts ?? []).some((fact) => fact.status === "confirmed")) return fail("no_confirmed_facts");
   const pending = departmentsWithPendingTasks(stored.plan);
   if (stored.plan.departments.length > 0 && stored.plan.departments.every((department) => pending.has(department.id))) return fail("duplicate_pending");
-  const report = await request.reports.getByPlanId(id, LOCAL_USER);
+  const report = await request.reports.getByPlanId(id, request.userId);
   if (!report) return fail("no_report");
 
   // No lock is held while the assistant thinks: the write below checks the version read here
@@ -476,7 +474,7 @@ async function suggestTaskSteps(request: PlanRequest, id: string, taskId: string
   if (!IdSchema.safeParse(taskId).success) return fail("unknown_task");
   if (!request.repo || !request.reports) return fail("storage_unavailable");
   if (!request.agents) return fail("assistant_unavailable");
-  const stored = await request.repo.get(id, LOCAL_USER);
+  const stored = await request.repo.get(id, request.userId);
   if (!stored) return fail("not_found");
   if (body.expectedVersion !== stored.version) return fail("version_conflict");
   const task = stored.plan.tasks.find((candidate) => candidate.id === taskId);
@@ -484,7 +482,7 @@ async function suggestTaskSteps(request: PlanRequest, id: string, taskId: string
   if (task.placeholder !== undefined || stored.plan.steps.some((step) => step.taskId === taskId)) return fail("not_available");
   if (hasPendingSteps(stored.plan, taskId)) return fail("duplicate_pending");
   if (!(stored.plan.facts ?? []).some((fact) => fact.status === "confirmed")) return fail("no_confirmed_facts");
-  const report = await request.reports.getByPlanId(id, LOCAL_USER);
+  const report = await request.reports.getByPlanId(id, request.userId);
   if (!report) return fail("no_report");
   const input = buildTaskInput(stored.plan, taskId, report.report.input.idea);
   if (!input) return fail("unknown_task");
@@ -555,13 +553,13 @@ async function runAiStep(request: PlanRequest, id: string, stepId: string): Prom
   if (!IdSchema.safeParse(stepId).success) return fail("unknown_step");
   if (!request.repo || !request.reports) return fail("storage_unavailable");
   if (!request.agents) return fail("assistant_unavailable");
-  const stored = await request.repo.get(id, LOCAL_USER);
+  const stored = await request.repo.get(id, request.userId);
   if (!stored) return fail("not_found");
   if (body.expectedVersion !== stored.version) return fail("version_conflict");
   const step = stored.plan.steps.find((candidate) => candidate.id === stepId);
   if (!step) return fail("unknown_step");
   if (step.executor !== "ai") return fail("not_allowed");
-  const report = await request.reports.getByPlanId(id, LOCAL_USER);
+  const report = await request.reports.getByPlanId(id, request.userId);
   if (!report) return fail("no_report");
 
   const person = applyPlanAction(stored.plan, stepId, body.action, { now: request.now, actor: "user", payload: body.payload });
@@ -612,7 +610,7 @@ async function runAiStep(request: PlanRequest, id: string, stepId: string): Prom
 
   const saved = await request.repo.update(
     id,
-    LOCAL_USER,
+    request.userId,
     stored.version,
     next,
     [
@@ -686,7 +684,7 @@ async function createPlan(request: PlanRequest): Promise<PlanResponse> {
   if (!request.repo || !request.reports) return fail("storage_unavailable");
   const { reportId } = parsed.data;
 
-  const stored = await request.reports.get(reportId, LOCAL_USER);
+  const stored = await request.reports.get(reportId, request.userId);
   if (!stored) return fail("report_not_found");
   if (stored.planId !== null) return { status: 200, body: { id: stored.planId } };
 
@@ -701,7 +699,7 @@ async function createPlan(request: PlanRequest): Promise<PlanResponse> {
   const title = [...stored.report.input.idea].slice(0, TITLE_CHARS).join("");
   let plan: StoredPlan;
   try {
-    plan = await request.repo.create(LOCAL_USER, title, skeleton.plan);
+    plan = await request.repo.create(request.userId, title, skeleton.plan);
   } catch (error) {
     if (error instanceof PlanTooLargeError) return fail("plan_too_large");
     throw error;
@@ -709,21 +707,21 @@ async function createPlan(request: PlanRequest): Promise<PlanResponse> {
   // A plan that is not linked to its report is never handed out: it is removed on every path that does not keep it
   let linked: AttachResult;
   try {
-    linked = await request.reports.attachPlan(reportId, LOCAL_USER, plan.id);
+    linked = await request.reports.attachPlan(reportId, request.userId, plan.id);
   } catch (error) {
-    await request.repo.remove(plan.id, LOCAL_USER);
+    await request.repo.remove(plan.id, request.userId);
     throw error;
   }
   if (linked.ok && linked.attached) return { status: 201, body: { id: plan.id } };
 
-  await request.repo.remove(plan.id, LOCAL_USER);
+  await request.repo.remove(plan.id, request.userId);
   if (!linked.ok) return fail("report_not_found");
   return { status: 200, body: { id: linked.planId } };
 }
 
 async function createDemoPlan(request: PlanRequest): Promise<PlanResponse> {
   if (!request.repo) return fail("storage_unavailable");
-  const stored = await request.repo.create(LOCAL_USER, DEMO_TITLE, restaurantPlan());
+  const stored = await request.repo.create(request.userId, DEMO_TITLE, restaurantPlan());
   return { status: 201, body: { id: stored.id } };
 }
 
@@ -746,7 +744,7 @@ async function changePlan(
   change: { actor: StepActor; action: StepAction; payload?: unknown; expectedVersion?: number },
 ): Promise<PlanResponse> {
   if (!request.repo) return fail("storage_unavailable");
-  const stored = await request.repo.get(id, LOCAL_USER);
+  const stored = await request.repo.get(id, request.userId);
   if (!stored) return fail("not_found");
   if (change.expectedVersion !== undefined && change.expectedVersion !== stored.version) return fail("version_conflict");
 
@@ -757,7 +755,7 @@ async function changePlan(
   });
   if (!result.ok) return fail(result.code);
 
-  const saved = await request.repo.update(id, LOCAL_USER, stored.version, result.plan, [{ stepId, event: result.event }]);
+  const saved = await request.repo.update(id, request.userId, stored.version, result.plan, [{ stepId, event: result.event }]);
   if (!saved.ok) return fail(saved.code);
   return {
     status: 200,

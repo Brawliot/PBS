@@ -1,3 +1,4 @@
+import { OTHER_USER, USER } from "../user-ids.js";
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { handlePlanRequest, type PlanResponse } from "../../plan-routes.js";
@@ -18,6 +19,7 @@ function setup() {
 
 function call(store: ReturnType<typeof setup> | undefined, body: unknown): Promise<PlanResponse> {
   return handlePlanRequest({
+    userId: USER,
     method: "POST",
     path: "/api/plan",
     body: typeof body === "string" ? body : JSON.stringify(body),
@@ -33,29 +35,29 @@ const reportOf = (idea = IDEA) => ({ ...reportWith(), input: { ...reportWith().i
 describe("POST /api/plan: the answers", () => {
   test("a report without a plan gives a plan, linked to the report: 201 with the id", async () => {
     const store = setup();
-    const reportId = await store.reports.create("local", reportOf());
+    const reportId = await store.reports.create(USER, reportOf());
     const response = await call(store, { reportId });
     assert.equal(response.status, 201);
     const { id } = response.body as { id: string };
     assert.match(id, /^[0-9a-f-]{36}$/);
-    assert.equal((await store.reports.get(reportId, "local"))?.planId, id);
-    const plan = await store.plans.get(id, "local");
+    assert.equal((await store.reports.get(reportId, USER))?.planId, id);
+    const plan = await store.plans.get(id, USER);
     assert.ok(plan);
     assert.deepEqual(checkPlan(plan.plan), [], "the plan has no problems");
   });
 
   test("the title is the idea, cut to 80 characters", async () => {
     const store = setup();
-    const reportId = await store.reports.create("local", reportOf());
+    const reportId = await store.reports.create(USER, reportOf());
     const { id } = (await call(store, { reportId })).body as { id: string };
-    const title = (await store.plans.get(id, "local"))!.title;
+    const title = (await store.plans.get(id, USER))!.title;
     assert.equal(title, [...IDEA].slice(0, 80).join(""));
     assert.equal([...title].length, 80);
   });
 
   test("a second request for the same report gives the same plan: 200, and no new plan is stored", async () => {
     const store = setup();
-    const reportId = await store.reports.create("local", reportOf());
+    const reportId = await store.reports.create(USER, reportOf());
     const first = (await call(store, { reportId })).body as { id: string };
     const second = await call(store, { reportId });
     assert.deepEqual(second, { status: 200, body: { id: first.id } });
@@ -64,13 +66,13 @@ describe("POST /api/plan: the answers", () => {
 
   test("two requests at once for the same report: one plan in the store, and both answer with its id", async () => {
     const store = setup();
-    const reportId = await store.reports.create("local", reportOf());
+    const reportId = await store.reports.create(USER, reportOf());
     const responses = await Promise.all([call(store, { reportId }), call(store, { reportId }), call(store, { reportId })]);
     assert.equal(store.plans.rows.size, 1, "the losers removed their own plans");
     const ids = new Set(responses.map((response) => (response.body as { id: string }).id));
     assert.equal(ids.size, 1);
     assert.deepEqual(responses.map((response) => response.status).sort(), [200, 200, 201]);
-    assert.equal((await store.reports.get(reportId, "local"))?.planId, [...ids][0]);
+    assert.equal((await store.reports.get(reportId, USER))?.planId, [...ids][0]);
   });
 
   test("no database: a valid body is 503 as the other plan routes; the body is checked before the storage", async () => {
@@ -87,7 +89,7 @@ describe("POST /api/plan: the answers", () => {
 describe("POST /api/plan: refusals, each with its exact body", () => {
   test("a body that is not JSON, or has keys it does not take, is 400 invalid_body", async () => {
     const store = setup();
-    const reportId = await store.reports.create("local", reportOf());
+    const reportId = await store.reports.create(USER, reportOf());
     const invalid = { status: 400, body: { error: "Invalid request body", code: "invalid_body" } };
     assert.deepEqual(await call(store, "not json"), invalid);
     assert.deepEqual(await call(store, { reportId, extra: true }), invalid);
@@ -110,26 +112,26 @@ describe("POST /api/plan: refusals, each with its exact body", () => {
 
   test("another user's report is the same 404: nothing shows that it exists, and nothing is linked", async () => {
     const store = setup();
-    const reportId = await store.reports.create("someone-else", reportOf());
+    const reportId = await store.reports.create(OTHER_USER, reportOf());
     assert.deepEqual(await call(store, { reportId }), { status: 404, body: { error: "Report not found", code: "report_not_found" } });
     assert.equal(store.plans.rows.size, 0);
-    assert.equal((await store.reports.get(reportId, "someone-else"))?.planId, null);
+    assert.equal((await store.reports.get(reportId, OTHER_USER))?.planId, null);
   });
 
   test("a report the rules cannot build is 500 skeleton_failed, with a fixed text", async () => {
     const store = setup();
     const report = reportOf();
     report.validation.departments = [{ name: "Department nobody knows", confidence: 50, tier: "core" }];
-    const reportId = await store.reports.create("local", report);
+    const reportId = await store.reports.create(USER, report);
     const response = await call(store, { reportId });
     assert.deepEqual(response, { status: 500, body: { error: "Could not build the plan", code: "skeleton_failed" } });
     assert.equal(store.plans.rows.size, 0);
-    assert.equal((await store.reports.get(reportId, "local"))?.planId, null);
+    assert.equal((await store.reports.get(reportId, USER))?.planId, null);
   });
 
   test("no error body carries the content of the report", async () => {
     const store = setup();
-    const reportId = await store.reports.create("local", reportOf());
+    const reportId = await store.reports.create(USER, reportOf());
     const bodies = [
       await call(store, "not json"),
       await call(store, { reportId: MISSING }),
@@ -143,7 +145,7 @@ describe("POST /api/plan: refusals, each with its exact body", () => {
 
   test("a storage failure in the middle is a generic 500 with no content, and the detail is only logged as a code", async () => {
     const store = setup();
-    const reportId = await store.reports.create("local", reportOf());
+    const reportId = await store.reports.create(USER, reportOf());
     store.reports.attachPlan = async () => {
       throw Object.assign(new Error("connection to db failed: Sentinel bakery"), { code: "08006" });
     };

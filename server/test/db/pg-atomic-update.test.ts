@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { Client, Pool } from "pg";
 import { runMigrations } from "../../db/migrate.js";
+import { addOtherUser, PROVISIONAL_USER } from "./users.js";
 import { PgPlanRepository } from "../../db/pg-plan-repository.js";
 import { restaurantPlan } from "../../plan/demo-plan.js";
 import { applyPlanAction } from "../../plan/plan-actions.js";
@@ -31,6 +32,7 @@ describe("the update of a plan is atomic on PostgreSQL", { skip: url ? false : "
     const client = await pool.connect();
     try {
       await runMigrations(client);
+      await addOtherUser(client);
     } finally {
       client.release();
     }
@@ -66,29 +68,29 @@ describe("the update of a plan is atomic on PostgreSQL", { skip: url ? false : "
   }
 
   test("a failing decision log entry rolls back the plan and its events", async () => {
-    const created = await repo.create("local", "Atomic", restaurantPlan());
+    const created = await repo.create(PROVISIONAL_USER, "Atomic", restaurantPlan());
     const before = await snapshot(created.id);
     const { plan, stepId, event } = launchChange();
     // The event is valid and is written first; the log entry has a kind the CHECK refuses
     const badLog = [{ kind: "not_a_kind", actor: "user", refId: "f-1", at: NOW } as unknown as PlanLogRecord];
 
-    await assert.rejects(repo.update(created.id, "local", created.version, plan, [{ stepId, event }], badLog));
+    await assert.rejects(repo.update(created.id, PROVISIONAL_USER, created.version, plan, [{ stepId, event }], badLog));
     assert.deepEqual(await snapshot(created.id), before);
     // The single connection is still usable: a real update of the same plan goes through
-    assert.equal((await repo.update(created.id, "local", created.version, plan, [{ stepId, event }])).ok, true);
+    assert.equal((await repo.update(created.id, PROVISIONAL_USER, created.version, plan, [{ stepId, event }])).ok, true);
   });
 
   test("a failing step event rolls back the plan, and nothing of the log is kept", async () => {
-    const created = await repo.create("local", "Atomic", restaurantPlan());
+    const created = await repo.create(PROVISIONAL_USER, "Atomic", restaurantPlan());
     const before = await snapshot(created.id);
     const { plan, stepId, event } = launchChange();
     const goodLog: PlanLogRecord[] = [{ kind: "fact_proposed", actor: "user", refId: "f-2", at: NOW }];
     // An action the CHECK refuses: the plan's UPDATE has already run when this insert fails
     const badEvent = { ...event, action: "not_an_action" } as unknown as typeof event;
 
-    await assert.rejects(repo.update(created.id, "local", created.version, plan, [{ stepId, event: badEvent }], goodLog));
+    await assert.rejects(repo.update(created.id, PROVISIONAL_USER, created.version, plan, [{ stepId, event: badEvent }], goodLog));
     assert.deepEqual(await snapshot(created.id), before);
-    assert.equal((await repo.get(created.id, "local"))?.version, created.version);
-    assert.equal((await repo.update(created.id, "local", created.version, plan, [{ stepId, event }], goodLog)).ok, true);
+    assert.equal((await repo.get(created.id, PROVISIONAL_USER))?.version, created.version);
+    assert.equal((await repo.update(created.id, PROVISIONAL_USER, created.version, plan, [{ stepId, event }], goodLog)).ok, true);
   });
 });

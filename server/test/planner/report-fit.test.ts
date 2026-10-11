@@ -2,6 +2,7 @@
  * The phase 2 part of a report is fitted to the report's limits, so no planner answer can stop a report from
  * being kept, and the plan (which does not read phase 2) comes out the same with or without it.
  */
+import { USER } from "../user-ids.js";
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { fitPhase2, fitText, reportOf, runPlanner } from "../../planner/planner-run.js";
@@ -117,7 +118,7 @@ describe("the report keeps phase 2 whatever its size", () => {
       const result = kept(phase2With(options));
       assert.equal(result.ok, true, result.ok ? "" : result.code);
       const reports = new InMemoryReportRepository();
-      const id = await reports.create("local", JSON.parse(JSON.stringify(reportOf(input, answers, jev, built, phase2With(options)))));
+      const id = await reports.create(USER, JSON.parse(JSON.stringify(reportOf(input, answers, jev, built, phase2With(options)))));
       assert.ok(id);
     });
   }
@@ -169,11 +170,11 @@ describe("contract: planner outputs of any size are always kept", () => {
       });
       const reports = new InMemoryReportRepository();
       const log = silenceConsoleError();
-      const result = (await runPlanner(input, [], false, {}, { reports, owner: "local" })) as Record<string, unknown>;
+      const result = (await runPlanner(input, [], false, {}, { reports, owner: USER })) as Record<string, unknown>;
       assert.equal(typeof result.reportId, "string", `seed ${seed}: report kept (${JSON.stringify(log.mock.calls.map((call) => call.arguments))})`);
       assert.equal(log.mock.calls.length, 0, `seed ${seed}: nothing logged`);
       log.mock.restore();
-      assert.ok(await reports.get(result.reportId as string, "local"), `seed ${seed}: read back`);
+      assert.ok(await reports.get(result.reportId as string, USER), `seed ${seed}: read back`);
     }
   });
 });

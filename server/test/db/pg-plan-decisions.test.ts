@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { Client, Pool } from "pg";
 import { runMigrations } from "../../db/migrate.js";
+import { addOtherUser, PROVISIONAL_USER } from "./users.js";
 import { PgPlanRepository } from "../../db/pg-plan-repository.js";
 import { handlePlanRequest } from "../../plan-routes.js";
 import { buildPlanSkeleton } from "../../plan/plan-skeleton.js";
@@ -30,6 +31,7 @@ describe("plan decisions on PostgreSQL", { skip: url ? false : "TEST_DATABASE_UR
     const client = await pool.connect();
     try {
       await runMigrations(client);
+      await addOtherUser(client);
     } finally {
       client.release();
     }
@@ -45,12 +47,12 @@ describe("plan decisions on PostgreSQL", { skip: url ? false : "TEST_DATABASE_UR
   });
 
   const post = (path: string, body: unknown) =>
-    handlePlanRequest({ method: "POST", path, body: JSON.stringify(body), repo: plans, reports: undefined, now: () => NOW, env: {} });
+    handlePlanRequest({ userId: PROVISIONAL_USER, method: "POST", path, body: JSON.stringify(body), repo: plans, reports: undefined, now: () => NOW, env: {} });
 
   async function newPlan(): Promise<string> {
     const built = buildPlanSkeleton(reportWith());
     if (!built.ok) throw new Error("no plan");
-    return (await plans.create("local", `Plan ${randomUUID()}`, built.plan)).id;
+    return (await plans.create(PROVISIONAL_USER, `Plan ${randomUUID()}`, built.plan)).id;
   }
 
   test("each decision adds its log rows, in order, with the actor the server set", async () => {
@@ -111,7 +113,7 @@ describe("plan decisions on PostgreSQL", { skip: url ? false : "TEST_DATABASE_UR
 
   test("an obsolete suggestion stays listed until it is retired, and retiring it logs proposal_rejected", async () => {
     const id = await newPlan();
-    const get = () => handlePlanRequest({ method: "GET", path: `/api/plan/${id}`, body: "", repo: plans, reports: undefined, now: () => NOW, env: {} });
+    const get = () => handlePlanRequest({ userId: PROVISIONAL_USER, method: "GET", path: `/api/plan/${id}`, body: "", repo: plans, reports: undefined, now: () => NOW, env: {} });
     await post(`/api/plan/${id}/facts`, { key: { kind: "catalog", id: "product_type" }, value: { kind: "catalog", id: "mobile_game" }, confirm: true, expectedVersion: 1 });
     const asked = await post(`/api/plan/${id}/gaps/plan-product-development/proposal`, { expectedVersion: 2 });
     const proposalId = (asked.body as { plan: { proposals: { id: string }[] } }).plan.proposals[0].id;

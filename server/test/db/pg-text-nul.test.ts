@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { Client, Pool } from "pg";
 import { runMigrations } from "../../db/migrate.js";
+import { addOtherUser, PROVISIONAL_USER } from "./users.js";
 import { PgPlanRepository } from "../../db/pg-plan-repository.js";
 import { PgReportRepository } from "../../db/pg-report-repository.js";
 import { ReportStoreError } from "../../plan/report-repository.js";
@@ -32,6 +33,7 @@ describe("NUL never reaches PostgreSQL", { skip: url ? false : "TEST_DATABASE_UR
     const client = await pool.connect();
     try {
       await runMigrations(client);
+      await addOtherUser(client);
     } finally {
       client.release();
     }
@@ -50,27 +52,27 @@ describe("NUL never reaches PostgreSQL", { skip: url ? false : "TEST_DATABASE_UR
   test("a plan with NUL in a step is refused by create: no row is written", async () => {
     const plan = restaurantPlan();
     plan.steps[0] = { ...plan.steps[0], text: "Mesa\u0000junto" };
-    await assert.rejects(plans.create("local", "Restaurante", plan));
+    await assert.rejects(plans.create(PROVISIONAL_USER, "Restaurante", plan));
     assert.equal(await count("plans"), 0);
   });
 
   test("a plan with NUL in its title is refused by create: no row is written", async () => {
-    await assert.rejects(plans.create("local", "Restaurante\u0000", restaurantPlan()));
+    await assert.rejects(plans.create(PROVISIONAL_USER, "Restaurante\u0000", restaurantPlan()));
     assert.equal(await count("plans"), 0);
   });
 
   test("an update with NUL is refused: the version and the document do not change", async () => {
-    const created = await plans.create("local", "Restaurante", restaurantPlan());
+    const created = await plans.create(PROVISIONAL_USER, "Restaurante", restaurantPlan());
     const plan = restaurantPlan();
     plan.tasks[0] = { ...plan.tasks[0], title: "Permiso\u0000local" };
-    await assert.rejects(plans.update(created.id, "local", created.version, plan, []));
-    assert.deepEqual(await plans.get(created.id, "local"), created);
+    await assert.rejects(plans.update(created.id, PROVISIONAL_USER, created.version, plan, []));
+    assert.deepEqual(await plans.get(created.id, PROVISIONAL_USER), created);
   });
 
   test("a report with NUL is refused by create: no row is written", async () => {
     const report = reportWith() as unknown as { input: { idea: string } };
     report.input.idea = "Pan\u0000";
-    await assert.rejects(reports.create("local", report), ReportStoreError);
+    await assert.rejects(reports.create(PROVISIONAL_USER, report), ReportStoreError);
     assert.equal(await count("reports"), 0);
   });
 });

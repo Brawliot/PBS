@@ -2,6 +2,7 @@
  * A step has room for MAX_EVENTS events. When it is full, every action answers events_full (409 in the API):
  * the step stays valid, the plan can still be read, and no action is offered for it.
  */
+import { USER } from "../user-ids.js";
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { MAX_EVENTS, StepSchema, parsePlan, type Plan, type Step } from "../../plan/plan-model.js";
@@ -84,8 +85,9 @@ describe("a step whose history is full", () => {
   test("the API answers the launch with 409 and the fixed body", async () => {
     const { plan, stepId } = fullPlan();
     const repo = new InMemoryPlanRepository();
-    const stored = await repo.create("local", "Full history", plan);
+    const stored = await repo.create(USER, "Full history", plan);
     const response = await handlePlanRequest({
+      userId: USER,
       method: "POST",
       path: `/api/plan/${stored.id}/steps/${stepId}/actions`,
       body: JSON.stringify({ action: "launch", expectedVersion: stored.version }),
@@ -96,7 +98,7 @@ describe("a step whose history is full", () => {
     });
     assert.deepEqual(response, { status: 409, body: { error: "This step has reached the limit of its history and cannot change", code: "events_full" } });
 
-    const read = await handlePlanRequest({ method: "GET", path: `/api/plan/${stored.id}`, body: "", repo, reports: undefined, now: clock(), env: {} });
+    const read = await handlePlanRequest({ userId: USER, method: "GET", path: `/api/plan/${stored.id}`, body: "", repo, reports: undefined, now: clock(), env: {} });
     assert.equal(read.status, 200);
   });
 });

@@ -1,3 +1,4 @@
+import { USER } from "../user-ids.js";
 import { beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { handlePlanRequest, type PlanResponse } from "../../plan-routes.js";
@@ -13,7 +14,6 @@ import { FakeJudge, NOW, planWithFact } from "./agents/fakes.js";
 import { silenceConsoleError } from "../planner/helpers.js";
 import "../planner/helpers.js";
 
-const LOCAL = "local";
 const IDEA = "A restaurant in the city centre";
 const TARGET = { key: { kind: "catalog", id: "target_customer" }, value: { kind: "other", text: "Local families" } };
 
@@ -25,6 +25,7 @@ const setup = (): Store => ({ plans: new InMemoryPlanRepository(), reports: new 
 
 function call(store: Store, method: string, path: string, body: unknown = undefined, agents?: AgentDeps, agentTimeoutMs?: number): Promise<PlanResponse> {
   return handlePlanRequest({
+    userId: USER,
     method,
     path,
     body: body === undefined ? "" : typeof body === "string" ? body : JSON.stringify(body),
@@ -39,16 +40,16 @@ function call(store: Store, method: string, path: string, body: unknown = undefi
 
 /** A stored plan with its report (the idea), so the assistant has what it needs */
 async function seed(store: Store, plan: Plan, linked = true): Promise<{ id: string }> {
-  const stored = await store.plans.create(LOCAL, "Restaurant", plan);
+  const stored = await store.plans.create(USER, "Restaurant", plan);
   if (linked) {
-    const reportId = await store.reports.create(LOCAL, { ...reportWith(), input: { ...reportWith().input, idea: IDEA } });
-    await store.reports.attachPlan(reportId, LOCAL, stored.id);
+    const reportId = await store.reports.create(USER, { ...reportWith(), input: { ...reportWith().input, idea: IDEA } });
+    await store.reports.attachPlan(reportId, USER, stored.id);
   }
   return { id: stored.id };
 }
 
-const version = async (store: Store, id: string) => (await store.plans.get(id, LOCAL))!.version;
-const current = async (store: Store, id: string) => (await store.plans.get(id, LOCAL))!.plan;
+const version = async (store: Store, id: string) => (await store.plans.get(id, USER))!.version;
+const current = async (store: Store, id: string) => (await store.plans.get(id, USER))!.plan;
 /** The history and the log as they were saved (the memory repository keeps them in its rows) */
 const rowOf = (store: Store, id: string) => (store.plans as unknown as { rows: Map<string, { events: PlanEventRecord[]; log: PlanLogRecord[] }> }).rows.get(id)!;
 

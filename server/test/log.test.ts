@@ -5,6 +5,7 @@ import type { AddressInfo } from "node:net";
 import { logFailure, logProviderFailure } from "../log.js";
 import { HttpError } from "../request.js";
 import { JobStore } from "../jobs.js";
+import { USER } from "./user-ids.js";
 import { server } from "../server.js";
 import { silenceConsoleError } from "./planner/helpers.js";
 import "./planner/helpers.js";
@@ -71,8 +72,8 @@ describe("the five places that log a failure write no secret", () => {
   test("the planner job: the error of a job with a secret message, cause and code", async () => {
     const log = silenceConsoleError();
     const jobs = new JobStore({ ttlMs: 60_000, maxJobs: 10 });
-    const id = jobs.start(() => Promise.reject(secretError("provider_down")));
-    for (let i = 0; i < 200 && jobs.get(id)?.status === "pending"; i++) await new Promise((resolve) => setTimeout(resolve, 2));
+    const id = jobs.start(USER, () => Promise.reject(secretError("provider_down")));
+    for (let i = 0; i < 200 && jobs.get(id, USER)?.status === "pending"; i++) await new Promise((resolve) => setTimeout(resolve, 2));
     assert.deepEqual(written(log), ["planner job: Error (provider_down)"]);
     assertNoSecret(written(log));
   });

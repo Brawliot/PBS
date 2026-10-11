@@ -1,6 +1,7 @@
 import { describe, test, mock, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { handlePlanRequest, isPlanPath, LOCAL_USER, type PlanRequest, type PlanResponse } from "../../plan-routes.js";
+import { handlePlanRequest, isPlanPath, type PlanRequest, type PlanResponse } from "../../plan-routes.js";
+import { OTHER_USER, USER } from "../user-ids.js";
 import { InMemoryPlanRepository } from "../../plan/plan-repository-memory.js";
 import type { PlanRepository } from "../../plan/plan-repository.js";
 import { restaurantPlan } from "../../plan/demo-plan.js";
@@ -29,6 +30,7 @@ function call(
   const request: PlanRequest = {
     method,
     path,
+    userId: USER,
     body: body === undefined ? "" : typeof body === "string" ? body : JSON.stringify(body),
     repo,
     now: () => NOW,
@@ -38,7 +40,7 @@ function call(
 }
 
 async function createPlan(repo: InMemoryPlanRepository, plan: Plan = restaurantPlan()): Promise<string> {
-  return (await repo.create(LOCAL_USER, "Plan", plan)).id;
+  return (await repo.create(USER, "Plan", plan)).id;
 }
 
 const act = (id: string, step: string, body: unknown) => call(undefined, "POST", `/api/plan/${id}/steps/${step}/actions`, body);
@@ -81,7 +83,7 @@ describe("GET /api/plan/:id", () => {
     const expected = { status: 404, body: { error: "Plan not found", code: "not_found" } };
     assert.deepEqual(await call(repo, "GET", "/api/plan/not-a-uuid"), expected);
     assert.deepEqual(await call(repo, "GET", "/api/plan/00000000-0000-4000-8000-000000000000"), expected);
-    const other = await repo.create("someone-else", "Other", restaurantPlan());
+    const other = await repo.create(OTHER_USER, "Other", restaurantPlan());
     assert.deepEqual(await call(repo, "GET", `/api/plan/${other.id}`), expected);
   });
 
@@ -127,7 +129,7 @@ describe("POST /api/plan/:id/steps/:stepId/actions", () => {
     await actOn(repo, id, "s-menu", { action: "launch", expectedVersion: 1 });
     const stale = await actOn(repo, id, "s-menu", { action: "submit_proof", payload: { text: "Recibo" }, expectedVersion: 1 });
     assert.deepEqual(stale, { status: 409, body: { error: "The plan changed since it was loaded", code: "version_conflict" } });
-    assert.equal((await repo.get(id, LOCAL_USER))?.version, 2);
+    assert.equal((await repo.get(id, USER))?.version, 2);
   });
 
   test("a body that tries to set the actor is refused: the server sets it", async () => {
@@ -141,7 +143,7 @@ describe("POST /api/plan/:id/steps/:stepId/actions", () => {
         body: { error: "Invalid request body", code: "invalid_body" },
       });
     }
-    assert.equal((await repo.get(id, LOCAL_USER))?.version, 1);
+    assert.equal((await repo.get(id, USER))?.version, 1);
   });
 
   test("a body that is not valid JSON, or does not fit the schema, is 400 invalid_body", async () => {

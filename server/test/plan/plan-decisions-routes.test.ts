@@ -1,3 +1,4 @@
+import { USER } from "../user-ids.js";
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { handlePlanRequest, type PlanResponse } from "../../plan-routes.js";
@@ -9,13 +10,13 @@ import type { Plan } from "../../plan/plan-model.js";
 import { reportWith } from "./report-fixtures.js";
 
 const NOW = "2026-10-08T10:00:00Z";
-const LOCAL = "local";
 const GAP = "plan-product-development";
 const PRODUCT = { kind: "catalog", id: "product_type" } as const;
 const catalog = (id: string) => ({ kind: "catalog", id }) as const;
 
 async function call(repo: InMemoryPlanRepository, method: string, path: string, body?: unknown, env: Record<string, string> = {}): Promise<PlanResponse> {
   return handlePlanRequest({
+    userId: USER,
     method,
     path,
     body: body === undefined ? "" : typeof body === "string" ? body : JSON.stringify(body),
@@ -30,11 +31,11 @@ async function call(repo: InMemoryPlanRepository, method: string, path: string, 
 async function skeletonPlan(repo: InMemoryPlanRepository): Promise<string> {
   const built = buildPlanSkeleton(reportWith());
   if (!built.ok) throw new Error("no plan");
-  return (await repo.create(LOCAL, "Plan", built.plan)).id;
+  return (await repo.create(USER, "Plan", built.plan)).id;
 }
 
 const rowOf = (repo: InMemoryPlanRepository, id: string): MemoryRow => repo.rows.get(id)!;
-const versionOf = async (repo: InMemoryPlanRepository, id: string) => (await repo.get(id, LOCAL))!.version;
+const versionOf = async (repo: InMemoryPlanRepository, id: string) => (await repo.get(id, USER))!.version;
 
 describe("facts: create, confirm, reject", () => {
   test("a proposed fact is stored with one log entry, and the version goes up by one", async () => {
@@ -246,7 +247,7 @@ describe("the plans that are not there, and the development route", () => {
     });
     const other = new InMemoryPlanRepository();
     assert.equal((await call(other, "POST", `/api/plan/${id}/facts`, { key: PRODUCT, value: catalog("web_app"), expectedVersion: 1 })).status, 404);
-    const none = await handlePlanRequest({ method: "POST", path: `/api/plan/${id}/facts`, body: JSON.stringify({ key: PRODUCT, value: catalog("web_app"), expectedVersion: 1 }), repo: undefined, reports: undefined, now: () => NOW, env: {} });
+    const none = await handlePlanRequest({ userId: USER, method: "POST", path: `/api/plan/${id}/facts`, body: JSON.stringify({ key: PRODUCT, value: catalog("web_app"), expectedVersion: 1 }), repo: undefined, reports: undefined, now: () => NOW, env: {} });
     assert.equal(none.status, 503);
   });
 

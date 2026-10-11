@@ -1,3 +1,4 @@
+import { USER } from "../user-ids.js";
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { handlePlanRequest, type PlanResponse } from "../../plan-routes.js";
@@ -12,13 +13,13 @@ const GAP = "plan-product-development";
 const PRODUCT = { kind: "catalog", id: "product_type" };
 
 async function call(repo: InMemoryPlanRepository, path: string, body: unknown): Promise<PlanResponse> {
-  return handlePlanRequest({ method: "POST", path, body: JSON.stringify(body), repo, reports: undefined, now: () => NOW, env: {} });
+  return handlePlanRequest({ userId: USER, method: "POST", path, body: JSON.stringify(body), repo, reports: undefined, now: () => NOW, env: {} });
 }
 
 async function newPlan(repo: InMemoryPlanRepository): Promise<string> {
   const built = buildPlanSkeleton(reportWith());
   if (!built.ok) throw new Error("no plan");
-  return (await repo.create("local", "Plan", built.plan)).id;
+  return (await repo.create(USER, "Plan", built.plan)).id;
 }
 
 describe("the whole path through the API: a suggestion goes obsolete, is rejected, and is suggested again", () => {

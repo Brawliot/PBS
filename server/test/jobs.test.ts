@@ -1,6 +1,8 @@
 import { afterEach, describe, mock, test } from "node:test";
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import { JobStore, type JobState } from "../jobs.js";
+import { OTHER_USER, USER } from "./user-ids.js";
 import { HttpError } from "../request.js";
 
 const TTL = 1000;
@@ -30,24 +32,24 @@ afterEach(() => mock.restoreAll());
 describe("JobStore.start", () => {
   test("returns a different id each time and the state starts as pending", async () => {
     const { store } = makeStore();
-    const a = store.start(() => new Promise(() => {}));
-    const b = store.start(() => new Promise(() => {}));
+    const a = store.start(USER, () => new Promise(() => {}));
+    const b = store.start(USER, () => new Promise(() => {}));
     assert.notEqual(a, b);
-    assert.equal(store.get(a)?.status, "pending");
-    assert.equal(store.get(b)?.status, "pending");
+    assert.equal(store.get(a, USER)?.status, "pending");
+    assert.equal(store.get(b, USER)?.status, "pending");
   });
 
   test("stores the exact result once run resolves", async () => {
     const { store } = makeStore();
     const result = { jev: { model: "m" }, questionTotal: 3 };
-    const id = store.start(async () => result);
+    const id = store.start(USER, async () => result);
     await flush();
-    assert.deepEqual(store.get(id), { status: "done", result, finishedAt: 0 });
+    assert.deepEqual(store.get(id, USER), { status: "done", result, finishedAt: 0 });
   });
 
   test("returns undefined for an id it does not know", () => {
     const { store } = makeStore();
-    assert.equal(store.get("00000000-0000-4000-8000-000000000000"), undefined);
+    assert.equal(store.get("00000000-0000-4000-8000-000000000000", USER), undefined);
   });
 
   test("stores the message of an Error rejection, without an unhandled rejection", async () => {
@@ -56,12 +58,12 @@ describe("JobStore.start", () => {
     const unhandled = mock.fn();
     process.on("unhandledRejection", unhandled);
     try {
-      const id = store.start(async () => {
+      const id = store.start(USER, async () => {
         throw new Error("x");
       });
       await flush();
       await flush();
-      assert.deepEqual(store.get(id), { status: "error", message: "x", finishedAt: 0 });
+      assert.deepEqual(store.get(id, USER), { status: "error", message: "x", finishedAt: 0 });
       assert.equal(unhandled.mock.callCount(), 0);
       assert.equal(consoleError.mock.callCount(), 1);
     } finally {
@@ -72,9 +74,9 @@ describe("JobStore.start", () => {
   test("uses 'Internal server error' when the rejection is not an Error", async () => {
     const { store } = makeStore();
     mock.method(console, "error", () => {});
-    const id = store.start(() => Promise.reject("boom"));
+    const id = store.start(USER, () => Promise.reject("boom"));
     await flush();
-    assert.deepEqual(store.get(id), {
+    assert.deepEqual(store.get(id, USER), {
       status: "error",
       message: "Internal server error",
       finishedAt: 0,
@@ -84,17 +86,17 @@ describe("JobStore.start", () => {
   test("turns a synchronous throw from run into an error state", async () => {
     const { store } = makeStore();
     mock.method(console, "error", () => {});
-    const id = store.start((() => {
+    const id = store.start(USER, (() => {
       throw new Error("sync");
     }) as () => Promise<unknown>);
     await flush();
-    assert.deepEqual(store.get(id), { status: "error", message: "sync", finishedAt: 0 });
+    assert.deepEqual(store.get(id, USER), { status: "error", message: "sync", finishedAt: 0 });
   });
 
   test("calls run exactly once per job", async () => {
     const { store } = makeStore();
     const run = mock.fn(async () => "ok");
-    store.start(run);
+    store.start(USER, run);
     await flush();
     assert.equal(run.mock.callCount(), 1);
   });
@@ -103,47 +105,47 @@ describe("JobStore.start", () => {
 describe("JobStore.sweep", () => {
   test("keeps a finished job at ttl - 1 and removes it at ttl + 1", async () => {
     const { store, advance } = makeStore();
-    const id = store.start(async () => "ok"); // finished at t = 0
+    const id = store.start(USER, async () => "ok"); // finished at t = 0
     await flush();
 
     advance(TTL - 1);
     store.sweep();
     assert.equal(store.size, 1);
-    assert.equal(store.get(id)?.status, "done");
+    assert.equal(store.get(id, USER)?.status, "done");
 
     advance(2); // now at ttl + 1
     store.sweep();
     assert.equal(store.size, 0);
-    assert.equal(store.get(id), undefined);
+    assert.equal(store.get(id, USER), undefined);
   });
 
   test("never expires a pending job, however long it waits", async () => {
     const { store, advance } = makeStore();
-    const id = store.start(() => new Promise(() => {}));
+    const id = store.start(USER, () => new Promise(() => {}));
     advance(TTL * 1000);
     store.sweep();
-    assert.equal(store.get(id)?.status, "pending");
+    assert.equal(store.get(id, USER)?.status, "pending");
     assert.equal(store.size, 1);
   });
 
   test("get does not return a finished job after its TTL, even before a sweep", async () => {
     const { store, advance } = makeStore();
-    const id = store.start(async () => "ok");
+    const id = store.start(USER, async () => "ok");
     await flush();
     advance(TTL + 1);
-    assert.equal(store.get(id), undefined);
+    assert.equal(store.get(id, USER), undefined);
   });
 });
 
 describe("JobStore maxJobs", () => {
   test("refuses a new job with 503 when the store is full, without calling run", async () => {
     const { store } = makeStore(2);
-    store.start(() => new Promise(() => {}));
-    store.start(() => new Promise(() => {}));
+    store.start(USER, () => new Promise(() => {}));
+    store.start(USER, () => new Promise(() => {}));
 
     const run = mock.fn(async () => "never");
     assert.throws(
-      () => store.start(run),
+      () => store.start(USER, run),
       (error: unknown) => {
         assert.ok(error instanceof HttpError);
         assert.equal(error.status, 503);
@@ -157,14 +159,14 @@ describe("JobStore maxJobs", () => {
 
   test("accepts a new job again once a finished one has expired", async () => {
     const { store, advance } = makeStore(1);
-    store.start(async () => "ok");
+    store.start(USER, async () => "ok");
     await flush();
-    assert.throws(() => store.start(async () => "no"), HttpError);
+    assert.throws(() => store.start(USER, async () => "no"), HttpError);
 
     advance(TTL + 1);
-    const id = store.start(async () => "yes");
+    const id = store.start(USER, async () => "yes");
     await flush();
-    assert.equal(store.get(id)?.status, "done");
+    assert.equal(store.get(id, USER)?.status, "done");
   });
 });
 
@@ -172,11 +174,38 @@ describe("JobStore states", () => {
   test("a job moves from pending to done", async () => {
     const { store } = makeStore();
     const job = deferred<string>();
-    const id = store.start(() => job.promise);
-    assert.equal(store.get(id)?.status, "pending");
+    const id = store.start(USER, () => job.promise);
+    assert.equal(store.get(id, USER)?.status, "pending");
     job.resolve("result");
     await flush();
-    const state: JobState | undefined = store.get(id);
+    const state: JobState | undefined = store.get(id, USER);
     assert.equal(state?.status, "done");
+  });
+});
+
+describe("JobStore owners", () => {
+  test("a job of one user is read by that user only: another user gets undefined, as for a job that does not exist", async () => {
+    const { store } = makeStore();
+    const id = store.start(USER, async () => "mine");
+    await flush();
+    assert.deepEqual(store.get(id, USER), { status: "done", result: "mine", finishedAt: 0 });
+    assert.equal(store.get(id, OTHER_USER), undefined);
+    assert.equal(store.get(randomUUID(), OTHER_USER), undefined);
+  });
+
+  test("a pending job of another user is not found, and it stays for its owner", async () => {
+    const { store } = makeStore();
+    const id = store.start(USER, () => new Promise(() => {}));
+    assert.equal(store.get(id, OTHER_USER), undefined);
+    assert.equal(store.get(id, USER)?.status, "pending");
+    assert.equal(store.size, 1);
+  });
+
+  test("a failed job of another user is not found either, and its error is not shown to them", async () => {
+    const { store } = makeStore();
+    const id = store.start(USER, () => Promise.reject(new Error("private detail")));
+    await flush();
+    assert.equal(store.get(id, OTHER_USER), undefined);
+    assert.deepEqual(store.get(id, USER), { status: "error", message: "private detail", finishedAt: 0 });
   });
 });

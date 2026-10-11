@@ -6,6 +6,7 @@
  * Run: npm run test:e2e (from server/). Needs Playwright: PLAYWRIGHT_MODULE, and CHROMIUM_PATH if needed.
  */
 
+import { USER } from "../user-ids.js";
 import { spawn, type ChildProcess } from "node:child_process";
 import { createRequire } from "node:module";
 import { mkdirSync } from "node:fs";
@@ -53,13 +54,14 @@ function startServer(): Promise<ChildProcess> {
 async function newPlan(repo: InMemoryPlanRepository): Promise<string> {
   const built = buildPlanSkeleton(reportWith());
   if (!built.ok) throw new Error("no plan");
-  return (await repo.create("local", "Restaurante japonés", built.plan)).id;
+  return (await repo.create(USER, "Restaurante japonés", built.plan)).id;
 }
 
 /** Writes through the real routes, as another window would (used to make this one stale) */
 async function write(repo: InMemoryPlanRepository, id: string, path: string, body: unknown) {
-  const current = await repo.get(id, "local");
+  const current = await repo.get(id, USER);
   return handlePlanRequest({
+    userId: USER,
     method: "POST",
     path: `/api/plan/${id}${path}`,
     body: JSON.stringify({ ...(body as object), expectedVersion: current!.version }),
@@ -74,6 +76,7 @@ async function write(repo: InMemoryPlanRepository, id: string, path: string, bod
 async function serveApi(repo: InMemoryPlanRepository, route: any, ai?: Ai) {
   const request = route.request();
   const result = await handlePlanRequest({
+    userId: USER,
     method: request.method(),
     path: new URL(request.url()).pathname,
     body: request.postData() ?? "",
@@ -133,7 +136,7 @@ async function scenarioDecisions(browser: any): Promise<string> {
   await page.locator("details.fold summary", { hasText: "Decided suggestions" }).waitFor();
 
   // The plan now has the tasks, with the fact they come from
-  const stored = (await repo.get(id, "local"))!;
+  const stored = (await repo.get(id, USER))!;
   assert.deepEqual(stored.plan.tasks.filter((task) => task.derivedFrom).map((task) => task.id), [
     "expand-mobile-game-design",
     "expand-mobile-game-prototype",
@@ -285,7 +288,7 @@ async function scenarioCycle(browser: any): Promise<string> {
   await gap.getByRole("button", { name: "Suggest tasks" }).click();
   await page.locator("article[data-proposal-id]").getByRole("button", { name: "Accept", exact: true }).click();
   await page.locator("details.fold summary", { hasText: "Decided suggestions" }).waitFor();
-  const stored = (await repo.get(id, "local"))!;
+  const stored = (await repo.get(id, USER))!;
   // Four rejected suggestions took the plain id and -2, -3, -4: the fifth one is -5
   assert.ok(stored.plan.tasks.some((task) => task.id === "expand-mobile-game-5-design"), "the fifth suggestion was accepted");
   await context.close();
@@ -296,8 +299,8 @@ async function scenarioCycle(browser: any): Promise<string> {
 async function planWithReport(repo: InMemoryPlanRepository): Promise<{ id: string; ai: Ai; model: FakeModel }> {
   const id = await newPlan(repo);
   const reports = new InMemoryReportRepository();
-  const reportId = await reports.create("local", reportWith());
-  await reports.attachPlan(reportId, "local", id);
+  const reportId = await reports.create(USER, reportWith());
+  await reports.attachPlan(reportId, USER, id);
   const answer = (plan: Plan) => {
     const [first, second] = plan.departments;
     return {
@@ -311,7 +314,7 @@ async function planWithReport(repo: InMemoryPlanRepository): Promise<{ id: strin
       questions: ["Do you want delivery?"],
     };
   };
-  const plan = (await repo.get(id, "local"))!.plan;
+  const plan = (await repo.get(id, USER))!.plan;
   const model = new FakeModel([answer(plan)]);
   return { id, ai: { reports, agents: { model, judge: new FakeJudge([true]) } }, model };
 }
@@ -319,7 +322,7 @@ async function planWithReport(repo: InMemoryPlanRepository): Promise<{ id: strin
 async function scenarioStructure(browser: any): Promise<string> {
   const repo = new InMemoryPlanRepository();
   const { id, ai, model } = await planWithReport(repo);
-  const before = (await repo.get(id, "local"))!;
+  const before = (await repo.get(id, USER))!;
   const { context, page } = await openPlan(browser, repo, id, "#/decisions", undefined, ai);
 
   // The suggestion is asked for by the button, and only then
@@ -343,7 +346,7 @@ async function scenarioStructure(browser: any): Promise<string> {
   // Accepting it changes the phases and the tiers, on the plan page
   await card.getByRole("button", { name: "Accept" }).click();
   await card.waitFor({ state: "detached" });
-  const after = (await repo.get(id, "local"))!;
+  const after = (await repo.get(id, USER))!;
   assert.equal(after.plan.phases[0].name, "Launch preparation");
   assert.equal(after.plan.departments.find((department) => department.id === before.plan.departments[0].id)?.tier, "light");
   // The other pages show the accepted phases too
@@ -358,13 +361,13 @@ async function scenarioStructureFailure(browser: any): Promise<string> {
   const { id, ai } = await planWithReport(repo);
   // The assistant fails on every try: the screen says so and nothing is saved
   ai.agents.model = new FakeModel([new Error("provider down")]);
-  const version = (await repo.get(id, "local"))!.version;
+  const version = (await repo.get(id, USER))!.version;
   const { context, page } = await openPlan(browser, repo, id, "#/decisions", undefined, ai);
   await page.getByRole("button", { name: "Suggest plan structure" }).click();
   await notice(page).waitFor();
   assert.match((await notice(page).textContent()) ?? "", /The assistant is not available right now/);
   assert.equal(await page.locator("article[data-structure]").count(), 0, "no card is shown");
-  assert.equal((await repo.get(id, "local"))!.version, version, "nothing is saved");
+  assert.equal((await repo.get(id, USER))!.version, version, "nothing is saved");
   await context.close();
   return "structure failure: the assistant fails after its tries, the screen says so, nothing is saved";
 }
@@ -384,8 +387,9 @@ class RoleModel {
 /** A plan with a confirmed decision (the assistant builds on it), and an assistant that answers by role */
 async function planForDepartments(repo: InMemoryPlanRepository, answer: (role: string, plan: Plan, factId: string) => unknown) {
   const { id, ai } = await planWithReport(repo);
-  const at = (await repo.get(id, "local"))!.version;
+  const at = (await repo.get(id, USER))!.version;
   const confirmed = await handlePlanRequest({
+    userId: USER,
     method: "POST",
     path: `/api/plan/${id}/facts`,
     body: JSON.stringify({ key: { kind: "catalog", id: "product_type" }, value: { kind: "catalog", id: "web_app" }, confirm: true, expectedVersion: at }),
@@ -395,7 +399,7 @@ async function planForDepartments(repo: InMemoryPlanRepository, answer: (role: s
     env: {},
   });
   assert.equal(confirmed.status, 201);
-  const stored = (await repo.get(id, "local"))!;
+  const stored = (await repo.get(id, USER))!;
   const factId = stored.plan.facts!.find((fact) => fact.status === "confirmed")!.id;
   const model = new RoleModel((role) => answer(role, stored.plan, factId));
   ai.agents.model = model;
@@ -450,7 +454,7 @@ async function scenarioDepartments(browser: any): Promise<string> {
   await page.goto(`${BASE}/plan.html?id=${id}#/task/${encodeURIComponent(`${first.id}-scope`)}`);
   await page.getByText("This task has no steps.").waitFor();
   await page.screenshot({ path: join(SHOTS, "task-after-accept.png") });
-  const stored = (await repo.get(id, "local"))!;
+  const stored = (await repo.get(id, USER))!;
   assert.ok(stored.plan.tasks.some((task) => task.id === `${first.id}-scope`), "the accepted task is in the plan");
   await context.close();
   return "departments: asked by the button, one card per department, accepted, the task shows with no steps";
@@ -485,7 +489,7 @@ async function scenarioDepartmentRelation(browser: any): Promise<string> {
   // Accepting keeps the relation in the plan
   await card.getByRole("button", { name: "Accept" }).click();
   await card.waitFor({ state: "detached" });
-  const stored = (await repo.get(id, "local"))!;
+  const stored = (await repo.get(id, USER))!;
   assert.ok(
     stored.plan.relations.some((relation) => relation.level === "task" && relation.from === `${first.id}-scope` && relation.to === own.id),
     "the accepted relation is in the plan",
@@ -500,13 +504,13 @@ async function scenarioDepartmentsFailure(browser: any): Promise<string> {
   const { id, ai } = await planForDepartments(repo, (role, plan, factId) =>
     role === `department_${plan.departments[1].id}` ? new Error("provider down") : departmentAnswer(role, plan, factId),
   );
-  const version = (await repo.get(id, "local"))!.version;
+  const version = (await repo.get(id, USER))!.version;
   const { context, page } = await openPlan(browser, repo, id, "#/decisions", undefined, ai);
   await page.getByRole("button", { name: "Suggest tasks for all departments" }).click();
   await notice(page).waitFor();
   assert.match((await notice(page).textContent()) ?? "", /The assistant is not available right now/);
   assert.equal(await page.locator("article[data-department-id]").count(), 0, "no card is shown");
-  assert.equal((await repo.get(id, "local"))!.version, version, "nothing is saved");
+  assert.equal((await repo.get(id, USER))!.version, version, "nothing is saved");
   await context.close();
   return "departments failure: one department fails after its tries, the screen says so, nothing is saved";
 }
@@ -517,10 +521,10 @@ const noticeSays = (page: any, text: RegExp) =>
 
 /** A stored plan with the report that holds its idea (so the assistant can work on it), and an assistant to set by the scenario */
 async function storedWithReport(repo: InMemoryPlanRepository, plan: Plan): Promise<{ id: string; ai: Ai }> {
-  const stored = await repo.create("local", "Restaurante japonés", plan);
+  const stored = await repo.create(USER, "Restaurante japonés", plan);
   const reports = new InMemoryReportRepository();
-  const reportId = await reports.create("local", reportWith());
-  await reports.attachPlan(reportId, "local", stored.id);
+  const reportId = await reports.create(USER, reportWith());
+  await reports.attachPlan(reportId, USER, stored.id);
   return { id: stored.id, ai: { reports, agents: { model: new RoleModel(() => new Error("not set")), judge: new FakeJudge([true]) } } };
 }
 

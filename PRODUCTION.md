@@ -2,7 +2,7 @@
 
 Este documento recoge lo que falta para publicar las fases 1 y 2 (el flujo completo: idea, preguntas, informe y plan) y las mejoras opcionales. Lo que se hace antes de cerrar la fase 2 y lo que pertenece a fases siguientes está en `FUTURE.md`.
 
-Hoy el proyecto funciona en local y sin usuarios (todo pertenece a `LOCAL_USER`). El estado vive en PostgreSQL (planes, informes y registros). Casi todo lo de abajo nace de eso.
+Hoy el proyecto funciona en local y sin usuarios reales (todo pertenece al usuario provisional de la migración 004). El estado vive en PostgreSQL (planes, informes y registros). Casi todo lo de abajo nace de eso.
 
 ---
 
@@ -82,7 +82,7 @@ Hoy el proyecto funciona en local y sin usuarios (todo pertenece a `LOCAL_USER`)
 **Categoría.** Crítico en producción, seguridad. Depende de la autenticación (para asociar cada trabajo a su usuario).
 
 ### Ligar informes y planes a usuarios
-**Qué es.** Hoy todos los informes y los planes pertenecen a un único usuario local (`LOCAL_USER` en `server/plan-routes.ts`), y cada consulta lo usa. Cuando haya autenticación, el informe y el plan deben guardar el usuario real, y cada ruta debe comprobar que el usuario que pregunta es el dueño: `POST /api/plan`, `GET /api/plan/:id` y las acciones de los pasos.
+**Qué es.** Hoy todos los informes, planes y trabajos de análisis pertenecen al usuario provisional de la migración 004 (`requestUser` en `server/server.ts` es el único sitio que decide quién es el usuario de cada petición). Cada consulta filtra por ese usuario, y la tabla `users` ya existe, pero aún no hay registro ni inicio de sesión. Cuando los haya, el informe y el plan deben guardar el usuario real, y cada ruta debe comprobar que el usuario que pregunta es el dueño: `POST /api/plan`, `GET /api/plan/:id`, las acciones de los pasos y `GET /api/planner/:id`.
 **Por qué.** Si dos personas usan la aplicación, hoy compartirían todo, y el `reportId` que el navegador recibe serviría para leer el informe de cualquiera que lo conozca.
 **Hecho cuando.** Un usuario recibe 404 al pedir un informe o un plan que no es suyo, y no hay ninguna consulta a la base de datos sin el usuario.
 **Categoría.** Crítico, seguridad. Depende de la autenticación.

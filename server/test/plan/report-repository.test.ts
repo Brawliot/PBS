@@ -1,3 +1,4 @@
+import { OTHER_USER, USER } from "../user-ids.js";
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { InMemoryReportRepository } from "../../plan/report-repository-memory.js";
@@ -23,70 +24,70 @@ describe("InMemoryReportRepository: create and get", () => {
   test("a valid report is stored and comes back equal, with no plan yet", async () => {
     const repo = new InMemoryReportRepository();
     const report = reportWith();
-    const id = await repo.create("local", report);
+    const id = await repo.create(USER, report);
     assert.match(id, /^[0-9a-f-]{36}$/);
-    assert.deepEqual(await repo.get(id, "local"), { id, report, planId: null });
+    assert.deepEqual(await repo.get(id, USER), { id, report, planId: null });
   });
 
   test("a report that does not pass parseReport is not stored, and the error has no content", async () => {
     const repo = new InMemoryReportRepository();
     const broken = { ...reportWith(), [SECRET]: "value" };
-    await assertStoreError(repo.create("local", broken), "invalid_report", [SECRET, "value"]);
+    await assertStoreError(repo.create(USER, broken), "invalid_report", [SECRET, "value"]);
     assert.equal(repo.rows.size, 0);
   });
 
   test("a report over the size limit is refused as too_large, before its schema is read", async () => {
     const repo = new InMemoryReportRepository();
     // Size is checked first, so one oversized field is enough
-    await assertStoreError(repo.create("local", { ...reportWith(), padding: "x".repeat(MAX_REPORT_BYTES) }), "too_large");
+    await assertStoreError(repo.create(USER, { ...reportWith(), padding: "x".repeat(MAX_REPORT_BYTES) }), "too_large");
     assert.equal(repo.rows.size, 0);
   });
 
   test("a stored report that no longer passes is not read: the error has no content", async () => {
     const repo = new InMemoryReportRepository();
-    const id = await repo.create("local", reportWith());
+    const id = await repo.create(USER, reportWith());
     repo.rows.get(id)!.document = JSON.stringify({ ...reportWith(), [SECRET]: "value" });
-    await assertStoreError(repo.get(id, "local"), "invalid_report", [SECRET]);
+    await assertStoreError(repo.get(id, USER), "invalid_report", [SECRET]);
   });
 
   test("another user's report, or an id that does not exist, is not found", async () => {
     const repo = new InMemoryReportRepository();
-    const id = await repo.create("local", reportWith());
-    assert.equal(await repo.get(id, "someone-else"), undefined);
-    assert.equal(await repo.get("00000000-0000-4000-8000-000000000000", "local"), undefined);
+    const id = await repo.create(USER, reportWith());
+    assert.equal(await repo.get(id, OTHER_USER), undefined);
+    assert.equal(await repo.get("00000000-0000-4000-8000-000000000000", USER), undefined);
   });
 });
 
 describe("InMemoryReportRepository: attachPlan", () => {
   test("the first plan is linked and reported as attached", async () => {
     const repo = new InMemoryReportRepository();
-    const id = await repo.create("local", reportWith());
-    assert.deepEqual(await repo.attachPlan(id, "local", "plan-1"), { ok: true, planId: "plan-1", attached: true });
-    assert.equal((await repo.get(id, "local"))?.planId, "plan-1");
+    const id = await repo.create(USER, reportWith());
+    assert.deepEqual(await repo.attachPlan(id, USER, "plan-1"), { ok: true, planId: "plan-1", attached: true });
+    assert.equal((await repo.get(id, USER))?.planId, "plan-1");
   });
 
   test("a second plan for the same report is refused: the first one comes back, nothing changes", async () => {
     const repo = new InMemoryReportRepository();
-    const id = await repo.create("local", reportWith());
-    await repo.attachPlan(id, "local", "plan-1");
-    assert.deepEqual(await repo.attachPlan(id, "local", "plan-2"), { ok: true, planId: "plan-1", attached: false });
-    assert.equal((await repo.get(id, "local"))?.planId, "plan-1");
+    const id = await repo.create(USER, reportWith());
+    await repo.attachPlan(id, USER, "plan-1");
+    assert.deepEqual(await repo.attachPlan(id, USER, "plan-2"), { ok: true, planId: "plan-1", attached: false });
+    assert.equal((await repo.get(id, USER))?.planId, "plan-1");
   });
 
   test("two attaches at once give one plan: exactly one is attached", async () => {
     const repo = new InMemoryReportRepository();
-    const id = await repo.create("local", reportWith());
-    const results = await Promise.all([repo.attachPlan(id, "local", "plan-a"), repo.attachPlan(id, "local", "plan-b")]);
+    const id = await repo.create(USER, reportWith());
+    const results = await Promise.all([repo.attachPlan(id, USER, "plan-a"), repo.attachPlan(id, USER, "plan-b")]);
     assert.equal(results.filter((result) => result.ok && result.attached).length, 1);
     assert.deepEqual(new Set(results.map((result) => (result.ok ? result.planId : ""))).size, 1);
   });
 
   test("another user's report, or an unknown one, is not found and nothing is linked", async () => {
     const repo = new InMemoryReportRepository();
-    const id = await repo.create("local", reportWith());
-    assert.deepEqual(await repo.attachPlan(id, "someone-else", "plan-1"), { ok: false, code: "not_found" });
-    assert.deepEqual(await repo.attachPlan("00000000-0000-4000-8000-000000000000", "local", "plan-1"), { ok: false, code: "not_found" });
-    assert.equal((await repo.get(id, "local"))?.planId, null);
+    const id = await repo.create(USER, reportWith());
+    assert.deepEqual(await repo.attachPlan(id, OTHER_USER, "plan-1"), { ok: false, code: "not_found" });
+    assert.deepEqual(await repo.attachPlan("00000000-0000-4000-8000-000000000000", USER, "plan-1"), { ok: false, code: "not_found" });
+    assert.equal((await repo.get(id, USER))?.planId, null);
   });
 });
 
@@ -94,15 +95,15 @@ describe("InMemoryReportRepository: the report of a plan", () => {
   test("the report is found by the id of its plan, for its owner only", async () => {
     const repo = new InMemoryReportRepository();
     const report = reportWith();
-    const id = await repo.create("local", report);
-    await repo.attachPlan(id, "local", "plan-a");
-    assert.deepEqual(await repo.getByPlanId("plan-a", "local"), { id, report, planId: "plan-a" });
-    assert.equal(await repo.getByPlanId("plan-a", "someone-else"), undefined);
+    const id = await repo.create(USER, report);
+    await repo.attachPlan(id, USER, "plan-a");
+    assert.deepEqual(await repo.getByPlanId("plan-a", USER), { id, report, planId: "plan-a" });
+    assert.equal(await repo.getByPlanId("plan-a", OTHER_USER), undefined);
   });
 
   test("a plan with no report (a demo plan) has none", async () => {
     const repo = new InMemoryReportRepository();
-    await repo.create("local", reportWith());
-    assert.equal(await repo.getByPlanId("plan-without-report", "local"), undefined);
+    await repo.create(USER, reportWith());
+    assert.equal(await repo.getByPlanId("plan-without-report", USER), undefined);
   });
 });

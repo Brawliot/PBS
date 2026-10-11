@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { Client, Pool } from "pg";
 import { runMigrations } from "../../db/migrate.js";
+import { addOtherUser, OTHER_USER, PROVISIONAL_USER } from "./users.js";
 import { PgPlanRepository } from "../../db/pg-plan-repository.js";
 import { restaurantPlan } from "../../plan/demo-plan.js";
 import { applyPlanAction } from "../../plan/plan-actions.js";
@@ -30,6 +31,7 @@ describe("PgPlanRepository on PostgreSQL", { skip: url ? false : "TEST_DATABASE_
     const client = await pool.connect();
     try {
       await runMigrations(client);
+      await addOtherUser(client);
     } finally {
       client.release();
     }
@@ -54,22 +56,22 @@ describe("PgPlanRepository on PostgreSQL", { skip: url ? false : "TEST_DATABASE_
   });
 
   test("create, get and the user filter", async () => {
-    const created = await repo.create("local", "Restaurante", restaurantPlan());
+    const created = await repo.create(PROVISIONAL_USER, "Restaurante", restaurantPlan());
     assert.equal(created.version, 1);
     assert.deepEqual(created.plan, restaurantPlan());
-    assert.deepEqual(await repo.get(created.id, "local"), created);
-    assert.equal(await repo.get(created.id, "someone-else"), undefined);
+    assert.deepEqual(await repo.get(created.id, PROVISIONAL_USER), created);
+    assert.equal(await repo.get(created.id, OTHER_USER), undefined);
   });
 
   test("update adds the version and writes the events with the plan", async () => {
-    const { id } = await repo.create("local", "Plan", restaurantPlan());
+    const { id } = await repo.create(PROVISIONAL_USER, "Plan", restaurantPlan());
     const result = applyPlanAction(restaurantPlan(), "s-viability", "launch", { now: () => NOW, actor: "user" });
     assert.ok(result.ok);
 
-    const saved = await repo.update(id, "local", 1, result.plan, [{ stepId: "s-viability", event: result.event }]);
+    const saved = await repo.update(id, PROVISIONAL_USER, 1, result.plan, [{ stepId: "s-viability", event: result.event }]);
     assert.ok(saved.ok);
     assert.equal(saved.stored.version, 2);
-    assert.deepEqual((await repo.get(id, "local"))?.plan, result.plan);
+    assert.deepEqual((await repo.get(id, PROVISIONAL_USER))?.plan, result.plan);
 
     const { rows } = await pool.query("SELECT step_id, actor, action, status_from, status_to, executor_from, executor_to FROM plan_events WHERE plan_id = $1", [id]);
     assert.deepEqual(rows, [
@@ -78,27 +80,27 @@ describe("PgPlanRepository on PostgreSQL", { skip: url ? false : "TEST_DATABASE_
   });
 
   test("a stale version is a version conflict, an unknown id or another user is not_found, and nothing is written", async () => {
-    const { id } = await repo.create("local", "Plan", restaurantPlan());
+    const { id } = await repo.create(PROVISIONAL_USER, "Plan", restaurantPlan());
     const result = applyPlanAction(restaurantPlan(), "s-menu", "launch", { now: () => NOW, actor: "user" });
     assert.ok(result.ok);
-    assert.ok((await repo.update(id, "local", 1, result.plan, [])).ok);
+    assert.ok((await repo.update(id, PROVISIONAL_USER, 1, result.plan, [])).ok);
 
-    assert.deepEqual(await repo.update(id, "local", 1, restaurantPlan(), [{ stepId: "s-menu", event: result.event }]), {
+    assert.deepEqual(await repo.update(id, PROVISIONAL_USER, 1, restaurantPlan(), [{ stepId: "s-menu", event: result.event }]), {
       ok: false,
       code: "version_conflict",
     });
-    assert.deepEqual(await repo.update(randomUUID(), "local", 1, result.plan, []), { ok: false, code: "not_found" });
-    assert.deepEqual(await repo.update(id, "someone-else", 2, result.plan, []), { ok: false, code: "not_found" });
+    assert.deepEqual(await repo.update(randomUUID(), PROVISIONAL_USER, 1, result.plan, []), { ok: false, code: "not_found" });
+    assert.deepEqual(await repo.update(id, OTHER_USER, 2, result.plan, []), { ok: false, code: "not_found" });
 
     const { rowCount } = await pool.query("SELECT 1 FROM plan_events WHERE plan_id = $1", [id]);
     assert.equal(rowCount, 0);
   });
 
   test("the history is append-only: an update or a delete of an event is refused", async () => {
-    const { id } = await repo.create("local", "Plan", restaurantPlan());
+    const { id } = await repo.create(PROVISIONAL_USER, "Plan", restaurantPlan());
     const result = applyPlanAction(restaurantPlan(), "s-menu", "launch", { now: () => NOW, actor: "user" });
     assert.ok(result.ok);
-    await repo.update(id, "local", 1, result.plan, [{ stepId: "s-menu", event: result.event }]);
+    await repo.update(id, PROVISIONAL_USER, 1, result.plan, [{ stepId: "s-menu", event: result.event }]);
 
     await assert.rejects(pool.query("UPDATE plan_events SET actor = 'ai' WHERE plan_id = $1", [id]), /append-only/);
     await assert.rejects(pool.query("DELETE FROM plan_events WHERE plan_id = $1", [id]), /append-only/);

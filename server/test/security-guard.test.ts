@@ -1,3 +1,4 @@
+import { USER } from "./user-ids.js";
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
@@ -27,6 +28,7 @@ describe("the development routes never run in production", () => {
   test("a dev route with the flag and NODE_ENV=production is 404, even though the flag is set", async () => {
     const repo = new InMemoryPlanRepository();
     const response = await handlePlanRequest({
+      userId: USER,
       method: "POST",
       path: "/api/dev/demo-plan",
       body: "",

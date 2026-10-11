@@ -14,7 +14,7 @@ import { HttpError, parsePlannerRequest, readBody } from "./request.js";
 import { PgPlanRepository } from "./db/pg-plan-repository.js";
 import { createPool } from "./db/pool.js";
 import { PgReportRepository } from "./db/pg-report-repository.js";
-import { handlePlanRequest, isPlanPath, LOCAL_USER } from "./plan-routes.js";
+import { handlePlanRequest, isPlanPath } from "./plan-routes.js";
 import { agentsFromEnv } from "./plan/agents/configured-agents.js";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
@@ -32,6 +32,15 @@ const planRepository = pool && new PgPlanRepository(pool);
 const reportRepository = pool && new PgReportRepository(pool);
 // The plan level's assistant: real only when its keys are set (the agent routes answer 503 otherwise)
 const agents = agentsFromEnv(process.env);
+
+/**
+ * The user a request acts for. This is the only place that decides it. Until registration and login exist
+ * (point 4), every request is the provisional user that migration 004 creates.
+ */
+const PROVISIONAL_USER_ID = "00000000-0000-0000-0000-000000000001";
+function requestUser(_req: IncomingMessage): string {
+  return PROVISIONAL_USER_ID;
+}
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -76,6 +85,7 @@ async function planRoute(req: IncomingMessage, res: ServerResponse, path: string
     const result = await handlePlanRequest({
       method: req.method ?? "",
       path,
+      userId: requestUser(req),
       body,
       repo: planRepository,
       reports: reportRepository,
@@ -115,7 +125,8 @@ export const server = createServer(async (req, res) => {
   const jobPath = path.match(/^\/api\/planner\/([^/]+)$/);
   if (req.method === "GET" && jobPath) {
     const id = jobPath[1];
-    const job = UUID.test(id) ? jobs.get(id) : undefined;
+    // Another user's job is not found, the same as a job that does not exist
+    const job = UUID.test(id) ? jobs.get(id, requestUser(req)) : undefined;
     if (!job) return sendJson(res, 404, { error: "Job not found" }, NO_STORE);
     if (job.status === "pending") return sendJson(res, 200, { status: "pending" }, NO_STORE);
     if (job.status === "done") {
@@ -128,8 +139,9 @@ export const server = createServer(async (req, res) => {
     try {
       const { input, answers, final, claims } = parsePlannerRequest(await readBody(req));
       // Planner errors can carry internal details: only HttpError messages reach the client
-      const jobId = jobs.start(() =>
-        runPlanner(input, answers, final, claims, { reports: reportRepository, owner: LOCAL_USER }).catch((e) => {
+      const owner = requestUser(req);
+      const jobId = jobs.start(owner, () =>
+        runPlanner(input, answers, final, claims, { reports: reportRepository, owner }).catch((e) => {
           if (e instanceof HttpError) throw e;
           throw new Error("Internal server error", { cause: e });
         }),

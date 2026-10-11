@@ -2,6 +2,7 @@
  * The largest plan document that is stored: MAX_DOCUMENT_BYTES of JSON text. The plans below are built from the
  * perf generator and padded with text to the exact number of bytes, so the limit is tested at its edge.
  */
+import { USER } from "../user-ids.js";
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { MAX_DOCUMENT_BYTES, MAX_STEP_TEXT, parsePlan, type Plan } from "../../plan/plan-model.js";
@@ -37,18 +38,18 @@ describe("the document size limit, at its edge", () => {
   });
 
   test("a plan one byte under the limit is created", async () => {
-    const stored = await new InMemoryPlanRepository().create("local", "Grande", plannedBytes(MAX_DOCUMENT_BYTES - 1));
+    const stored = await new InMemoryPlanRepository().create(USER, "Grande", plannedBytes(MAX_DOCUMENT_BYTES - 1));
     assert.equal(stored.version, 1);
   });
 
   test("a plan exactly at the limit is created", async () => {
-    const stored = await new InMemoryPlanRepository().create("local", "Grande", plannedBytes(MAX_DOCUMENT_BYTES));
+    const stored = await new InMemoryPlanRepository().create(USER, "Grande", plannedBytes(MAX_DOCUMENT_BYTES));
     assert.equal(stored.version, 1);
   });
 
   test("a plan one byte over the limit is refused by create, with its code, and nothing is stored", async () => {
     const repo = new InMemoryPlanRepository();
-    await assert.rejects(repo.create("local", "Grande", plannedBytes(MAX_DOCUMENT_BYTES + 1)), (error: unknown) => {
+    await assert.rejects(repo.create(USER, "Grande", plannedBytes(MAX_DOCUMENT_BYTES + 1)), (error: unknown) => {
       assert.ok(error instanceof PlanTooLargeError);
       assert.equal(error.code, "plan_too_large");
       return true;
@@ -63,11 +64,11 @@ describe("the document size limit, at its edge", () => {
 
   test("an update one byte over the limit is refused: the version, the document and the rows do not change", async () => {
     const repo = new InMemoryPlanRepository();
-    const created = await repo.create("local", "Grande", plannedBytes(MAX_DOCUMENT_BYTES - 1000));
+    const created = await repo.create(USER, "Grande", plannedBytes(MAX_DOCUMENT_BYTES - 1000));
     const before = repo.rows.get(created.id)!;
     const documentBefore = before.document;
 
-    const refused = await repo.update(created.id, "local", 1, plannedBytes(MAX_DOCUMENT_BYTES + 1), [{ stepId: "x", event: EVENT }], []);
+    const refused = await repo.update(created.id, USER, 1, plannedBytes(MAX_DOCUMENT_BYTES + 1), [{ stepId: "x", event: EVENT }], []);
     assert.deepEqual(refused, { ok: false, code: "plan_too_large" });
     assert.equal(repo.rows.get(created.id)!.version, 1);
     assert.equal(repo.rows.get(created.id)!.document, documentBefore);
@@ -76,8 +77,8 @@ describe("the document size limit, at its edge", () => {
 
   test("an update exactly at the limit is accepted", async () => {
     const repo = new InMemoryPlanRepository();
-    const created = await repo.create("local", "Grande", plannedBytes(MAX_DOCUMENT_BYTES - 1000));
-    const saved = await repo.update(created.id, "local", 1, plannedBytes(MAX_DOCUMENT_BYTES), []);
+    const created = await repo.create(USER, "Grande", plannedBytes(MAX_DOCUMENT_BYTES - 1000));
+    const saved = await repo.update(created.id, USER, 1, plannedBytes(MAX_DOCUMENT_BYTES), []);
     assert.equal(saved.ok, true);
   });
 
@@ -86,9 +87,10 @@ describe("the document size limit, at its edge", () => {
     const step = plan.steps.find((candidate) => candidate.status === "not_started" && readiness(candidate, plan.steps, plan.relations) === "ready");
     assert.ok(step, "the synthetic plan has a ready step");
     const repo = new InMemoryPlanRepository();
-    const stored = await repo.create("local", "Grande", plan);
+    const stored = await repo.create(USER, "Grande", plan);
 
     const response = await handlePlanRequest({
+      userId: USER,
       method: "POST",
       path: `/api/plan/${stored.id}/steps/${step.id}/actions`,
       body: JSON.stringify({ action: "launch", expectedVersion: 1 }),
@@ -98,7 +100,7 @@ describe("the document size limit, at its edge", () => {
       env: {},
     });
     assert.deepEqual(response, { status: 409, body: { error: "This change would make the plan too large to store", code: "plan_too_large" } });
-    const after = await repo.get(stored.id, "local");
+    const after = await repo.get(stored.id, USER);
     assert.equal(after?.version, 1);
     assert.equal(after?.plan.steps.find((candidate) => candidate.id === step.id)?.status, "not_started");
     assert.doesNotThrow(() => parsePlan(after?.plan));

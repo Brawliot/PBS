@@ -34,7 +34,11 @@ export async function runMigrations(client: ClientBase, directory: string = MIGR
         await client.query("COMMIT");
       } catch (error) {
         await client.query("ROLLBACK");
-        throw new Error(`Migration ${migration.name} failed: ${(error as { code?: string }).code ?? "unknown error"}`);
+        const { code, message } = error as { code?: string; message?: string };
+        // P0001 is a RAISE written in our own migrations: its text is ours and carries no values. Any other
+        // message can carry values from the database, so only the code goes out.
+        const reason = code === "P0001" && message ? message : (code ?? "unknown error");
+        throw new Error(`Migration ${migration.name} failed: ${reason}`);
       }
       ran.push(migration.name);
     }

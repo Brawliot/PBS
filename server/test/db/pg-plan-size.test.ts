@@ -7,6 +7,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { Client, Pool } from "pg";
 import { runMigrations } from "../../db/migrate.js";
+import { addOtherUser, PROVISIONAL_USER } from "./users.js";
 import { PgPlanRepository } from "../../db/pg-plan-repository.js";
 import { MAX_DOCUMENT_BYTES, MAX_STEP_TEXT, type Plan } from "../../plan/plan-model.js";
 import { BENCH_SIZES, syntheticPlan } from "../perf/generate.js";
@@ -41,6 +42,7 @@ describe("the size limit on PostgreSQL", { skip: url ? false : "TEST_DATABASE_UR
     const client = await pool.connect();
     try {
       await runMigrations(client);
+      await addOtherUser(client);
     } finally {
       client.release();
     }
@@ -56,7 +58,7 @@ describe("the size limit on PostgreSQL", { skip: url ? false : "TEST_DATABASE_UR
   });
 
   test("an update one byte over the limit changes neither the version nor the rows", async () => {
-    const created = await repo.create("local", "Grande", plannedBytes(MAX_DOCUMENT_BYTES - 1000));
+    const created = await repo.create(PROVISIONAL_USER, "Grande", plannedBytes(MAX_DOCUMENT_BYTES - 1000));
     const counts = async () =>
       (await pool.query(
         "SELECT (SELECT count(*) FROM plan_events) AS events, (SELECT count(*) FROM plan_log) AS logs, (SELECT version FROM plans WHERE id = $1) AS version, (SELECT document::text FROM plans WHERE id = $1) AS document",
@@ -65,7 +67,7 @@ describe("the size limit on PostgreSQL", { skip: url ? false : "TEST_DATABASE_UR
     const before = await counts();
 
     const event = { at: "2026-10-08T10:00:00Z", actor: "user" as const, action: "launch" as const, from: "not_started" as const, to: "running" as const };
-    const result = await repo.update(created.id, "local", 1, plannedBytes(MAX_DOCUMENT_BYTES + 1), [{ stepId: "s-x", event }], [
+    const result = await repo.update(created.id, PROVISIONAL_USER, 1, plannedBytes(MAX_DOCUMENT_BYTES + 1), [{ stepId: "s-x", event }], [
       { kind: "fact_proposed", actor: "user", refId: "f-x", at: "2026-10-08T10:00:00Z" },
     ]);
 
@@ -75,7 +77,7 @@ describe("the size limit on PostgreSQL", { skip: url ? false : "TEST_DATABASE_UR
 
   test("a plan one byte over the limit is not created", async () => {
     const before = Number((await pool.query("SELECT count(*) FROM plans")).rows[0].count);
-    await assert.rejects(repo.create("local", "Grande", plannedBytes(MAX_DOCUMENT_BYTES + 1)), { code: "plan_too_large" });
+    await assert.rejects(repo.create(PROVISIONAL_USER, "Grande", plannedBytes(MAX_DOCUMENT_BYTES + 1)), { code: "plan_too_large" });
     assert.equal(Number((await pool.query("SELECT count(*) FROM plans")).rows[0].count), before);
   });
 });

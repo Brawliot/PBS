@@ -1,3 +1,4 @@
+import { USER } from "../user-ids.js";
 import { beforeEach, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { handlePlanRequest, type PlanResponse } from "../../plan-routes.js";
@@ -11,7 +12,6 @@ import { FakeJudge, NOW } from "./agents/fakes.js";
 import { silenceConsoleError } from "../planner/helpers.js";
 import "../planner/helpers.js";
 
-const LOCAL = "local";
 const IDEA = "A bakery with delivery in the city centre";
 
 interface Store {
@@ -23,6 +23,7 @@ const setup = (): Store => ({ plans: new InMemoryPlanRepository(), reports: new 
 
 function call(store: Store, method: string, path: string, body: unknown = undefined, agents?: AgentDeps, agentTimeoutMs?: number): Promise<PlanResponse> {
   return handlePlanRequest({
+    userId: USER,
     method,
     path,
     body: body === undefined ? "" : typeof body === "string" ? body : JSON.stringify(body),
@@ -38,13 +39,13 @@ function call(store: Store, method: string, path: string, body: unknown = undefi
 /** A plan made from a report through the real route (so it is linked to its report) */
 async function linkedPlan(store: Store): Promise<string> {
   const report = { ...reportWith(), input: { ...reportWith().input, idea: IDEA } };
-  const reportId = await store.reports.create(LOCAL, report);
+  const reportId = await store.reports.create(USER, report);
   const created = await call(store, "POST", "/api/plan", { reportId });
   assert.equal(created.status, 201);
   return (created.body as { id: string }).id;
 }
 
-const version = async (store: Store, id: string) => (await store.plans.get(id, LOCAL))!.version;
+const version = async (store: Store, id: string) => (await store.plans.get(id, USER))!.version;
 
 /** Confirms one decision through the real route, so the plan has a confirmed fact (product_type = web_app) */
 async function confirmedPlan(store: Store): Promise<{ id: string; version: number }> {
@@ -101,7 +102,7 @@ function answersFor(plan: Plan, factId: string) {
 }
 
 async function factIdOf(store: Store, id: string): Promise<string> {
-  const stored = (await store.plans.get(id, LOCAL))!;
+  const stored = (await store.plans.get(id, USER))!;
   return stored.plan.facts!.find((fact) => fact.status === "confirmed")!.id;
 }
 
@@ -117,7 +118,7 @@ describe("POST /api/plan/:id/agents/departments", () => {
 
   test("a success saves one pending proposal per department, its notes, and the facts once each, in one write", async () => {
     const { id, version: at } = await confirmedPlan(store);
-    const plan = (await store.plans.get(id, LOCAL))!.plan;
+    const plan = (await store.plans.get(id, USER))!.plan;
     const model = new RoleModel(answersFor(plan, await factIdOf(store, id)));
     const response = await call(store, "POST", `/api/plan/${id}/agents/departments`, { expectedVersion: at }, { model, judge: new FakeJudge([true]) });
 
@@ -147,7 +148,7 @@ describe("POST /api/plan/:id/agents/departments", () => {
 
   test("a department that fails after its attempts saves nothing and answers 503", async () => {
     const { id, version: at } = await confirmedPlan(store);
-    const plan = (await store.plans.get(id, LOCAL))!.plan;
+    const plan = (await store.plans.get(id, USER))!.plan;
     const answer = answersFor(plan, await factIdOf(store, id));
     const model = new RoleModel((role) => (role === `department_${plan.departments[1].id}` ? new Error("down") : answer(role)));
     const response = await call(store, "POST", `/api/plan/${id}/agents/departments`, { expectedVersion: at }, { model, judge: null });
@@ -155,12 +156,12 @@ describe("POST /api/plan/:id/agents/departments", () => {
     assert.deepEqual(response.body, { error: "The assistant is not available right now. Try again later.", code: "assistant_unavailable" });
     assert.equal(response.status, 503);
     assert.equal(await version(store, id), at);
-    assert.deepEqual((await store.plans.get(id, LOCAL))!.plan.proposals ?? [], []);
+    assert.deepEqual((await store.plans.get(id, USER))!.plan.proposals ?? [], []);
   });
 
   test("a failing review saves nothing and answers 503", async () => {
     const { id, version: at } = await confirmedPlan(store);
-    const plan = (await store.plans.get(id, LOCAL))!.plan;
+    const plan = (await store.plans.get(id, USER))!.plan;
     const answer = answersFor(plan, await factIdOf(store, id));
     const model = new RoleModel((role) => (role === "plan_review" ? new Error("down") : answer(role)));
     const response = await call(store, "POST", `/api/plan/${id}/agents/departments`, { expectedVersion: at }, { model, judge: null });
@@ -182,7 +183,7 @@ describe("POST /api/plan/:id/agents/departments", () => {
 
   test("a structure waiting for a decision is refused before any call: not_available", async () => {
     const { id, version: at } = await confirmedPlan(store);
-    const plan = (await store.plans.get(id, LOCAL))!.plan;
+    const plan = (await store.plans.get(id, USER))!.plan;
     const structure = new RoleModel(() => ({ phases: plan.phases, tiers: [], relations: [], facts: [], requests: [], questions: [] }));
     const suggested = await call(store, "POST", `/api/plan/${id}/agents/structure`, { expectedVersion: at }, { model: structure, judge: null });
     assert.equal(suggested.status, 201);
@@ -196,7 +197,7 @@ describe("POST /api/plan/:id/agents/departments", () => {
 
   test("a second press while every department has a pending proposal is refused without a call: duplicate_pending", async () => {
     const { id, version: at } = await confirmedPlan(store);
-    const plan = (await store.plans.get(id, LOCAL))!.plan;
+    const plan = (await store.plans.get(id, USER))!.plan;
     const model = new RoleModel(answersFor(plan, await factIdOf(store, id)));
     const first = await call(store, "POST", `/api/plan/${id}/agents/departments`, { expectedVersion: at }, { model, judge: null });
     assert.equal(first.status, 201);
@@ -209,7 +210,7 @@ describe("POST /api/plan/:id/agents/departments", () => {
   });
 
   test("a plan that was not made from a report has no idea to work from: no_report", async () => {
-    const created = await store.plans.create(LOCAL, "Plan", restaurantPlan());
+    const created = await store.plans.create(USER, "Plan", restaurantPlan());
     const confirmed = await call(store, "POST", `/api/plan/${created.id}/facts`, { ...PRODUCT_TYPE, confirm: true, expectedVersion: created.version });
     assert.equal(confirmed.status, 201);
     const model = new RoleModel(() => ({}));
@@ -242,7 +243,7 @@ describe("POST /api/plan/:id/agents/departments", () => {
 
   test("a change made while the assistant thinks makes the write refuse: version_conflict, nothing saved", async () => {
     const { id, version: at } = await confirmedPlan(store);
-    const plan = (await store.plans.get(id, LOCAL))!.plan;
+    const plan = (await store.plans.get(id, USER))!.plan;
     let changed = false;
     const model = new RoleModel(answersFor(plan, await factIdOf(store, id)), async (role) => {
       if (role.startsWith("department_") && !changed) {
@@ -258,12 +259,12 @@ describe("POST /api/plan/:id/agents/departments", () => {
     const response = await call(store, "POST", `/api/plan/${id}/agents/departments`, { expectedVersion: at }, { model, judge: null });
     assert.equal(response.status, 409);
     assert.equal((response.body as { code: string }).code, "version_conflict");
-    assert.deepEqual((await store.plans.get(id, LOCAL))!.plan.proposals ?? [], []);
+    assert.deepEqual((await store.plans.get(id, USER))!.plan.proposals ?? [], []);
   });
 
   test("an answer later than the deadline is refused as unavailable, and nothing is saved", async () => {
     const { id, version: at } = await confirmedPlan(store);
-    const plan = (await store.plans.get(id, LOCAL))!.plan;
+    const plan = (await store.plans.get(id, USER))!.plan;
     const answer = answersFor(plan, await factIdOf(store, id));
     const model = new RoleModel(answer, () => new Promise((resolve) => setTimeout(resolve, 80)));
     const response = await call(store, "POST", `/api/plan/${id}/agents/departments`, { expectedVersion: at }, { model, judge: null }, 10);

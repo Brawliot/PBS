@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { Client, Pool } from "pg";
 import { runMigrations } from "../../db/migrate.js";
+import { addOtherUser, PROVISIONAL_USER } from "./users.js";
 import { PgPlanRepository } from "../../db/pg-plan-repository.js";
 import { PgReportRepository } from "../../db/pg-report-repository.js";
 import { handlePlanRequest, type PlanRequest } from "../../plan-routes.js";
@@ -31,6 +32,7 @@ describe("POST /api/plan on PostgreSQL", { skip: url ? false : "TEST_DATABASE_UR
     const client = await pool.connect();
     try {
       await runMigrations(client);
+      await addOtherUser(client);
     } finally {
       client.release();
     }
@@ -47,23 +49,23 @@ describe("POST /api/plan on PostgreSQL", { skip: url ? false : "TEST_DATABASE_UR
   });
 
   const post = (reportId: string) =>
-    handlePlanRequest({ method: "POST", path: "/api/plan", body: JSON.stringify({ reportId }), repo: plans, reports, now: () => "2026-10-08T10:00:00Z", env: {} } as PlanRequest);
+    handlePlanRequest({ userId: PROVISIONAL_USER, method: "POST", path: "/api/plan", body: JSON.stringify({ reportId }), repo: plans, reports, now: () => "2026-10-08T10:00:00Z", env: {} } as PlanRequest);
 
   test("eight requests at once for one report: one plan row, one link, and all of them answer with it", async () => {
-    const reportId = await reports.create("local", reportWith());
+    const reportId = await reports.create(PROVISIONAL_USER, reportWith());
     const responses = await Promise.all(Array.from({ length: 8 }, () => post(reportId)));
-    const { rows } = await pool.query<{ n: string }>("SELECT count(*)::text AS n FROM plans WHERE user_id = 'local'");
+    const { rows } = await pool.query<{ n: string }>("SELECT count(*)::text AS n FROM plans WHERE user_id = $1", [PROVISIONAL_USER]);
     assert.equal(rows[0].n, "1");
     assert.equal(responses.filter((response) => response.status === 201).length, 1);
     const ids = new Set(responses.map((response) => (response.body as { id: string }).id));
-    assert.deepEqual([...ids], [(await reports.get(reportId, "local"))?.planId]);
+    assert.deepEqual([...ids], [(await reports.get(reportId, PROVISIONAL_USER))?.planId]);
   });
 
   test("a later request gives the same plan, and a plan is never linked to a second report", async () => {
-    const reportId = await reports.create("local", reportWith());
+    const reportId = await reports.create(PROVISIONAL_USER, reportWith());
     const first = (await post(reportId)).body as { id: string };
     assert.deepEqual(await post(reportId), { status: 200, body: { id: first.id } });
-    const other = await reports.create("local", reportWith());
+    const other = await reports.create(PROVISIONAL_USER, reportWith());
     await assert.rejects(pool.query("UPDATE reports SET plan_id = $1 WHERE id = $2", [first.id, other]), { code: "23505" });
   });
 });

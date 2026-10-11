@@ -2,6 +2,7 @@
  * A plan made from a report is removed when it is not linked to that report: when linking fails with an error, and
  * when the report is no longer there. No plan is left in the store without its report.
  */
+import { USER } from "../user-ids.js";
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { handlePlanRequest, type PlanResponse } from "../../plan-routes.js";
@@ -16,12 +17,13 @@ const NOW = "2026-10-08T10:00:00Z";
 async function setup() {
   const plans = new InMemoryPlanRepository();
   const reports = new InMemoryReportRepository();
-  const reportId = await reports.create("local", reportWith());
+  const reportId = await reports.create(USER, reportWith());
   return { plans, reports, reportId };
 }
 
 function create(plans: InMemoryPlanRepository, reports: InMemoryReportRepository, reportId: string): Promise<PlanResponse> {
   return handlePlanRequest({
+    userId: USER,
     method: "POST",
     path: "/api/plan",
     body: JSON.stringify({ reportId }),
