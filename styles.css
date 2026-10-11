@@ -25,7 +25,6 @@
   --gray: #919195;            /* decorative (giant letters) */
   --gray-text: #4f4f56;       /* text, AA on white and on the tint */
   --gray-light: #e6e6e6;      /* slider track */
-  --thumb-unset: #b9b9c0;     /* slider thumb before the user touches it */
   --border: #dcdcdc;
   --border-strong: #8f8f98;   /* form controls, 3:1 against white */
   --danger: #b42318;
@@ -35,6 +34,7 @@
   --ring: 0 0 0 6px rgba(39, 39, 39, 0.12);           /* halo of the slider thumb while pressed */
   --surface-hover: #f3f3f7;                           /* outline button on hover */
   --danger-bg: #fdf0ee;                               /* danger button on hover */
+  --glow: 0 0 0 4px rgba(99, 102, 241, 0.28), 0 0 32px 8px rgba(99, 102, 241, 0.40);  /* focus glow of the idea bar, in the page tint */
   --danger-strong: #8f1c12;                           /* danger button text and border on hover */
 }
 
@@ -175,14 +175,14 @@ body.is-finishing .hero__loader { opacity: 0; transition: opacity 0.35s ease; }
    ========================================================================== */
 .search { --bar-h: max(11vh, 64px); position: relative; width: 100%; max-width: 1070px; margin-top: 3vh; }
 .search__bar {
-  display: flex; align-items: center; height: var(--bar-h); padding: 0 28px 0 24px;
+  display: flex; align-items: center; height: var(--bar-h); padding: 0 16px 0 24px;
   background: var(--white); border: 1px solid var(--border-strong); border-radius: 62px;
   position: relative; z-index: 3;
 }
-.search__bar:focus-within { border-color: var(--dark); outline: 2px solid var(--dark); outline-offset: 2px; }
+.search__bar:focus-within { border-color: var(--dark); outline: none; box-shadow: var(--glow); }
 .search__input {
   flex: 1; border: 0; outline: 0; background: transparent;
-  font: inherit; font-size: 22px;
+  font: inherit; font-size: 25px;
 }
 .search__input::placeholder { color: var(--gray-text); }
 .search__bar .field-error { margin-right: 16px; font-size: 15px; }
@@ -191,6 +191,15 @@ body.is-finishing .hero__loader { opacity: 0; transition: opacity 0.35s ease; }
 .arrow-btn svg { transition: transform 0.2s ease; }
 .arrow-btn:hover svg { transform: translateX(4px); }
 .arrow-btn:active svg { transform: translateX(8px) scale(0.9); }
+
+/* The send button of the idea bar: a round dark button, the main action of the page */
+.search__submit.arrow-btn {
+  flex: none; width: 56px; height: 56px; border-radius: 50%;
+  align-items: center; justify-content: center; background: var(--dark); color: var(--white);
+  transition: background-color 0.15s ease;
+}
+.search__submit.arrow-btn:hover { background: var(--dark-hover); }
+.search__submit.arrow-btn svg { width: 26px; height: 26px; }
 
 /* Submit error: a box under the search block, styled like the search bar */
 .submit-error {
@@ -224,7 +233,7 @@ body.is-finishing .hero__loader { opacity: 0; transition: opacity 0.35s ease; }
    Filters panel (tucked behind the search bar up to its mid-height)
    ========================================================================== */
 .filters {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 3vh 195px;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 3vh 90px;
   margin: calc(var(--bar-h) / -2) 0 0; padding: calc(var(--bar-h) / 2 + 2vh) 22px 3vh;
   background: var(--white); position: relative; z-index: 2;
   border: 1px solid var(--border-strong); border-radius: 14px;
@@ -234,11 +243,30 @@ body.is-finishing .hero__loader { opacity: 0; transition: opacity 0.35s ease; }
 .filter__head { display: flex; justify-content: space-between; font-size: 22px; }
 .filter__head output { font-size: 18px; }
 .filter__head output.is-example { color: var(--gray-text); font-style: italic; }
+.filter__head output:not(.is-example) { font-weight: 800; color: var(--black); }
+.filter__ticks { display: flex; justify-content: space-between; margin-top: 8px; font-size: 13px; color: var(--gray-text); }
+
+/* Title and help line at the top of the panel */
+.filters__title { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 4px; }
+.filters__heading { font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray-text); }
+.filters__help { font-size: 15px; color: var(--gray-text); }
+
+/* Example ideas and short notes under the panel */
+.hints { margin-top: 18px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.hints__examples { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; font-size: 15px; color: var(--gray-text); }
+.hints__chip {
+  padding: 6px 16px; font-size: 15px; background: var(--white);
+  border: 1px solid var(--border-strong); border-radius: 62px;
+  transition: border-color 0.15s ease;
+}
+.hints__chip:hover { border-color: var(--dark); }
+.hints__note { font-size: 13px; color: var(--gray-text); }
 .filters .field-error { margin-top: 8px; }
 
 .range {
   -webkit-appearance: none; appearance: none; width: 100%; height: 12px;
-  margin-top: 10px; background: var(--gray-light); border-radius: 6px;
+  margin-top: 10px; border-radius: 6px;
+  background: linear-gradient(to right, var(--dark) var(--fill, 0%), var(--gray-light) var(--fill, 0%));
 }
 .range::-webkit-slider-thumb {
   -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%;
@@ -254,8 +282,8 @@ body.is-finishing .hero__loader { opacity: 0; transition: opacity 0.35s ease; }
 .range:hover::-moz-range-thumb { transform: scale(1.12); }
 .range:active::-webkit-slider-thumb { transform: scale(1.25); box-shadow: var(--ring); }
 .range:active::-moz-range-thumb { transform: scale(1.25); box-shadow: var(--ring); }
-.range:not(.is-set)::-webkit-slider-thumb { background: var(--thumb-unset); }
-.range:not(.is-set)::-moz-range-thumb { background: var(--thumb-unset); }
+.range:not(.is-set)::-webkit-slider-thumb { background: var(--white); border: 3px solid var(--dark); }
+.range:not(.is-set)::-moz-range-thumb { background: var(--white); border: 3px solid var(--dark); }
 .range[aria-invalid="true"] { outline: 2px solid var(--danger); outline-offset: 4px; }
 
 /* ==========================================================================
@@ -275,7 +303,7 @@ body.is-finishing .hero__loader { opacity: 0; transition: opacity 0.35s ease; }
 }
 .filters::after { border-top: 0; border-radius: 0 0 14px 14px; } /* its top edge hides behind the bar */
 
-.search__input, .search__submit, .filter {
+.search__input, .search__submit, .filter, .filters__title {
   transition: opacity 0.3s ease 0.3s, transform 0.3s ease 0.3s, filter 0.3s ease 0.3s;
 }
 .search {
@@ -283,17 +311,18 @@ body.is-finishing .hero__loader { opacity: 0; transition: opacity 0.35s ease; }
   transition: transform 0.5s ease 0.25s, opacity 0.4s ease 0.25s;
 }
 
-body.is-loading .search__bar { background: transparent; border-color: transparent; }
+body.is-loading .search__bar { background: transparent; border-color: transparent; box-shadow: none; }
 body.is-loading .filters { background: transparent; border-color: transparent; box-shadow: none; }
 body.is-loading .search__bar::after, body.is-loading .filters::after { opacity: 1; transition-delay: 0.05s; }
 
 body.is-loading .search__input, body.is-loading .search__submit,
-body.is-loading .filter {
+body.is-loading .filter, body.is-loading .filters__title {
   opacity: 0; transform: translateY(-8px); filter: blur(4px);
 }
 body.is-loading .search__input, body.is-loading .search__submit { transition-delay: 0.1s; }
-body.is-loading .filter:nth-child(-n + 2) { transition-delay: 0.16s; }
-body.is-loading .filter:nth-child(n + 3) { transition-delay: 0.22s; }
+/* the title is the panel's first child, so the four filters are children 2 to 5 */
+body.is-loading .filters__title, body.is-loading .filter:nth-child(-n + 3) { transition-delay: 0.16s; }
+body.is-loading .filter:nth-child(n + 4) { transition-delay: 0.22s; }
 
 body.is-loading .search {
   transform: scale(0.9); opacity: 0;
@@ -520,7 +549,7 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
   .btn:hover, .btn:active, .modal__close:hover, .modal__close:active,
   .arrow-btn:hover svg, .arrow-btn:active svg,
   body.is-loading .hero__subtitle, body.is-loading .search,
-  body.is-loading .search__input, body.is-loading .search__submit, body.is-loading .filter { transform: none; filter: none; }
+  body.is-loading .search__input, body.is-loading .search__submit, body.is-loading .filter, body.is-loading .filters__title { transform: none; filter: none; }
 }
 
 /* ==========================================================================
@@ -546,6 +575,7 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
   .search { --bar-h: max(10vh, 56px); margin-top: 2.5vh; }
   .search__bar { padding: 0 20px; }
   .search__input { font-size: 18px; }
+  .search__submit.arrow-btn { width: 44px; height: 44px; }
 
   /* Convert filters to single column */
   .filters {

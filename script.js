@@ -173,11 +173,21 @@
 
     range.addEventListener('input', () => {
       range.classList.add('is-set');
+      range.style.setProperty('--fill', `${((range.value - range.min) / (range.max - range.min)) * 100}%`); // dark part of the track, up to the thumb
       output.classList.remove('is-example');
       output.value = formatValue(range);
       toggleToken(range, 'aria-describedby', 'slider-hint', false);
       clearFieldError(range);
       resetFlow();
+    });
+  });
+
+  // Example ideas: a click fills the idea field, as if the person had typed it
+  document.querySelectorAll('.hints__chip').forEach((chip) => {
+    chip.addEventListener('click', () => {
+      idea.value = chip.textContent;
+      idea.dispatchEvent(new Event('input', { bubbles: true }));
+      idea.focus();
     });
   });
 

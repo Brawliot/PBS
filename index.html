@@ -38,7 +38,7 @@
 
     <form class="search" action="#" novalidate>
       <div class="search__bar">
-        <input class="search__input" type="text" name="idea" placeholder="Describe your business" aria-label="Describe your business" aria-describedby="search-error" maxlength="2000">
+        <input class="search__input" type="text" name="idea" placeholder="e.g. An app to book hairdressers in Madrid" aria-label="Describe your business" aria-describedby="search-error" maxlength="2000">
         <p class="field-error" id="search-error" role="alert" hidden>Describe your business to continue.</p>
         <button class="arrow-btn search__submit" type="submit" aria-label="Submit">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
@@ -46,22 +46,39 @@
       </div>
 
       <div class="filters">
+        <div class="filters__title">
+          <p class="filters__heading">Your situation</p>
+          <p class="filters__help">These four answers shape the plan to your resources.</p>
+        </div>
         <div class="filter">
           <div class="filter__head"><label for="budget">Budget</label><output for="budget">e.g. $500,000</output></div>
           <input id="budget" class="range" type="range" value="500000" min="0" max="1000000" step="10000" data-format="currency" aria-describedby="slider-hint">
+          <div class="filter__ticks" aria-hidden="true"><span>$0</span><span>$1M</span></div>
         </div>
         <div class="filter">
           <div class="filter__head"><label for="experience">Years in this industry</label><output for="experience">e.g. 5 years</output></div>
           <input id="experience" class="range" type="range" value="5" min="0" max="20" step="1" data-format="years" aria-describedby="slider-hint">
+          <div class="filter__ticks" aria-hidden="true"><span>0</span><span>20+ years</span></div>
         </div>
         <div class="filter">
           <div class="filter__head"><label for="team">Team size</label><output for="team">e.g. Solo</output></div>
           <input id="team" class="range" type="range" value="0" min="0" max="3" step="1" data-labels="Solo|Small (2-3)|Medium (4-10)|Large (10+)" aria-describedby="slider-hint">
+          <div class="filter__ticks" aria-hidden="true"><span>Solo</span><span>Small</span><span>Medium</span><span>Large</span></div>
         </div>
         <div class="filter">
           <div class="filter__head"><label for="hours">Weekly hours</label><output for="hours">e.g. 10-20 h</output></div>
           <input id="hours" class="range" type="range" value="1" min="0" max="3" step="1" data-labels="Under 10 h|10-20 h|30+ h|Full time" aria-describedby="slider-hint">
+          <div class="filter__ticks" aria-hidden="true"><span>Under 10 h</span><span>10-20 h</span><span>30+ h</span><span>Full time</span></div>
         </div>
+      </div>
+      <div class="hints">
+        <div class="hints__examples">
+          <span>Try:</span>
+          <button type="button" class="hints__chip">Japanese restaurant</button>
+          <button type="button" class="hints__chip">Fitness app</button>
+          <button type="button" class="hints__chip">Online store</button>
+        </div>
+        <p class="hints__note">We will ask a few questions · about 1 minute · Guidance only, not professional advice</p>
       </div>
       <div class="submit-error" id="submit-error" role="alert">
         <p class="submit-error__text" id="submit-error-text"></p>
