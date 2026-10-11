@@ -444,6 +444,44 @@ body.has-result .hero { display: none; }
   position: sticky; bottom: -24px; margin-bottom: -24px; padding: 12px 0 24px; background: var(--white);
 }
 .result__actions .btn { padding: 0 22px; }
+/* Start over: a quiet text link at the start of the row, so it does not compete with the two actions */
+.result__restart {
+  margin-right: auto; border: 0; background: transparent; color: var(--gray-text); font-size: 15px;
+  text-decoration: underline; text-underline-offset: 3px; padding: 0 4px; height: 44px;
+  transition: color 0.15s ease;
+}
+.result__restart:hover { color: var(--dark); }
+
+/* Key areas: one row per area, its tier on the right */
+.result__areas { display: flex; flex-direction: column; list-style: none; font-size: 15px; }
+.result__areas li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 9px 0; border-top: 1px solid var(--border); }
+.result__areas li:last-child { border-bottom: 1px solid var(--border); }
+.tier {
+  flex: none; padding: 2px 10px; font-size: 13px; border-radius: 62px;
+  border: 1px solid var(--border-strong); color: var(--dark); background: var(--white);
+}
+.tier--important { border-style: solid; }
+.tier--core { background: var(--dark); border-color: var(--dark); color: var(--white); }
+.tier--light { border-style: dashed; color: var(--gray-text); }
+
+/* "and N more": said in words, never a silent cut */
+.result__pending li.is-more, .result__areas li.is-more {
+  border: 0; padding: 5px 0; color: var(--gray-text); font-size: 14px; font-style: italic;
+}
+.result__warnings li.is-more { border-left: 0; padding-left: 15px; color: var(--gray-text); font-size: 14px; font-style: italic; }
+.result__pending li.is-more { padding: 5px 0; }
+.result__areas li.is-more { display: block; border-top: 0; }
+
+.result__hint { font-size: 14px; color: var(--gray-text); }
+.result__hint--row { flex-basis: 100%; }
+
+/* Build my plan without a saved report: the button is off, and the note says why */
+.btn:disabled, .btn:disabled:hover { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* Start over confirmation */
+.modal__text { font-size: 16px; color: var(--gray-text); margin-top: -8px; margin-bottom: 22px; }
+.modal__buttons { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
+.modal__buttons .btn { padding: 0 20px; }
 #detail-modal { max-width: 520px; }
 #detail-modal .result__list > div { padding: 9px 0; font-size: 15px; }
 
@@ -772,6 +810,8 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
   .result__list dd { font-size: 14px; }
 
   .result__meta { font-size: 13px; }
+  .result__restart { margin: 0 auto; }
+  .result__areas li { font-size: 14px; }
 
   .result__warnings li { font-size: 13px; padding-left: 8px; }
   .result__pending li { padding: 4px 10px; font-size: 12px; }

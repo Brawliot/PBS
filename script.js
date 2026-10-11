@@ -61,7 +61,9 @@
     document.body.classList.toggle('modal-open', !!document.querySelector('dialog[open]'));
   };
 
-  [authDialog, gate, detailDialog].forEach((dialog) => {
+  const restartDialog = document.getElementById('restart-modal');
+
+  [authDialog, gate, detailDialog, restartDialog].forEach((dialog) => {
     // Close on backdrop click, but not when a drag that started inside ends outside
     let pressedOnBackdrop = false;
     dialog.addEventListener('mousedown', (e) => { pressedOnBackdrop = e.target === dialog; });
@@ -482,17 +484,39 @@
       ...(unsupported.includes('subsector') ? ['Business details'] : []),
       ...PENDING_KEYS.filter((key) => profile.unknown.includes(key)).map((key) => LABELS[key]),
     ];
-    pendingLabels.slice(0, 5).forEach((label) => addItem(pending, label));
+    // Lists show a few items; the rest are said in words, so nothing is cut without notice
+    const addMore = (list, count, text) => {
+      if (count <= 0) return;
+      const item = document.createElement('li');
+      item.className = 'is-more';
+      item.textContent = text ?? `and ${count} more`;
+      list.append(item);
+    };
+    const pendingShown = pendingLabels.slice(0, 5);
+    pendingShown.forEach((label) => addItem(pending, label));
+    addMore(pending, pendingLabels.length - pendingShown.length);
     document.getElementById('result-pending-block').hidden = !pending.children.length;
 
-    (validation?.warnings ?? []).slice(0, 3).forEach((key) => addItem(warnings, WARNINGS[key]));
+    const warningKeys = validation?.warnings ?? [];
+    warningKeys.slice(0, 3).forEach((key) => addItem(warnings, WARNINGS[key]));
+    addMore(warnings, warningKeys.length - 3, `and ${warningKeys.length - 3} more to check in the full detail`);
     document.getElementById('result-warnings-block').hidden = !warnings.children.length;
 
     // Small businesses see the groups, larger ones the departments. Light areas stay in the popup
-    const TIERS = { core: 'Core', important: 'Important', light: 'Light' };
+    const TIERS = { core: 'Essential', important: 'Recommended', light: 'Optional' };
     const areas = validation ? (validation.level === 2 ? validation.departments : validation.groups) : [];
-    areas.filter(({ tier }) => tier !== 'light').slice(0, 4)
-      .forEach(({ name, tier }) => addItem(topDepartments, `${name} \u00b7 ${TIERS[tier]}`));
+    const mainAreas = areas.filter(({ tier }) => tier !== 'light');
+    mainAreas.slice(0, 4).forEach(({ name, tier }) => {
+      const item = document.createElement('li');
+      const label = document.createElement('span');
+      const chip = document.createElement('span');
+      label.textContent = name;
+      chip.className = `tier tier--${tier}`;
+      chip.textContent = TIERS[tier];
+      item.append(label, chip);
+      topDepartments.append(item);
+    });
+    addMore(topDepartments, areas.length - Math.min(mainAreas.length, 4), `and ${areas.length - Math.min(mainAreas.length, 4)} more in the full detail`);
     document.getElementById('result-departments-block').hidden = !topDepartments.children.length;
     areas.forEach(({ name, tier }) => addRow(departmentList, name, TIERS[tier], tier === 'light'));
     document.getElementById('result-departments-title').hidden = !areas.length;
@@ -503,7 +527,13 @@
       addRow(detail, label, defined ? value : 'Not defined yet', !defined);
     });
 
-    document.getElementById('result-meta').textContent = `${profile.known} of ${profile.total} aspects defined`;
+    document.getElementById('result-meta').textContent = `${profile.known} of ${profile.total} topics defined`;
+    document.getElementById('result-hint').hidden = profile.known > 0;
+    // A plan is built from the saved report only; without one the button says why it cannot be used
+    document.getElementById('result-plan').disabled = !reportId;
+    document.getElementById('result-plan-note').hidden = !!reportId;
+    // The report is the only thing to read now: the header behind it cannot take the focus
+    document.querySelector('.header').inert = true;
     document.getElementById('result-bar').style.width = '0';
     document.body.classList.add('has-result');
     resultSection.hidden = false;
@@ -542,7 +572,13 @@
     }
   };
 
-  document.getElementById('result-restart').addEventListener('click', () => location.reload());
+  // Start over asks first: it reloads the page, and the report is gone after that
+  document.getElementById('result-restart').addEventListener('click', () => {
+    restartDialog.showModal();
+    syncModalState();
+  });
+  document.getElementById('restart-cancel').addEventListener('click', () => restartDialog.close());
+  document.getElementById('restart-confirm').addEventListener('click', () => location.reload());
   document.getElementById('result-detail-open').addEventListener('click', () => {
     detailDialog.showModal();
     syncModalState();

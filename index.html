@@ -114,6 +114,7 @@
     <dl class="result__list" id="result-summary"></dl>
     <div class="result__coverage">
       <p class="result__meta" id="result-meta"></p>
+      <p class="result__hint" id="result-hint" hidden>Add more detail to your idea to fill these in.</p>
       <div class="result__bar" aria-hidden="true"><span id="result-bar"></span></div>
     </div>
     <section class="result__block" id="result-warnings-block" hidden>
@@ -122,18 +123,31 @@
     </section>
     <section class="result__block" id="result-departments-block" hidden>
       <h3 class="result__label">Key areas</h3>
-      <ul class="result__pending" id="result-departments-top"></ul>
+      <ul class="result__areas" id="result-departments-top"></ul>
     </section>
     <section class="result__pending-block" id="result-pending-block">
       <h3 class="result__label">Still to define</h3>
       <ul class="result__pending" id="result-pending"></ul>
     </section>
     <div class="result__actions">
+      <p class="result__hint result__hint--row" id="result-plan-note" hidden>This analysis could not be saved, so a plan cannot be built from it. Start over to try again.</p>
+      <button class="result__restart" type="button" id="result-restart">Start over</button>
       <button class="btn btn--outline" type="button" id="result-detail-open">See full detail</button>
-      <button class="btn btn--danger" type="button" id="result-restart">Start over</button>
       <button class="btn btn--dark" type="button" id="result-plan">Build my plan</button>
     </div>
   </section>
+
+  <dialog class="modal" id="restart-modal" aria-labelledby="restart-title">
+    <div class="modal__card">
+      <button class="modal__close" type="button" aria-label="Close" data-close>&times;</button>
+      <h2 class="modal__title" id="restart-title">Start over?</h2>
+      <p class="modal__text">Your analysis and answers will be lost. This cannot be undone.</p>
+      <div class="modal__buttons">
+        <button class="btn btn--outline" type="button" id="restart-cancel" autofocus>Keep my analysis</button>
+        <button class="btn btn--dark" type="button" id="restart-confirm">Start over</button>
+      </div>
+    </div>
+  </dialog>
 
   <p class="sr-only" id="status" role="status"></p>
   <p class="sr-only" id="slider-hint">Example value shown. Move the slider to set your own.</p>
