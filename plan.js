@@ -108,6 +108,22 @@
   let lastHash = null;
   // The AI step the assistant is working on (its Start or its answers), and the answers typed so far, kept across renders
   let working = null;
+  let workingSince = null;
+  let clock = null;
+  /** Updates the seconds of the assistant's notice once a second, without repainting the page */
+  const startClock = () => {
+    workingSince = Date.now();
+    clearInterval(clock);
+    clock = setInterval(() => {
+      const node = view.querySelector('[data-elapsed]');
+      if (node) node.textContent = `${elapsedSeconds()} s`;
+    }, 1000);
+  };
+  const stopClock = () => {
+    clearInterval(clock);
+    clock = null;
+    workingSince = null;
+  };
   const answerDrafts = {};
 
   // ---- DOM helpers: children are text or nodes, never HTML
@@ -175,7 +191,7 @@
     const list = { dept: plan.departments, phase: plan.phases, task: plan.tasks }[match[1]];
     const item = byId(list, id);
     if (!item || (match[1] === 'task' && !visible(item))) return { name: 'notfound' };
-    return { name: match[1], id, from: parseFrom(params.get('from')) };
+    return { name: match[1], id, from: parseFrom(params.get('from')), step: params.get('step') };
   }
 
   /** "dept:legal" or "phase:f1", only if that record exists; anything else is ignored */
@@ -408,7 +424,7 @@
     };
   }
 
-  function taskView(id, from) {
+  function taskView(id, from, requestedStep) {
     const { plan, derived } = data;
     const task = byId(plan.tasks, id);
     const summary = derived.tasks[id];
@@ -454,12 +470,115 @@
         ].filter(Boolean)),
         el('h2', { class: 'section' }, 'Steps'),
         steps.length
-          ? el('ol', { class: 'steps' }, steps.map((step) => el('li', {}, stepCard(step))))
+          ? stepsLayout(task, steps, selectedStep(steps, requestedStep), from)
           : el('div', {}, el('p', { class: 'empty' }, 'This task has no steps.'), stepSuggestion(task)),
       ],
     };
   }
 
+  /** The step shown on the right: the one asked for in the address, else the first one not finished */
+  function selectedStep(steps, requestedId) {
+    return (
+      steps.find((step) => step.id === requestedId) ??
+      steps.find((step) => step.status !== 'done' && step.status !== 'rejected') ??
+      steps[0]
+    );
+  }
+
+  /** The steps of a task as a list of links on the left, and the chosen step on the right */
+  function stepsLayout(task, steps, current, from) {
+    const linkTo = (step) => {
+      const params = new URLSearchParams();
+      if (from) params.set('from', `${from.kind}:${from.id}`);
+      params.set('step', step.id);
+      return `#/task/${enc(task.id)}?${params.toString()}`;
+    };
+    const list = el(
+      'nav',
+      { class: 'step-list', 'aria-label': 'Steps of this task' },
+      el(
+        'ol',
+        { class: 'step-list__items' },
+        steps.map((step, index) =>
+          el(
+            'li',
+            {},
+            el(
+              'a',
+              { class: 'step-row', href: linkTo(step), 'aria-current': step.id === current.id ? 'step' : undefined },
+              el('span', { class: 'step-row__title' }, `${index + 1}. ${step.text}`),
+              badge(STATUS[step.status]),
+              el('span', { class: 'step-row__meta' }, stepSummary(step)),
+            ),
+          ),
+        ),
+      ),
+    );
+    return el('div', { class: 'steps-layout' }, list, stepDetail(current));
+  }
+
+  /** One line under a step in the list: who does it, and what it is doing now */
+  function stepSummary(step) {
+    const readiness = data.derived.steps[step.id]?.readiness;
+    if (step.status === 'running') return `${EXECUTOR[step.executor]}, working now`;
+    if (step.status === 'not_started' && readiness === 'blocked') return `${EXECUTOR[step.executor]}, waits for another step`;
+    return EXECUTOR[step.executor];
+  }
+
+  /** The steps that must come before this one, and the ones that wait for it, from the relations between steps */
+  function stepLinks(step) {
+    const relations = data.plan.relations.filter((relation) => relation.level === 'step');
+    const needs = relations
+      .filter((relation) => (relation.type === 'blocks' && relation.to === step.id) || (relation.type === 'follows' && relation.from === step.id) || (relation.type === 'feeds' && relation.to === step.id))
+      .map((relation) => (relation.type === 'follows' ? relation.to : relation.from));
+    const unlocks = relations
+      .filter((relation) => (relation.type === 'blocks' && relation.from === step.id) || (relation.type === 'follows' && relation.to === step.id) || (relation.type === 'feeds' && relation.from === step.id))
+      .map((relation) => (relation.type === 'follows' ? relation.from : relation.to));
+    return { needs: needs.map(byStep).filter(Boolean), unlocks: unlocks.map(byStep).filter(Boolean) };
+  }
+
+  const byStep = (id) => {
+    const step = byId(data.plan.steps, id);
+    return step && visible(step) ? step : null;
+  };
+
+  /** A link to another step: its task, with the step opened */
+  function stepLink(step) {
+    return el('a', { href: `#/task/${enc(step.taskId)}?step=${enc(step.id)}` }, step.text);
+  }
+
+  /** Seconds since this window started the assistant's work on the step; the counter in the notice reads it */
+  const elapsedSeconds = () => (workingSince ? Math.floor((Date.now() - workingSince) / 1000) : 0);
+
+  /** The line that says what the step is doing or waiting for, above its actions */
+  function nowNotice(step, derivedStep) {
+    if (working === step.id) {
+      return el(
+        'div',
+        { class: 'now now--working', role: 'status' },
+        el('p', {}, 'The assistant is working on this step.'),
+        el('p', { class: 'row__meta' }, 'Started ', el('span', { 'data-elapsed': true }, `${elapsedSeconds()} s`), ' ago. This can take up to 4 minutes. Keep this page open until it finishes.'),
+      );
+    }
+    if (step.status === 'running') {
+      return el('div', { class: 'now now--working', role: 'status' }, el('p', {}, 'The assistant is working on this step. Keep this page open until it finishes.'));
+    }
+    if (step.status === 'waiting_user') return el('div', { class: 'now' }, el('p', {}, 'Waiting for you.'));
+    if (step.status === 'waiting_third_party') return el('div', { class: 'now' }, el('p', {}, 'Waiting for a third party.'));
+    if (step.status !== 'not_started') return null;
+    if (derivedStep.readiness === 'blocked') {
+      const { needs } = stepLinks(step);
+      return el(
+        'div',
+        { class: 'now' },
+        el('p', {}, 'It cannot start yet. Waiting for: ', needs.length ? needs.flatMap((other, index) => (index ? [', ', stepLink(other)] : [stepLink(other)])) : 'another step', '.'),
+      );
+    }
+    if (step.executor === 'ai') {
+      return el('div', { class: 'now' }, el('p', {}, 'The assistant runs this step when you press Start. It can take up to 4 minutes.'));
+    }
+    return el('div', { class: 'now' }, el('p', {}, 'It is your step. Start it when you are ready.'));
+  }
   /** A task without steps: the assistant can propose them, only when the person asks. A gap has none yet; a waiting suggestion is shown instead */
   function stepSuggestion(task) {
     if (task.placeholder) return null;
@@ -490,26 +609,33 @@
     return el('p', { class: 'notice' }, `${text} `, el('a', { href: '#/decisions' }, 'Go to decisions'));
   }
 
-  function stepCard(step) {
+  /** The selected step: what it is, what to do now, how it fits with the others, and its results and actions */
+  function stepDetail(step) {
     const derivedStep = data.derived.steps[step.id] ?? { readiness: 'not_applicable', availableActions: [] };
-    const waitingForAssistant = step.executor === 'ai' && step.status === 'running';
     const latest = step.outputs?.at(-1);
+    const available = derivedStep.availableActions.filter((action) => action !== 'attach_output');
+    const forms = stepForms(step, available, latest);
+    const { needs, unlocks } = stepLinks(step);
+    const join = (list) => list.flatMap((other, index) => (index ? [', ', stepLink(other)] : [stepLink(other)]));
     const rows = [
-      ['Executor', step.mode ? `${EXECUTOR[step.executor]}, ${MODE[step.mode]}` : EXECUTOR[step.executor]],
+      ['Who', step.mode ? `${EXECUTOR[step.executor]}, ${MODE[step.mode]}` : EXECUTOR[step.executor]],
       ['Status', badge(STATUS[step.status])],
+      ['Needs', needs.length ? join(needs) : 'Nothing before it'],
+      ['Unlocks', unlocks.length ? join(unlocks) : 'Nothing after it'],
+      ['To finish', EVIDENCE[step.evidence.kind]],
+      ['Proof', step.proof ? step.proof.text : 'None yet'],
+      ['Effort', `${step.effortHours} hours, ${step.waitDays > 0 ? `waits ${step.waitDays} ${plural(step.waitDays, 'day')}` : 'no waiting time'}`],
     ];
-    if (step.status === 'not_started') rows.push(['Readiness', READINESS[derivedStep.readiness] ?? '']);
-    rows.push(['Evidence', EVIDENCE[step.evidence.kind]], ['Proof', step.proof ? step.proof.text : 'None yet']);
 
     return el(
       'article',
-      { class: 'step', tabindex: '-1', 'data-step-id': step.id },
+      { class: 'step step--detail', tabindex: '-1', 'data-step-id': step.id },
       el('h3', { class: 'step__title' }, step.text),
+      nowNotice(step, derivedStep),
+      stepButtons(step, available),
       facts(rows),
-      waitingForAssistant ? el('p', { class: 'waiting' }, 'Waiting for the assistant') : null,
-      working === step.id ? el('p', { class: 'waiting', role: 'status' }, 'The assistant is working...') : null,
       step.outputs?.length ? outputList(step.outputs) : null,
-      actionArea(step, derivedStep.availableActions.filter((action) => action !== 'attach_output'), latest),
+      forms.length ? el('div', { class: 'step__actions' }, forms) : null,
     );
   }
 
@@ -554,37 +680,38 @@
     );
   }
 
-  function actionArea(step, available, latest) {
+  /** The buttons of a step, right under its notice: the one thing to do now */
+  function stepButtons(step, available) {
     const buttons = available.filter((action) => BUTTON_ACTIONS.includes(action));
+    if (!buttons.length) return null;
+    return el(
+      'div',
+      { class: 'actions', role: 'group', 'aria-label': 'Step actions' },
+      buttons.map((action) =>
+        el(
+          'button',
+          {
+            type: 'button',
+            class: 'btn btn--outline',
+            disabled: busy ? true : undefined,
+            // Starting an AI step runs the assistant: the server does it in the same request as the start
+            on: { click: () => (action === 'launch' && step.executor === 'ai' ? runStep(step.id, { action }) : send(step.id, { action })) },
+          },
+          ACTION_LABEL[action],
+        ),
+      ),
+    );
+  }
+
+  /** The forms of a step (its answers, its proof, its executor), below its details and results */
+  function stepForms(step, available, latest) {
     const parts = [];
     if (available.includes('answer') && latest?.state === 'draft' && latest.questions.length) {
       parts.push(answerForm(step.id, latest));
     }
     if (available.includes('submit_proof')) parts.push(proofForm(step.id));
     if (available.includes('change_executor')) parts.push(executorForm(step));
-    if (buttons.length) {
-      parts.push(
-        el(
-          'div',
-          { class: 'actions', role: 'group', 'aria-label': 'Step actions' },
-          buttons.map((action) =>
-            el(
-              'button',
-              {
-                type: 'button',
-                class: 'btn btn--outline',
-                disabled: busy ? true : undefined,
-                // Starting an AI step runs the assistant: the server does it in the same request as the start
-                on: { click: () => (action === 'launch' && step.executor === 'ai' ? runStep(step.id, { action }) : send(step.id, { action })) },
-              },
-              ACTION_LABEL[action],
-            ),
-          ),
-        ),
-      );
-    }
-    if (!parts.length) return el('p', { class: 'empty' }, 'No actions available right now.');
-    return el('div', { class: 'step__actions' }, parts);
+    return parts;
   }
 
   function answerForm(stepId, output) {
@@ -1070,7 +1197,7 @@
       case 'phase':
         return phaseView(route.id);
       case 'task':
-        return taskView(route.id, route.from);
+        return taskView(route.id, route.from, route.step);
       default:
         return notFoundPage();
     }
@@ -1137,6 +1264,7 @@
     if (busy || !data) return;
     busy = true;
     working = workingStepId;
+    if (working) startClock();
     view.inert = true;
     Loader.show();
     if (working) render({ focusSelector });
@@ -1164,6 +1292,7 @@
     } finally {
       busy = false;
       working = null;
+      stopClock();
       view.inert = false;
       await Loader.hide();
     }
