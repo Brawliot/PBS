@@ -497,55 +497,120 @@
     };
   }
 
+  /** Tick steps of the scale: the smallest one that keeps the scale to about eight marks */
+  const TICK_STEPS = [1, 2, 5, 10, 20, 25, 50, 100];
+
+  /** The phases on a scale of the plan's unit (weeks, months…): one bar per phase, the order between phases in words */
   function timelineView() {
-    const { plan } = data;
+    const { plan, derived } = data;
     const phases = [...plan.phases].sort((a, b) => a.order - b.order);
     const placed = plan.timeline ? phases.filter((phase) => phase.startUnit !== undefined && phase.lengthUnits !== undefined) : [];
-    const scale = Math.max(1, ...placed.map((phase) => phase.startUnit + phase.lengthUnits));
     const unit = plan.timeline?.unit;
+    const scale = Math.max(1, ...placed.map((phase) => phase.startUnit + phase.lengthUnits));
+    const percent = (value) => `${(value / scale) * 100}%`;
+    const done = phases.filter((phase) => derived.phases[phase.id].status === 'done').length;
+    const count = `${phases.length} ${plural(phases.length, 'phase')}`;
 
-    const items = phases.map((phase) => {
-      const status = data.derived.phases[phase.id];
-      const bar = placed.includes(phase)
+    // Without dates the phases are only a list, in the order they happen
+    if (!plan.timeline) {
+      return {
+        title: 'Timeline',
+        trail: null,
+        heading: 'Timeline',
+        body: [
+          el('p', { class: 'dept-summary' }, `This plan has no dates. Phases are listed in the order they happen. ${count}, ${done} done.`),
+          phases.length
+            ? el(
+                'ol',
+                { class: 'timeline-card timeline-card--list' },
+                phases.map((phase) => {
+                  const status = derived.phases[phase.id];
+                  return el(
+                    'li',
+                    { class: 'timeline__row' },
+                    el('div', { class: 'timeline__label' }, el('a', { class: 'row__name', href: phaseHref(phase.id) }, phase.name), el('div', { class: 'row__meta' }, badge(TASK_STATUS[status.status]), ` ${progressText(status.progress)}`)),
+                  );
+                }),
+              )
+            : el('p', { class: 'empty' }, 'This plan has no phases.'),
+          relationsList(),
+        ],
+      };
+    }
+
+    // A scale mark every few units, so the axis has about eight labels at most
+    const step = TICK_STEPS.find((candidate) => scale / candidate <= 8) ?? TICK_STEPS.at(-1);
+    const marks = [];
+    for (let value = 0; value <= scale; value += step) marks.push(value);
+    const ticks = marks.map((value) => el('span', { class: 'timeline__tick', style: { left: percent(value) } }, String(value)));
+    const grid = marks.map((value) => el('span', { class: 'timeline__grid', style: { left: percent(value) } }));
+
+    const rows = phases.map((phase) => {
+      const status = derived.phases[phase.id];
+      const isPlaced = placed.includes(phase);
+      const bar = isPlaced
+        ? el('div', {
+            class: status.status === 'blocked' ? 'bar timeline__bar timeline__bar--blocked' : 'bar timeline__bar',
+            style: { left: percent(phase.startUnit), width: percent(phase.lengthUnits) },
+          })
+        : null;
+      const lane = isPlaced
         ? el(
             'div',
-            { class: 'bar-track', 'aria-hidden': 'true' },
-            el('div', {
-              class: 'bar',
-              style: { left: `${(phase.startUnit / scale) * 100}%`, width: `${(phase.lengthUnits / scale) * 100}%` },
-            }),
+            { class: 'timeline__lane', role: 'img', 'aria-label': `Starts at ${UNIT[unit]} ${phase.startUnit}, lasts ${phase.lengthUnits} ${plural(phase.lengthUnits, UNIT[unit])}` },
+            grid,
+            bar,
           )
-        : null;
-      const placement = placed.includes(phase)
-        ? `Starts at ${UNIT[unit]} ${phase.startUnit}, lasts ${phase.lengthUnits} ${plural(phase.lengthUnits, UNIT[unit])}`
-        : plan.timeline
-          ? 'Not placed on the timeline'
-          : '';
+        : el('div', { class: 'timeline__lane timeline__lane--empty' }, el('span', { class: 'row__meta' }, 'No dates for this phase'));
       return el(
         'li',
-        { class: 'phase-item' },
-        el('a', { class: 'row__name', href: phaseHref(phase.id) }, phase.name),
-        badge(TASK_STATUS[status.status]),
-        placement ? el('p', { class: 'meta' }, placement) : null,
-        bar,
+        { class: 'timeline__row' },
+        el(
+          'div',
+          { class: 'timeline__label' },
+          el('a', { class: 'row__name', href: phaseHref(phase.id) }, phase.name),
+          el('div', { class: 'row__meta' }, badge(TASK_STATUS[status.status]), ` ${progressText(status.progress)}`),
+        ),
+        lane,
       );
     });
 
-    const relations = plan.relations
-      .filter((relation) => relation.level === 'phase')
-      .map((relation) => el('li', {}, `${phaseName(relation.from)} ${relation.type === 'blocks' ? 'blocks' : 'follows'} ${phaseName(relation.to)}`));
-
+    const unplaced = phases.filter((phase) => !placed.includes(phase));
     return {
       title: 'Timeline',
       trail: null,
       heading: 'Timeline',
       body: [
-        el('p', { class: 'meta' }, plan.timeline ? `Unit: ${UNIT[unit]}` : 'This plan has no timeline; phases are listed in order.'),
-        phases.length ? el('ol', { class: 'list phases' }, items) : el('p', { class: 'empty' }, 'This plan has no phases.'),
-        el('h2', { class: 'section' }, 'Relations between phases'),
-        relations.length ? el('ul', { class: 'plain-list' }, relations) : el('p', { class: 'empty' }, 'None.'),
+        el('p', { class: 'dept-summary' }, `${scale} ${plural(scale, UNIT[unit])} in ${count} · ${done} of ${phases.length} done`),
+        el(
+          'ol',
+          { class: 'timeline-card' },
+          el('li', { class: 'timeline__head', 'aria-hidden': 'true' }, el('span', {}, 'Phase'), el('div', { class: 'timeline__scale' }, ticks)),
+          rows,
+        ),
+        unplaced.length ? el('p', { class: 'notice' }, `Not on the timeline: ${unplaced.map((phase) => phase.name).join(', ')}.`) : null,
+        relationsList(),
       ],
     };
+  }
+
+  /** The order between phases, in plain words */
+  function relationsList() {
+    const relations = data.plan.relations.filter((relation) => relation.level === 'phase');
+    return el(
+      'section',
+      {},
+      el('h2', { class: 'section' }, 'Order between phases'),
+      relations.length
+        ? el(
+            'ul',
+            { class: 'plain-list' },
+            relations.map((relation) =>
+              el('li', {}, relation.type === 'blocks' ? `${phaseName(relation.from)} must be finished before ${phaseName(relation.to)}` : `${phaseName(relation.from)} comes after ${phaseName(relation.to)}`),
+            ),
+          )
+        : el('p', { class: 'empty' }, 'No order between phases.'),
+    );
   }
 
   function taskView(id, from, requestedStep) {
