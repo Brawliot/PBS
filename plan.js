@@ -52,6 +52,10 @@
     needs_ai: 'There is no ready-made suggestion for this decision yet.',
     not_available: 'This is not available right now.',
     no_confirmed_facts: 'Confirm at least one decision first, so the assistant has something to build on.',
+    storage_unavailable: 'The plan storage is not available right now. Try again later.',
+    internal_error: 'Something went wrong on the server. Try again.',
+    report_not_found: 'The report this plan was made from could not be found.',
+    skeleton_failed: 'The plan could not be built from its report. Try again.',
   };
   const FACT_KEY_LABEL = {
     product_type: 'Product type',
@@ -1649,12 +1653,15 @@
       data = await fetchPlan();
     } catch (error) {
       signedOut = error.status === 401;
-      failure = error.status === 404 ? ERROR_TEXT.not_found : GENERIC_ERROR;
+      // A missing plan, a server answer with its own code, or no answer at all: each says so
+      if (error.status === 404) failure = { title: 'Plan not found', text: ERROR_TEXT.not_found };
+      else if (error.status) failure = { title: 'Something went wrong', text: ERROR_TEXT[error.code] ?? GENERIC_ERROR };
+      else failure = { title: 'Could not load the plan', text: NETWORK_ERROR };
     } finally {
       await Loader.hide();
     }
     if (signedOut) return signedOutPage();
-    if (!data) return messagePage('Plan not found', failure);
+    if (!data) return messagePage(failure.title, failure.text);
     render();
   }
 
