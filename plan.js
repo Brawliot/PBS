@@ -179,7 +179,7 @@
   function parseRoute(hash) {
     const [rawPath, query = ''] = (hash.replace(/^#/, '') || '/').split('?');
     const params = new URLSearchParams(query);
-    if (rawPath === '/' || rawPath === '') return { name: 'general' };
+    if (rawPath === '/' || rawPath === '') return { name: 'general', all: params.get('departments') === 'all' };
     if (rawPath === '/timeline') return { name: 'timeline' };
     if (rawPath === '/decisions') return { name: 'decisions' };
     if (rawPath === '/search') return { name: 'search', query: params.get('q') ?? '', status: params.get('status') ?? 'all' };
@@ -315,16 +315,25 @@
     if (blocked) return `Blocked: ${blocked.title}`;
     const next = nextStepOf(tasks);
     if (next) return `Next: ${next.step.text}`;
+    if (tasks.every((task) => derived.tasks[task.id].status === 'not_started')) return 'Nothing started';
     return progressText(derived.departments[department.id]);
   }
 
-  function generalView() {
+  /** How many departments the overview shows before "Show all" */
+  const OVERVIEW_DEPARTMENTS = 6;
+
+  function generalView(showAll) {
     const { plan } = data;
     const items = needsYou();
     const shown = items.slice(0, 2);
+    // Tasks in the order of the phases: the first one to do when nothing needs the person
+    const ordered = [...plan.phases].sort((a, b) => a.order - b.order).flatMap((phase) => plan.tasks.filter((task) => task.phaseId === phase.id && visible(task)));
+    const next = nextStepOf(ordered);
     const lead = items.length
       ? `Start with the ${items.length === 1 ? 'thing that needs' : `${items.length} things that need`} you. Then pick a department.`
-      : 'Nothing needs you right now. Pick a department to see its next step.';
+      : next
+        ? `Nothing needs you right now. Next: ${next.step.text}, in ${deptName(next.task.primaryDepartmentId)}.`
+        : 'Nothing needs you right now.';
 
     const needs = shown.length
       ? el(
@@ -339,7 +348,7 @@
               el('span', { class: 'overview-card__action' }, `${item.label} →`),
             ),
           ),
-          items.length > shown.length ? el('p', { class: 'row__meta' }, el('a', { href: '#/decisions' }, `${items.length - shown.length} more in Decisions`)) : null,
+          items.length > shown.length ? el('p', { class: 'row__meta' }, el('a', { href: '#/decisions' }, `${items.length - shown.length} more in Proposals`)) : null,
         )
       : null;
 
@@ -358,6 +367,7 @@
         )
       : null;
 
+    const listed = showAll ? plan.departments : plan.departments.slice(0, OVERVIEW_DEPARTMENTS);
     const departments = plan.departments.length
       ? el(
           'section',
@@ -366,7 +376,7 @@
           el(
             'ul',
             { class: 'overview-grid' },
-            plan.departments.map((department) =>
+            listed.map((department) =>
               el(
                 'li',
                 { class: 'overview-tile' },
@@ -376,6 +386,9 @@
               ),
             ),
           ),
+          plan.departments.length > OVERVIEW_DEPARTMENTS
+            ? el('p', { class: 'more' }, el('a', { href: showAll ? '#/' : '#/?departments=all' }, showAll ? 'Show fewer departments' : `Show all ${plan.departments.length} departments`))
+            : null,
         )
       : el('p', {}, 'This plan has no departments.');
 
@@ -490,7 +503,7 @@
       .filter(isDepartmentProposal)
       .filter((item) => item.add.tasks[0].primaryDepartmentId === id);
     const notice = waiting
-      ? el('section', { class: 'suggested', 'aria-label': 'Suggested tasks waiting for you' }, el('h2', { class: 'section' }, `Suggested tasks waiting for you (${waiting})`), suggested.map(departmentCard))
+      ? el('section', { class: 'suggested', 'aria-label': 'Suggested tasks waiting for you' }, el('h2', { class: 'section' }, `Suggested tasks waiting for you (${waiting})`), suggested.map((item) => departmentCard(item)))
       : null;
 
     const filters =
@@ -623,7 +636,7 @@
     // The suggestions that add tasks to this phase are decided here, as they are in Decisions
     const suggested = pendingProposals(plan).filter(isDepartmentProposal).filter((item) => item.add.tasks.some((task) => task.phaseId === id));
     const pendingNotice = waiting
-      ? el('section', { class: 'suggested', 'aria-label': 'Suggested tasks waiting for you' }, el('h2', { class: 'section' }, `Suggested tasks waiting for you (${waiting})`), suggested.map(departmentCard))
+      ? el('section', { class: 'suggested', 'aria-label': 'Suggested tasks waiting for you' }, el('h2', { class: 'section' }, `Suggested tasks waiting for you (${waiting})`), suggested.map((item) => departmentCard(item, id)))
       : null;
 
     const filters =
@@ -679,7 +692,7 @@
       body: [
         pendingNotice,
         notice,
-        dates ? el('p', { class: 'meta' }, badge(dates)) : null,
+        dates ? el('p', { class: 'meta' }, badge(dates)) : el('p', { class: 'row__meta' }, plan.timeline ? 'No dates for this phase.' : 'This plan has no dates. Phases are listed in order.'),
         el('p', { class: 'dept-summary' }, summary.join(' · ')),
         filters,
         body,
@@ -1033,6 +1046,39 @@
     return el('p', { class: 'notice' }, `${text} `, el('a', { href: '#/decisions' }, 'Go to proposals'));
   }
 
+  const EVENT_ACTOR = { user: 'You', ai: 'AI assistant', system: 'System' };
+  const EVENT_TEXT = {
+    launch: 'started the step',
+    attach_output: 'attached a result',
+    answer: 'answered the questions',
+    submit_proof: 'sent the proof',
+    confirm_output: 'confirmed the result',
+    reject_output: 'rejected the result',
+    wait_third_party: 'is waiting for a third party',
+    third_party_responded: 'the third party responded',
+    reopen: 'reopened the step',
+    change_executor: 'changed who does the step',
+  };
+
+  /** The events of a step, newest first, folded: who did what and when */
+  function historyOf(step) {
+    const events = step.events ?? [];
+    if (!events.length) return null;
+    const when = (value) => new Date(value).toLocaleString();
+    return el(
+      'details',
+      { class: 'fold' },
+      el('summary', {}, `History (${events.length})`),
+      el(
+        'ul',
+        { class: 'plain-list' },
+        [...events].reverse().map((event) =>
+          el('li', {}, `${when(event.at)}: ${EVENT_ACTOR[event.actor] ?? event.actor} ${EVENT_TEXT[event.action] ?? humanize(event.action)}`),
+        ),
+      ),
+    );
+  }
+
   /** The selected step: what it is, what to do now, how it fits with the others, and its results and actions */
   function stepDetail(step) {
     const derivedStep = data.derived.steps[step.id] ?? { readiness: 'not_applicable', availableActions: [] };
@@ -1058,6 +1104,7 @@
       nowNotice(step, derivedStep),
       stepButtons(step, available),
       facts(rows),
+      historyOf(step),
       step.outputs?.length ? outputList(step.outputs) : null,
       forms.length ? el('div', { class: 'step__actions' }, forms) : null,
     );
@@ -1134,7 +1181,7 @@
       parts.push(answerForm(step.id, latest));
     }
     if (available.includes('submit_proof')) parts.push(proofForm(step.id));
-    if (available.includes('change_executor')) parts.push(executorForm(step));
+    if (available.includes('change_executor')) parts.push(el('details', { class: 'fold' }, el('summary', {}, 'Who does this step'), executorForm(step)));
     return parts;
   }
 
@@ -1294,15 +1341,17 @@
   const isDepartmentProposal = (item) => item.structure === undefined && item.add.tasks.some((task) => task.origin.kind === 'ai');
 
   /** The tasks one department proposed: grouped by phase, the order between them in plain words, and the notes (read-only) */
-  function departmentCard(item) {
+  function departmentCard(item, phaseId) {
     const { plan, derived } = data;
     const department = item.add.tasks[0].primaryDepartmentId;
     // A relation may join a new task with a task the department already has: its title is in the plan
     const titleOf = (id) => byId(item.add.tasks, id)?.title ?? byId(plan.tasks, id)?.title ?? id;
     const groups = [...plan.phases]
       .sort((a, b) => a.order - b.order)
+      .filter((phase) => !phaseId || phase.id === phaseId)
       .map((phase) => ({ phase, tasks: item.add.tasks.filter((task) => task.phaseId === phase.id) }))
       .filter((group) => group.tasks.length > 0);
+    const elsewhere = phaseId ? item.add.tasks.length - groups.reduce((count, group) => count + group.tasks.length, 0) : 0;
     const orders = (item.add.relations ?? []).map((link) =>
       link.type === 'blocks' ? `${titleOf(link.from)} must be done before ${titleOf(link.to)}` : `${titleOf(link.from)} comes after ${titleOf(link.to)}`,
     );
@@ -1310,7 +1359,8 @@
     return el(
       'article',
       { class: 'step', 'data-proposal-id': item.id, 'data-department-id': department },
-      el('h3', { class: 'step__title' }, `Tasks for ${deptName(department)}`, obsolete ? el('span', { class: 'badge' }, 'Obsolete') : null),
+      el('h3', { class: 'step__title' }, `Tasks for ${deptName(department)}${phaseId ? ` in ${phaseName(phaseId)}` : ''}`, obsolete ? el('span', { class: 'badge' }, 'Obsolete') : null),
+      elsewhere ? el('p', { class: 'row__meta' }, `Accepting adds all ${item.add.tasks.length} tasks, ${elsewhere} of them in other phases.`) : null,
       obsolete ? el('p', { class: 'notice' }, 'This suggestion came from a decision that has changed. It cannot be accepted: retire it to ask the assistant again.') : null,
       groups.map((group) => [el('h3', { class: 'step__sub' }, group.phase.name), el('ol', { class: 'list' }, group.tasks.map((task) => el('li', { class: 'output' }, task.title)))]),
       orders.length ? [el('h3', { class: 'step__sub' }, 'Order'), el('ul', { class: 'list' }, orders.map((text) => el('li', { class: 'output' }, text)))] : null,
@@ -1778,7 +1828,7 @@
   function buildPage(route) {
     switch (route.name) {
       case 'general':
-        return generalView();
+        return generalView(route.all);
       case 'timeline':
         return timelineView();
       case 'decisions':
