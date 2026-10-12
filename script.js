@@ -105,6 +105,85 @@
     return invalid.length === 0;
   };
 
+  // Fixed English texts for the codes the sign-in routes send. The server text is never shown.
+  const AUTH_FIELD_TEXT = {
+    email_taken: 'An account with this email already exists.',
+    invalid_email: 'Enter a valid email address.',
+    invalid_name: 'Name must be 2 to 100 characters.',
+    invalid_password: 'Password must be 8 to 64 characters, with no control characters.',
+  };
+  const AUTH_FORM_TEXT = {
+    invalid_credentials: 'The email or the password is not right.',
+    too_many_attempts: 'Too many attempts. Try again in a few minutes.',
+    storage_unavailable: 'Accounts are not available right now. Try again later.',
+  };
+  const NO_CONNECTION_TEXT = 'Could not reach the server. Check your connection and try again.';
+  const GENERIC_AUTH_TEXT = 'Something went wrong. Please try again.';
+
+  const formError = (form) => form.querySelector('.auth__error');
+  const showFormError = (form, message) => { formError(form).textContent = message; formError(form).hidden = false; };
+  const hideFormError = (form) => { formError(form).hidden = true; formError(form).textContent = ''; };
+
+  const setBusy = (form, busy) => {
+    form.setAttribute('aria-busy', String(busy));
+    form.querySelector('button[type="submit"]').disabled = busy;
+  };
+
+  // The signed-in user, or null. Null until the first answer, so the header does not flash the wrong state.
+  let currentUser = null;
+  const renderHeader = (ready = true) => {
+    const guest = document.getElementById('nav-guest');
+    const user = document.getElementById('nav-user');
+    guest.hidden = !ready || currentUser !== null;
+    user.hidden = !ready || currentUser === null;
+    document.getElementById('avatar').textContent = (currentUser?.name.trim()[0] ?? '?').toUpperCase();
+  };
+
+  const submitAuth = async (form) => {
+    const register = form.dataset.form === 'register';
+    const { email, password, name } = form.elements;
+    const body = register
+      ? { name: name.value.trim(), email: email.value.trim(), password: password.value }
+      : { email: email.value.trim(), password: password.value };
+    setBusy(form, true);
+    let res;
+    let data = {};
+    try {
+      res = await fetch(register ? '/api/auth/register' : '/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        cache: 'no-store',
+        signal: AbortSignal.timeout(15_000),
+      });
+      data = await res.json().catch(() => ({}));
+    } catch {
+      setBusy(form, false);
+      return showFormError(form, NO_CONNECTION_TEXT);
+    }
+    setBusy(form, false);
+    if (res.ok) {
+      currentUser = data.user ?? null;
+      renderHeader();
+      authDialog.close();
+      return;
+    }
+    const fieldInput = { email_taken: email, invalid_email: email, invalid_name: name, invalid_password: password }[data.code];
+    if (fieldInput) {
+      showFieldError(fieldInput, AUTH_FIELD_TEXT[data.code]);
+      fieldInput.focus();
+      return;
+    }
+    if (data.code === 'invalid_credentials') {
+      // The password is the field to correct: it is cleared, and the focus goes to it
+      password.value = '';
+      showFormError(form, AUTH_FORM_TEXT.invalid_credentials);
+      password.focus();
+      return;
+    }
+    showFormError(form, AUTH_FORM_TEXT[data.code] ?? GENERIC_AUTH_TEXT);
+  };
+
   authForms.forEach((form) => {
     form.addEventListener('input', (e) => {
       clearFieldError(e.target);
@@ -115,11 +194,12 @@
         else showFieldError(password2, 'Passwords do not match.');
       }
     });
-    form.addEventListener('submit', (e) => {
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
       form.querySelectorAll('input').forEach(clearFieldError);
+      hideFormError(form);
       if (!validateAuth(form)) return;
-      // TODO: send data
+      await submitAuth(form);
     });
   });
 
@@ -191,19 +271,40 @@
     });
   });
 
-  // TODO: replace with the real session state once there is a backend.
-  const isLoggedIn = false;
-  const userName = ''; // TODO: the name of the real user; its first letter fills the profile circle until there are photos
+  // The header shows one of two states: Log In / Register, or the profile circle with "View my projects" on its right.
+  // Both stay hidden until the server has said who is signed in (GET /api/auth/session never fails with 401).
+  const sessionReady = fetch('/api/auth/session', { cache: 'no-store' })
+    .then((res) => res.json())
+    .then((data) => { currentUser = data.user ?? null; })
+    .catch(() => { currentUser = null; })
+    .then(() => renderHeader());
 
-  // The header shows one of two states: Log In / Register, or the profile circle with "View my projects" on its right
-  document.getElementById('nav-guest').hidden = isLoggedIn;
-  document.getElementById('nav-user').hidden = !isLoggedIn;
-  document.getElementById('avatar').textContent = (userName.trim()[0] || '?').toUpperCase();
-
-  // TESTING ONLY: the login requirement is switched off so the send flow (title exit,
-  // loader, request) can be tried without a session. Set to true to bring the
-  // "log in to continue" popup back. Remove this flag when the real login exists.
-  const REQUIRE_LOGIN = false;
+  // The profile circle opens a small menu with "Log out"
+  const avatar = document.getElementById('avatar');
+  const profileMenu = document.getElementById('profile-menu');
+  const setMenu = (open) => {
+    profileMenu.hidden = !open;
+    avatar.setAttribute('aria-expanded', String(open));
+    if (open) profileMenu.querySelector('[role="menuitem"]').focus();
+  };
+  avatar.addEventListener('click', () => setMenu(profileMenu.hidden));
+  profileMenu.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    setMenu(false);
+    avatar.focus();
+  });
+  // Leaving the menu with the keyboard or a click outside closes it
+  document.addEventListener('click', (e) => {
+    if (!profileMenu.hidden && !profileMenu.contains(e.target) && e.target !== avatar) setMenu(false);
+  });
+  document.getElementById('logout').addEventListener('click', async () => {
+    const res = await fetch('/api/auth/logout', { method: 'POST', cache: 'no-store' }).catch(() => null);
+    if (!res || res.status !== 204) return; // still signed in: the menu stays open
+    currentUser = null;
+    setMenu(false);
+    renderHeader();
+    document.querySelector('#nav-guest [data-auth="login"]').focus();
+  });
 
   // --- Sending: title leaves, loader runs while the request is pending -------
   const EXIT_MS = 850;        // subtitle exit + title-to-loader travel to the centre (keep in sync with CSS)
@@ -265,6 +366,13 @@
     return { res, data };
   };
 
+  // The session has ended: the send stops and the sign-in dialog opens, with no error text
+  const signedOutError = () => {
+    const error = userError('', false);
+    error.signedOut = true;
+    return error;
+  };
+
   // Server error response (4xx, 5xx): 5xx can be retried, 4xx shows the server's message
   const httpError = (res, data) => {
     const message = (typeof data.error === 'string' && data.error.trim()) ? data.error : 'Something went wrong. Please try again.';
@@ -278,6 +386,7 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     }, START_TIMEOUT_MS);
+    if (start.res.status === 401) throw signedOutError();
     if (!start.res.ok) throw httpError(start.res, start.data);
     if (start.res.status !== 202 || typeof start.data.jobId !== 'string') {
       throw userError('Something went wrong. Please try again.', true);
@@ -299,6 +408,7 @@
       networkErrors = 0;
 
       // 404: the server restarted or the job expired, so it cannot be recovered
+      if (poll.res.status === 401) throw signedOutError();
       if (poll.res.status === 404) throw userError('The analysis was interrupted. Please try again.', true);
       if (!poll.res.ok) throw httpError(poll.res, poll.data);
       if (poll.data.status === 'done') return poll.data.result;
@@ -397,7 +507,16 @@
     } catch (err) {
       failed = true;
       error = err;
-      status.textContent = err.userMessage || 'Something went wrong. Please try again.';
+      if (!err.signedOut) status.textContent = err.userMessage || 'Something went wrong. Please try again.';
+    }
+    if (failed && error?.signedOut) {
+      await stopLoading();
+      currentUser = null;
+      renderHeader();
+      resetFlow();
+      gate.showModal();
+      syncModalState();
+      return;
     }
     if (failed) {
       await stopLoading();
@@ -594,7 +713,7 @@
     if (e.persisted) location.reload();
   });
 
-  search.addEventListener('submit', (e) => {
+  search.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (sending) return;
     const invalid = [];
@@ -612,7 +731,8 @@
       invalid[0].focus();
       return;
     }
-    if (REQUIRE_LOGIN && !isLoggedIn) {
+    await sessionReady;
+    if (!currentUser) {
       gate.showModal();
       syncModalState();
       return;

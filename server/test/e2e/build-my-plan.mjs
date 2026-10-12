@@ -55,6 +55,8 @@ function startServer() {
  */
 async function mockApi(page, { result, plan }) {
   const planRequests = [];
+  // Signed in: the send is only made with a session (GET /api/auth/session says who it is)
+  await page.route("**/api/auth/session", (route) => route.fulfill(json(200, { user: { name: "Ana" } })));
   await page.route("**/api/planner", (route) => route.fulfill(json(202, { jobId: JOB_ID })));
   await page.route(`**/api/planner/${JOB_ID}`, (route) => route.fulfill(json(200, { status: "done", result })));
   await page.route("**/api/plan", (route) => {

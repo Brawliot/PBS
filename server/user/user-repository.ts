@@ -31,8 +31,8 @@ export class UserStoreError extends Error {
 }
 
 export interface UserRepository {
-  /** Creates a user with no password. Throws UserStoreError if the email is not valid or is already used. */
-  create(email: string, name: string): Promise<StoredUser>;
+  /** Creates a user. Without a passwordHash the user cannot sign in. Throws UserStoreError if the email is not valid or is already used. */
+  create(email: string, name: string, passwordHash?: string | null): Promise<StoredUser>;
   /** The user with this email (any case, any spaces around it), or undefined */
   findByEmail(email: string): Promise<StoredUser | undefined>;
   /** The user with this id, or undefined. An id that is not a UUID is simply not found. */

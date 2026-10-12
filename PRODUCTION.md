@@ -9,15 +9,23 @@ Hoy el proyecto funciona en local y sin usuarios reales (todo pertenece al usuar
 ## Imprescindible para producción
 
 ### Autenticación real
-**Qué es.** Registro, login, recuperación de contraseña, verificación de email y sesiones seguras (cookies `HttpOnly`, `Secure` y `SameSite`), con las contraseñas guardadas con un hash lento (argon2 o bcrypt). Opcionalmente, acceso con Google. Hoy los formularios no envían nada y `REQUIRE_LOGIN` está en `false` solo para pruebas.
+**Estado.** Parcialmente hecho (fase 4). Hecho: registro, inicio de sesión, cierre de sesión y sesión en el servidor. Las contraseñas se guardan con scrypt (la función de Node, sin dependencias nuevas, en lugar de argon2 o bcrypt). La cookie es `HttpOnly`, `SameSite=Lax` y `Secure` en producción, y en la base de datos solo se guarda el hash del token. Cada POST exige el mismo origen. El límite de intentos fallidos por email existe, en memoria.
+**Pendiente.**
+- Recuperar contraseña. Necesita enviar correos. El enlace "Forgot password?" existe en el diálogo, pero no hace nada.
+- Verificar el email. Hoy quien se registra entra directamente; la columna `email_verified_at` existe y no se usa.
+- Acceso con Google. Los botones existen en los diálogos, pero no hacen nada.
+- Límite de intentos compartido entre servidores. Hoy vive en memoria: se borra al reiniciar y no se comparte.
+- Cerrar las sesiones de otros dispositivos. Hoy solo se cierra la sesión del navegador que pulsa "Log out".
+
 **Por qué.** Sin saber quién es el usuario no se puede limitar el uso, guardar sus proyectos ni proteger sus datos. Una comprobación solo en el navegador no es seguridad: la validación tiene que estar en el servidor.
-**Hecho cuando.** Solo un usuario autenticado puede llamar a `POST /api/planner`, y el servidor rechaza con 401 al que no lo esté.
+**Hecho cuando.** Solo un usuario autenticado puede llamar a `POST /api/planner`, y el servidor rechaza con 401 al que no lo esté. (Cumplido; el resto de la lista de pendientes queda para después.)
 **Categoría.** Crítico, seguridad.
 
 ### Control de abuso y de coste
 **Qué es.** Límite de peticiones por usuario y por IP, cuota de análisis por usuario y un tope de gasto diario con alertas. Cada análisis llama a Jev y a OpenAI, que cuestan dinero.
 **Por qué.** Hoy el endpoint es público: cualquiera puede lanzar miles de peticiones y generar una factura. Es el mayor riesgo económico.
 **Hecho cuando.** Un usuario que supera su cuota recibe un 429, y hay una alerta cuando el gasto diario se acerca al tope.
+**Estado.** Parcial: el límite de intentos de entrada por email (10 fallos en 15 minutos, en memoria) ya existe. Falta todo lo demás de esta sección.
 **Categoría.** Crítico, seguridad. Depende de la autenticación (para limitar por usuario).
 
 ### Base de datos
@@ -85,6 +93,7 @@ Hoy el proyecto funciona en local y sin usuarios reales (todo pertenece al usuar
 **Qué es.** Hoy todos los informes, planes y trabajos de análisis pertenecen al usuario provisional de la migración 004 (`requestUser` en `server/server.ts` es el único sitio que decide quién es el usuario de cada petición). Cada consulta filtra por ese usuario, y la tabla `users` ya existe, pero aún no hay registro ni inicio de sesión. Cuando los haya, el informe y el plan deben guardar el usuario real, y cada ruta debe comprobar que el usuario que pregunta es el dueño: `POST /api/plan`, `GET /api/plan/:id`, las acciones de los pasos y `GET /api/planner/:id`.
 **Por qué.** Si dos personas usan la aplicación, hoy compartirían todo, y el `reportId` que el navegador recibe serviría para leer el informe de cualquiera que lo conozca.
 **Hecho cuando.** Un usuario recibe 404 al pedir un informe o un plan que no es suyo, y no hay ninguna consulta a la base de datos sin el usuario.
+**Estado.** Cumplido en el servidor: cada consulta filtra por la sesión, y los trabajos, los planes y los informes de otro usuario responden 404. Queda una tarea manual: el usuario provisional de la migración 004 sigue dueño de los datos antiguos hasta que se ejecute `npm run create-test-user`, que pasa esos planes e informes al usuario de prueba y borra el provisional.
 **Categoría.** Crítico, seguridad. Depende de la autenticación.
 
 ### Afirmaciones del análisis enviadas por el navegador
@@ -150,6 +159,7 @@ Hoy el proyecto funciona en local y sin usuarios reales (todo pertenece al usuar
 - **Registros sin contenido**: una sola función (`server/log.ts`) escribe contexto, nombre del error y un código seguro, nunca el mensaje, la pila, la causa ni el cuerpo de un proveedor. Probado con textos secretos en cada uno de esos sitios.
 - **Modo de desarrollo**: el servidor no arranca con `ENABLE_DEV_ROUTES=1` y `NODE_ENV=production`, y las rutas de desarrollo responden 404 en producción.
 - **Datos que la base de datos acepta**: un texto con el carácter NUL (U+0000) o con caracteres de control (U+0001 a U+001F salvo tabulador y salto de línea, y U+007F) se rechaza antes de llegar a PostgreSQL, en la idea, en las respuestas, en los textos del plan y en los del informe. Un documento de plan de más de 5 MiB de JSON no se guarda (`MAX_DOCUMENT_BYTES`, sin calibrar). Un paso con 200 eventos no admite más acciones (`events_full`).
+- **Cuentas y sesiones** (fase 4): registro, inicio y cierre de sesión; cookie de sesión `HttpOnly`, `SameSite=Lax` y `Secure` en producción, válida 30 días; solo el hash del token en la base de datos; contraseñas con scrypt y comparación en tiempo constante; validación de nombre, email y contraseña en el servidor; cuerpos estrictos (campos de más dan 400); `403` a un POST de otro origen; `401` sin sesión en el planner y los planes; respuesta idéntica para email desconocido y contraseña mala; límite de intentos por email en memoria. Probado con PostgreSQL real y con el servidor, incluidos los logs sin secretos.
 - **Una URL mal formada no tumba el servidor**: una petición con un destino que no se puede interpretar recibe `400` con las cabeceras de seguridad y sin contenido, y el servidor sigue atendiendo.
 
 **Pendiente de la infraestructura** (no es código de la aplicación):

@@ -17,6 +17,7 @@
 
   // Fixed English text for every code the API can send. The screen never shows a server message.
   const ERROR_TEXT = {
+    unauthenticated: 'Log in to see your plan.',
     version_conflict: 'The plan changed in another window. It has been reloaded; check the step and try again.',
     not_allowed: 'This action is not allowed for this step right now.',
     not_ready: 'This step is waiting for another step. It cannot start yet.',
@@ -1180,6 +1181,15 @@
     return post(`/agents/steps/${enc(stepId)}/run`, body, `[data-step-id="${CSS.escape(stepId)}"]`, stepId);
   }
 
+  /** Not signed in: a fixed text and a link back to the start page, where the sign-in is */
+  function signedOutPage() {
+    const link = el('a', { href: '/' }, 'Go to the start page');
+    view.replaceChildren(el('h1', { class: 'page__title', tabindex: '-1' }, 'Log in'), el('p', { class: 'empty' }, ERROR_TEXT.unauthenticated), el('p', {}, link));
+    document.title = 'Log in - MANDO';
+    announce(ERROR_TEXT.unauthenticated);
+    view.querySelector('h1').focus();
+  }
+
   async function init() {
     planId = new URLSearchParams(location.search).get('id');
     if (!planId) return messagePage('Your plan', 'No plan to show.');
@@ -1187,13 +1197,16 @@
 
     Loader.show();
     let failure = null;
+    let signedOut = false;
     try {
       data = await fetchPlan();
     } catch (error) {
+      signedOut = error.status === 401;
       failure = error.status === 404 ? ERROR_TEXT.not_found : GENERIC_ERROR;
     } finally {
       await Loader.hide();
     }
+    if (signedOut) return signedOutPage();
     if (!data) return messagePage('Plan not found', failure);
     render();
   }

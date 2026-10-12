@@ -30,12 +30,12 @@ const UNIQUE_VIOLATION = "23505";
 export class PgUserRepository implements UserRepository {
   constructor(private readonly pool: Pool) {}
 
-  async create(email: string, name: string): Promise<StoredUser> {
+  async create(email: string, name: string, passwordHash: string | null = null): Promise<StoredUser> {
     const prepared = prepareUser(email, name);
     try {
       const { rows } = await this.pool.query<UserRow>(
-        `INSERT INTO users (id, email, name) VALUES ($1, $2, $3) RETURNING ${COLUMNS}`,
-        [randomUUID(), prepared.email, prepared.name],
+        `INSERT INTO users (id, email, name, password_hash) VALUES ($1, $2, $3, $4) RETURNING ${COLUMNS}`,
+        [randomUUID(), prepared.email, prepared.name, passwordHash],
       );
       return storedFrom(rows[0]);
     } catch (error) {

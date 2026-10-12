@@ -380,3 +380,12 @@ Tres comprobaciones con las APIs reales que se dejaron aparcadas para poder avan
 **Qué es.** La pantalla con los análisis guardados de cada usuario. Hoy el botón solo muestra un aviso de que no está disponible.
 
 **Qué necesita antes.** Autenticación y base de datos (ver `PRODUCTION.md`), porque no se pueden listar proyectos sin saber de quién son ni sin haberlos guardado.
+
+## Fase 4: pendiente del registro y el inicio de sesión
+
+Lo que la fase 4 deja fuera a propósito. La recuperación y la verificación necesitan enviar correos, y la fase no envía ninguno. Los botones y el enlace se quedan visibles, sin función, por decisión del dueño.
+
+- **Recuperar contraseña ("Forgot password?").** El enlace sigue en el diálogo de inicio de sesión pero no hace nada. Se hará con el envío de correos.
+- **Entrar con Google.** Los botones de Google siguen en los dos diálogos pero no hacen nada.
+- **Verificar el email.** Hoy quien se registra entra directamente. La columna `email_verified_at` existe y se queda sin usar.
+- **Foto de perfil.** El círculo de perfil muestra solo la inicial.

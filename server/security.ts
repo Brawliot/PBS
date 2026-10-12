@@ -34,3 +34,18 @@ export function environmentProblem(env: Record<string, string | undefined>): str
 /** Whether the development routes may answer: they are on, and this is not production */
 export const devRoutesAllowed = (env: Record<string, string | undefined>): boolean =>
   env.ENABLE_DEV_ROUTES === "1" && env.NODE_ENV !== "production";
+
+/**
+ * A request that changes something must come from this same site. A browser sends its Origin header on such a
+ * request: it must be the host the request was sent to. No Origin header (a tool, or a same-site form in an old
+ * browser) is allowed; SameSite=Lax on the cookie is the second line of defence.
+ */
+export function originAllowed(origin: string | undefined, host: string | undefined): boolean {
+  if (origin === undefined) return true;
+  if (!host) return false;
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}

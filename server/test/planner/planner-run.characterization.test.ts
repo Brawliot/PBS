@@ -5,6 +5,7 @@ import type { AddressInfo } from "node:net";
 import { readFileSync } from "node:fs";
 import { server } from "../../server.js";
 import { mockFetch, jsonResponse, type CapturedRequest } from "./helpers.js";
+import { signUp } from "../auth/signed-in.js";
 import "./helpers.js";
 
 // Characterization: the three paths of the planner (final request, first round with questions, first
@@ -14,9 +15,11 @@ const SNAPSHOT = "fixtures/planner-run.snapshot.json";
 const snapshotPath = new URL(SNAPSHOT, import.meta.url);
 
 let port = 0;
+let cookie = "";
 before(async () => {
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
   port = (server.address() as AddressInfo).port;
+  cookie = await signUp(port);
 });
 after(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
@@ -25,7 +28,7 @@ function call(method: string, path: string, body?: unknown): Promise<{ status: n
   return new Promise((resolve, reject) => {
     const payload = body === undefined ? undefined : JSON.stringify(body);
     const req = request(
-      { host: "127.0.0.1", port, path, method, headers: payload ? { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(payload) } : {} },
+      { host: "127.0.0.1", port, path, method, headers: { Cookie: cookie, ...(payload ? { "Content-Type": "application/json", "Content-Length": Buffer.byteLength(payload) } : {}) } },
       (res) => {
         let data = "";
         res.setEncoding("utf8");
@@ -44,7 +47,12 @@ async function runJob(payload: unknown): Promise<unknown> {
   assert.equal(start.status, 202);
   for (let i = 0; i < 500; i++) {
     const poll = await call("GET", `/api/planner/${start.body.jobId}`);
-    if (poll.body.status === "done") return poll.body.result;
+    if (poll.body.status === "done") {
+      // The id of a kept report is new with the stores of this change; the snapshot predates it, so it is checked and left out
+      const { reportId, ...result } = poll.body.result;
+      if (reportId !== undefined) assert.match(reportId, /^[0-9a-f-]{36}$/);
+      return result;
+    }
     if (poll.body.status === "error") assert.fail(`job failed: ${poll.body.message}`);
     await new Promise((resolve) => setTimeout(resolve, 5));
   }

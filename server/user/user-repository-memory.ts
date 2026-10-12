@@ -9,14 +9,14 @@ import { isUserId, prepareUser, UserStoreError, type StoredUser, type UserReposi
 export class InMemoryUserRepository implements UserRepository {
   private readonly users = new Map<string, StoredUser>();
 
-  async create(email: string, name: string): Promise<StoredUser> {
+  async create(email: string, name: string, passwordHash: string | null = null): Promise<StoredUser> {
     const prepared = prepareUser(email, name);
     if ([...this.users.values()].some((user) => user.email === prepared.email)) throw new UserStoreError("email_taken");
     const user: StoredUser = {
       id: randomUUID(),
       email: prepared.email,
       name: prepared.name,
-      passwordHash: null,
+      passwordHash,
       createdAt: new Date().toISOString(),
     };
     this.users.set(user.id, user);

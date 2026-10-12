@@ -62,7 +62,7 @@ describe("migration 004: users", { skip: url ? false : "TEST_DATABASE_URL is not
       }
 
       const columns = await pool.query<{ table_name: string; data_type: string }>(
-        "SELECT table_name, data_type FROM information_schema.columns WHERE table_schema = current_schema() AND column_name = 'user_id' ORDER BY table_name",
+        "SELECT table_name, data_type FROM information_schema.columns WHERE table_schema = current_schema() AND column_name = 'user_id' AND table_name IN ('plans', 'reports') ORDER BY table_name",
       );
       assert.deepEqual(columns.rows, [
         { table_name: "plans", data_type: "uuid" },

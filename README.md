@@ -44,7 +44,7 @@ Read from the environment in `server/.env` (loaded by `--env-file=.env`).
 | `OPENAI_API_KEY` | Yes | `server/planner/planner-phase2-handler.ts` | Bearer key for the OpenAI Chat Completions API. |
 | `OPENAI_MODEL` | Yes | `server/planner/planner-phase2-handler.ts` | OpenAI model name. The example uses `gpt-4o`. |
 | `PORT` | No | `server/server.ts` | HTTP port. Defaults to `3000` when unset or not a number. |
-| `DATABASE_URL` | No | `server/server.ts`, `server/db/migrate-cli.ts` | PostgreSQL connection string (`postgres://user:password@host:port/database`) where the reports and the plans are stored. Without it the planner works, but no report is kept (the result has no `reportId`), and the plan routes answer `503`. |
+| `DATABASE_URL` | No | `server/server.ts`, `server/db/migrate-cli.ts` | PostgreSQL connection string (`postgres://user:password@host:port/database`) where the users, their sessions, the reports and the plans are stored. Without it there are no accounts: sign-up and sign-in answer `503`, and so do the planner and the plan routes. The start page still loads. |
 | `TEST_DATABASE_URL` | No | `server/test/db/` | A PostgreSQL database for the integration tests. Each run uses its own schema, dropped at the end. Without it those tests are skipped. |
 | `NODE_ENV` | No | `server/security.ts` | Set it to `production` in production. With it, `ENABLE_DEV_ROUTES=1` is refused at start, and the `/api/dev/` routes answer `404`. |
 | `ENABLE_DEV_ROUTES` | No | `server/plan-routes.ts`, `server/security.ts` | `1` turns on the development routes (fake AI outputs, a demo plan). Never set it in production: the server refuses to start with it and `NODE_ENV=production`. |
@@ -88,6 +88,7 @@ Run from `server/`:
 | `npm run typecheck` | `tsc` | Type-checks the TypeScript sources. |
 | `npm run migrate` | `tsx --env-file=.env db/migrate-cli.ts` | Applies the pending migrations in `server/db/migrations` to `DATABASE_URL`. Safe to run again: applied migrations are skipped. |
 | `npm test` | `tsx --test "test/**/*.test.ts"` | Runs all the tests. The PostgreSQL tests run only when `TEST_DATABASE_URL` is set, in their own temporary schema. |
+| `npm run create-test-user` | `tsx --env-file=.env scripts/create-test-user.ts` | Asks for an email, a name and a password in the terminal, creates the user, moves every plan and report of the provisional user to it and removes the provisional user, in one transaction. Run it once, by hand, after `npm run migrate`. It is not a migration and runs nothing by itself. |
 | `npm run agents:real-plan` | `tsx --env-file=.env scripts/real-plan-agent.ts` | Manual check of the plan level with the real model. Does nothing unless `AGENTS_REAL=1`; then it makes ONE OpenAI call (and one Jev call only with `AGENTS_JEV=1`) and prints the outcome, never the prompt or a key. Not part of `npm test`. |
 | `npm run agents:eval` | `tsx --env-file=.env scripts/agents-eval.ts` | Runs the real agents on four fixed test ideas and writes a report with numbers (calls, verdicts of Jev, time, tokens, cost if the prices are set, and heuristic checks) to `server/eval-output/`. Makes REAL calls and costs money: it sends nothing unless `AGENTS_EVAL=1`. `--case <id>` runs one case (`restaurant` by default: `restaurant`, `saas`, `physio`, `marketplace`), `--all` runs the four, `--repeat <n>` (1 to 3) repeats. `--mode levels` (the default) runs each level on its own, from the same skeleton, so one run shows the failures of every level; `--mode chain` runs end to end and stops at the first failure. `--replay <folder>` runs again from a recording (see below): no network, no key, no client. In the levels mode the review reads the tasks the departments of the same run proposed (its report says "departamentos reales"); when no department proposed a task, the review runs over the fixed synthetic tasks and the report says so ("sintética"). The report counts its findings by kind and names the task titles each one names. See "Fase 3: estado final" in `FUTURE.md`. When an attempt fails, the report lists it with its reason (one label, such as `id_prefix` or `schema`), and the departments level says how many departments passed at once, how many were retried, and which ones failed (only their ids). Not part of `npm test`. |
 | `npm run perf` | `tsx test/perf/perf.ts` | Times the plan rules on synthetic plans of four sizes (parsing, checks, derived values, one step action). It is not part of `npm test`. |
@@ -98,6 +99,8 @@ Run from `server/`:
 Every response carries the same headers, computed once in `server/security.ts`: `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `X-Frame-Options: DENY`, and a `Content-Security-Policy` that allows only the site's own scripts, styles, fonts, images and requests (`default-src 'self'`, no `unsafe-inline`, no `eval`, `frame-ancestors 'none'`). The pages have no inline script or style: `giant.js` holds the wordmark loop, and the bar widths on the timeline are set through the DOM, not as style attributes. The `test:e2e` checks fail on any policy violation or console error.
 
 HSTS and TLS are not in the server: they belong to the proxy in front of it (see `PRODUCTION.md`).
+
+**Accounts and sessions.** Passwords are kept with scrypt (Node's built-in function, a random salt for each one), never as text. A session is a random token in a cookie named `pbs_session`, with `HttpOnly`, `SameSite=Lax`, `Path=/`, 30 days, and `Secure` when `NODE_ENV=production`. The database keeps only the SHA-256 hash of the token, so a copy of the table cannot be used to sign in. Every `POST` must come from this site: an `Origin` header that does not match the `Host` gets `403`. Failed sign-ins are counted per email in memory (see the API below).
 
 **Logs carry no content.** Each failure is written as its context, the name of the error and a short code when there is one (`planner job: Error (provider_down)`). Messages, stacks and causes are never written, and neither is the body of a provider's answer: for a provider the line is the HTTP status, plus a code only when the JSON body has a safe `type` or `code`. This makes debugging harder on purpose; a failing request can be reproduced from its inputs instead.
 
@@ -114,7 +117,27 @@ Each request runs as a background job, kept in memory by `server/jobs.ts`: `POST
 
 When a run ends with a report (the final request, or the first round with no questions left), the server builds the report from its own values (`server/planner/planner-run.ts`: the input and answers it received, the Jev result, the phase 2 analysis when there is one, the profile and the validation) and keeps it in the `reports` table. The job result then carries a `reportId`. The browser never sends the report back: it keeps only that id.
 
-"Build my plan" sends the id to `POST /api/plan`, and the server builds the plan from the stored report with the fixed rules (`server/plan/plan-skeleton.ts`). A report has at most one plan: a second request returns the same plan, and two requests at the same time leave one plan in the database. When the report cannot be kept (no database, or a report that does not pass `parseReport`), the planner still answers, the result has no `reportId`, and "Build my plan" shows a notice instead.
+"Build my plan" sends the id to `POST /api/plan`, and the server builds the plan from the stored report with the fixed rules (`server/plan/plan-skeleton.ts`). A report has at most one plan: a second request returns the same plan, and two requests at the same time leave one plan in the database. Each report belongs to the user who asked for it. When the report cannot be kept (a report that does not pass `parseReport`), the planner still answers, the result has no `reportId`, and "Build my plan" shows a notice instead.
+
+## Accounts and sessions
+
+Sign-up, sign-in and sign-out are real. There is no email verification and no password recovery yet, and the "Forgot password?" link and the Google buttons do nothing (see the limitations). Each route takes a JSON body with exactly the fields listed, and every error is `{ "error": "...", "code": "..." }` with a fixed text.
+
+| Route | Body | Answer |
+| --- | --- | --- |
+| `POST /api/auth/register` | `{ name, email, password }` | `201 { "user": { "name": "..." } }`, and the session cookie. The person is signed in at once. `409 email_taken` if the email is used. `400` with `invalid_name`, `invalid_email` or `invalid_password`. |
+| `POST /api/auth/login` | `{ email, password }` | `200 { "user": { "name": "..." } }`, and the cookie. A wrong password and an unknown email get the same `401 invalid_credentials`. After 10 failed sign-ins for one email in 15 minutes, that email gets `429 too_many_attempts` for the rest of the window, even with the right password. |
+| `POST /api/auth/logout` | none | `204`, and the cookie is cleared. |
+| `GET /api/auth/session` | none | `200 { "user": { "name": "..." } }`, or `{ "user": null }`. It never answers `401`. |
+
+Rules:
+
+- Name: 2 to 100 characters. Password: 8 to 64 characters, with no control characters. Email: at most 254 characters, stored in lower case.
+- Without a session, `/api/planner`, `/api/plan` and `/api/dev/` answer `401 unauthenticated`. The pages stay public.
+- Each person sees only their own plans, reports and analysis jobs. Someone else's is `404`, the same as one that does not exist.
+- The failed-sign-in count lives in memory: it starts again when the server restarts, and it is not shared between servers.
+- Migration 005 adds the `sessions` table. Expired sessions are removed when they are found, and at each sign-in.
+- Before accounts existed, every plan and report belonged to a provisional user (migration 004). `npm run create-test-user` moves them to a new user and removes the provisional one (see Scripts).
 
 ## API
 
@@ -186,7 +209,10 @@ Errors return JSON `{ "error": "..." }`:
 | --- | --- |
 | `400` | Body is not valid JSON, `idea` is missing or too long, a slider is missing or out of range, `answers` or `final` is invalid. No job is started. |
 | `413` | Body is too large. No job is started. |
-| `503` | The job store is full. Try again shortly. No job is started. |
+| `401` | `{ "error": "Log in to continue", "code": "unauthenticated" }`: there is no session. No job is started. |
+| `403` | `{ "error": "Forbidden origin", "code": "forbidden_origin" }`: a `POST` from another site. |
+| `429` | `too_many_attempts` on sign-in (see Accounts and sessions). |
+| `503` | The job store is full. Try again shortly. No job is started. Without `DATABASE_URL`, `storage_unavailable`. |
 | `404` | Any other path or method, or a job that does not exist (see `GET` above). |
 
 ### `POST /api/plan`
@@ -343,7 +369,7 @@ With `ENABLE_DEV_ROUTES=1`, `POST /api/dev/plan/:id/facts/fake-proposal` propose
 
 ### Order of checks on `POST /api/plan`
 
-The body is checked first: a request that is not valid is `400` whether or not the database is configured. Only a valid request reaches the storage, which answers `503` without `DATABASE_URL`.
+The order is the same on the planner and the plan routes: the body is read (`413` if too large); then the session (`401` without one, when there is a database); then the body is checked (`400`, with or without a database); then the storage (`503` without `DATABASE_URL`).
 
 ## Project layout
 
@@ -354,7 +380,8 @@ styles.css              Styles
 tech-text.js            Animated text loader used while the request runs
 fonts/                  Inter and Open Sans (woff2) with their licenses
 server/
-  server.ts             HTTP server: static files, POST and GET /api/planner routing
+  server.ts             HTTP server: static files, the cookie, the origin check, and the routing of the API
+  auth/                 Accounts and sessions: sign-up, sign-in, sign-out (auth-routes.ts, a pure function), scrypt passwords, the session cookie and its hash, the failed-sign-in limit, and the session and session storage (memory and PostgreSQL)
   jobs.ts               In-memory job store: runs the planner in the background
   request.ts            Body reading, validation and limits for the planner request
   plan-routes.ts        Plan API as a pure function: routes, status codes, development routes, facts and proposals
@@ -365,7 +392,7 @@ server/
   plan/agents/          Agent contracts by level (plan, department, task, step), the shared pipeline and the real model adapters (OpenAI, Jev), and the agents built from the environment
   scripts/              Manual scripts that use the real model (not run by the tests)
   eval/                 Evaluation of the agents: fixed cases, the levels mode (levels.ts) and the chain mode (chain.ts), the fixed synthetic inputs of the review and of the tasks level (synthetic.ts), the call budget, the recording and replay (record.ts) and the reports (npm run agents:eval)
-  db/                   PostgreSQL: migrations (SQL files and their runner), plan and report repositories
+  db/                   PostgreSQL: migrations (SQL files and their runner), plan, report and user repositories, and maintenance/ (SQL and one script that moves the provisional user's data, run by hand)
   planner/
     planner-handler.ts          Jev phase 1 (sector, scope, timeline) and the shared Jev call
     planner-phase2-handler.ts   OpenAI analysis: maturity, sections, questions
@@ -377,7 +404,8 @@ server/
   test/plan/            Tests for the plan rules, repositories, reports and routes
   test/db/              Tests for the migrations and the PostgreSQL repositories
   test/eval/            Tests of the evaluation (fakes only: no network, no keys)
-  test/e2e/             Browser checks of "Build my plan" and of the Decisions page (npm run test:e2e)
+  test/auth/            Tests for the passwords, the cookie, the limit, the routes, the session store and the server's sign-in
+  test/e2e/             Browser checks of "Build my plan", of the Decisions page and of the sign-in dialogs (npm run test:e2e; the last one needs TEST_DATABASE_URL)
   test/jobs.test.ts     Tests for the job store (expiry, limits, errors)
   package.json          Scripts and dev dependencies
   tsconfig.json         TypeScript settings (type-check only)
@@ -386,7 +414,7 @@ server/
 
 ## Known limitations
 
-- **No authentication.** The login and register dialogs do not send anything (`// TODO: send data` in `script.js`). The login gate is off (`REQUIRE_LOGIN = false` in `script.js`) for testing.
+- **Sign-in is partial.** Sign-up, sign-in, sign-out and the session work (see Accounts and sessions). Still missing: password recovery, email verification, sign-in with Google (the buttons and the "Forgot password?" link are shown but do nothing), and a failed-sign-in limit shared between servers (today it is in memory). See `PRODUCTION.md`.
 - **No rate limiting and no cost protection.** Every planner request calls paid APIs: a request that asks for questions makes one Jev and one OpenAI call; a final request (or one with no questions left) makes three Jev calls. Add rate limits and spending controls before deploying.
 - **Placeholders in the UI.** "View my projects" only shows a notice.
 - **The levels of the agents are connected one by one, by hand.** The plan level (`agents/structure`), the department level (`agents/departments`), the steps of one task (`agents/tasks/:taskId/steps`) and the run of an AI step (`agents/steps/:stepId/run`) call a model, each only when the person presses its button. The views "Today", a side panel and a dependency diagram are not built: their design is not decided. The document of a step is kept only in its latest output (see above); the document goes to its own table later (see `FUTURE.md`).
@@ -397,5 +425,5 @@ server/
 - **Elapsed time ignores waits on other tasks.** A task's status counts the steps of other tasks (a task whose steps all wait on other tasks is blocked), but its elapsed time only counts the relations between its own steps.
 - **Little stored state.** Reports and plans are saved only when `DATABASE_URL` is set. Jobs are kept only in memory: a server restart interrupts the analyses in progress, and the front end shows an interrupted message with Retry. The front end must send back the answers and the analysis claims for the final request.
 - **The analysis claims come from the browser.** The final request takes the analysis claims (`analysis`) from the browser, as sent back, and the "Verify X" tasks of the saved report come from them. A person can change their own plan that way; no other user is affected. The claims are checked for shape, not for truth. See `PRODUCTION.md`.
-- **There are no real users yet.** The database has a `users` table (migration 004), but every report, plan and analysis job belongs to the provisional user it creates. `requestUser` in `server/server.ts` is the only place that decides who a request acts for. See `PRODUCTION.md`.
+- **The provisional user stays until it is moved.** Until `npm run create-test-user` is run, the plans and reports made before accounts existed belong to the provisional user, which nobody can sign in as. The server decides the user of each request in one place, `userOf` in `server/server.ts`, from the session cookie. See `PRODUCTION.md`.
 - **A final request keeps a report without `phase2`.** The final request does not run phase 2 again, so its stored report has no `phase2` field; the report from the first round without questions has it.
