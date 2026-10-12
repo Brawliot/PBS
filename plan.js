@@ -179,9 +179,10 @@
   function parseRoute(hash) {
     const [rawPath, query = ''] = (hash.replace(/^#/, '') || '/').split('?');
     const params = new URLSearchParams(query);
-    if (rawPath === '/' || rawPath === '') return { name: 'general' };
+    if (rawPath === '/' || rawPath === '') return { name: 'general', all: params.get('departments') === 'all', allDecisions: params.get('decisions') === 'all' };
     if (rawPath === '/timeline') return { name: 'timeline' };
     if (rawPath === '/decisions') return { name: 'decisions' };
+    if (rawPath === '/search') return { name: 'search', query: params.get('q') ?? '', status: params.get('status') ?? 'all' };
     const match = rawPath.match(/^\/(dept|phase|task)\/([^/]+)$/);
     // #/group/:id is reserved: there is no grouping of departments in the front yet, so it has no view
     if (!match) return { name: 'notfound' };
@@ -314,16 +315,39 @@
     if (blocked) return `Blocked: ${blocked.title}`;
     const next = nextStepOf(tasks);
     if (next) return `Next: ${next.step.text}`;
+    if (tasks.every((task) => derived.tasks[task.id].status === 'not_started')) return 'Nothing started';
     return progressText(derived.departments[department.id]);
   }
 
-  function generalView() {
+  /** What each level means, under the departments: a short line per level */
+  function tierLegend() {
+    return el(
+      'p',
+      { class: 'row__meta tier-legend' },
+      el('b', {}, 'Core'), ': needed for most decisions. ',
+      el('b', {}, 'Important'), ': needed for some. ',
+      el('b', {}, 'Light'), ': supports the others.',
+    );
+  }
+
+  /** How many decisions the overview lists before "Show all" */
+  const OVERVIEW_DECISIONS = 5;
+
+  /** How many departments the overview shows before "Show all" */
+  const OVERVIEW_DEPARTMENTS = 6;
+
+  function generalView(showAll, showAllDecisions) {
     const { plan } = data;
     const items = needsYou();
     const shown = items.slice(0, 2);
+    // Tasks in the order of the phases: the first one to do when nothing needs the person
+    const ordered = [...plan.phases].sort((a, b) => a.order - b.order).flatMap((phase) => plan.tasks.filter((task) => task.phaseId === phase.id && visible(task)));
+    const next = nextStepOf(ordered);
     const lead = items.length
       ? `Start with the ${items.length === 1 ? 'thing that needs' : `${items.length} things that need`} you. Then pick a department.`
-      : 'Nothing needs you right now. Pick a department to see its next step.';
+      : next
+        ? `Nothing needs you right now. Next: ${next.step.text}, in ${deptName(next.task.primaryDepartmentId)}.`
+        : 'Nothing needs you right now.';
 
     const needs = shown.length
       ? el(
@@ -338,7 +362,7 @@
               el('span', { class: 'overview-card__action' }, `${item.label} →`),
             ),
           ),
-          items.length > shown.length ? el('p', { class: 'row__meta' }, el('a', { href: '#/decisions' }, `${items.length - shown.length} more in Decisions`)) : null,
+          items.length > shown.length ? el('p', { class: 'row__meta' }, el('a', { href: '#/decisions' }, `${items.length - shown.length} more in Proposals`)) : null,
         )
       : null;
 
@@ -357,6 +381,7 @@
         )
       : null;
 
+    const listed = showAll ? plan.departments : plan.departments.slice(0, OVERVIEW_DEPARTMENTS);
     const departments = plan.departments.length
       ? el(
           'section',
@@ -365,7 +390,7 @@
           el(
             'ul',
             { class: 'overview-grid' },
-            plan.departments.map((department) =>
+            listed.map((department) =>
               el(
                 'li',
                 { class: 'overview-tile' },
@@ -375,6 +400,9 @@
               ),
             ),
           ),
+          plan.departments.length > OVERVIEW_DEPARTMENTS
+            ? el('p', { class: 'more' }, el('a', { href: showAll ? '#/' : '#/?departments=all' }, showAll ? 'Show fewer departments' : `Show all ${plan.departments.length} departments`))
+            : null,
         )
       : el('p', {}, 'This plan has no departments.');
 
@@ -382,14 +410,15 @@
       title: data.title,
       trail: null,
       heading: data.title,
-      body: [el('p', { class: 'dept-summary' }, lead), needs, timeline, departments, decisionsRegistry()],
+      body: [el('p', { class: 'dept-summary' }, lead), planProgress(), needs, timeline, departments, tierLegend(), decisionsRegistry(showAllDecisions)],
     };
   }
 
   /** The decisions the plan uses, what it replaced or rejected, the suggestions answered, and a form to add one */
-  function decisionsRegistry() {
+  function decisionsRegistry(showAll) {
     const { plan, catalog } = data;
-    const confirmed = (plan.facts ?? []).filter((fact) => fact.status === 'confirmed');
+    const allConfirmed = (plan.facts ?? []).filter((fact) => fact.status === 'confirmed');
+    const confirmed = showAll ? allConfirmed : allConfirmed.slice(0, OVERVIEW_DECISIONS);
     const earlier = (plan.facts ?? []).filter((fact) => fact.status === 'superseded' || fact.status === 'rejected');
     const answered = (plan.proposals ?? []).filter((item) => item.status !== 'pending');
     const sourceText = (fact) => (fact.from.kind === 'user' ? 'Entered by you' : 'Suggested by the assistant');
@@ -401,6 +430,9 @@
       confirmed.length
         ? el('ul', { class: 'list' }, confirmed.map((fact) => el('li', { class: 'row', 'data-fact-id': fact.id }, el('span', { class: 'row__name' }, factLabel(fact)), el('span', { class: 'row__meta' }, sourceText(fact)))))
         : el('p', { class: 'empty' }, 'No decisions confirmed yet.'),
+      allConfirmed.length > OVERVIEW_DECISIONS
+        ? el('p', { class: 'more' }, el('a', { href: showAll ? '#/' : '#/?decisions=all' }, showAll ? 'Show fewer decisions' : `Show all ${allConfirmed.length} decisions`))
+        : null,
       earlier.length
         ? el('details', { class: 'fold' }, el('summary', {}, `Replaced or rejected (${earlier.length})`), el('ul', { class: 'plain-list' }, earlier.map((fact) => el('li', {}, `${factLabel(fact)}: ${fact.status === 'rejected' ? 'Rejected' : 'Replaced'}`))))
         : null,
@@ -489,7 +521,7 @@
       .filter(isDepartmentProposal)
       .filter((item) => item.add.tasks[0].primaryDepartmentId === id);
     const notice = waiting
-      ? el('section', { class: 'suggested', 'aria-label': 'Suggested tasks waiting for you' }, el('h2', { class: 'section' }, `Suggested tasks waiting for you (${waiting})`), suggested.map(departmentCard))
+      ? el('section', { class: 'suggested', 'aria-label': 'Suggested tasks waiting for you' }, el('h2', { class: 'section' }, `Suggested tasks waiting for you (${waiting})`), suggested.map((item) => departmentCard(item)))
       : null;
 
     const filters =
@@ -622,7 +654,7 @@
     // The suggestions that add tasks to this phase are decided here, as they are in Decisions
     const suggested = pendingProposals(plan).filter(isDepartmentProposal).filter((item) => item.add.tasks.some((task) => task.phaseId === id));
     const pendingNotice = waiting
-      ? el('section', { class: 'suggested', 'aria-label': 'Suggested tasks waiting for you' }, el('h2', { class: 'section' }, `Suggested tasks waiting for you (${waiting})`), suggested.map(departmentCard))
+      ? el('section', { class: 'suggested', 'aria-label': 'Suggested tasks waiting for you' }, el('h2', { class: 'section' }, `Suggested tasks waiting for you (${waiting})`), suggested.map((item) => departmentCard(item, id)))
       : null;
 
     const filters =
@@ -678,7 +710,7 @@
       body: [
         pendingNotice,
         notice,
-        dates ? el('p', { class: 'meta' }, badge(dates)) : null,
+        dates ? el('p', { class: 'meta' }, badge(dates)) : el('p', { class: 'row__meta' }, plan.timeline ? 'No dates for this phase.' : 'This plan has no dates. Phases are listed in order.'),
         el('p', { class: 'dept-summary' }, summary.join(' · ')),
         filters,
         body,
@@ -1032,6 +1064,39 @@
     return el('p', { class: 'notice' }, `${text} `, el('a', { href: '#/decisions' }, 'Go to proposals'));
   }
 
+  const EVENT_ACTOR = { user: 'You', ai: 'AI assistant', system: 'System' };
+  const EVENT_TEXT = {
+    launch: 'started the step',
+    attach_output: 'attached a result',
+    answer: 'answered the questions',
+    submit_proof: 'sent the proof',
+    confirm_output: 'confirmed the result',
+    reject_output: 'rejected the result',
+    wait_third_party: 'is waiting for a third party',
+    third_party_responded: 'the third party responded',
+    reopen: 'reopened the step',
+    change_executor: 'changed who does the step',
+  };
+
+  /** The events of a step, newest first, folded: who did what and when */
+  function historyOf(step) {
+    const events = step.events ?? [];
+    if (!events.length) return null;
+    const when = (value) => new Date(value).toLocaleString();
+    return el(
+      'details',
+      { class: 'fold' },
+      el('summary', {}, `History (${events.length})`),
+      el(
+        'ul',
+        { class: 'plain-list' },
+        [...events].reverse().map((event) =>
+          el('li', {}, `${when(event.at)}: ${EVENT_ACTOR[event.actor] ?? event.actor} ${EVENT_TEXT[event.action] ?? humanize(event.action)}`),
+        ),
+      ),
+    );
+  }
+
   /** The selected step: what it is, what to do now, how it fits with the others, and its results and actions */
   function stepDetail(step) {
     const derivedStep = data.derived.steps[step.id] ?? { readiness: 'not_applicable', availableActions: [] };
@@ -1057,6 +1122,7 @@
       nowNotice(step, derivedStep),
       stepButtons(step, available),
       facts(rows),
+      historyOf(step),
       step.outputs?.length ? outputList(step.outputs) : null,
       forms.length ? el('div', { class: 'step__actions' }, forms) : null,
     );
@@ -1133,7 +1199,7 @@
       parts.push(answerForm(step.id, latest));
     }
     if (available.includes('submit_proof')) parts.push(proofForm(step.id));
-    if (available.includes('change_executor')) parts.push(executorForm(step));
+    if (available.includes('change_executor')) parts.push(el('details', { class: 'fold' }, el('summary', {}, 'Who does this step'), executorForm(step)));
     return parts;
   }
 
@@ -1293,15 +1359,17 @@
   const isDepartmentProposal = (item) => item.structure === undefined && item.add.tasks.some((task) => task.origin.kind === 'ai');
 
   /** The tasks one department proposed: grouped by phase, the order between them in plain words, and the notes (read-only) */
-  function departmentCard(item) {
+  function departmentCard(item, phaseId) {
     const { plan, derived } = data;
     const department = item.add.tasks[0].primaryDepartmentId;
     // A relation may join a new task with a task the department already has: its title is in the plan
     const titleOf = (id) => byId(item.add.tasks, id)?.title ?? byId(plan.tasks, id)?.title ?? id;
     const groups = [...plan.phases]
       .sort((a, b) => a.order - b.order)
+      .filter((phase) => !phaseId || phase.id === phaseId)
       .map((phase) => ({ phase, tasks: item.add.tasks.filter((task) => task.phaseId === phase.id) }))
       .filter((group) => group.tasks.length > 0);
+    const elsewhere = phaseId ? item.add.tasks.length - groups.reduce((count, group) => count + group.tasks.length, 0) : 0;
     const orders = (item.add.relations ?? []).map((link) =>
       link.type === 'blocks' ? `${titleOf(link.from)} must be done before ${titleOf(link.to)}` : `${titleOf(link.from)} comes after ${titleOf(link.to)}`,
     );
@@ -1309,7 +1377,8 @@
     return el(
       'article',
       { class: 'step', 'data-proposal-id': item.id, 'data-department-id': department },
-      el('h3', { class: 'step__title' }, `Tasks for ${deptName(department)}`, obsolete ? el('span', { class: 'badge' }, 'Obsolete') : null),
+      el('h3', { class: 'step__title' }, `Tasks for ${deptName(department)}${phaseId ? ` in ${phaseName(phaseId)}` : ''}`, obsolete ? el('span', { class: 'badge' }, 'Obsolete') : null),
+      elsewhere ? el('p', { class: 'row__meta' }, `Accepting adds all ${item.add.tasks.length} tasks, ${elsewhere} of them in other phases.`) : null,
       obsolete ? el('p', { class: 'notice' }, 'This suggestion came from a decision that has changed. It cannot be accepted: retire it to ask the assistant again.') : null,
       groups.map((group) => [el('h3', { class: 'step__sub' }, group.phase.name), el('ol', { class: 'list' }, group.tasks.map((task) => el('li', { class: 'output' }, task.title)))]),
       orders.length ? [el('h3', { class: 'step__sub' }, 'Order'), el('ul', { class: 'list' }, orders.map((text) => el('li', { class: 'output' }, text)))] : null,
@@ -1516,15 +1585,22 @@
       body: [
         stale,
         el('p', { class: 'dept-summary' }, 'The assistant proposes. Nothing changes until you accept. Decisions are answered on the task, department or phase they affect.'),
-        el('h2', { class: 'section' }, 'Ask the assistant'),
-        structureAction,
-        departmentAction,
-        el('h2', { class: 'section' }, 'To define'),
-        gapItems,
-        el('h2', { class: 'section' }, 'Waiting for you'),
-        waitingList,
-        proposalItems,
-        departmentCards,
+        el(
+          'section',
+          { class: 'proposals-ask', 'aria-label': 'Ask the assistant' },
+          el('h2', { class: 'section' }, 'Ask the assistant'),
+          el('div', { class: 'proposals-ask__items' }, structureAction, departmentAction),
+          el('h3', { class: 'step__sub' }, 'To define'),
+          gapItems,
+        ),
+        el(
+          'section',
+          { class: 'proposals-waiting', 'aria-label': 'Waiting for you' },
+          el('h2', { class: 'section' }, 'Waiting for you'),
+          waitingList,
+          proposalItems,
+          departmentCards,
+        ),
         decidedFold,
       ],
     };
@@ -1581,19 +1657,209 @@
     return {
       title: 'Not found',
       trail: null,
-      heading: 'Not found',
-      body: [el('p', {}, 'There is nothing at this address.'), el('p', {}, el('a', { href: '#/' }, 'Go to the plan overview'))],
+      heading: 'This part of the plan is not here',
+      body: [
+        el('p', {}, 'The task, department or phase you opened does not exist any more. It may have been removed.'),
+        el(
+          'div',
+          { class: 'actions' },
+          el('a', { class: 'btn btn--dark', href: '#/' }, 'Go to the plan overview'),
+          el('button', { type: 'button', class: 'btn btn--outline', on: { click: () => (history.length > 1 ? history.back() : (location.hash = '#/')) } }, 'Go back'),
+        ),
+      ],
     };
+  }
+
+  // ---- The plan bar: search, export or print, and the account
+  function planBar(route) {
+    const query = route.name === 'search' ? route.query : '';
+    return el(
+      'header',
+      { class: 'plan-bar' },
+      el(
+        'form',
+        {
+          class: 'plan-bar__search',
+          role: 'search',
+          on: {
+            submit: (event) => {
+              event.preventDefault();
+              const value = event.currentTarget.elements.q.value.trim();
+              location.hash = `#/search?q=${enc(value)}`;
+            },
+          },
+        },
+        el('label', { class: 'sr-only', for: 'plan-search' }, 'Search the plan'),
+        el('input', { id: 'plan-search', name: 'q', type: 'search', value: query, maxlength: 200, autocomplete: 'off', placeholder: 'Search tasks, steps and departments' }),
+        el('button', { type: 'submit', class: 'btn btn--outline' }, 'Search'),
+      ),
+      el(
+        'details',
+        { class: 'plan-bar__menu' },
+        el('summary', {}, 'Export or print'),
+        el(
+          'div',
+          { class: 'plan-bar__items' },
+          el('button', { type: 'button', on: { click: () => window.print() } }, 'Print this plan'),
+          el('button', { type: 'button', on: { click: exportTasksCsv } }, 'Export tasks as CSV'),
+        ),
+      ),
+      el('a', { class: 'plan-bar__link', href: '/' }, 'Start page'),
+      el('button', { type: 'button', class: 'btn btn--outline', on: { click: logOut } }, 'Log out'),
+    );
+  }
+
+  /** A CSV of the tasks: one row each, with the department, the phase, the status and the next step to do */
+  function exportTasksCsv() {
+    const { plan, derived } = data;
+    // A cell that starts with a formula sign is shown as text by spreadsheets: a quote in front stops it
+    const cell = (value) => {
+      const text = /^[=+\-@]/.test(String(value)) ? `'${value}` : String(value);
+      return `"${text.replaceAll('"', '""')}"`;
+    };
+    const rows = [['Task', 'Department', 'Phase', 'Status', 'Next step']];
+    for (const task of plan.tasks.filter(visible)) {
+      const next = nextStepOf([task]);
+      rows.push([task.title, deptName(task.primaryDepartmentId), phaseName(task.phaseId), TASK_STATUS[derived.tasks[task.id].status], next ? next.step.text : '']);
+    }
+    const url = URL.createObjectURL(new Blob([rows.map((row) => row.map(cell).join(',')).join('\r\n')], { type: 'text/csv' }));
+    const link = el('a', { href: url, download: `${data.title}-tasks.csv` });
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
+  /** Ends the session on the server, then goes to the start page, where the sign-in is */
+  async function logOut() {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', headers: { Accept: 'application/json' }, cache: 'no-store' });
+    } catch {
+      // The start page still shows whether the session is over
+    }
+    location.assign('/');
+  }
+
+  // ---- Search and filters over the whole plan
+  const TASK_FILTERS = [
+    ['all', 'All'],
+    ['blocked', 'Blocked'],
+    ['waiting', 'Waiting for me'],
+    ['done', 'Done'],
+  ];
+
+  /** A task has a step the person does now: it waits for them, or they can start it */
+  function needsMe(task) {
+    return data.plan.steps.some(
+      (step) =>
+        step.taskId === task.id &&
+        visible(step) &&
+        step.executor === 'user' &&
+        (step.status === 'waiting_user' || (step.status === 'not_started' && data.derived.steps[step.id]?.readiness === 'ready')),
+    );
+  }
+
+  function matchesFilter(task, filter) {
+    const status = data.derived.tasks[task.id].status;
+    if (filter === 'blocked') return status === 'blocked';
+    if (filter === 'done') return status === 'done';
+    if (filter === 'waiting') return needsMe(task);
+    return true;
+  }
+
+  function searchView(query, filter) {
+    const { plan, derived } = data;
+    const q = query.trim().toLowerCase();
+    const activeFilter = TASK_FILTERS.some(([key]) => key === filter) ? filter : 'all';
+    const searching = q.length > 0;
+
+    // A task shows when its title or one of its steps matches; the step that matched is named
+    const tasks = plan.tasks
+      .filter((task) => visible(task) && matchesFilter(task, activeFilter))
+      .map((task) => ({
+        task,
+        step: searching ? plan.steps.find((step) => step.taskId === task.id && visible(step) && step.text.toLowerCase().includes(q)) : undefined,
+      }))
+      .filter(({ task, step }) => !searching || task.title.toLowerCase().includes(q) || step);
+    const departments = searching && activeFilter === 'all' ? plan.departments.filter((item) => item.name.toLowerCase().includes(q)) : [];
+    const phases = searching && activeFilter === 'all' ? plan.phases.filter((item) => item.name.toLowerCase().includes(q)) : [];
+    const none = !tasks.length && !departments.length && !phases.length;
+
+    const chips = el(
+      'nav',
+      { class: 'filters', 'aria-label': 'Show tasks with status' },
+      TASK_FILTERS.map(([key, label]) =>
+        el('a', { class: 'chip', href: `#/search?q=${enc(query)}&status=${key}`, 'aria-current': key === activeFilter ? 'true' : undefined }, label),
+      ),
+    );
+
+    const body = !searching && activeFilter === 'all'
+      ? el('p', { class: 'empty' }, 'Type a word to search the tasks, steps, departments and phases of this plan.')
+      : none
+        ? el('p', { class: 'empty' }, 'Nothing matches.')
+        : el(
+            'div',
+            {},
+            tasks.length
+              ? el(
+                  'ul',
+                  { class: 'list' },
+                  tasks.map(({ task, step }) =>
+                    el(
+                      'li',
+                      { class: 'row' },
+                      el('a', { class: 'row__name', href: taskHref(task, `phase:${task.phaseId}`) }, task.title),
+                      badge(TASK_STATUS[derived.tasks[task.id].status]),
+                      el('span', { class: 'row__meta row__meta--full' }, `${deptName(task.primaryDepartmentId)} · ${phaseName(task.phaseId)}${step ? ` · step: ${step.text}` : ''}`),
+                    ),
+                  ),
+                )
+              : null,
+            departments.length
+              ? [el('h2', { class: 'section' }, 'Departments'), el('ul', { class: 'list' }, departments.map((item) => el('li', { class: 'row' }, el('a', { class: 'row__name', href: deptHref(item.id) }, item.name))))]
+              : null,
+            phases.length
+              ? [el('h2', { class: 'section' }, 'Phases'), el('ul', { class: 'list' }, phases.map((item) => el('li', { class: 'row' }, el('a', { class: 'row__name', href: phaseHref(item.id) }, item.name))))]
+              : null,
+          );
+
+    return { title: 'Search', trail: null, heading: 'Search', body: [chips, body] };
+  }
+
+  /** The progress of the whole plan: tasks done, phases finished, and a bar of the tasks done */
+  function planProgress() {
+    const { plan, derived } = data;
+    const tasks = plan.tasks.filter(visible);
+    const done = tasks.filter((task) => derived.tasks[task.id].status === 'done').length;
+    const blocked = tasks.filter((task) => derived.tasks[task.id].status === 'blocked').length;
+    const finished = plan.phases.filter((phase) => derived.phases[phase.id].status === 'done').length;
+    const percent = tasks.length ? (done / tasks.length) * 100 : 0;
+    return el(
+      'section',
+      { class: 'progress', 'aria-label': 'Plan progress' },
+      el(
+        'p',
+        { class: 'progress__text' },
+        `${done} of ${tasks.length} ${plural(tasks.length, 'task')} done · ${finished} of ${plan.phases.length} ${plural(plan.phases.length, 'phase')} finished${blocked ? ` · ${blocked} blocked` : ''}`,
+      ),
+      el(
+        'div',
+        { class: 'progress__track', role: 'progressbar', 'aria-label': 'Tasks done', 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuenow': Math.round(percent) },
+        el('div', { class: 'progress__fill', style: { width: `${percent}%` } }),
+      ),
+    );
   }
 
   function buildPage(route) {
     switch (route.name) {
       case 'general':
-        return generalView();
+        return generalView(route.all, route.allDecisions);
       case 'timeline':
         return timelineView();
       case 'decisions':
         return decisionsView();
+      case 'search':
+        return searchView(route.query, route.status);
       case 'dept':
         return deptView(route.id, route.status);
       case 'phase':
@@ -1619,9 +1885,10 @@
     const heading = el('h1', { class: 'page__title', tabindex: '-1' }, page.heading);
     const nodes = [
       el('p', { class: 'page__plan' }, data.title),
+      planBar(route),
       tabs(route.name === 'general' ? 'overview' : route.name === 'timeline' ? 'timeline' : route.name === 'decisions' ? 'decisions' : null),
       page.trail ? crumbs(page.trail) : null,
-      notice ? el('p', { class: notice.error ? 'notice notice--error' : 'notice' }, notice.text) : null,
+      notice ? el('div', { class: notice.error ? 'notice notice--error' : 'notice' }, el('p', {}, notice.text), notice.items?.length ? el('ul', { class: 'plain-list' }, notice.items.map((line) => el('li', {}, line))) : null) : null,
       heading,
       page.body,
     ];
@@ -1675,6 +1942,29 @@
   }
 
   /** Every write: the body gets the version the screen shows, and the answer is applied or explained */
+  /** What a save changed, in plain words: tasks that can now be defined, suggestions that wait, and suggestions out of date */
+  function changesBetween(before, after) {
+    const lines = [];
+    // A gap whose last decision was answered can now be given its tasks
+    const waitingFor = (derived, task) => task.placeholder.waitsFor.filter((keyId) => !derived.confirmedFacts[keyId]);
+    for (const task of before.plan.tasks.filter((item) => item.placeholder)) {
+      const now = byId(after.plan.tasks, task.id);
+      if (now?.placeholder && waitingFor(before.derived, task).length && !waitingFor(after.derived, now).length) {
+        lines.push(`${now.title}: its decisions are answered. You can ask for its tasks on Proposals.`);
+      }
+    }
+    const waitingBefore = new Set(pendingProposals(before.plan).map((item) => item.id));
+    const newDepartment = pendingProposals(after.plan).filter((item) => isDepartmentProposal(item) && !waitingBefore.has(item.id));
+    for (const item of newDepartment) {
+      const count = item.add.tasks.length;
+      lines.push(`${count} suggested ${plural(count, 'task')} for ${deptName(item.add.tasks[0].primaryDepartmentId)} ${count === 1 ? 'is' : 'are'} waiting for your decision.`);
+    }
+    const outdated = (id) => after.derived.proposals[id]?.obsolete === true;
+    const nowOutdated = pendingProposals(after.plan).filter((item) => outdated(item.id) && !before.derived.proposals[item.id]?.obsolete);
+    if (nowOutdated.length) lines.push(`${nowOutdated.length} ${plural(nowOutdated.length, 'suggestion')} ${nowOutdated.length === 1 ? 'is' : 'are'} now out of date.`);
+    return lines;
+  }
+
   async function post(path, body, focusSelector = null, workingStepId = null) {
     if (busy || !data) return;
     busy = true;
@@ -1694,8 +1984,11 @@
       if (response.ok) {
         // The version does not move when the assistant had nothing new to add: nothing was saved then
         const unchanged = result.version === data.version;
+        const before = data;
         data = { ...data, version: result.version, plan: result.plan, derived: result.derived };
-        notice = { text: unchanged ? 'The assistant found nothing new to add, so nothing was saved.' : `Saved. The plan is at version ${result.version}.` };
+        notice = unchanged
+          ? { text: 'The assistant found nothing new to add, so nothing was saved.' }
+          : { text: `Saved. The plan is at version ${result.version}.`, items: changesBetween(before, data) };
       } else if (response.status === 409 && result.code === 'version_conflict') {
         await reload();
         notice = { text: ERROR_TEXT.version_conflict, error: true };
