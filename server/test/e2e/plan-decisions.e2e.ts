@@ -682,11 +682,64 @@ async function scenarioAiStepFailure(browser: any): Promise<string> {
   return "ai step failure: the step stays as it was, the typed answer stays, the error shows";
 }
 
+/** A decision is answered on the task that waits for it, not only on the Decisions page */
+async function scenarioInPlaceTask(browser: any): Promise<string> {
+  const repo = new InMemoryPlanRepository();
+  const id = await newPlan(repo);
+  await write(repo, id, "/facts", { key: { kind: "catalog", id: "product_type" }, value: { kind: "catalog", id: "mobile_game" } });
+  const { context, page } = await openPlan(browser, repo, id, "#/task/plan-product-development");
+  await page.getByText("Product type: Mobile game (suggested by the assistant)").waitFor();
+  await page.getByRole("button", { name: "Confirm" }).first().click();
+  await notice(page).waitFor();
+  assert.match((await notice(page).textContent()) ?? "", /Saved\. The plan is at version 3\./);
+  const fact = (await repo.get(id, USER))!.plan.facts!.find((item) => item.key.kind === "catalog" && item.key.id === "product_type");
+  assert.equal(fact?.status, "confirmed", "the fact is confirmed from the task");
+  await context.close();
+  return "in place: a suggested decision is confirmed on the task that waits for it";
+}
+
+/** The tasks the assistant suggested for a department are accepted on its page, and rejected on the phase page */
+async function scenarioInPlaceDepartment(browser: any): Promise<string> {
+  const repo = new InMemoryPlanRepository();
+  const { id, ai, plan } = await planForDepartments(repo, departmentAnswer);
+  // The suggestions are made as the button of Decisions does; they are answered on the department and the phase
+  const asked = await handlePlanRequest({
+    userId: USER,
+    method: "POST",
+    path: `/api/plan/${id}/agents/departments`,
+    body: JSON.stringify({ expectedVersion: (await repo.get(id, USER))!.version }),
+    repo,
+    reports: ai.reports,
+    agents: ai.agents,
+    now: () => new Date().toISOString(),
+    env: {},
+  });
+  assert.equal(asked.status, 201);
+  const [first, second] = plan.departments;
+  const { context, page } = await openPlan(browser, repo, id, `#/dept/${first.id}`, undefined, ai);
+  await page.getByText("Suggested tasks waiting for you (1)").waitFor();
+  await page.getByRole("button", { name: "Accept" }).first().click();
+  await notice(page).waitFor();
+  assert.ok((await repo.get(id, USER))!.plan.tasks.some((task) => task.id === `${first.id}-scope`), "the accepted task is in the plan");
+
+  // The phase page lists the rest, and one is rejected there
+  await page.goto(`${BASE}/plan.html?id=${id}#/phase/${plan.phases[0].id}`);
+  await page.getByText(`Scope of ${second.name}`).first().waitFor();
+  await page.getByRole("button", { name: "Reject" }).first().click();
+  await notice(page).waitFor();
+  const proposals = (await repo.get(id, USER))!.plan.proposals ?? [];
+  assert.equal(proposals.filter((item) => item.status === "accepted").length, 1, "one accepted on the department page");
+  assert.equal(proposals.filter((item) => item.status === "rejected").length, 1, "one rejected on the phase page");
+  assert.equal(proposals.filter((item) => item.status === "pending").length, proposals.length - 2, "the others wait");
+  await context.close();
+  return "in place: department suggestions are accepted on the department page and rejected on the phase page";
+}
+
 const server = await startServer();
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ["--no-sandbox"] });
 let failed = 0;
 try {
-  for (const scenario of [scenarioDecisions, scenarioNeedsAi, scenarioStale, scenarioError, scenarioScreens, scenarioObsolete, scenarioCycle, scenarioStructure, scenarioStructureFailure, scenarioDepartments, scenarioDepartmentRelation, scenarioDepartmentsFailure, scenarioTaskSteps, scenarioAiStep, scenarioAiStepFailure]) {
+  for (const scenario of [scenarioDecisions, scenarioNeedsAi, scenarioStale, scenarioError, scenarioScreens, scenarioObsolete, scenarioCycle, scenarioStructure, scenarioStructureFailure, scenarioDepartments, scenarioDepartmentRelation, scenarioDepartmentsFailure, scenarioTaskSteps, scenarioAiStep, scenarioAiStepFailure, scenarioInPlaceTask, scenarioInPlaceDepartment]) {
     try {
       console.log("ok -", await scenario(browser));
     } catch (error) {

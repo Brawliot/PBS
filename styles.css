@@ -1024,6 +1024,34 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
 .timeline__bar--blocked { background: var(--white); border: 2px solid var(--dark); top: 4px; bottom: 4px; }
 .timeline__lane--empty { display: flex; align-items: center; padding-left: 10px; background: transparent; border: 1px dashed var(--border-strong); }
 .timeline-card--list .timeline__row { grid-template-columns: minmax(0, 1fr); }
+/* Full-screen message (no plan, plan not found, not signed in): a box centred on the window, text aligned left */
+.plan--message ~ .giant { position: fixed; left: 0; right: 0; bottom: 0; }
+.plan--message { position: fixed; inset: 0; z-index: 4; width: auto; margin: 0; padding: 24px; display: flex; align-items: center; justify-content: center; overflow-y: auto; }
+.message { width: 100%; max-width: 480px; padding: 32px; background: var(--white); border: 1px solid var(--border-strong); border-radius: 14px; box-shadow: var(--shadow); text-align: left; }
+.message .page__title { font-size: 28px; margin: 0 0 10px; }
+.message__text { margin: 0 0 22px; color: var(--gray-text); line-height: 1.5; }
+.message__actions { display: flex; justify-content: flex-start; }
+.message a.btn--dark { color: var(--white); text-decoration: none; }
+/* Decisions answered on the element they block: the box of a task that waits for them, and the suggestions of a department or phase */
+.dec-box { margin: 14px 0; padding: 14px 16px; background: var(--white); border: 1px solid var(--dark); border-radius: 12px; }
+.dec-box .step__title { font-size: 16px; }
+.dec-box .form { margin-top: 10px; }
+.suggested { margin: 0 0 16px; }
+.suggested .step + .step { margin-top: 12px; }
+/* Overview: what needs the person (two cards that say where to answer), the timeline in a line, the departments in a grid */
+.overview-needs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 0 0 8px; }
+.overview-card { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; background: var(--white); border: 1px solid var(--dark); border-radius: 12px; color: var(--dark); text-decoration: none; }
+.overview-card:hover { background: var(--surface-hover); }
+.overview-card__title { font-weight: 800; }
+.overview-card__action { margin-top: 6px; color: var(--dark); font-weight: 700; }
+.overview-timeline { margin-top: 8px; }
+.overview-timeline__phases { font-weight: 700; margin: 0 0 4px; }
+.overview-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.overview-tile { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; background: var(--white); border: 1px solid var(--border-strong); border-radius: 12px; }
+.overview-tile__name { font-weight: 800; font-size: 17px; color: var(--dark); }
+.overview-tile .badge { align-self: flex-start; }
+.registry { margin-top: 18px; }
+.registry .form { margin-top: 10px; }
 @media (max-width: 860px) { .steps-layout { grid-template-columns: minmax(0, 1fr); } }
 .step__title { font-size: 18px; font-weight: 800; }
 .step__actions { display: grid; gap: 14px; margin-top: 12px; }

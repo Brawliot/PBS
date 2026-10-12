@@ -52,6 +52,10 @@
     needs_ai: 'There is no ready-made suggestion for this decision yet.',
     not_available: 'This is not available right now.',
     no_confirmed_facts: 'Confirm at least one decision first, so the assistant has something to build on.',
+    storage_unavailable: 'The plan storage is not available right now. Try again later.',
+    internal_error: 'Something went wrong on the server. Try again.',
+    report_not_found: 'The report this plan was made from could not be found.',
+    skeleton_failed: 'The plan could not be built from its report. Try again.',
   };
   const FACT_KEY_LABEL = {
     product_type: 'Product type',
@@ -249,7 +253,6 @@
       { class: 'tabs', 'aria-label': 'Plan views' },
       link('overview', '#/', 'Overview'),
       link('timeline', '#/timeline', 'Timeline'),
-      link('decisions', '#/decisions', 'Decisions'),
     );
   }
 
@@ -265,33 +268,148 @@
   }
 
   // ---- Views: each returns the nodes of the page and the heading that takes the focus
-  function generalView() {
+  /** The items that need the person now: the facts the plan asks for and the suggestions it waits on */
+  function needsYou() {
+    const { plan } = data;
+    const facts = pendingFacts(plan).map((fact) => {
+      const keyId = fact.key.kind === 'catalog' ? fact.key.id : null;
+      const blocked = keyId ? plan.tasks.filter((task) => task.placeholder?.waitsFor.includes(keyId) && visible(task)) : [];
+      return {
+        title: factLabel(fact),
+        text: blocked.length ? `Blocks: ${blocked.map((task) => task.title).join(', ')}` : 'Suggested by the assistant',
+        href: blocked.length ? taskHref(blocked[0]) : '#/decisions',
+        label: blocked.length ? 'Answer it on the task' : 'Review in Decisions',
+      };
+    });
+    // Decisions a gap waits for that nobody has suggested yet: the person answers them on the task
+    const missing = [...new Set(plan.tasks.filter((task) => task.placeholder && visible(task)).flatMap((task) => task.placeholder.waitsFor))]
+      .filter((keyId) => !data.derived.confirmedFacts[keyId] && !pendingFacts(plan).some((fact) => fact.key.kind === 'catalog' && fact.key.id === keyId))
+      .map((keyId) => {
+        const blocked = plan.tasks.filter((task) => task.placeholder?.waitsFor.includes(keyId) && visible(task));
+        return { key: keyId, title: `${keyLabel(keyId)} is needed`, text: `Blocks: ${blocked.map((task) => task.title).join(', ')}`, href: taskHref(blocked[0]), label: 'Answer it on the task' };
+      });
+    const suggestions = pendingProposals(plan)
+      .filter(isDepartmentProposal)
+      .map((item) => {
+        const department = item.add.tasks[0].primaryDepartmentId;
+        const count = item.add.tasks.length;
+        return {
+          title: `${count} suggested ${plural(count, 'task')} for ${deptName(department)}`,
+          text: 'Waiting for you',
+          href: deptHref(department),
+          label: `Answer them on ${deptName(department)}`,
+        };
+      });
+    return [...facts, ...missing, ...suggestions];
+  }
+
+  /** The line under a department on the overview: what it needs next, in plain words */
+  function departmentLine(department) {
     const { plan, derived } = data;
-    const waiting = pendingFacts(plan).length + pendingProposals(plan).length;
-    const decisionsNote = waiting
+    const waiting = pendingProposals(plan).filter(isDepartmentProposal).some((item) => item.add.tasks[0].primaryDepartmentId === department.id);
+    if (waiting) return 'Needs you: suggested tasks to answer';
+    const tasks = plan.tasks.filter((task) => task.primaryDepartmentId === department.id && visible(task));
+    if (!tasks.length) return 'No tasks yet';
+    const blocked = tasks.find((task) => derived.tasks[task.id].status === 'blocked');
+    if (blocked) return `Blocked: ${blocked.title}`;
+    const next = nextStepOf(tasks);
+    if (next) return `Next: ${next.step.text}`;
+    return progressText(derived.departments[department.id]);
+  }
+
+  function generalView() {
+    const { plan } = data;
+    const items = needsYou();
+    const shown = items.slice(0, 2);
+    const lead = items.length
+      ? `Start with the ${items.length === 1 ? 'thing that needs' : `${items.length} things that need`} you. Then pick a department.`
+      : 'Nothing needs you right now. Pick a department to see its next step.';
+
+    const needs = shown.length
       ? el(
-          'p',
-          { class: 'notice' },
-          `${waiting} ${plural(waiting, 'decision')} ${waiting === 1 ? 'is' : 'are'} waiting for you. `,
-          el('a', { href: '#/decisions' }, 'Review them'),
+          'section',
+          { class: 'overview-needs', 'aria-label': 'Needs you' },
+          shown.map((item, index) =>
+            el(
+              'a',
+              { class: 'overview-card', href: item.href },
+              el('span', { class: 'overview-card__title' }, `${index + 1}. ${item.title}`),
+              el('span', { class: 'row__meta' }, item.text),
+              el('span', { class: 'overview-card__action' }, `${item.label} →`),
+            ),
+          ),
+          items.length > shown.length ? el('p', { class: 'row__meta' }, el('a', { href: '#/decisions' }, `${items.length - shown.length} more in Decisions`)) : null,
         )
       : null;
-    const body = plan.departments.length
+
+    const phaseOrder = [...plan.phases].sort((a, b) => a.order - b.order);
+    const phaseSentences = plan.relations
+      .filter((relation) => relation.level === 'phase')
+      .map((relation) => (relation.type === 'blocks' ? `${phaseName(relation.to)} waits for ${phaseName(relation.from)}` : `${phaseName(relation.from)} comes after ${phaseName(relation.to)}`));
+    const timeline = phaseOrder.length
       ? el(
-          'ul',
-          { class: 'list' },
-          plan.departments.map((department) =>
-            el(
-              'li',
-              { class: 'row' },
-              el('a', { class: 'row__name', href: deptHref(department.id) }, department.name),
-              badge(TIER[department.tier]),
-              el('span', { class: 'row__meta' }, progressText(derived.departments[department.id])),
+          'section',
+          { class: 'overview-timeline' },
+          el('h2', { class: 'section' }, 'Timeline'),
+          el('p', { class: 'overview-timeline__phases' }, phaseOrder.map((phase) => phase.name).join(' → ')),
+          phaseSentences.length ? el('p', { class: 'row__meta' }, `${phaseSentences.join('. ')}. `) : null,
+          el('a', { href: '#/timeline' }, 'Open the timeline'),
+        )
+      : null;
+
+    const departments = plan.departments.length
+      ? el(
+          'section',
+          {},
+          el('h2', { class: 'section' }, 'Departments'),
+          el(
+            'ul',
+            { class: 'overview-grid' },
+            plan.departments.map((department) =>
+              el(
+                'li',
+                { class: 'overview-tile' },
+                el('a', { class: 'overview-tile__name', href: deptHref(department.id) }, department.name),
+                badge(`${TIER[department.tier]} level`),
+                el('span', { class: 'row__meta' }, departmentLine(department)),
+              ),
             ),
           ),
         )
       : el('p', {}, 'This plan has no departments.');
-    return { title: data.title, trail: null, heading: data.title, body: [decisionsNote, el('h2', { class: 'section' }, 'Departments'), body] };
+
+    return {
+      title: data.title,
+      trail: null,
+      heading: data.title,
+      body: [el('p', { class: 'dept-summary' }, lead), needs, timeline, departments, decisionsRegistry()],
+    };
+  }
+
+  /** The decisions the plan uses, what it replaced or rejected, the suggestions answered, and a form to add one */
+  function decisionsRegistry() {
+    const { plan, catalog } = data;
+    const confirmed = (plan.facts ?? []).filter((fact) => fact.status === 'confirmed');
+    const earlier = (plan.facts ?? []).filter((fact) => fact.status === 'superseded' || fact.status === 'rejected');
+    const answered = (plan.proposals ?? []).filter((item) => item.status !== 'pending');
+    const sourceText = (fact) => (fact.from.kind === 'user' ? 'Entered by you' : 'Suggested by the assistant');
+    return el(
+      'section',
+      { class: 'registry', 'aria-label': 'Decisions' },
+      el('h2', { class: 'section' }, 'Decisions'),
+      el('p', { class: 'row__meta' }, 'What the plan uses now. You answer a decision where it affects the plan: on the task, department or phase.'),
+      confirmed.length
+        ? el('ul', { class: 'list' }, confirmed.map((fact) => el('li', { class: 'row', 'data-fact-id': fact.id }, el('span', { class: 'row__name' }, factLabel(fact)), el('span', { class: 'row__meta' }, sourceText(fact)))))
+        : el('p', { class: 'empty' }, 'No decisions confirmed yet.'),
+      earlier.length
+        ? el('details', { class: 'fold' }, el('summary', {}, `Replaced or rejected (${earlier.length})`), el('ul', { class: 'plain-list' }, earlier.map((fact) => el('li', {}, `${factLabel(fact)}: ${fact.status === 'rejected' ? 'Rejected' : 'Replaced'}`))))
+        : null,
+      answered.length
+        ? el('details', { class: 'fold' }, el('summary', {}, `Answered suggestions (${answered.length})`), el('ul', { class: 'plain-list' }, answered.map((item) => el('li', {}, `${item.status === 'accepted' ? 'Accepted' : 'Rejected'}: ${decidedTitle(item)}`))))
+        : null,
+      el('details', { class: 'fold' }, el('summary', {}, 'Add a decision'), decisionForm(catalog)),
+      el('p', { class: 'row__meta' }, el('a', { href: '#/decisions' }, 'Ask the assistant for more suggestions')),
+    );
   }
 
   const DEPT_FILTERS = [
@@ -366,8 +484,12 @@
     if (blocked) summary.push(`${blocked} blocked`);
     if (next) summary.push(`Next: ${next.step.text}`);
 
+    // The tasks suggested for this department are decided here, as they are in Decisions
+    const suggested = pendingProposals(plan)
+      .filter(isDepartmentProposal)
+      .filter((item) => item.add.tasks[0].primaryDepartmentId === id);
     const notice = waiting
-      ? el('p', { class: 'notice' }, `${waiting} suggested ${plural(waiting, 'task')} for ${department.name} ${waiting === 1 ? 'is' : 'are'} waiting for your decision. `, el('a', { href: '#/decisions' }, 'Review in Decisions'))
+      ? el('section', { class: 'suggested', 'aria-label': 'Suggested tasks waiting for you' }, el('h2', { class: 'section' }, `Suggested tasks waiting for you (${waiting})`), suggested.map(departmentCard))
       : null;
 
     const filters =
@@ -455,43 +577,110 @@
     };
   }
 
-  function phaseView(id) {
+  /** Tasks of this phase that wait for a decision (in Decisions): the suggestions of the departments */
+  function pendingPhaseTasks(id) {
+    return pendingProposals(data.plan)
+      .filter(isDepartmentProposal)
+      .reduce((count, item) => count + item.add.tasks.filter((task) => task.phaseId === id).length, 0);
+  }
+
+  /** The order between this phase and the others, in plain words */
+  function phaseOrder(id) {
+    return data.plan.relations
+      .filter((relation) => relation.level === 'phase' && (relation.from === id || relation.to === id))
+      .map((relation) => {
+        if (relation.type === 'follows') return relation.from === id ? `Comes after ${phaseName(relation.to)}` : `${phaseName(relation.from)} comes after this phase`;
+        return relation.from === id ? `Must be finished before ${phaseName(relation.to)}` : `Waits for ${phaseName(relation.from)} to be finished`;
+      });
+  }
+
+  function phaseView(id, filter) {
     const { plan, derived } = data;
     const phase = byId(plan.phases, id);
     const status = derived.phases[id];
+    const tasks = plan.tasks.filter((task) => task.phaseId === id && visible(task));
+    const activeFilter = DEPT_FILTERS.some(([key]) => key === filter) ? filter : 'all';
+    const statusOf = (task) => derived.tasks[task.id].status;
+    // Tasks grouped by department, in the order of the plan's departments
+    const inOrder = plan.departments.flatMap((department) => tasks.filter((task) => task.primaryDepartmentId === department.id));
+    const done = tasks.filter((task) => statusOf(task) === 'done').length;
+    const next = nextStepOf(inOrder);
+    const hasDates = plan.timeline && phase.startUnit !== undefined && phase.lengthUnits !== undefined;
+    const dates = hasDates
+      ? `${humanize(UNIT[plan.timeline.unit])}s ${phase.startUnit} to ${phase.startUnit + phase.lengthUnits}`
+      : null;
+
+    const summary = [`${TASK_STATUS[status.status]}`, progressText(status.progress)];
+    if (next) summary.push(`Next: ${next.step.text}`);
+
+    const order = phaseOrder(id);
+    const notice = order.length
+      ? el('p', { class: 'notice' }, `${order.join('. ')}. `, el('a', { href: '#/timeline' }, 'See the timeline'))
+      : null;
+
+    const waiting = pendingPhaseTasks(id);
+    // The suggestions that add tasks to this phase are decided here, as they are in Decisions
+    const suggested = pendingProposals(plan).filter(isDepartmentProposal).filter((item) => item.add.tasks.some((task) => task.phaseId === id));
+    const pendingNotice = waiting
+      ? el('section', { class: 'suggested', 'aria-label': 'Suggested tasks waiting for you' }, el('h2', { class: 'section' }, `Suggested tasks waiting for you (${waiting})`), suggested.map(departmentCard))
+      : null;
+
+    const filters =
+      tasks.length >= FILTER_FROM
+        ? el(
+            'nav',
+            { class: 'filters', 'aria-label': 'Show tasks with status' },
+            DEPT_FILTERS.map(([key, label]) => {
+              const count = tasks.filter((task) => key === 'all' || statusOf(task) === key).length;
+              return el('a', { class: 'chip', href: `#/phase/${enc(id)}?status=${key}`, 'aria-current': key === activeFilter ? 'true' : undefined }, `${label} ${count}`);
+            }),
+          )
+        : null;
+
+    const shown = inOrder.filter((task) => activeFilter === 'all' || statusOf(task) === activeFilter);
     const groups = plan.departments
-      .map((department) => ({
-        department,
-        tasks: plan.tasks.filter((task) => task.phaseId === id && task.primaryDepartmentId === department.id && visible(task)),
-      }))
-      .filter((group) => group.tasks.length > 0);
-    const body = groups.length
-      ? groups.map((group) =>
-          el(
-            'section',
-            { class: 'group' },
-            el('h2', { class: 'section' }, group.department.name),
+      .map((department) => ({ department, tasks: shown.filter((task) => task.primaryDepartmentId === department.id) }))
+      .filter((group) => group.tasks.length > 0)
+      .map(({ department, tasks: groupTasks }) => {
+        const doneHere = groupTasks.filter((task) => statusOf(task) === 'done').length;
+        return el(
+          'details',
+          { class: 'phase-group', open: groupTasks.some((task) => statusOf(task) !== 'done') ? true : undefined },
+          el('summary', {}, el('span', {}, department.name), el('span', {}, `${groupTasks.length} ${plural(groupTasks.length, 'task')} · ${doneHere} done`)),
+          groupTasks.map((task) =>
             el(
-              'ul',
-              { class: 'list' },
-              group.tasks.map((task) =>
-                el(
-                  'li',
-                  { class: 'row' },
-                  el('a', { class: 'row__name', href: taskHref(task, `phase:${id}`) }, task.title),
-                  badge(TASK_STATUS[derived.tasks[task.id].status]),
-                ),
-              ),
+              'div',
+              { class: 'row' },
+              el('a', { class: 'row__name', href: taskHref(task, `phase:${id}`) }, task.title),
+              badge(TASK_STATUS[statusOf(task)]),
+              taskLine(task) ? el('span', { class: 'row__meta row__meta--full' }, taskLine(task)) : null,
             ),
           ),
+        );
+      });
+
+    const body = !tasks.length
+      ? el(
+          'div',
+          { class: 'empty-box' },
+          el('p', { class: 'empty-box__title' }, 'This phase has no tasks yet'),
+          el('p', { class: 'row__meta' }, 'Tasks reach a phase when a department suggests them and you accept. Nothing changes until you accept.'),
+          el('a', { class: 'btn btn--outline', href: '#/decisions' }, 'Go to decisions'),
         )
-      : el('p', { class: 'empty' }, 'This phase has no tasks yet.');
+      : groups.length
+        ? groups
+        : el('p', { class: 'empty' }, 'No tasks with this status.');
+
     return {
       title: phase.name,
       trail: [{ label: 'Timeline', href: '#/timeline' }, { label: phase.name }],
       heading: phase.name,
       body: [
-        el('p', { class: 'meta' }, badge(TASK_STATUS[status.status]), el('span', {}, ` ${progressText(status.progress)}`)),
+        pendingNotice,
+        notice,
+        dates ? el('p', { class: 'meta' }, badge(dates)) : null,
+        el('p', { class: 'dept-summary' }, summary.join(' · ')),
+        filters,
         body,
       ],
     };
@@ -646,7 +835,7 @@
       trail,
       heading: task.title,
       body: [
-        task.placeholder ? toDefineNote(task) : null,
+        task.placeholder ? gapDecisions(task) : null,
         facts([
           ['Primary department', el('a', { href: deptHref(primary.id) }, primary.name)],
           ['Other departments', secondary.length ? secondary : 'None'],
@@ -778,6 +967,51 @@
       { class: 'actions' },
       el('button', { type: 'button', class: 'btn btn--outline', disabled: busy ? true : undefined, on: { click: () => post(`/agents/tasks/${enc(task.id)}/steps`, {}) } }, 'Suggest steps'),
       el('p', { class: 'row__meta' }, 'Asks the assistant for the steps of this task. Nothing changes until you accept them.'),
+    );
+  }
+
+  /** The decisions a gap waits for, answered on the task: the assistant's suggestion as Confirm / Reject, or a value to choose */
+  function gapDecisions(task) {
+    const { plan, derived, catalog } = data;
+    const missing = task.placeholder.waitsFor.filter((keyId) => !derived.confirmedFacts[keyId]);
+    const values = (keyId) => catalog.factValues[keyId] ?? [];
+    const answerable = missing.filter((keyId) => values(keyId).length > 0 || pendingFacts(plan).some((fact) => fact.key.kind === 'catalog' && fact.key.id === keyId));
+    // Something the page cannot answer here (or nothing missing): the note and its link, as before
+    if (!answerable.length || answerable.length !== missing.length || pendingProposals(plan).some((item) => item.reason.taskId === task.id)) {
+      return toDefineNote(task);
+    }
+    return el(
+      'section',
+      { class: 'dec-box', 'aria-label': 'Decisions for this task' },
+      el('h3', { class: 'step__title' }, `Waiting for ${missing.map(keyLabel).join(', ')}`),
+      el('p', { class: 'row__meta' }, 'This task cannot be defined until these are known. Answer them here.'),
+      missing.map((keyId) => {
+        const proposed = pendingFacts(plan).find((fact) => fact.key.kind === 'catalog' && fact.key.id === keyId);
+        if (proposed) {
+          return el(
+            'div',
+            { class: 'actions', role: 'group', 'aria-label': `Answer: ${keyLabel(keyId)}` },
+            el('span', {}, `${keyLabel(keyId)}: ${termLabel(proposed.value)} (suggested by the assistant) `),
+            el('button', { type: 'button', class: 'btn btn--dark', disabled: busy ? true : undefined, on: { click: () => post(`/facts/${enc(proposed.id)}/confirm`, {}) } }, 'Confirm'),
+            el('button', { type: 'button', class: 'btn btn--outline', disabled: busy ? true : undefined, on: { click: () => post(`/facts/${enc(proposed.id)}/reject`, {}) } }, 'Reject'),
+          );
+        }
+        const select = el('select', { id: `${task.id}-${keyId}`, name: 'value' }, values(keyId).map((value) => el('option', { value }, humanize(value))));
+        return el(
+          'form',
+          {
+            class: 'form',
+            on: {
+              submit: (event) => {
+                event.preventDefault();
+                post('/facts', { key: { kind: 'catalog', id: keyId }, value: { kind: 'catalog', id: select.value }, confirm: true }, null);
+              },
+            },
+          },
+          el('div', { class: 'field' }, el('label', { for: `${task.id}-${keyId}` }, keyLabel(keyId)), select),
+          el('button', { type: 'submit', class: 'btn btn--dark', disabled: busy ? true : undefined }, 'Confirm'),
+        );
+      }),
     );
   }
 
@@ -1384,7 +1618,7 @@
       case 'dept':
         return deptView(route.id, route.status);
       case 'phase':
-        return phaseView(route.id);
+        return phaseView(route.id, route.status);
       case 'task':
         return taskView(route.id, route.from, route.step);
       default:
@@ -1395,6 +1629,7 @@
   /** Paints the page for the current hash. Focus moves to the heading when the view changes. */
   function render({ focusSelector } = {}) {
     if (!data) return;
+    view.classList.remove('plan--message');
     const hash = location.hash || '#/';
     const routeChanged = hash !== lastHash;
     lastHash = hash;
@@ -1425,8 +1660,20 @@
   }
 
   /** A page with no plan: the empty state, or a load error. No input fields. */
+  /** A full-screen message: a box on an opaque background, with its text and one way out, aligned to the left */
+  function messageBox(title, text, action) {
+    return el(
+      'section',
+      { class: 'message' },
+      el('h1', { class: 'page__title', tabindex: '-1' }, title),
+      el('p', { class: 'message__text' }, text),
+      el('div', { class: 'message__actions' }, action),
+    );
+  }
+
   function messagePage(title, text) {
-    view.replaceChildren(el('h1', { class: 'page__title', tabindex: '-1' }, title), el('p', { class: 'empty' }, text));
+    view.classList.add('plan--message');
+    view.replaceChildren(messageBox(title, text, el('a', { class: 'btn btn--dark', href: '/' }, 'Go to the start page')));
     document.title = `${title} - MANDO`;
     announce(text);
     view.querySelector('h1').focus();
@@ -1501,8 +1748,8 @@
 
   /** Not signed in: a fixed text and a link back to the start page, where the sign-in is */
   function signedOutPage() {
-    const link = el('a', { href: '/' }, 'Go to the start page');
-    view.replaceChildren(el('h1', { class: 'page__title', tabindex: '-1' }, 'Log in'), el('p', { class: 'empty' }, ERROR_TEXT.unauthenticated), el('p', {}, link));
+    view.classList.add('plan--message');
+    view.replaceChildren(messageBox('Log in', ERROR_TEXT.unauthenticated, el('a', { class: 'btn btn--dark', href: '/' }, 'Go to the start page')));
     document.title = 'Log in - MANDO';
     announce(ERROR_TEXT.unauthenticated);
     view.querySelector('h1').focus();
@@ -1520,12 +1767,15 @@
       data = await fetchPlan();
     } catch (error) {
       signedOut = error.status === 401;
-      failure = error.status === 404 ? ERROR_TEXT.not_found : GENERIC_ERROR;
+      // A missing plan, a server answer with its own code, or no answer at all: each says so
+      if (error.status === 404) failure = { title: 'Plan not found', text: ERROR_TEXT.not_found };
+      else if (error.status) failure = { title: 'Something went wrong', text: ERROR_TEXT[error.code] ?? GENERIC_ERROR };
+      else failure = { title: 'Could not load the plan', text: NETWORK_ERROR };
     } finally {
       await Loader.hide();
     }
     if (signedOut) return signedOutPage();
-    if (!data) return messagePage('Plan not found', failure);
+    if (!data) return messagePage(failure.title, failure.text);
     render();
   }
 
