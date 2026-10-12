@@ -1015,6 +1015,14 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
 .timeline__bar--blocked { background: var(--white); border: 2px solid var(--dark); top: 4px; bottom: 4px; }
 .timeline__lane--empty { display: flex; align-items: center; padding-left: 10px; background: transparent; border: 1px dashed var(--border-strong); }
 .timeline-card--list .timeline__row { grid-template-columns: minmax(0, 1fr); }
+/* Full-screen message (no plan, plan not found, not signed in): a box centred on the window, text aligned left */
+.plan--message ~ .giant { position: fixed; left: 0; right: 0; bottom: 0; }
+.plan--message { position: fixed; inset: 0; z-index: 4; width: auto; margin: 0; padding: 24px; display: flex; align-items: center; justify-content: center; overflow-y: auto; }
+.message { width: 100%; max-width: 480px; padding: 32px; background: var(--white); border: 1px solid var(--border-strong); border-radius: 14px; box-shadow: var(--shadow); text-align: left; }
+.message .page__title { font-size: 28px; margin: 0 0 10px; }
+.message__text { margin: 0 0 22px; color: var(--gray-text); line-height: 1.5; }
+.message__actions { display: flex; justify-content: flex-start; }
+.message a.btn--dark { color: var(--white); text-decoration: none; }
 @media (max-width: 860px) { .steps-layout { grid-template-columns: minmax(0, 1fr); } }
 .step__title { font-size: 18px; font-weight: 800; }
 .step__actions { display: grid; gap: 14px; margin-top: 12px; }

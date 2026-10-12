@@ -145,7 +145,7 @@ try {
     await page.locator("#nav-guest").waitFor({ state: "visible" });
     await page.goto(`${BASE}/plan.html?id=00000000-0000-4000-8000-000000000000`);
     await page.waitForLoadState("networkidle");
-    await page.locator("p.empty", { hasText: "Log in to see your plan." }).waitFor({ state: "visible" });
+    await page.locator("p.message__text", { hasText: "Log in to see your plan." }).waitFor({ state: "visible" });
     assert.equal(await page.locator('a[href="/"]').count(), 1);
     await page.screenshot({ path: join(SHOTS, "6-plan-signed-out.png") });
   });

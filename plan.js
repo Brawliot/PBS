@@ -1460,6 +1460,7 @@
   /** Paints the page for the current hash. Focus moves to the heading when the view changes. */
   function render({ focusSelector } = {}) {
     if (!data) return;
+    view.classList.remove('plan--message');
     const hash = location.hash || '#/';
     const routeChanged = hash !== lastHash;
     lastHash = hash;
@@ -1490,8 +1491,20 @@
   }
 
   /** A page with no plan: the empty state, or a load error. No input fields. */
+  /** A full-screen message: a box on an opaque background, with its text and one way out, aligned to the left */
+  function messageBox(title, text, action) {
+    return el(
+      'section',
+      { class: 'message' },
+      el('h1', { class: 'page__title', tabindex: '-1' }, title),
+      el('p', { class: 'message__text' }, text),
+      el('div', { class: 'message__actions' }, action),
+    );
+  }
+
   function messagePage(title, text) {
-    view.replaceChildren(el('h1', { class: 'page__title', tabindex: '-1' }, title), el('p', { class: 'empty' }, text));
+    view.classList.add('plan--message');
+    view.replaceChildren(messageBox(title, text, el('a', { class: 'btn btn--dark', href: '/' }, 'Go to the start page')));
     document.title = `${title} - MANDO`;
     announce(text);
     view.querySelector('h1').focus();
@@ -1566,8 +1579,8 @@
 
   /** Not signed in: a fixed text and a link back to the start page, where the sign-in is */
   function signedOutPage() {
-    const link = el('a', { href: '/' }, 'Go to the start page');
-    view.replaceChildren(el('h1', { class: 'page__title', tabindex: '-1' }, 'Log in'), el('p', { class: 'empty' }, ERROR_TEXT.unauthenticated), el('p', {}, link));
+    view.classList.add('plan--message');
+    view.replaceChildren(messageBox('Log in', ERROR_TEXT.unauthenticated, el('a', { class: 'btn btn--dark', href: '/' }, 'Go to the start page')));
     document.title = 'Log in - MANDO';
     announce(ERROR_TEXT.unauthenticated);
     view.querySelector('h1').focus();
