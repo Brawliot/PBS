@@ -366,8 +366,12 @@
     if (blocked) summary.push(`${blocked} blocked`);
     if (next) summary.push(`Next: ${next.step.text}`);
 
+    // The tasks suggested for this department are decided here, as they are in Decisions
+    const suggested = pendingProposals(plan)
+      .filter(isDepartmentProposal)
+      .filter((item) => item.add.tasks[0].primaryDepartmentId === id);
     const notice = waiting
-      ? el('p', { class: 'notice' }, `${waiting} suggested ${plural(waiting, 'task')} for ${department.name} ${waiting === 1 ? 'is' : 'are'} waiting for your decision. `, el('a', { href: '#/decisions' }, 'Review in Decisions'))
+      ? el('section', { class: 'suggested', 'aria-label': 'Suggested tasks waiting for you' }, el('h2', { class: 'section' }, `Suggested tasks waiting for you (${waiting})`), suggested.map(departmentCard))
       : null;
 
     const filters =
@@ -497,8 +501,10 @@
       : null;
 
     const waiting = pendingPhaseTasks(id);
+    // The suggestions that add tasks to this phase are decided here, as they are in Decisions
+    const suggested = pendingProposals(plan).filter(isDepartmentProposal).filter((item) => item.add.tasks.some((task) => task.phaseId === id));
     const pendingNotice = waiting
-      ? el('p', { class: 'notice' }, `${waiting} suggested ${plural(waiting, 'task')} for this phase ${waiting === 1 ? 'is' : 'are'} waiting for your decision. `, el('a', { href: '#/decisions' }, 'Review in Decisions'))
+      ? el('section', { class: 'suggested', 'aria-label': 'Suggested tasks waiting for you' }, el('h2', { class: 'section' }, `Suggested tasks waiting for you (${waiting})`), suggested.map(departmentCard))
       : null;
 
     const filters =
@@ -711,7 +717,7 @@
       trail,
       heading: task.title,
       body: [
-        task.placeholder ? toDefineNote(task) : null,
+        task.placeholder ? gapDecisions(task) : null,
         facts([
           ['Primary department', el('a', { href: deptHref(primary.id) }, primary.name)],
           ['Other departments', secondary.length ? secondary : 'None'],
@@ -843,6 +849,51 @@
       { class: 'actions' },
       el('button', { type: 'button', class: 'btn btn--outline', disabled: busy ? true : undefined, on: { click: () => post(`/agents/tasks/${enc(task.id)}/steps`, {}) } }, 'Suggest steps'),
       el('p', { class: 'row__meta' }, 'Asks the assistant for the steps of this task. Nothing changes until you accept them.'),
+    );
+  }
+
+  /** The decisions a gap waits for, answered on the task: the assistant's suggestion as Confirm / Reject, or a value to choose */
+  function gapDecisions(task) {
+    const { plan, derived, catalog } = data;
+    const missing = task.placeholder.waitsFor.filter((keyId) => !derived.confirmedFacts[keyId]);
+    const values = (keyId) => catalog.factValues[keyId] ?? [];
+    const answerable = missing.filter((keyId) => values(keyId).length > 0 || pendingFacts(plan).some((fact) => fact.key.kind === 'catalog' && fact.key.id === keyId));
+    // Something the page cannot answer here (or nothing missing): the note and its link, as before
+    if (!answerable.length || answerable.length !== missing.length || pendingProposals(plan).some((item) => item.reason.taskId === task.id)) {
+      return toDefineNote(task);
+    }
+    return el(
+      'section',
+      { class: 'dec-box', 'aria-label': 'Decisions for this task' },
+      el('h3', { class: 'step__title' }, `Waiting for ${missing.map(keyLabel).join(', ')}`),
+      el('p', { class: 'row__meta' }, 'This task cannot be defined until these are known. Answer them here.'),
+      missing.map((keyId) => {
+        const proposed = pendingFacts(plan).find((fact) => fact.key.kind === 'catalog' && fact.key.id === keyId);
+        if (proposed) {
+          return el(
+            'div',
+            { class: 'actions', role: 'group', 'aria-label': `Answer: ${keyLabel(keyId)}` },
+            el('span', {}, `${keyLabel(keyId)}: ${termLabel(proposed.value)} (suggested by the assistant) `),
+            el('button', { type: 'button', class: 'btn btn--dark', disabled: busy ? true : undefined, on: { click: () => post(`/facts/${enc(proposed.id)}/confirm`, {}) } }, 'Confirm'),
+            el('button', { type: 'button', class: 'btn btn--outline', disabled: busy ? true : undefined, on: { click: () => post(`/facts/${enc(proposed.id)}/reject`, {}) } }, 'Reject'),
+          );
+        }
+        const select = el('select', { id: `${task.id}-${keyId}`, name: 'value' }, values(keyId).map((value) => el('option', { value }, humanize(value))));
+        return el(
+          'form',
+          {
+            class: 'form',
+            on: {
+              submit: (event) => {
+                event.preventDefault();
+                post('/facts', { key: { kind: 'catalog', id: keyId }, value: { kind: 'catalog', id: select.value }, confirm: true }, null);
+              },
+            },
+          },
+          el('div', { class: 'field' }, el('label', { for: `${task.id}-${keyId}` }, keyLabel(keyId)), select),
+          el('button', { type: 'submit', class: 'btn btn--dark', disabled: busy ? true : undefined }, 'Confirm'),
+        );
+      }),
     );
   }
 

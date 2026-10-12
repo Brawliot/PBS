@@ -1023,6 +1023,12 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
 .message__text { margin: 0 0 22px; color: var(--gray-text); line-height: 1.5; }
 .message__actions { display: flex; justify-content: flex-start; }
 .message a.btn--dark { color: var(--white); text-decoration: none; }
+/* Decisions answered on the element they block: the box of a task that waits for them, and the suggestions of a department or phase */
+.dec-box { margin: 14px 0; padding: 14px 16px; background: var(--white); border: 1px solid var(--dark); border-radius: 12px; }
+.dec-box .step__title { font-size: 16px; }
+.dec-box .form { margin-top: 10px; }
+.suggested { margin: 0 0 16px; }
+.suggested .step + .step { margin-top: 12px; }
 @media (max-width: 860px) { .steps-layout { grid-template-columns: minmax(0, 1fr); } }
 .step__title { font-size: 18px; font-weight: 800; }
 .step__actions { display: grid; gap: 14px; margin-top: 12px; }
