@@ -182,6 +182,7 @@
     if (rawPath === '/' || rawPath === '') return { name: 'general' };
     if (rawPath === '/timeline') return { name: 'timeline' };
     if (rawPath === '/decisions') return { name: 'decisions' };
+    if (rawPath === '/search') return { name: 'search', query: params.get('q') ?? '', status: params.get('status') ?? 'all' };
     const match = rawPath.match(/^\/(dept|phase|task)\/([^/]+)$/);
     // #/group/:id is reserved: there is no grouping of departments in the front yet, so it has no view
     if (!match) return { name: 'notfound' };
@@ -382,7 +383,7 @@
       title: data.title,
       trail: null,
       heading: data.title,
-      body: [el('p', { class: 'dept-summary' }, lead), needs, timeline, departments, decisionsRegistry()],
+      body: [el('p', { class: 'dept-summary' }, lead), planProgress(), needs, timeline, departments, decisionsRegistry()],
     };
   }
 
@@ -1581,9 +1582,197 @@
     return {
       title: 'Not found',
       trail: null,
-      heading: 'Not found',
-      body: [el('p', {}, 'There is nothing at this address.'), el('p', {}, el('a', { href: '#/' }, 'Go to the plan overview'))],
+      heading: 'This part of the plan is not here',
+      body: [
+        el('p', {}, 'The task, department or phase you opened does not exist any more. It may have been removed.'),
+        el(
+          'div',
+          { class: 'actions' },
+          el('a', { class: 'btn btn--dark', href: '#/' }, 'Go to the plan overview'),
+          el('button', { type: 'button', class: 'btn btn--outline', on: { click: () => (history.length > 1 ? history.back() : (location.hash = '#/')) } }, 'Go back'),
+        ),
+      ],
     };
+  }
+
+  // ---- The plan bar: search, export or print, and the account
+  function planBar(route) {
+    const query = route.name === 'search' ? route.query : '';
+    return el(
+      'header',
+      { class: 'plan-bar' },
+      el(
+        'form',
+        {
+          class: 'plan-bar__search',
+          role: 'search',
+          on: {
+            submit: (event) => {
+              event.preventDefault();
+              const value = event.currentTarget.elements.q.value.trim();
+              location.hash = `#/search?q=${enc(value)}`;
+            },
+          },
+        },
+        el('label', { class: 'sr-only', for: 'plan-search' }, 'Search the plan'),
+        el('input', { id: 'plan-search', name: 'q', type: 'search', value: query, maxlength: 200, autocomplete: 'off', placeholder: 'Search tasks, steps and departments' }),
+        el('button', { type: 'submit', class: 'btn btn--outline' }, 'Search'),
+      ),
+      el(
+        'details',
+        { class: 'plan-bar__menu' },
+        el('summary', {}, 'Export or print'),
+        el(
+          'div',
+          { class: 'plan-bar__items' },
+          el('button', { type: 'button', on: { click: () => window.print() } }, 'Print this plan'),
+          el('button', { type: 'button', on: { click: exportTasksCsv } }, 'Export tasks as CSV'),
+        ),
+      ),
+      el('a', { class: 'plan-bar__link', href: '/' }, 'Start page'),
+      el('button', { type: 'button', class: 'btn btn--outline', on: { click: logOut } }, 'Log out'),
+    );
+  }
+
+  /** A CSV of the tasks: one row each, with the department, the phase, the status and the next step to do */
+  function exportTasksCsv() {
+    const { plan, derived } = data;
+    // A cell that starts with a formula sign is shown as text by spreadsheets: a quote in front stops it
+    const cell = (value) => {
+      const text = /^[=+\-@]/.test(String(value)) ? `'${value}` : String(value);
+      return `"${text.replaceAll('"', '""')}"`;
+    };
+    const rows = [['Task', 'Department', 'Phase', 'Status', 'Next step']];
+    for (const task of plan.tasks.filter(visible)) {
+      const next = nextStepOf([task]);
+      rows.push([task.title, deptName(task.primaryDepartmentId), phaseName(task.phaseId), TASK_STATUS[derived.tasks[task.id].status], next ? next.step.text : '']);
+    }
+    const url = URL.createObjectURL(new Blob([rows.map((row) => row.map(cell).join(',')).join('\r\n')], { type: 'text/csv' }));
+    const link = el('a', { href: url, download: `${data.title}-tasks.csv` });
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
+
+  /** Ends the session on the server, then goes to the start page, where the sign-in is */
+  async function logOut() {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', headers: { Accept: 'application/json' }, cache: 'no-store' });
+    } catch {
+      // The start page still shows whether the session is over
+    }
+    location.assign('/');
+  }
+
+  // ---- Search and filters over the whole plan
+  const TASK_FILTERS = [
+    ['all', 'All'],
+    ['blocked', 'Blocked'],
+    ['waiting', 'Waiting for me'],
+    ['done', 'Done'],
+  ];
+
+  /** A task has a step the person does now: it waits for them, or they can start it */
+  function needsMe(task) {
+    return data.plan.steps.some(
+      (step) =>
+        step.taskId === task.id &&
+        visible(step) &&
+        step.executor === 'user' &&
+        (step.status === 'waiting_user' || (step.status === 'not_started' && data.derived.steps[step.id]?.readiness === 'ready')),
+    );
+  }
+
+  function matchesFilter(task, filter) {
+    const status = data.derived.tasks[task.id].status;
+    if (filter === 'blocked') return status === 'blocked';
+    if (filter === 'done') return status === 'done';
+    if (filter === 'waiting') return needsMe(task);
+    return true;
+  }
+
+  function searchView(query, filter) {
+    const { plan, derived } = data;
+    const q = query.trim().toLowerCase();
+    const activeFilter = TASK_FILTERS.some(([key]) => key === filter) ? filter : 'all';
+    const searching = q.length > 0;
+
+    // A task shows when its title or one of its steps matches; the step that matched is named
+    const tasks = plan.tasks
+      .filter((task) => visible(task) && matchesFilter(task, activeFilter))
+      .map((task) => ({
+        task,
+        step: searching ? plan.steps.find((step) => step.taskId === task.id && visible(step) && step.text.toLowerCase().includes(q)) : undefined,
+      }))
+      .filter(({ task, step }) => !searching || task.title.toLowerCase().includes(q) || step);
+    const departments = searching && activeFilter === 'all' ? plan.departments.filter((item) => item.name.toLowerCase().includes(q)) : [];
+    const phases = searching && activeFilter === 'all' ? plan.phases.filter((item) => item.name.toLowerCase().includes(q)) : [];
+    const none = !tasks.length && !departments.length && !phases.length;
+
+    const chips = el(
+      'nav',
+      { class: 'filters', 'aria-label': 'Show tasks with status' },
+      TASK_FILTERS.map(([key, label]) =>
+        el('a', { class: 'chip', href: `#/search?q=${enc(query)}&status=${key}`, 'aria-current': key === activeFilter ? 'true' : undefined }, label),
+      ),
+    );
+
+    const body = !searching && activeFilter === 'all'
+      ? el('p', { class: 'empty' }, 'Type a word to search the tasks, steps, departments and phases of this plan.')
+      : none
+        ? el('p', { class: 'empty' }, 'Nothing matches.')
+        : el(
+            'div',
+            {},
+            tasks.length
+              ? el(
+                  'ul',
+                  { class: 'list' },
+                  tasks.map(({ task, step }) =>
+                    el(
+                      'li',
+                      { class: 'row' },
+                      el('a', { class: 'row__name', href: taskHref(task, `phase:${task.phaseId}`) }, task.title),
+                      badge(TASK_STATUS[derived.tasks[task.id].status]),
+                      el('span', { class: 'row__meta row__meta--full' }, `${deptName(task.primaryDepartmentId)} · ${phaseName(task.phaseId)}${step ? ` · step: ${step.text}` : ''}`),
+                    ),
+                  ),
+                )
+              : null,
+            departments.length
+              ? [el('h2', { class: 'section' }, 'Departments'), el('ul', { class: 'list' }, departments.map((item) => el('li', { class: 'row' }, el('a', { class: 'row__name', href: deptHref(item.id) }, item.name))))]
+              : null,
+            phases.length
+              ? [el('h2', { class: 'section' }, 'Phases'), el('ul', { class: 'list' }, phases.map((item) => el('li', { class: 'row' }, el('a', { class: 'row__name', href: phaseHref(item.id) }, item.name))))]
+              : null,
+          );
+
+    return { title: 'Search', trail: null, heading: 'Search', body: [chips, body] };
+  }
+
+  /** The progress of the whole plan: tasks done, phases finished, and a bar of the tasks done */
+  function planProgress() {
+    const { plan, derived } = data;
+    const tasks = plan.tasks.filter(visible);
+    const done = tasks.filter((task) => derived.tasks[task.id].status === 'done').length;
+    const blocked = tasks.filter((task) => derived.tasks[task.id].status === 'blocked').length;
+    const finished = plan.phases.filter((phase) => derived.phases[phase.id].status === 'done').length;
+    const percent = tasks.length ? (done / tasks.length) * 100 : 0;
+    return el(
+      'section',
+      { class: 'progress', 'aria-label': 'Plan progress' },
+      el(
+        'p',
+        { class: 'progress__text' },
+        `${done} of ${tasks.length} ${plural(tasks.length, 'task')} done · ${finished} of ${plan.phases.length} ${plural(plan.phases.length, 'phase')} finished${blocked ? ` · ${blocked} blocked` : ''}`,
+      ),
+      el(
+        'div',
+        { class: 'progress__track', role: 'progressbar', 'aria-label': 'Tasks done', 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuenow': Math.round(percent) },
+        el('div', { class: 'progress__fill', style: { width: `${percent}%` } }),
+      ),
+    );
   }
 
   function buildPage(route) {
@@ -1594,6 +1783,8 @@
         return timelineView();
       case 'decisions':
         return decisionsView();
+      case 'search':
+        return searchView(route.query, route.status);
       case 'dept':
         return deptView(route.id, route.status);
       case 'phase':
@@ -1619,6 +1810,7 @@
     const heading = el('h1', { class: 'page__title', tabindex: '-1' }, page.heading);
     const nodes = [
       el('p', { class: 'page__plan' }, data.title),
+      planBar(route),
       tabs(route.name === 'general' ? 'overview' : route.name === 'timeline' ? 'timeline' : route.name === 'decisions' ? 'decisions' : null),
       page.trail ? crumbs(page.trail) : null,
       notice ? el('p', { class: notice.error ? 'notice notice--error' : 'notice' }, notice.text) : null,
