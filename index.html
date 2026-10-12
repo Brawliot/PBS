@@ -98,10 +98,16 @@
     <p class="question__text" id="question-text">Question goes here</p>
     <div class="question__options" id="question-options" role="group" aria-label="Suggested answers" hidden></div>
     <div class="question__field">
-      <input class="question__input" type="text" name="answer" placeholder="Type your answer" aria-labelledby="question-text" autocomplete="off" maxlength="1000">
+      <input class="question__input" type="text" name="answer" placeholder="Type your answer" aria-labelledby="question-text" aria-describedby="question-note" autocomplete="off" maxlength="1000">
       <button class="arrow-btn question__submit" type="submit" aria-label="Send answer">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
       </button>
+    </div>
+    <div class="question__foot">
+      <p class="question__note" id="question-note" hidden></p>
+      <span class="question__count" id="question-count" hidden></span>
+      <button class="question__link" type="button" id="question-back" hidden>Back</button>
+      <button class="question__link" type="button" id="question-cancel">Cancel</button>
     </div>
   </form>
 
@@ -113,6 +119,7 @@
     <dl class="result__list" id="result-summary"></dl>
     <div class="result__coverage">
       <p class="result__meta" id="result-meta"></p>
+      <p class="result__hint" id="result-hint" hidden>Add more detail to your idea to fill these in.</p>
       <div class="result__bar" aria-hidden="true"><span id="result-bar"></span></div>
     </div>
     <section class="result__block" id="result-warnings-block" hidden>
@@ -121,18 +128,31 @@
     </section>
     <section class="result__block" id="result-departments-block" hidden>
       <h3 class="result__label">Key areas</h3>
-      <ul class="result__pending" id="result-departments-top"></ul>
+      <ul class="result__areas" id="result-departments-top"></ul>
     </section>
     <section class="result__pending-block" id="result-pending-block">
       <h3 class="result__label">Still to define</h3>
       <ul class="result__pending" id="result-pending"></ul>
     </section>
     <div class="result__actions">
+      <p class="result__hint result__hint--row" id="result-plan-note" hidden>This analysis could not be saved, so a plan cannot be built from it. Start over to try again.</p>
+      <button class="result__restart" type="button" id="result-restart">Start over</button>
       <button class="btn btn--outline" type="button" id="result-detail-open">See full detail</button>
-      <button class="btn btn--danger" type="button" id="result-restart">Start over</button>
       <button class="btn btn--dark" type="button" id="result-plan">Build my plan</button>
     </div>
   </section>
+
+  <dialog class="modal" id="restart-modal" aria-labelledby="restart-title">
+    <div class="modal__card">
+      <button class="modal__close" type="button" aria-label="Close" data-close>&times;</button>
+      <h2 class="modal__title" id="restart-title">Start over?</h2>
+      <p class="modal__text">Your analysis and answers will be lost. This cannot be undone.</p>
+      <div class="modal__buttons">
+        <button class="btn btn--outline" type="button" id="restart-cancel" autofocus>Keep my analysis</button>
+        <button class="btn btn--dark" type="button" id="restart-confirm">Start over</button>
+      </div>
+    </div>
+  </dialog>
 
   <p class="sr-only" id="status" role="status"></p>
   <p class="sr-only" id="slider-hint">Example value shown. Move the slider to set your own.</p>
