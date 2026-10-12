@@ -1029,6 +1029,18 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
 .dec-box .form { margin-top: 10px; }
 .suggested { margin: 0 0 16px; }
 .suggested .step + .step { margin-top: 12px; }
+/* Overview: what needs the person (two cards that say where to answer), the timeline in a line, the departments in a grid */
+.overview-needs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 0 0 8px; }
+.overview-card { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; background: var(--white); border: 1px solid var(--dark); border-radius: 12px; color: var(--dark); text-decoration: none; }
+.overview-card:hover { background: var(--surface-hover); }
+.overview-card__title { font-weight: 800; }
+.overview-card__action { margin-top: 6px; color: var(--dark); font-weight: 700; }
+.overview-timeline { margin-top: 8px; }
+.overview-timeline__phases { font-weight: 700; margin: 0 0 4px; }
+.overview-grid { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.overview-tile { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; background: var(--white); border: 1px solid var(--border-strong); border-radius: 12px; }
+.overview-tile__name { font-weight: 800; font-size: 17px; color: var(--dark); }
+.overview-tile .badge { align-self: flex-start; }
 @media (max-width: 860px) { .steps-layout { grid-template-columns: minmax(0, 1fr); } }
 .step__title { font-size: 18px; font-weight: 800; }
 .step__actions { display: grid; gap: 14px; margin-top: 12px; }

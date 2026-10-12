@@ -269,33 +269,117 @@
   }
 
   // ---- Views: each returns the nodes of the page and the heading that takes the focus
-  function generalView() {
+  /** The items that need the person now: the facts the plan asks for and the suggestions it waits on */
+  function needsYou() {
+    const { plan } = data;
+    const facts = pendingFacts(plan).map((fact) => {
+      const keyId = fact.key.kind === 'catalog' ? fact.key.id : null;
+      const blocked = keyId ? plan.tasks.filter((task) => task.placeholder?.waitsFor.includes(keyId) && visible(task)) : [];
+      return {
+        title: factLabel(fact),
+        text: blocked.length ? `Blocks: ${blocked.map((task) => task.title).join(', ')}` : 'Suggested by the assistant',
+        href: blocked.length ? taskHref(blocked[0]) : '#/decisions',
+        label: blocked.length ? 'Answer it on the task' : 'Review in Decisions',
+      };
+    });
+    // Decisions a gap waits for that nobody has suggested yet: the person answers them on the task
+    const missing = [...new Set(plan.tasks.filter((task) => task.placeholder && visible(task)).flatMap((task) => task.placeholder.waitsFor))]
+      .filter((keyId) => !data.derived.confirmedFacts[keyId] && !pendingFacts(plan).some((fact) => fact.key.kind === 'catalog' && fact.key.id === keyId))
+      .map((keyId) => {
+        const blocked = plan.tasks.filter((task) => task.placeholder?.waitsFor.includes(keyId) && visible(task));
+        return { key: keyId, title: `${keyLabel(keyId)} is needed`, text: `Blocks: ${blocked.map((task) => task.title).join(', ')}`, href: taskHref(blocked[0]), label: 'Answer it on the task' };
+      });
+    const suggestions = pendingProposals(plan)
+      .filter(isDepartmentProposal)
+      .map((item) => {
+        const department = item.add.tasks[0].primaryDepartmentId;
+        const count = item.add.tasks.length;
+        return {
+          title: `${count} suggested ${plural(count, 'task')} for ${deptName(department)}`,
+          text: 'Waiting for you',
+          href: deptHref(department),
+          label: `Answer them on ${deptName(department)}`,
+        };
+      });
+    return [...facts, ...missing, ...suggestions];
+  }
+
+  /** The line under a department on the overview: what it needs next, in plain words */
+  function departmentLine(department) {
     const { plan, derived } = data;
-    const waiting = pendingFacts(plan).length + pendingProposals(plan).length;
-    const decisionsNote = waiting
+    const waiting = pendingProposals(plan).filter(isDepartmentProposal).some((item) => item.add.tasks[0].primaryDepartmentId === department.id);
+    if (waiting) return 'Needs you: suggested tasks to answer';
+    const tasks = plan.tasks.filter((task) => task.primaryDepartmentId === department.id && visible(task));
+    if (!tasks.length) return 'No tasks yet';
+    const blocked = tasks.find((task) => derived.tasks[task.id].status === 'blocked');
+    if (blocked) return `Blocked: ${blocked.title}`;
+    const next = nextStepOf(tasks);
+    if (next) return `Next: ${next.step.text}`;
+    return progressText(derived.departments[department.id]);
+  }
+
+  function generalView() {
+    const { plan } = data;
+    const items = needsYou();
+    const shown = items.slice(0, 2);
+    const lead = items.length
+      ? `Start with the ${items.length === 1 ? 'thing that needs' : `${items.length} things that need`} you. Then pick a department.`
+      : 'Nothing needs you right now. Pick a department to see its next step.';
+
+    const needs = shown.length
       ? el(
-          'p',
-          { class: 'notice' },
-          `${waiting} ${plural(waiting, 'decision')} ${waiting === 1 ? 'is' : 'are'} waiting for you. `,
-          el('a', { href: '#/decisions' }, 'Review them'),
+          'section',
+          { class: 'overview-needs', 'aria-label': 'Needs you' },
+          shown.map((item, index) =>
+            el(
+              'a',
+              { class: 'overview-card', href: item.href },
+              el('span', { class: 'overview-card__title' }, `${index + 1}. ${item.title}`),
+              el('span', { class: 'row__meta' }, item.text),
+              el('span', { class: 'overview-card__action' }, `${item.label} →`),
+            ),
+          ),
+          items.length > shown.length ? el('p', { class: 'row__meta' }, el('a', { href: '#/decisions' }, `${items.length - shown.length} more in Decisions`)) : null,
         )
       : null;
-    const body = plan.departments.length
+
+    const phaseOrder = [...plan.phases].sort((a, b) => a.order - b.order);
+    const phaseSentences = plan.relations
+      .filter((relation) => relation.level === 'phase')
+      .map((relation) => (relation.type === 'blocks' ? `${phaseName(relation.to)} waits for ${phaseName(relation.from)}` : `${phaseName(relation.from)} comes after ${phaseName(relation.to)}`));
+    const timeline = phaseOrder.length
       ? el(
-          'ul',
-          { class: 'list' },
-          plan.departments.map((department) =>
-            el(
-              'li',
-              { class: 'row' },
-              el('a', { class: 'row__name', href: deptHref(department.id) }, department.name),
-              badge(TIER[department.tier]),
-              el('span', { class: 'row__meta' }, progressText(derived.departments[department.id])),
+          'section',
+          { class: 'overview-timeline' },
+          el('h2', { class: 'section' }, 'Timeline'),
+          el('p', { class: 'overview-timeline__phases' }, phaseOrder.map((phase) => phase.name).join(' → ')),
+          phaseSentences.length ? el('p', { class: 'row__meta' }, `${phaseSentences.join('. ')}. `) : null,
+          el('a', { href: '#/timeline' }, 'Open the timeline'),
+        )
+      : null;
+
+    const departments = plan.departments.length
+      ? el(
+          'section',
+          {},
+          el('h2', { class: 'section' }, 'Departments'),
+          el(
+            'ul',
+            { class: 'overview-grid' },
+            plan.departments.map((department) =>
+              el(
+                'li',
+                { class: 'overview-tile' },
+                el('a', { class: 'overview-tile__name', href: deptHref(department.id) }, department.name),
+                badge(`${TIER[department.tier]} level`),
+                el('span', { class: 'row__meta' }, departmentLine(department)),
+              ),
             ),
           ),
         )
       : el('p', {}, 'This plan has no departments.');
-    return { title: data.title, trail: null, heading: data.title, body: [decisionsNote, el('h2', { class: 'section' }, 'Departments'), body] };
+
+    return { title: data.title, trail: null, heading: data.title, body: [el('p', { class: 'dept-summary' }, lead), needs, timeline, departments] };
   }
 
   const DEPT_FILTERS = [
