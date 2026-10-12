@@ -191,7 +191,7 @@
     const list = { dept: plan.departments, phase: plan.phases, task: plan.tasks }[match[1]];
     const item = byId(list, id);
     if (!item || (match[1] === 'task' && !visible(item))) return { name: 'notfound' };
-    return { name: match[1], id, from: parseFrom(params.get('from')), step: params.get('step') };
+    return { name: match[1], id, from: parseFrom(params.get('from')), step: params.get('step'), status: params.get('status') };
   }
 
   /** "dept:legal" or "phase:f1", only if that record exists; anything else is ignored */
@@ -294,39 +294,163 @@
     return { title: data.title, trail: null, heading: data.title, body: [decisionsNote, el('h2', { class: 'section' }, 'Departments'), body] };
   }
 
-  function deptView(id) {
+  const DEPT_FILTERS = [
+    ['all', 'All'],
+    ['not_started', 'Not started'],
+    ['in_progress', 'In progress'],
+    ['blocked', 'Blocked'],
+    ['done', 'Done'],
+  ];
+  /** From this many tasks, the department shows its status filter */
+  const FILTER_FROM = 6;
+
+  /** Tasks this department is suggested by the assistant and that wait for a decision (in Decisions) */
+  function pendingDeptTasks(id) {
+    return pendingProposals(data.plan)
+      .filter(isDepartmentProposal)
+      .filter((item) => item.add.tasks[0].primaryDepartmentId === id)
+      .reduce((count, item) => count + item.add.tasks.length, 0);
+  }
+
+  /** The tasks this task waits for, from the order between tasks of the plan */
+  function taskWaitsFor(task) {
+    return data.plan.relations
+      .filter((relation) => relation.level === 'task' && ((relation.type === 'blocks' && relation.to === task.id) || (relation.type === 'follows' && relation.from === task.id)))
+      .map((relation) => byId(data.plan.tasks, relation.type === 'follows' ? relation.to : relation.from))
+      .filter((other) => other && visible(other) && data.derived.tasks[other.id]?.status !== 'done');
+  }
+
+  /** The first step not yet done, that can start now, in the order of the tasks given */
+  function nextStepOf(tasks) {
+    for (const task of tasks) {
+      const step = data.plan.steps.find(
+        (item) => item.taskId === task.id && visible(item) && item.status !== 'done' && item.status !== 'rejected' && data.derived.steps[item.id]?.readiness === 'ready',
+      );
+      if (step) return { task, step };
+    }
+    return null;
+  }
+
+  /** The line under a task in a department: what it waits for, or the step to do next */
+  function taskLine(task) {
+    const status = data.derived.tasks[task.id].status;
+    if (status === 'done') return null;
+    if (status === 'blocked') {
+      const waits = taskWaitsFor(task).map((other) => other.title);
+      return waits.length ? `Waits for: ${waits.join(', ')}` : 'Waits for steps in other tasks';
+    }
+    const steps = data.plan.steps.filter((step) => step.taskId === task.id && visible(step));
+    if (!steps.length) return 'No steps yet';
+    const next = nextStepOf([task]);
+    return next ? `Next: ${next.step.text}, ${EXECUTOR[next.step.executor]}` : null;
+  }
+
+  function deptView(id, filter) {
     const { plan, derived } = data;
     const department = byId(plan.departments, id);
     const responsible = plan.tasks.filter((task) => task.primaryDepartmentId === id && visible(task));
     const participates = plan.tasks.filter(
       (task) => visible(task) && task.primaryDepartmentId !== id && derived.tasks[task.id]?.departments.secondary.includes(id),
     );
-    const taskList = (tasks, from) =>
-      tasks.length
+    const activeFilter = DEPT_FILTERS.some(([key]) => key === filter) ? filter : 'all';
+    const statusOf = (task) => derived.tasks[task.id].status;
+    const phases = [...plan.phases].sort((a, b) => a.order - b.order);
+    // The tasks in the order of the phases, then of the plan: the order the person reads them in
+    const inOrder = phases.flatMap((phase) => responsible.filter((task) => task.phaseId === phase.id));
+    const done = responsible.filter((task) => statusOf(task) === 'done').length;
+    const blocked = responsible.filter((task) => statusOf(task) === 'blocked').length;
+    const next = nextStepOf(inOrder);
+    const waiting = pendingDeptTasks(id);
+
+    const summary = [`${done} of ${responsible.length} ${plural(responsible.length, 'task')} done`];
+    if (blocked) summary.push(`${blocked} blocked`);
+    if (next) summary.push(`Next: ${next.step.text}`);
+
+    const notice = waiting
+      ? el('p', { class: 'notice' }, `${waiting} suggested ${plural(waiting, 'task')} for ${department.name} ${waiting === 1 ? 'is' : 'are'} waiting for your decision. `, el('a', { href: '#/decisions' }, 'Review in Decisions'))
+      : null;
+
+    const filters =
+      responsible.length >= FILTER_FROM
         ? el(
+            'nav',
+            { class: 'filters', 'aria-label': 'Show tasks with status' },
+            DEPT_FILTERS.map(([key, label]) => {
+              const count = responsible.filter((task) => key === 'all' || statusOf(task) === key).length;
+              return el(
+                'a',
+                { class: 'chip', href: `#/dept/${enc(id)}?status=${key}`, 'aria-current': key === activeFilter ? 'true' : undefined },
+                `${label} ${count}`,
+              );
+            }),
+          )
+        : null;
+
+    const shown = inOrder.filter((task) => activeFilter === 'all' || statusOf(task) === activeFilter);
+    const groups = phases
+      .map((phase) => ({ phase, tasks: shown.filter((task) => task.phaseId === phase.id) }))
+      .filter((group) => group.tasks.length > 0)
+      .map(({ phase, tasks }) => {
+        const doneHere = tasks.filter((task) => statusOf(task) === 'done').length;
+        return el(
+          'details',
+          { class: 'phase-group', open: tasks.some((task) => statusOf(task) !== 'done') ? true : undefined },
+          el(
+            'summary',
+            {},
+            el('span', {}, phase.name),
+            el('span', {}, `${tasks.length} ${plural(tasks.length, 'task')} · ${doneHere} done`),
+          ),
+          tasks.map((task) =>
+            el(
+              'div',
+              { class: 'row' },
+              el('a', { class: 'row__name', href: taskHref(task, `dept:${id}`) }, task.title),
+              badge(TASK_STATUS[statusOf(task)]),
+              taskLine(task) ? el('span', { class: 'row__meta row__meta--full' }, taskLine(task)) : null,
+            ),
+          ),
+        );
+      });
+
+    const body = !responsible.length
+      ? el(
+          'div',
+          { class: 'empty-box' },
+          el('p', { class: 'empty-box__title' }, `${department.name} has no tasks yet`),
+          el('p', { class: 'row__meta' }, 'Tasks for every department are suggested together from Decisions. Nothing changes until you accept them.'),
+          el('a', { class: 'btn btn--outline', href: '#/decisions' }, 'Go to decisions'),
+        )
+      : groups.length
+        ? groups
+        : el('p', { class: 'empty' }, 'No tasks with this status.');
+
+    const takesPart = participates.length
+      ? el(
+          'details',
+          { class: 'fold' },
+          el('summary', {}, `Also takes part in (${participates.length})`),
+          el(
             'ul',
             { class: 'list' },
-            tasks.map((task) =>
-              el(
-                'li',
-                { class: 'row' },
-                el('a', { class: 'row__name', href: taskHref(task, from) }, task.title),
-                badge(TASK_STATUS[derived.tasks[task.id].status]),
-                el('span', { class: 'row__meta' }, phaseName(task.phaseId)),
-              ),
+            participates.map((task) =>
+              el('li', { class: 'row' }, el('a', { class: 'row__name', href: taskHref(task, `dept:${id}`) }, task.title), badge(TASK_STATUS[statusOf(task)]), el('span', { class: 'row__meta' }, phaseName(task.phaseId))),
             ),
-          )
-        : el('p', { class: 'empty' }, 'None.');
+          ),
+        )
+      : null;
+
     return {
       title: department.name,
       trail: [{ label: 'Overview', href: '#/' }, { label: department.name }],
       heading: department.name,
       body: [
-        el('p', { class: 'meta' }, badge(TIER[department.tier])),
-        el('h2', { class: 'section' }, 'Responsible for'),
-        taskList(responsible, `dept:${id}`),
-        el('h2', { class: 'section' }, 'Takes part in'),
-        taskList(participates, `dept:${id}`),
+        notice,
+        el('p', { class: 'meta' }, badge(`${TIER[department.tier]} level`)),
+        responsible.length ? el('p', { class: 'dept-summary' }, summary.join(' · ')) : null,
+        filters,
+        body,
+        takesPart,
       ],
     };
   }
@@ -1193,7 +1317,7 @@
       case 'decisions':
         return decisionsView();
       case 'dept':
-        return deptView(route.id);
+        return deptView(route.id, route.status);
       case 'phase':
         return phaseView(route.id);
       case 'task':

@@ -987,6 +987,21 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
 .now p { margin: 0; }
 .now p + p { margin-top: 4px; }
 .now--working { border-style: dashed; }
+/* Department view: summary, status filter, tasks grouped by phase, a box when there are none */
+.dept-summary { margin: 4px 0 14px; color: var(--gray-text); }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+.chip { padding: 4px 12px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--white); color: var(--dark); font-size: 14px; text-decoration: none; }
+.chip:hover { background: var(--surface-hover); }
+.chip[aria-current="true"] { background: var(--dark); border-color: var(--dark); color: var(--white); }
+.phase-group { margin-bottom: 12px; background: var(--white); border: 1px solid var(--border-strong); border-radius: 12px; overflow: hidden; }
+.phase-group > summary { display: flex; justify-content: space-between; gap: 12px; padding: 12px 16px; font-weight: 800; cursor: pointer; list-style: none; }
+.phase-group > summary::-webkit-details-marker { display: none; }
+.phase-group > summary span:last-child { font-weight: 400; color: var(--gray-text); }
+.phase-group .row { margin: 0; padding: 11px 16px; border-top: 1px solid var(--border); border-bottom: 0; }
+.row__meta--full { flex-basis: 100%; }
+.empty-box { padding: 18px; background: var(--white); border: 1px dashed var(--border-strong); border-radius: 12px; }
+.empty-box p { margin: 0 0 8px; }
+.empty-box__title { font-weight: 800; }
 @media (max-width: 860px) { .steps-layout { grid-template-columns: minmax(0, 1fr); } }
 .step__title { font-size: 18px; font-weight: 800; }
 .step__actions { display: grid; gap: 14px; margin-top: 12px; }
