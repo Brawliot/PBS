@@ -278,7 +278,7 @@
         title: factLabel(fact),
         text: blocked.length ? `Blocks: ${blocked.map((task) => task.title).join(', ')}` : 'Suggested by the assistant',
         href: blocked.length ? taskHref(blocked[0]) : '#/decisions',
-        label: blocked.length ? 'Answer it on the task' : 'Review in Decisions',
+        label: blocked.length ? 'Answer it on the task' : 'Review in Proposals',
       };
     });
     // Decisions a gap waits for that nobody has suggested yet: the person answers them on the task
@@ -408,7 +408,7 @@
         ? el('details', { class: 'fold' }, el('summary', {}, `Answered suggestions (${answered.length})`), el('ul', { class: 'plain-list' }, answered.map((item) => el('li', {}, `${item.status === 'accepted' ? 'Accepted' : 'Rejected'}: ${decidedTitle(item)}`))))
         : null,
       el('details', { class: 'fold' }, el('summary', {}, 'Add a decision'), decisionForm(catalog)),
-      el('p', { class: 'row__meta' }, el('a', { href: '#/decisions' }, 'Ask the assistant for more suggestions')),
+      el('p', { class: 'row__meta' }, el('a', { href: '#/decisions' }, 'Ask the assistant for more proposals')),
     );
   }
 
@@ -541,7 +541,7 @@
           { class: 'empty-box' },
           el('p', { class: 'empty-box__title' }, `${department.name} has no tasks yet`),
           el('p', { class: 'row__meta' }, 'Tasks for every department are suggested together from Decisions. Nothing changes until you accept them.'),
-          el('a', { class: 'btn btn--outline', href: '#/decisions' }, 'Go to decisions'),
+          el('a', { class: 'btn btn--outline', href: '#/decisions' }, 'Go to proposals'),
         )
       : groups.length
         ? groups
@@ -665,7 +665,7 @@
           { class: 'empty-box' },
           el('p', { class: 'empty-box__title' }, 'This phase has no tasks yet'),
           el('p', { class: 'row__meta' }, 'Tasks reach a phase when a department suggests them and you accept. Nothing changes until you accept.'),
-          el('a', { class: 'btn btn--outline', href: '#/decisions' }, 'Go to decisions'),
+          el('a', { class: 'btn btn--outline', href: '#/decisions' }, 'Go to proposals'),
         )
       : groups.length
         ? groups
@@ -960,8 +960,8 @@
   /** A task without steps: the assistant can propose them, only when the person asks. A gap has none yet; a waiting suggestion is shown instead */
   function stepSuggestion(task) {
     if (task.placeholder) return null;
-    const waiting = pendingProposals(data.plan).some((item) => isStepProposal(item) && item.add.steps.some((step) => step.taskId === task.id));
-    if (waiting) return el('p', { class: 'notice' }, 'The steps of this task are waiting for your decision. ', el('a', { href: '#/decisions' }, 'Go to decisions'));
+    const proposal = pendingProposals(data.plan).find((item) => isStepProposal(item) && item.add.steps.some((step) => step.taskId === task.id));
+    if (proposal) return stepsCard(proposal);
     return el(
       'div',
       { class: 'actions' },
@@ -1029,7 +1029,7 @@
         : waiting.length
           ? 'To define: a suggestion for this task is waiting for your decision.'
           : 'To define: every decision it waits for is confirmed. You can suggest tasks on the decisions page.';
-    return el('p', { class: 'notice' }, `${text} `, el('a', { href: '#/decisions' }, 'Go to decisions'));
+    return el('p', { class: 'notice' }, `${text} `, el('a', { href: '#/decisions' }, 'Go to proposals'));
   }
 
   /** The selected step: what it is, what to do now, how it fits with the others, and its results and actions */
@@ -1310,7 +1310,7 @@
       'article',
       { class: 'step', 'data-proposal-id': item.id, 'data-department-id': department },
       el('h3', { class: 'step__title' }, `Tasks for ${deptName(department)}`, obsolete ? el('span', { class: 'badge' }, 'Obsolete') : null),
-      obsolete ? el('p', { class: 'notice' }, 'This suggestion came from a decision that has changed.') : null,
+      obsolete ? el('p', { class: 'notice' }, 'This suggestion came from a decision that has changed. It cannot be accepted: retire it to ask the assistant again.') : null,
       groups.map((group) => [el('h3', { class: 'step__sub' }, group.phase.name), el('ol', { class: 'list' }, group.tasks.map((task) => el('li', { class: 'output' }, task.title)))]),
       orders.length ? [el('h3', { class: 'step__sub' }, 'Order'), el('ul', { class: 'list' }, orders.map((text) => el('li', { class: 'output' }, text)))] : null,
       item.notes?.length ? [el('h3', { class: 'step__sub' }, 'Notes (read only)'), el('ul', { class: 'list' }, item.notes.map((text) => el('li', { class: 'output' }, text)))] : null,
@@ -1338,7 +1338,7 @@
       'article',
       { class: 'step', 'data-proposal-id': item.id, 'data-task-id': taskId },
       el('h3', { class: 'step__title' }, `Steps for ${title}`, obsolete ? el('span', { class: 'badge' }, 'Obsolete') : null),
-      obsolete ? el('p', { class: 'notice' }, 'This suggestion came from a decision that has changed.') : null,
+      obsolete ? el('p', { class: 'notice' }, 'This suggestion came from a decision that has changed. It cannot be accepted: retire it to ask the assistant again.') : null,
       el(
         'ol',
         { class: 'list' },
@@ -1375,30 +1375,13 @@
 
   // ---- Decisions: facts to confirm, a new decision, gaps, and suggestions
   function decisionsView() {
-    const { plan, derived, catalog } = data;
-    const planFacts = plan.facts ?? [];
-    const confirmed = planFacts.filter((fact) => fact.status === 'confirmed');
-    const waiting = pendingFacts(plan);
-    const closed = planFacts.filter((fact) => fact.status === 'superseded' || fact.status === 'rejected');
+    const { plan, derived } = data;
+    const confirmed = (plan.facts ?? []).filter((fact) => fact.status === 'confirmed');
     const pending = pendingProposals(plan);
     const decided = (plan.proposals ?? []).filter((item) => item.status !== 'pending');
-    const gaps = plan.tasks.filter((task) => task.placeholder);
-    const staleTitles = derived.stale.taskIds.map((id) => byId(plan.tasks, id)?.title).filter(Boolean);
+    const waiting = pendingFacts(plan);
     const sourceText = (fact) => (fact.from.kind === 'user' ? 'Entered by you' : 'Suggested by the assistant');
-
-    const stale = staleTitles.length
-      ? el(
-          'section',
-          { class: 'notice', 'aria-label': 'Items that need a review' },
-          el('p', {}, 'These items came from a decision that has changed.'),
-          el('ul', { class: 'plain-list' }, staleTitles.map((title) => el('li', {}, title))),
-        )
-      : null;
-
-    const confirmedList = confirmed.length
-      ? el('ul', { class: 'list' }, confirmed.map((fact) => el('li', { class: 'row', 'data-fact-id': fact.id }, el('span', { class: 'row__name' }, factLabel(fact)), el('span', { class: 'row__meta' }, sourceText(fact)))))
-      : el('p', { class: 'empty' }, 'No decisions confirmed yet.');
-
+    // A fact that blocks no task has no other place to be answered: it waits here
     const waitingList = waiting.length
       ? el(
           'ul',
@@ -1418,14 +1401,16 @@
             ),
           ),
         )
-      : el('p', { class: 'empty' }, 'Nothing is waiting for you.');
+      : null;
+    const gaps = plan.tasks.filter((task) => task.placeholder);
+    const staleTitles = derived.stale.taskIds.map((id) => byId(plan.tasks, id)?.title).filter(Boolean);
 
-    const closedFold = closed.length
+    const stale = staleTitles.length
       ? el(
-          'details',
-          { class: 'fold' },
-          el('summary', {}, `Replaced or rejected (${closed.length})`),
-          el('ul', { class: 'plain-list' }, closed.map((fact) => el('li', {}, `${factLabel(fact)}: ${fact.status === 'rejected' ? 'Rejected' : 'Replaced'}`))),
+          'section',
+          { class: 'notice', 'aria-label': 'Items that need a review' },
+          el('p', {}, 'These items came from a decision that has changed.'),
+          el('ul', { class: 'plain-list' }, staleTitles.map((title) => el('li', {}, title))),
         )
       : null;
 
@@ -1499,7 +1484,7 @@
             'article',
             { class: 'step', 'data-proposal-id': item.id },
             el('h3', { class: 'step__title' }, 'Suggested tasks', summary.obsolete ? el('span', { class: 'badge' }, 'Obsolete') : null),
-            summary.obsolete ? el('p', { class: 'notice' }, 'This suggestion came from a decision that has changed.') : null,
+            summary.obsolete ? el('p', { class: 'notice' }, 'This suggestion came from a decision that has changed. It cannot be accepted: retire it to ask the assistant again.') : null,
             facts([
               ['For', forTask ?? 'A decision'],
               ['Adds', `${summary.tasks} ${plural(summary.tasks, 'task')} and ${summary.steps} ${plural(summary.steps, 'step')}`],
@@ -1525,27 +1510,21 @@
       : null;
 
     return {
-      title: 'Decisions',
+      title: 'Proposals',
       trail: null,
-      heading: 'Decisions',
+      heading: 'Proposals',
       body: [
         stale,
-        el('h2', { class: 'section' }, 'Facts'),
-        el('h3', { class: 'step__sub' }, 'Confirmed'),
-        confirmedList,
-        el('h3', { class: 'step__sub' }, 'Waiting for your decision'),
-        waitingList,
-        closedFold,
-        el('h2', { class: 'section' }, 'Add a decision'),
-        decisionForm(catalog),
+        el('p', { class: 'dept-summary' }, 'The assistant proposes. Nothing changes until you accept. Decisions are answered on the task, department or phase they affect.'),
+        el('h2', { class: 'section' }, 'Ask the assistant'),
+        structureAction,
+        departmentAction,
         el('h2', { class: 'section' }, 'To define'),
         gapItems,
-        el('h2', { class: 'section' }, 'Suggestions'),
-        structureAction,
+        el('h2', { class: 'section' }, 'Waiting for you'),
+        waitingList,
         proposalItems,
-        el('h2', { class: 'section' }, 'Tasks by department'),
-        departmentAction,
-        departmentCards.length ? departmentCards : el('p', { class: 'empty' }, 'No department tasks are waiting.'),
+        departmentCards,
         decidedFold,
       ],
     };

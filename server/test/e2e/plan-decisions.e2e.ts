@@ -120,14 +120,17 @@ async function scenarioDecisions(browser: any): Promise<string> {
   await notice(page).waitFor();
   assert.match(await notice(page).textContent() ?? "", /Saved\. The plan is at version 3\./);
 
-  // 2. Add a decision: a free-text key and value, saved and confirmed at once
+  // 2. Add a decision (it lives in the overview now): a free-text key and value, saved and confirmed at once
+  await page.evaluate(() => (location.hash = "#/"));
+  await page.locator("details.fold", { hasText: "Add a decision" }).locator("summary").click();
   await page.selectOption("#decision-key", "target_customer");
   await page.fill("#decision-value-text", "Households");
   await page.getByRole("button", { name: "Save and confirm" }).click();
   await page.locator("li[data-fact-id]", { hasText: "Target customer: Households" }).waitFor();
 
   // 3. Suggest the tasks for the gap, then accept them
-  await page.locator('li[data-task-id="plan-product-development"]').getByRole("button", { name: "Suggest tasks" }).click();
+  await page.evaluate(() => (location.hash = "#/decisions"));
+    await page.locator('li[data-task-id="plan-product-development"]').getByRole("button", { name: "Suggest tasks" }).click();
   await page.waitForTimeout(1500);
   const suggestion = page.locator("article[data-proposal-id]");
   await suggestion.waitFor();
@@ -564,15 +567,14 @@ async function scenarioTaskSteps(browser: any): Promise<string> {
   assert.equal(assistant.roles.length, 0, "nothing is asked when the task opens");
   await page.screenshot({ path: join(SHOTS, "task-without-steps-1280x720.png") });
 
-  // 1. Suggest the steps: one call, then the suggestion waits in Decisions and the task points to it
+  // 1. Suggest the steps: one call, then the suggestion waits on the task
   await page.getByRole("button", { name: "Suggest steps" }).click();
   await noticeSays(page, /Saved\. The plan is at version 2\./);
   assert.match((await notice(page).textContent()) ?? "", /Saved\. The plan is at version 2\./);
   assert.deepEqual(assistant.roles, ["task_steps"]);
   assert.equal(await page.getByRole("button", { name: "Suggest steps" }).count(), 0, "no second suggestion while one waits");
-  await page.getByRole("link", { name: "Go to decisions" }).click();
 
-  // 2. The card of the decisions page: who does each step, and the order in plain words
+  // 2. The card of the proposal is on the task itself: who does each step, and the order in plain words
   const card = page.locator('article[data-proposal-id]', { hasText: "Steps for Opening" });
   await card.waitFor();
   await card.screenshot({ path: join(SHOTS, "decisions-steps-card-1280x720.png") });
