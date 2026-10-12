@@ -81,6 +81,15 @@
     syncModalState();
   };
 
+  // The "At least 8 characters." hint repeats the length error, so it steps aside while that error shows
+  const setHintShown = (form, shown) => {
+    const hint = form.querySelector('.auth__hint');
+    if (!hint) return;
+    const { password } = form.elements;
+    hint.hidden = !shown;
+    toggleToken(password, 'aria-describedby', hint.id, shown);
+  };
+
   const validateAuth = (form) => {
     const { email, password, password2, name } = form.elements;
     const register = form.dataset.form === 'register';
@@ -98,6 +107,7 @@
     }
     if (register && password.value && password.value.length < password.minLength) {
       fail(password, `Password must be at least ${password.minLength} characters.`);
+      setHintShown(form, false);
     }
     if (register && password.value && password2.value && password.value !== password2.value) {
       fail(password2, 'Passwords do not match.');
@@ -189,6 +199,7 @@
   authForms.forEach((form) => {
     form.addEventListener('input', (e) => {
       clearFieldError(e.target);
+      if (e.target === form.elements.password) setHintShown(form, true);
       // Fixing the first password should re-check an existing "do not match" error
       const { password, password2 } = form.elements;
       if (e.target === password && password2?.hasAttribute('aria-invalid') && password2.value) {
@@ -200,6 +211,7 @@
       e.preventDefault();
       form.querySelectorAll('input').forEach(clearFieldError);
       hideFormError(form);
+      setHintShown(form, true);
       if (!validateAuth(form)) return;
       await submitAuth(form);
     });
@@ -209,6 +221,7 @@
     authForms.forEach((form) => {
       form.reset();
       form.querySelectorAll('input').forEach(clearFieldError);
+      setHintShown(form, true);
     });
   });
 
@@ -249,19 +262,26 @@
 
   // Sliders always hold a value, so "untouched" is tracked separately (is-set).
   // The first user input marks a slider as set; the initial value is only an example.
-  ranges.forEach((range) => {
+  // Choosing a slider: the value it shows counts as chosen, even when it does not change (Solo is the
+  // start value of Team size, and a click or Home on it fires no input event). Tab does not choose it.
+  const MOVE_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'];
+  const markSet = (range) => {
+    range.classList.add('is-set');
+    range.style.setProperty('--fill', `${((range.value - range.min) / (range.max - range.min)) * 100}%`); // dark part of the track, up to the thumb
     const output = range.closest('.filter').querySelector('output');
-    output.classList.add('is-example');
+    output.classList.remove('is-example');
+    output.value = formatValue(range);
+    toggleToken(range, 'aria-describedby', 'slider-hint', false);
+    clearFieldError(range);
+    resetFlow();
+  };
 
-    range.addEventListener('input', () => {
-      range.classList.add('is-set');
-      range.style.setProperty('--fill', `${((range.value - range.min) / (range.max - range.min)) * 100}%`); // dark part of the track, up to the thumb
-      output.classList.remove('is-example');
-      output.value = formatValue(range);
-      toggleToken(range, 'aria-describedby', 'slider-hint', false);
-      clearFieldError(range);
-      resetFlow();
-    });
+  ranges.forEach((range) => {
+    range.closest('.filter').querySelector('output').classList.add('is-example');
+
+    range.addEventListener('input', () => markSet(range));
+    range.addEventListener('pointerup', () => markSet(range)); // a click on the track or the thumb
+    range.addEventListener('keydown', (e) => { if (MOVE_KEYS.includes(e.key)) markSet(range); });
   });
 
   // Example ideas: a click fills the idea field, as if the person had typed it
