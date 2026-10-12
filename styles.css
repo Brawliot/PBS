@@ -497,8 +497,17 @@ body.has-result .hero { display: none; }
 .modal__text { font-size: 16px; color: var(--gray-text); margin-top: -8px; margin-bottom: 22px; }
 .modal__buttons { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
 .modal__buttons .btn { padding: 0 20px; }
-#detail-modal { max-width: 520px; }
+#detail-modal { max-width: 560px; }
 #detail-modal .result__list > div { padding: 9px 0; font-size: 15px; }
+/* Full detail: a value may be a sentence, so it takes most of the row and wraps inside it */
+#detail-modal .result__list dt { flex: none; }
+#detail-modal .result__list dd { max-width: 64%; overflow-wrap: anywhere; }
+#detail-modal .result__list > div.is-long { flex-direction: column; gap: 4px; }
+#detail-modal .result__list > div.is-long dd { max-width: none; text-align: left; }
+/* Blocks: Defined, Still to define, Key areas (the first one sits under the subtitle) */
+.detail__block { display: flex; flex-direction: column; gap: 10px; margin-top: 22px; }
+#detail-defined-block { margin-top: 18px; }
+#detail-modal .result__areas li { font-size: 15px; padding: 9px 0; }
 
 /* Result leaving (Build my plan) */
 .result.is-leaving { animation: result-out 0.4s ease forwards; }

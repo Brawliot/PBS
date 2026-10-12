@@ -603,7 +603,8 @@
     const warnings = document.getElementById('result-warnings');
     const topDepartments = document.getElementById('result-departments-top');
     const departmentList = document.getElementById('result-departments');
-    [summary, pending, detail, warnings, topDepartments, departmentList].forEach((el) => el.replaceChildren());
+    const detailPending = document.getElementById('detail-pending');
+    [summary, pending, detail, detailPending, warnings, topDepartments, departmentList].forEach((el) => el.replaceChildren());
 
     // A value the description does not back up is never shown as fact: it goes to "still to define"
     const unsupported = validation?.unsupported ?? [];
@@ -657,16 +658,34 @@
     });
     addMore(topDepartments, areas.length - Math.min(mainAreas.length, 4), `and ${areas.length - Math.min(mainAreas.length, 4)} more in the full detail`);
     document.getElementById('result-departments-block').hidden = !topDepartments.children.length;
-    areas.forEach(({ name, tier }) => addRow(departmentList, name, TIERS[tier], tier === 'light'));
-    document.getElementById('result-departments-title').hidden = !areas.length;
+    // The same tier marks as the card, one row per area
+    areas.forEach(({ name, tier }) => {
+      const item = document.createElement('li');
+      const label = document.createElement('span');
+      const chip = document.createElement('span');
+      label.textContent = name;
+      chip.className = `tier tier--${tier}`;
+      chip.textContent = TIERS[tier];
+      item.append(label, chip);
+      departmentList.append(item);
+    });
+    document.getElementById('detail-areas-block').hidden = !areas.length;
 
+    // What is known is listed in full; what is still open is only a list of names
+    const openLabels = [];
     Object.entries(LABELS).forEach(([key, label]) => {
       const value = profile.values[key];
-      const defined = value && value !== NOT_DEFINED;
-      addRow(detail, label, defined ? value : 'Not defined yet', !defined);
+      if (value && value !== NOT_DEFINED) addRow(detail, label, value);
+      else openLabels.push(label);
     });
+    openLabels.forEach((label) => addItem(detailPending, label));
+    // A long sentence reads better under its label than squeezed to the right
+    [...detail.children].forEach((row) => row.classList.toggle('is-long', row.querySelector('dd').textContent.length > 40));
+    document.getElementById('detail-defined-block').hidden = !detail.children.length;
+    document.getElementById('detail-pending-block').hidden = !openLabels.length;
 
     document.getElementById('result-meta').textContent = `${profile.known} of ${profile.total} topics defined`;
+    document.getElementById('detail-meta').textContent = `${profile.known} of ${profile.total} topics defined`;
     document.getElementById('result-hint').hidden = profile.known > 0;
     // A plan is built from the saved report only; without one the button says why it cannot be used
     document.getElementById('result-plan').disabled = !reportId;
