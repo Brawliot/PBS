@@ -1041,6 +1041,8 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
 .overview-tile { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; background: var(--white); border: 1px solid var(--border-strong); border-radius: 12px; }
 .overview-tile__name { font-weight: 800; font-size: 17px; color: var(--dark); }
 .overview-tile .badge { align-self: flex-start; }
+.registry { margin-top: 18px; }
+.registry .form { margin-top: 10px; }
 @media (max-width: 860px) { .steps-layout { grid-template-columns: minmax(0, 1fr); } }
 .step__title { font-size: 18px; font-weight: 800; }
 .step__actions { display: grid; gap: 14px; margin-top: 12px; }

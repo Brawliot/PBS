@@ -253,7 +253,6 @@
       { class: 'tabs', 'aria-label': 'Plan views' },
       link('overview', '#/', 'Overview'),
       link('timeline', '#/timeline', 'Timeline'),
-      link('decisions', '#/decisions', 'Decisions'),
     );
   }
 
@@ -379,7 +378,38 @@
         )
       : el('p', {}, 'This plan has no departments.');
 
-    return { title: data.title, trail: null, heading: data.title, body: [el('p', { class: 'dept-summary' }, lead), needs, timeline, departments] };
+    return {
+      title: data.title,
+      trail: null,
+      heading: data.title,
+      body: [el('p', { class: 'dept-summary' }, lead), needs, timeline, departments, decisionsRegistry()],
+    };
+  }
+
+  /** The decisions the plan uses, what it replaced or rejected, the suggestions answered, and a form to add one */
+  function decisionsRegistry() {
+    const { plan, catalog } = data;
+    const confirmed = (plan.facts ?? []).filter((fact) => fact.status === 'confirmed');
+    const earlier = (plan.facts ?? []).filter((fact) => fact.status === 'superseded' || fact.status === 'rejected');
+    const answered = (plan.proposals ?? []).filter((item) => item.status !== 'pending');
+    const sourceText = (fact) => (fact.from.kind === 'user' ? 'Entered by you' : 'Suggested by the assistant');
+    return el(
+      'section',
+      { class: 'registry', 'aria-label': 'Decisions' },
+      el('h2', { class: 'section' }, 'Decisions'),
+      el('p', { class: 'row__meta' }, 'What the plan uses now. You answer a decision where it affects the plan: on the task, department or phase.'),
+      confirmed.length
+        ? el('ul', { class: 'list' }, confirmed.map((fact) => el('li', { class: 'row', 'data-fact-id': fact.id }, el('span', { class: 'row__name' }, factLabel(fact)), el('span', { class: 'row__meta' }, sourceText(fact)))))
+        : el('p', { class: 'empty' }, 'No decisions confirmed yet.'),
+      earlier.length
+        ? el('details', { class: 'fold' }, el('summary', {}, `Replaced or rejected (${earlier.length})`), el('ul', { class: 'plain-list' }, earlier.map((fact) => el('li', {}, `${factLabel(fact)}: ${fact.status === 'rejected' ? 'Rejected' : 'Replaced'}`))))
+        : null,
+      answered.length
+        ? el('details', { class: 'fold' }, el('summary', {}, `Answered suggestions (${answered.length})`), el('ul', { class: 'plain-list' }, answered.map((item) => el('li', {}, `${item.status === 'accepted' ? 'Accepted' : 'Rejected'}: ${decidedTitle(item)}`))))
+        : null,
+      el('details', { class: 'fold' }, el('summary', {}, 'Add a decision'), decisionForm(catalog)),
+      el('p', { class: 'row__meta' }, el('a', { href: '#/decisions' }, 'Ask the assistant for more suggestions')),
+    );
   }
 
   const DEPT_FILTERS = [
