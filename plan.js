@@ -455,43 +455,108 @@
     };
   }
 
-  function phaseView(id) {
+  /** Tasks of this phase that wait for a decision (in Decisions): the suggestions of the departments */
+  function pendingPhaseTasks(id) {
+    return pendingProposals(data.plan)
+      .filter(isDepartmentProposal)
+      .reduce((count, item) => count + item.add.tasks.filter((task) => task.phaseId === id).length, 0);
+  }
+
+  /** The order between this phase and the others, in plain words */
+  function phaseOrder(id) {
+    return data.plan.relations
+      .filter((relation) => relation.level === 'phase' && (relation.from === id || relation.to === id))
+      .map((relation) => {
+        if (relation.type === 'follows') return relation.from === id ? `Comes after ${phaseName(relation.to)}` : `${phaseName(relation.from)} comes after this phase`;
+        return relation.from === id ? `Must be finished before ${phaseName(relation.to)}` : `Waits for ${phaseName(relation.from)} to be finished`;
+      });
+  }
+
+  function phaseView(id, filter) {
     const { plan, derived } = data;
     const phase = byId(plan.phases, id);
     const status = derived.phases[id];
+    const tasks = plan.tasks.filter((task) => task.phaseId === id && visible(task));
+    const activeFilter = DEPT_FILTERS.some(([key]) => key === filter) ? filter : 'all';
+    const statusOf = (task) => derived.tasks[task.id].status;
+    // Tasks grouped by department, in the order of the plan's departments
+    const inOrder = plan.departments.flatMap((department) => tasks.filter((task) => task.primaryDepartmentId === department.id));
+    const done = tasks.filter((task) => statusOf(task) === 'done').length;
+    const next = nextStepOf(inOrder);
+    const hasDates = plan.timeline && phase.startUnit !== undefined && phase.lengthUnits !== undefined;
+    const dates = hasDates
+      ? `${humanize(UNIT[plan.timeline.unit])}s ${phase.startUnit} to ${phase.startUnit + phase.lengthUnits}`
+      : null;
+
+    const summary = [`${TASK_STATUS[status.status]}`, progressText(status.progress)];
+    if (next) summary.push(`Next: ${next.step.text}`);
+
+    const order = phaseOrder(id);
+    const notice = order.length
+      ? el('p', { class: 'notice' }, `${order.join('. ')}. `, el('a', { href: '#/timeline' }, 'See the timeline'))
+      : null;
+
+    const waiting = pendingPhaseTasks(id);
+    const pendingNotice = waiting
+      ? el('p', { class: 'notice' }, `${waiting} suggested ${plural(waiting, 'task')} for this phase ${waiting === 1 ? 'is' : 'are'} waiting for your decision. `, el('a', { href: '#/decisions' }, 'Review in Decisions'))
+      : null;
+
+    const filters =
+      tasks.length >= FILTER_FROM
+        ? el(
+            'nav',
+            { class: 'filters', 'aria-label': 'Show tasks with status' },
+            DEPT_FILTERS.map(([key, label]) => {
+              const count = tasks.filter((task) => key === 'all' || statusOf(task) === key).length;
+              return el('a', { class: 'chip', href: `#/phase/${enc(id)}?status=${key}`, 'aria-current': key === activeFilter ? 'true' : undefined }, `${label} ${count}`);
+            }),
+          )
+        : null;
+
+    const shown = inOrder.filter((task) => activeFilter === 'all' || statusOf(task) === activeFilter);
     const groups = plan.departments
-      .map((department) => ({
-        department,
-        tasks: plan.tasks.filter((task) => task.phaseId === id && task.primaryDepartmentId === department.id && visible(task)),
-      }))
-      .filter((group) => group.tasks.length > 0);
-    const body = groups.length
-      ? groups.map((group) =>
-          el(
-            'section',
-            { class: 'group' },
-            el('h2', { class: 'section' }, group.department.name),
+      .map((department) => ({ department, tasks: shown.filter((task) => task.primaryDepartmentId === department.id) }))
+      .filter((group) => group.tasks.length > 0)
+      .map(({ department, tasks: groupTasks }) => {
+        const doneHere = groupTasks.filter((task) => statusOf(task) === 'done').length;
+        return el(
+          'details',
+          { class: 'phase-group', open: groupTasks.some((task) => statusOf(task) !== 'done') ? true : undefined },
+          el('summary', {}, el('span', {}, department.name), el('span', {}, `${groupTasks.length} ${plural(groupTasks.length, 'task')} · ${doneHere} done`)),
+          groupTasks.map((task) =>
             el(
-              'ul',
-              { class: 'list' },
-              group.tasks.map((task) =>
-                el(
-                  'li',
-                  { class: 'row' },
-                  el('a', { class: 'row__name', href: taskHref(task, `phase:${id}`) }, task.title),
-                  badge(TASK_STATUS[derived.tasks[task.id].status]),
-                ),
-              ),
+              'div',
+              { class: 'row' },
+              el('a', { class: 'row__name', href: taskHref(task, `phase:${id}`) }, task.title),
+              badge(TASK_STATUS[statusOf(task)]),
+              taskLine(task) ? el('span', { class: 'row__meta row__meta--full' }, taskLine(task)) : null,
             ),
           ),
+        );
+      });
+
+    const body = !tasks.length
+      ? el(
+          'div',
+          { class: 'empty-box' },
+          el('p', { class: 'empty-box__title' }, 'This phase has no tasks yet'),
+          el('p', { class: 'row__meta' }, 'Tasks reach a phase when a department suggests them and you accept. Nothing changes until you accept.'),
+          el('a', { class: 'btn btn--outline', href: '#/decisions' }, 'Go to decisions'),
         )
-      : el('p', { class: 'empty' }, 'This phase has no tasks yet.');
+      : groups.length
+        ? groups
+        : el('p', { class: 'empty' }, 'No tasks with this status.');
+
     return {
       title: phase.name,
       trail: [{ label: 'Timeline', href: '#/timeline' }, { label: phase.name }],
       heading: phase.name,
       body: [
-        el('p', { class: 'meta' }, badge(TASK_STATUS[status.status]), el('span', {}, ` ${progressText(status.progress)}`)),
+        pendingNotice,
+        notice,
+        dates ? el('p', { class: 'meta' }, badge(dates)) : null,
+        el('p', { class: 'dept-summary' }, summary.join(' · ')),
+        filters,
         body,
       ],
     };
@@ -1384,7 +1449,7 @@
       case 'dept':
         return deptView(route.id, route.status);
       case 'phase':
-        return phaseView(route.id);
+        return phaseView(route.id, route.status);
       case 'task':
         return taskView(route.id, route.from, route.step);
       default:
