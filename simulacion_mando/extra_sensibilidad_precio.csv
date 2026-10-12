@@ -1,0 +1,501 @@
+id,segmento,estado,no_comprador,abandona_sin_pagar,wtp_A,wtp_B,wtp_C,wtp_D,wtp_E,compra_A_mitad,compra_A_ref,compra_A_doble,compra_B_mitad,compra_B_ref,compra_B_doble,compra_C_mitad,compra_C_ref,compra_C_doble,compra_D_mitad,compra_D_ref,compra_D_doble,compra_E_mitad,compra_E_ref,compra_E_doble,compra_D_negocio_49,que_le_haria_marcharse,que_le_sorprenderia
+P001,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que le avisen de cuánto le queda y cuándo se renueva
+P002,1 Primerizo,pagaria,0,0,4,0,10,8,8,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,enterarse de que su idea se usa para entrenar o la ven otros,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P003,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que el informe inicial sea gratis y útil
+P004,3 Dueño pyme,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,quedarse sin ayuda de IA a mitad de una tarea sin aviso,poder usarlo con varios clientes sin pagar de más
+P005,3 Dueño pyme,pagaria,0,0,11,50,25,0,16,1,0,0,1,1,0,1,1,0,0,0,0,1,0,0,0,esperar días a que se renueve la ayuda cuando necesita avanzar,que le avisen de cuánto le queda y cuándo se renueva
+P006,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no entender qué botón gasta,que el plan se organice por departamentos con su gente
+P007,8 Otros: jubilado,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que el informe inicial sea gratis y útil
+P008,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,que los documentos de IA sirvan como borrador real
+P009,5 Consultor/mentor,pagaria,0,0,0,0,0,23,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,subidas de precio sin avisar,que pagar una vez le cubra todo el proyecto
+P010,3 Dueño pyme,pagaria,0,0,3,10,5,0,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,ver el coste de cada paso antes de pulsar
+P011,3 Dueño pyme,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,que los documentos de IA sirvan como borrador real
+P012,1 Primerizo,pagaria,0,0,3,5,5,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,esperar días a que se renueve la ayuda cuando necesita avanzar,que la ayuda mensual se renueve sin pagar
+P013,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,falta de claridad sobre dónde se guardan los datos,ver el coste de cada paso antes de pulsar
+P014,2 Autónomo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no entender qué botón gasta,que el plan se organice por departamentos con su gente
+P015,8 Otros: inversor pequeño,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,poder aceptar o rechazar cada sugerencia
+P016,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que no haya suscripción
+P017,4 Estudiante,pagaria,0,0,2,0,5,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,falta de claridad sobre dónde se guardan los datos,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P018,7 Escéptico,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan quede desfasado al cambiar una decisión,que la IA solo proponga y él decida todo
+P019,6 Con capital,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que los documentos de IA sirvan como borrador real
+P020,2 Autónomo,pagaria,0,0,4,5,0,6,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,falta de claridad sobre dónde se guardan los datos,poder aceptar o rechazar cada sugerencia
+P021,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,ver el coste de cada paso antes de pulsar
+P022,3 Dueño pyme,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no poder borrar su proyecto y sus datos,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P023,3 Dueño pyme,pagaria,0,0,0,65,50,27,0,0,0,0,1,1,1,1,1,1,1,1,0,0,0,0,0,no entender qué botón gasta,que el esqueleto del plan le ahorre horas
+P024,1 Primerizo,pagaria,0,0,9,15,5,0,7,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,esperar días a que se renueve la ayuda cuando necesita avanzar,que la ayuda mensual se renueve sin pagar
+P025,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P026,6 Con capital,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que el informe inicial sea gratis y útil
+P027,4 Estudiante,pagaria,0,0,4,0,5,4,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,poder aceptar o rechazar cada sugerencia
+P028,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que los documentos de IA sirvan como borrador real
+P029,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que no haya suscripción
+P030,4 Estudiante,pagaria,0,0,2,5,5,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que pagar una vez le cubra todo el proyecto
+P031,5 Consultor/mentor,pagaria,0,0,0,0,0,93,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,1,no poder borrar su proyecto y sus datos,que el plan se organice por departamentos con su gente
+P032,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,subidas de precio sin avisar,que el precio de salida sea más bajo de lo que esperaba
+P033,5 Consultor/mentor,pagaria,0,0,0,0,0,66,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,1,falta de claridad sobre dónde se guardan los datos,poder aceptar o rechazar cada sugerencia
+P034,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que pagar una vez le cubra todo el proyecto
+P035,2 Autónomo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,errores en las sugerencias que le hacen perder confianza,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P036,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que la ayuda mensual se renueve sin pagar
+P037,2 Autónomo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que la ayuda mensual se renueve sin pagar
+P038,5 Consultor/mentor,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,que el plan se organice por departamentos con su gente
+P039,2 Autónomo,pagaria,0,0,5,20,10,6,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que el precio de salida sea más bajo de lo que esperaba
+P040,1 Primerizo,pagaria,0,0,4,30,15,0,6,0,0,0,1,1,0,1,1,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que le avisen de cuánto le queda y cuándo se renueva
+P041,2 Autónomo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que el plan se organice por departamentos con su gente
+P042,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que la ayuda mensual se renueve sin pagar
+P043,7 Escéptico,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que la ayuda mensual se renueve sin pagar
+P044,2 Autónomo,pagaria,0,0,4,15,5,8,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,subidas de precio sin avisar,que el informe inicial sea gratis y útil
+P045,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que el informe inicial sea gratis y útil
+P046,6 Con capital,pagaria,0,0,16,35,0,21,17,1,1,0,1,1,0,0,0,0,1,1,0,1,0,0,0,enterarse de que su idea se usa para entrenar o la ven otros,que los documentos de IA sirvan como borrador real
+P047,2 Autónomo,pagaria,0,0,5,15,0,5,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,esperar días a que se renueve la ayuda cuando necesita avanzar,que le avisen de cuánto le queda y cuándo se renueva
+P048,7 Escéptico,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,errores en las sugerencias que le hacen perder confianza,que la IA solo proponga y él decida todo
+P049,2 Autónomo,pagaria,0,0,2,5,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,enterarse de que su idea se usa para entrenar o la ven otros,poder aceptar o rechazar cada sugerencia
+P050,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que pagar una vez le cubra todo el proyecto
+P051,2 Autónomo,pagaria,0,0,13,30,10,0,0,1,1,0,1,1,0,1,0,0,0,0,0,0,0,0,0,enterarse de que su idea se usa para entrenar o la ven otros,que el precio de salida sea más bajo de lo que esperaba
+P052,1 Primerizo,pagaria,0,0,3,5,0,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,ver el coste de cada paso antes de pulsar
+P053,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P054,3 Dueño pyme,pagaria,0,0,17,75,0,32,0,1,1,0,1,1,1,0,0,0,1,1,0,0,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,que le avisen de cuánto le queda y cuándo se renueva
+P055,2 Autónomo,pagaria,0,0,2,5,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no entender qué botón gasta,que no haya suscripción
+P056,2 Autónomo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no poder borrar su proyecto y sus datos,poder aceptar o rechazar cada sugerencia
+P057,3 Dueño pyme,pagaria,0,0,14,30,15,0,13,1,1,0,1,1,0,1,1,0,0,0,0,1,0,0,0,que el límite se agote justo al rehacer sugerencias,que la ayuda mensual se renueve sin pagar
+P058,2 Autónomo,pagaria,0,0,7,55,15,0,6,1,0,0,1,1,0,1,1,0,0,0,0,0,0,0,0,quedarse sin ayuda de IA a mitad de una tarea sin aviso,que pagar una vez le cubra todo el proyecto
+P059,8 Otros: profesor,pagaria,0,0,16,0,35,22,20,1,1,0,0,0,0,1,1,1,1,1,0,1,1,0,0,que el límite se agote justo al rehacer sugerencias,que le avisen de cuánto le queda y cuándo se renueva
+P060,5 Consultor/mentor,pagaria,0,0,0,0,0,79,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,1,que cada paso cueste algo sin saberlo antes,poder usarlo con varios clientes sin pagar de más
+P061,3 Dueño pyme,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que el precio de salida sea más bajo de lo que esperaba
+P062,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que no haya suscripción
+P063,1 Primerizo,pagaria,0,0,8,0,15,9,7,1,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que el esqueleto del plan le ahorre horas
+P064,4 Estudiante,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que le avisen de cuánto le queda y cuándo se renueva
+P065,8 Otros: jubilado,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no poder borrar su proyecto y sus datos,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P066,7 Escéptico,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan sea demasiado largo y se sienta abrumado,que le avisen de cuánto le queda y cuándo se renueva
+P067,3 Dueño pyme,pagaria,0,0,17,70,30,0,19,1,1,0,1,1,1,1,1,1,0,0,0,1,0,0,0,errores en las sugerencias que le hacen perder confianza,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P068,2 Autónomo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,ver el coste de cada paso antes de pulsar
+P069,8 Otros: profesor,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,esperar días a que se renueve la ayuda cuando necesita avanzar,que la ayuda mensual se renueve sin pagar
+P070,7 Escéptico,pagaria,0,0,2,5,5,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,que no haya suscripción
+P071,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no poder borrar su proyecto y sus datos,que la IA solo proponga y él decida todo
+P072,6 Con capital,pagaria,0,0,0,15,10,10,4,0,0,0,1,0,0,1,0,0,1,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,que los documentos de IA sirvan como borrador real
+P073,6 Con capital,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que la ayuda mensual se renueve sin pagar
+P074,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que los documentos de IA sirvan como borrador real
+P075,3 Dueño pyme,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que pagar una vez le cubra todo el proyecto
+P076,2 Autónomo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,poder aceptar o rechazar cada sugerencia
+P077,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que la IA solo proponga y él decida todo
+P078,2 Autónomo,pagaria,0,0,9,80,25,9,0,1,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,no entender qué botón gasta,poder aceptar o rechazar cada sugerencia
+P079,1 Primerizo,pagaria,0,0,2,15,5,4,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,subidas de precio sin avisar,que el esqueleto del plan le ahorre horas
+P080,3 Dueño pyme,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,que el precio de salida sea más bajo de lo que esperaba
+P081,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P082,4 Estudiante,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,tener que rellenar demasiado antes de ver algo útil,ver el coste de cada paso antes de pulsar
+P083,6 Con capital,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,enterarse de que su idea se usa para entrenar o la ven otros,ver el coste de cada paso antes de pulsar
+P084,2 Autónomo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que el precio de salida sea más bajo de lo que esperaba
+P085,1 Primerizo,pagaria,0,0,4,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no poder borrar su proyecto y sus datos,que los documentos de IA sirvan como borrador real
+P086,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que le avisen de cuánto le queda y cuándo se renueva
+P087,2 Autónomo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,tener que rellenar demasiado antes de ver algo útil,poder usarlo con varios clientes sin pagar de más
+P088,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan quede desfasado al cambiar una decisión,que los documentos de IA sirvan como borrador real
+P089,2 Autónomo,pagaria,0,0,10,15,20,11,0,1,0,0,1,0,0,1,1,0,1,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que la ayuda mensual se renueve sin pagar
+P090,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,errores en las sugerencias que le hacen perder confianza,que la IA solo proponga y él decida todo
+P091,6 Con capital,pagaria,0,0,28,70,0,29,11,1,1,1,1,1,1,0,0,0,1,1,0,1,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,que el precio de salida sea más bajo de lo que esperaba
+P092,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan quede desfasado al cambiar una decisión,poder aceptar o rechazar cada sugerencia
+P093,2 Autónomo,pagaria,0,0,24,75,30,31,0,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,que pagar una vez le cubra todo el proyecto
+P094,3 Dueño pyme,pagaria,0,0,17,50,0,21,0,1,1,0,1,1,0,0,0,0,1,1,0,0,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,que el precio de salida sea más bajo de lo que esperaba
+P095,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que no haya suscripción
+P096,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que el informe inicial sea gratis y útil
+P097,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no entender qué botón gasta,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P098,3 Dueño pyme,pagaria,0,0,6,20,10,11,0,1,0,0,1,0,0,1,0,0,1,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que le avisen de cuánto le queda y cuándo se renueva
+P099,5 Consultor/mentor,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,errores en las sugerencias que le hacen perder confianza,poder aceptar o rechazar cada sugerencia
+P100,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,poder usarlo con varios clientes sin pagar de más
+P101,3 Dueño pyme,pagaria,0,0,5,35,0,10,8,0,0,0,1,1,0,0,0,0,1,0,0,0,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,que el precio de salida sea más bajo de lo que esperaba
+P102,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan quede desfasado al cambiar una decisión,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P103,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan quede desfasado al cambiar una decisión,ver el coste de cada paso antes de pulsar
+P104,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,que el precio de salida sea más bajo de lo que esperaba
+P105,6 Con capital,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,falta de claridad sobre dónde se guardan los datos,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P106,7 Escéptico,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no entender qué botón gasta,que la ayuda mensual se renueve sin pagar
+P107,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,ver el coste de cada paso antes de pulsar
+P108,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan sea demasiado largo y se sienta abrumado,que el precio de salida sea más bajo de lo que esperaba
+P109,5 Consultor/mentor,pagaria,0,0,0,0,25,41,10,0,0,0,0,0,0,1,1,0,1,1,1,1,0,0,0,quedarse sin ayuda de IA a mitad de una tarea sin aviso,que el plan se organice por departamentos con su gente
+P110,1 Primerizo,pagaria,0,0,5,5,5,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,tener que rellenar demasiado antes de ver algo útil,que los documentos de IA sirvan como borrador real
+P111,2 Autónomo,pagaria,0,0,14,35,15,12,0,1,1,0,1,1,0,1,1,0,1,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,que la IA solo proponga y él decida todo
+P112,2 Autónomo,pagaria,0,0,6,20,0,17,9,1,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,no poder borrar su proyecto y sus datos,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P113,3 Dueño pyme,pagaria,0,0,17,125,0,41,14,1,1,0,1,1,1,0,0,0,1,1,1,1,0,0,0,que un chat de IA corriente le dé lo mismo,que el informe inicial sea gratis y útil
+P114,2 Autónomo,pagaria,0,0,0,40,30,32,16,0,0,0,1,1,0,1,1,1,1,1,0,1,0,0,0,pagar y no volver a usarlo en semanas,poder usarlo con varios clientes sin pagar de más
+P115,2 Autónomo,pagaria,0,0,17,135,25,35,0,1,1,0,1,1,1,1,1,0,1,1,0,0,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,que pagar una vez le cubra todo el proyecto
+P116,6 Con capital,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan sea demasiado largo y se sienta abrumado,que el plan se organice por departamentos con su gente
+P117,2 Autónomo,pagaria,0,0,4,10,0,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,subidas de precio sin avisar,que pagar una vez le cubra todo el proyecto
+P118,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no entender qué botón gasta,que la IA solo proponga y él decida todo
+P119,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P120,1 Primerizo,pagaria,0,0,4,10,5,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que le avisen de cuánto le queda y cuándo se renueva
+P121,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que la IA solo proponga y él decida todo
+P122,5 Consultor/mentor,pagaria,0,0,0,0,0,25,5,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,falta de claridad sobre dónde se guardan los datos,que el precio de salida sea más bajo de lo que esperaba
+P123,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,enterarse de que su idea se usa para entrenar o la ven otros,ver el coste de cada paso antes de pulsar
+P124,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,errores en las sugerencias que le hacen perder confianza,que los documentos de IA sirvan como borrador real
+P125,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que los documentos de IA sirvan como borrador real
+P126,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,que el precio de salida sea más bajo de lo que esperaba
+P127,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan quede desfasado al cambiar una decisión,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P128,2 Autónomo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que le avisen de cuánto le queda y cuándo se renueva
+P129,1 Primerizo,pagaria,0,0,11,25,10,9,0,1,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que pagar una vez le cubra todo el proyecto
+P130,5 Consultor/mentor,pagaria,0,0,0,0,0,60,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,1,documentos de IA genéricos que no sirven de borrador real,poder usarlo con varios clientes sin pagar de más
+P131,2 Autónomo,pagaria,0,0,8,20,0,8,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,subidas de precio sin avisar,que pagar una vez le cubra todo el proyecto
+P132,7 Escéptico,pagaria,0,0,3,10,10,5,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,quedarse sin ayuda de IA a mitad de una tarea sin aviso,que le avisen de cuánto le queda y cuándo se renueva
+P133,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,errores en las sugerencias que le hacen perder confianza,que los documentos de IA sirvan como borrador real
+P134,2 Autónomo,pagaria,0,0,6,35,5,8,0,1,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,que la IA solo proponga y él decida todo
+P135,7 Escéptico,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P136,2 Autónomo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no entender qué botón gasta,que el plan se organice por departamentos con su gente
+P137,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,ver el coste de cada paso antes de pulsar
+P138,6 Con capital,pagaria,0,0,0,55,15,45,14,0,0,0,1,1,0,1,1,0,1,1,1,1,0,0,0,esperar días a que se renueve la ayuda cuando necesita avanzar,que le avisen de cuánto le queda y cuándo se renueva
+P139,5 Consultor/mentor,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,subidas de precio sin avisar,poder usarlo con varios clientes sin pagar de más
+P140,3 Dueño pyme,pagaria,0,0,28,100,30,0,11,1,1,1,1,1,1,1,1,1,0,0,0,1,0,0,0,que un chat de IA corriente le dé lo mismo,poder usarlo con varios clientes sin pagar de más
+P141,1 Primerizo,pagaria,0,0,5,25,10,9,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que el precio de salida sea más bajo de lo que esperaba
+P142,2 Autónomo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,quedarse sin ayuda de IA a mitad de una tarea sin aviso,que la ayuda mensual se renueve sin pagar
+P143,6 Con capital,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan sea demasiado largo y se sienta abrumado,que le avisen de cuánto le queda y cuándo se renueva
+P144,5 Consultor/mentor,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,tener que rellenar demasiado antes de ver algo útil,poder usarlo con varios clientes sin pagar de más
+P145,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,poder usarlo con varios clientes sin pagar de más
+P146,3 Dueño pyme,pagaria,0,0,10,25,0,17,7,1,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,tener que rellenar demasiado antes de ver algo útil,que le avisen de cuánto le queda y cuándo se renueva
+P147,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que el esqueleto del plan le ahorre horas
+P148,2 Autónomo,pagaria,0,0,5,30,25,7,0,0,0,0,1,1,0,1,1,0,0,0,0,0,0,0,0,no poder borrar su proyecto y sus datos,que la IA solo proponga y él decida todo
+P149,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,errores en las sugerencias que le hacen perder confianza,que los documentos de IA sirvan como borrador real
+P150,3 Dueño pyme,pagaria,0,0,14,80,20,18,0,1,1,0,1,1,1,1,1,0,1,0,0,0,0,0,0,falta de claridad sobre dónde se guardan los datos,que la IA solo proponga y él decida todo
+P151,5 Consultor/mentor,pagaria,0,0,0,0,0,62,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,1,quedarse sin ayuda de IA a mitad de una tarea sin aviso,que le avisen de cuánto le queda y cuándo se renueva
+P152,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,que los documentos de IA sirvan como borrador real
+P153,5 Consultor/mentor,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que la IA solo proponga y él decida todo
+P154,6 Con capital,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que pagar una vez le cubra todo el proyecto
+P155,2 Autónomo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,que los documentos de IA sirvan como borrador real
+P156,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que los documentos de IA sirvan como borrador real
+P157,1 Primerizo,pagaria,0,0,4,0,5,6,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,errores en las sugerencias que le hacen perder confianza,que la IA solo proponga y él decida todo
+P158,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que el esqueleto del plan le ahorre horas
+P159,2 Autónomo,pagaria,0,0,13,75,20,11,0,1,1,0,1,1,1,1,1,0,1,0,0,0,0,0,0,quedarse sin ayuda de IA a mitad de una tarea sin aviso,que la ayuda mensual se renueve sin pagar
+P160,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,falta de claridad sobre dónde se guardan los datos,que la IA solo proponga y él decida todo
+P161,1 Primerizo,pagaria,0,0,4,10,0,2,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,subidas de precio sin avisar,que no haya suscripción
+P162,4 Estudiante,pagaria,0,0,2,0,5,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que le avisen de cuánto le queda y cuándo se renueva
+P163,1 Primerizo,pagaria,0,0,5,15,10,4,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,que el plan sea demasiado largo y se sienta abrumado,que el esqueleto del plan le ahorre horas
+P164,2 Autónomo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,esperar días a que se renueve la ayuda cuando necesita avanzar,que le avisen de cuánto le queda y cuándo se renueva
+P165,8 Otros: desempleado,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,tener que rellenar demasiado antes de ver algo útil,que los documentos de IA sirvan como borrador real
+P166,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no poder borrar su proyecto y sus datos,que los documentos de IA sirvan como borrador real
+P167,2 Autónomo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,errores en las sugerencias que le hacen perder confianza,que la ayuda mensual se renueve sin pagar
+P168,5 Consultor/mentor,pagaria,0,0,0,0,0,42,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,0,tener que rellenar demasiado antes de ver algo útil,que pagar una vez le cubra todo el proyecto
+P169,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,poder aceptar o rechazar cada sugerencia
+P170,3 Dueño pyme,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,quedarse sin ayuda de IA a mitad de una tarea sin aviso,que la IA solo proponga y él decida todo
+P171,6 Con capital,pagaria,0,0,39,130,0,37,17,1,1,1,1,1,1,0,0,0,1,1,0,1,0,0,0,no poder borrar su proyecto y sus datos,que la IA solo proponga y él decida todo
+P172,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,falta de claridad sobre dónde se guardan los datos,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P173,5 Consultor/mentor,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no entender qué botón gasta,que el plan se organice por departamentos con su gente
+P174,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no entender qué botón gasta,que la ayuda mensual se renueve sin pagar
+P175,8 Otros: inversor pequeño,pagaria,0,0,13,70,0,13,0,1,1,0,1,1,1,0,0,0,1,0,0,0,0,0,0,enterarse de que su idea se usa para entrenar o la ven otros,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P176,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no entender qué botón gasta,que la ayuda mensual se renueve sin pagar
+P177,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,falta de claridad sobre dónde se guardan los datos,poder aceptar o rechazar cada sugerencia
+P178,2 Autónomo,pagaria,0,0,11,25,10,11,0,1,0,0,1,0,0,1,0,0,1,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P179,8 Otros: profesor,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que el esqueleto del plan le ahorre horas
+P180,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,enterarse de que su idea se usa para entrenar o la ven otros,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P181,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan sea demasiado largo y se sienta abrumado,poder aceptar o rechazar cada sugerencia
+P182,6 Con capital,pagaria,0,0,6,50,15,28,0,1,0,0,1,1,0,1,1,0,1,1,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,poder usarlo con varios clientes sin pagar de más
+P183,8 Otros: jubilado,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,ver el coste de cada paso antes de pulsar
+P184,3 Dueño pyme,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P185,2 Autónomo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que el precio de salida sea más bajo de lo que esperaba
+P186,2 Autónomo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan sea demasiado largo y se sienta abrumado,que el precio de salida sea más bajo de lo que esperaba
+P187,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no poder borrar su proyecto y sus datos,ver el coste de cada paso antes de pulsar
+P188,3 Dueño pyme,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,subidas de precio sin avisar,que el precio de salida sea más bajo de lo que esperaba
+P189,1 Primerizo,pagaria,0,0,10,15,15,0,0,1,0,0,1,0,0,1,1,0,0,0,0,0,0,0,0,falta de claridad sobre dónde se guardan los datos,que los documentos de IA sirvan como borrador real
+P190,3 Dueño pyme,pagaria,0,0,11,35,0,10,5,1,0,0,1,1,0,0,0,0,1,0,0,0,0,0,0,quedarse sin ayuda de IA a mitad de una tarea sin aviso,que los documentos de IA sirvan como borrador real
+P191,3 Dueño pyme,pagaria,0,0,14,120,0,45,23,1,1,0,1,1,1,0,0,0,1,1,1,1,1,0,0,que un chat de IA corriente le dé lo mismo,que los documentos de IA sirvan como borrador real
+P192,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,que la IA solo proponga y él decida todo
+P193,3 Dueño pyme,pagaria,0,0,8,20,10,0,3,1,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que no haya suscripción
+P194,8 Otros: inversor pequeño,pagaria,0,0,28,220,0,121,35,1,1,1,1,1,1,0,0,0,1,1,1,1,1,0,1,no poder borrar su proyecto y sus datos,ver el coste de cada paso antes de pulsar
+P195,3 Dueño pyme,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,que no haya suscripción
+P196,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que la ayuda mensual se renueve sin pagar
+P197,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,que la IA solo proponga y él decida todo
+P198,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,subidas de precio sin avisar,que no haya suscripción
+P199,3 Dueño pyme,pagaria,0,0,6,35,0,15,7,1,0,0,1,1,0,0,0,0,1,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que la ayuda mensual se renueve sin pagar
+P200,1 Primerizo,pagaria,0,0,3,5,0,3,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que no haya suscripción
+P201,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,que el precio de salida sea más bajo de lo que esperaba
+P202,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,que pagar una vez le cubra todo el proyecto
+P203,3 Dueño pyme,pagaria,0,0,21,105,0,40,17,1,1,0,1,1,1,0,0,0,1,1,1,1,0,0,0,documentos de IA genéricos que no sirven de borrador real,que no haya suscripción
+P204,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan sea demasiado largo y se sienta abrumado,ver el coste de cada paso antes de pulsar
+P205,6 Con capital,pagaria,0,0,8,40,20,0,7,1,0,0,1,1,0,1,1,0,0,0,0,0,0,0,0,esperar días a que se renueve la ayuda cuando necesita avanzar,que la ayuda mensual se renueve sin pagar
+P206,5 Consultor/mentor,pagaria,0,0,8,0,0,24,8,1,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,pagar y no volver a usarlo en semanas,que el plan se organice por departamentos con su gente
+P207,3 Dueño pyme,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,que pagar una vez le cubra todo el proyecto
+P208,8 Otros: jubilado,pagaria,0,0,4,15,5,4,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,poder usarlo con varios clientes sin pagar de más
+P209,4 Estudiante,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que le avisen de cuánto le queda y cuándo se renueva
+P210,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no entender qué botón gasta,que el precio de salida sea más bajo de lo que esperaba
+P211,5 Consultor/mentor,pagaria,0,0,7,0,0,36,0,1,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,quedarse sin ayuda de IA a mitad de una tarea sin aviso,poder usarlo con varios clientes sin pagar de más
+P212,5 Consultor/mentor,pagaria,0,0,29,70,45,61,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,1,falta de claridad sobre dónde se guardan los datos,poder aceptar o rechazar cada sugerencia
+P213,6 Con capital,pagaria,0,0,18,45,0,12,9,1,1,0,1,1,0,0,0,0,1,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,ver el coste de cada paso antes de pulsar
+P214,1 Primerizo,pagaria,0,0,7,0,5,3,4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,quedarse sin ayuda de IA a mitad de una tarea sin aviso,que la ayuda mensual se renueve sin pagar
+P215,2 Autónomo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan sea demasiado largo y se sienta abrumado,que pagar una vez le cubra todo el proyecto
+P216,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no entender qué botón gasta,que los documentos de IA sirvan como borrador real
+P217,2 Autónomo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que pagar una vez le cubra todo el proyecto
+P218,3 Dueño pyme,pagaria,0,0,17,80,0,32,0,1,1,0,1,1,1,0,0,0,1,1,0,0,0,0,0,quedarse sin ayuda de IA a mitad de una tarea sin aviso,que le avisen de cuánto le queda y cuándo se renueva
+P219,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que no haya suscripción
+P220,5 Consultor/mentor,pagaria,0,0,5,0,0,16,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,poder usarlo con varios clientes sin pagar de más
+P221,2 Autónomo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que no haya suscripción
+P222,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que no haya suscripción
+P223,2 Autónomo,pagaria,0,0,14,35,0,24,10,1,1,0,1,1,0,0,0,0,1,1,0,1,0,0,0,no entender qué botón gasta,poder aceptar o rechazar cada sugerencia
+P224,5 Consultor/mentor,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no entender qué botón gasta,poder usarlo con varios clientes sin pagar de más
+P225,3 Dueño pyme,pagaria,0,0,16,70,0,32,18,1,1,0,1,1,1,0,0,0,1,1,0,1,0,0,0,subidas de precio sin avisar,que el precio de salida sea más bajo de lo que esperaba
+P226,4 Estudiante,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que le avisen de cuánto le queda y cuándo se renueva
+P227,2 Autónomo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,esperar días a que se renueve la ayuda cuando necesita avanzar,que le avisen de cuánto le queda y cuándo se renueva
+P228,2 Autónomo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,subidas de precio sin avisar,que la IA solo proponga y él decida todo
+P229,6 Con capital,pagaria,0,0,0,65,15,19,13,0,0,0,1,1,1,1,1,0,1,1,0,1,0,0,0,tener que rellenar demasiado antes de ver algo útil,que le avisen de cuánto le queda y cuándo se renueva
+P230,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,que el precio de salida sea más bajo de lo que esperaba
+P231,7 Escéptico,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no entender qué botón gasta,que los documentos de IA sirvan como borrador real
+P232,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,errores en las sugerencias que le hacen perder confianza,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P233,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que el informe inicial sea gratis y útil
+P234,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,enterarse de que su idea se usa para entrenar o la ven otros,que los documentos de IA sirvan como borrador real
+P235,5 Consultor/mentor,pagaria,0,0,0,0,0,99,19,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,1,que un chat de IA corriente le dé lo mismo,que el informe inicial sea gratis y útil
+P236,1 Primerizo,pagaria,0,0,7,20,5,0,4,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,subidas de precio sin avisar,que no haya suscripción
+P237,3 Dueño pyme,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que le avisen de cuánto le queda y cuándo se renueva
+P238,8 Otros: ONG/cooperativa,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan sea demasiado largo y se sienta abrumado,que los documentos de IA sirvan como borrador real
+P239,1 Primerizo,pagaria,0,0,4,10,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,tener que rellenar demasiado antes de ver algo útil,poder usarlo con varios clientes sin pagar de más
+P240,3 Dueño pyme,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no poder borrar su proyecto y sus datos,que la IA solo proponga y él decida todo
+P241,1 Primerizo,pagaria,0,0,6,0,5,3,5,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,falta de claridad sobre dónde se guardan los datos,poder aceptar o rechazar cada sugerencia
+P242,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,que los documentos de IA sirvan como borrador real
+P243,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,errores en las sugerencias que le hacen perder confianza,que la IA solo proponga y él decida todo
+P244,4 Estudiante,pagaria,0,0,2,0,5,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,quedarse sin ayuda de IA a mitad de una tarea sin aviso,que le avisen de cuánto le queda y cuándo se renueva
+P245,2 Autónomo,pagaria,0,0,10,10,5,6,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,subidas de precio sin avisar,que no haya suscripción
+P246,2 Autónomo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no poder borrar su proyecto y sus datos,que el precio de salida sea más bajo de lo que esperaba
+P247,2 Autónomo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que el precio de salida sea más bajo de lo que esperaba
+P248,5 Consultor/mentor,pagaria,0,0,0,0,0,79,20,0,0,0,0,0,0,0,0,0,1,1,1,1,1,0,1,que el límite se agote justo al rehacer sugerencias,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P249,6 Con capital,pagaria,0,0,24,45,30,46,0,1,1,1,1,1,0,1,1,1,1,1,1,0,0,0,0,enterarse de que su idea se usa para entrenar o la ven otros,ver el coste de cada paso antes de pulsar
+P250,3 Dueño pyme,pagaria,0,0,3,15,5,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que el plan se organice por departamentos con su gente
+P251,3 Dueño pyme,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,poder usarlo con varios clientes sin pagar de más
+P252,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que el informe inicial sea gratis y útil
+P253,4 Estudiante,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que la IA solo proponga y él decida todo
+P254,6 Con capital,pagaria,0,0,29,75,55,57,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,1,enterarse de que su idea se usa para entrenar o la ven otros,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P255,8 Otros: ONG/cooperativa,pagaria,0,0,5,10,0,4,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no poder borrar su proyecto y sus datos,poder aceptar o rechazar cada sugerencia
+P256,8 Otros: ONG/cooperativa,pagaria,0,0,6,55,20,9,0,1,0,0,1,1,0,1,1,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que la ayuda mensual se renueve sin pagar
+P257,3 Dueño pyme,pagaria,0,0,12,60,0,28,0,1,1,0,1,1,1,0,0,0,1,1,0,0,0,0,0,errores en las sugerencias que le hacen perder confianza,que la IA solo proponga y él decida todo
+P258,2 Autónomo,pagaria,0,0,6,25,10,0,6,1,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,esperar días a que se renueve la ayuda cuando necesita avanzar,que le avisen de cuánto le queda y cuándo se renueva
+P259,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,falta de claridad sobre dónde se guardan los datos,que el precio de salida sea más bajo de lo que esperaba
+P260,2 Autónomo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P261,7 Escéptico,pagaria,0,0,5,0,15,7,5,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,no poder borrar su proyecto y sus datos,ver el coste de cada paso antes de pulsar
+P262,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P263,3 Dueño pyme,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,subidas de precio sin avisar,que no haya suscripción
+P264,3 Dueño pyme,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que el plan se organice por departamentos con su gente
+P265,3 Dueño pyme,pagaria,0,0,5,0,5,11,6,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,errores en las sugerencias que le hacen perder confianza,que la IA solo proponga y él decida todo
+P266,3 Dueño pyme,pagaria,0,0,9,0,5,8,6,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,poder aceptar o rechazar cada sugerencia
+P267,5 Consultor/mentor,pagaria,0,0,15,0,20,60,10,1,1,0,0,0,0,1,1,0,1,1,1,1,0,0,1,quedarse sin ayuda de IA a mitad de una tarea sin aviso,poder usarlo con varios clientes sin pagar de más
+P268,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,errores en las sugerencias que le hacen perder confianza,que la IA solo proponga y él decida todo
+P269,6 Con capital,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,falta de claridad sobre dónde se guardan los datos,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P270,8 Otros: desempleado,pagaria,0,0,2,5,5,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,enterarse de que su idea se usa para entrenar o la ven otros,que los documentos de IA sirvan como borrador real
+P271,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,errores en las sugerencias que le hacen perder confianza,poder aceptar o rechazar cada sugerencia
+P272,3 Dueño pyme,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,ver el coste de cada paso antes de pulsar
+P273,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,tener que rellenar demasiado antes de ver algo útil,que el precio de salida sea más bajo de lo que esperaba
+P274,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no entender qué botón gasta,que el plan se organice por departamentos con su gente
+P275,3 Dueño pyme,pagaria,0,0,33,130,0,65,0,1,1,1,1,1,1,0,0,0,1,1,1,0,0,0,1,que el plan sea demasiado largo y se sienta abrumado,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P276,5 Consultor/mentor,pagaria,0,0,0,0,0,125,0,0,0,0,0,0,0,0,0,0,1,1,1,0,0,0,1,pagar y no volver a usarlo en semanas,poder usarlo con varios clientes sin pagar de más
+P277,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que el precio de salida sea más bajo de lo que esperaba
+P278,3 Dueño pyme,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que no haya suscripción
+P279,6 Con capital,pagaria,0,0,0,275,70,67,37,0,0,0,1,1,1,1,1,1,1,1,1,1,1,0,1,quedarse sin ayuda de IA a mitad de una tarea sin aviso,que la ayuda mensual se renueve sin pagar
+P280,1 Primerizo,pagaria,0,0,13,65,0,27,9,1,1,0,1,1,1,0,0,0,1,1,0,0,0,0,0,esperar días a que se renueve la ayuda cuando necesita avanzar,que le avisen de cuánto le queda y cuándo se renueva
+P281,1 Primerizo,pagaria,0,0,3,5,0,3,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que pagar una vez le cubra todo el proyecto
+P282,6 Con capital,pagaria,0,0,18,65,25,25,0,1,1,0,1,1,1,1,1,0,1,1,0,0,0,0,0,esperar días a que se renueve la ayuda cuando necesita avanzar,que la ayuda mensual se renueve sin pagar
+P283,2 Autónomo,pagaria,0,0,5,10,10,0,5,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,subidas de precio sin avisar,que no haya suscripción
+P284,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,ver el coste de cada paso antes de pulsar
+P285,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,poder aceptar o rechazar cada sugerencia
+P286,1 Primerizo,pagaria,0,0,2,5,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que no haya suscripción
+P287,1 Primerizo,pagaria,0,0,3,0,5,5,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P288,6 Con capital,pagaria,0,0,27,250,110,0,42,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,0,que el límite se agote justo al rehacer sugerencias,que le avisen de cuánto le queda y cuándo se renueva
+P289,5 Consultor/mentor,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que el plan se organice por departamentos con su gente
+P290,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,poder aceptar o rechazar cada sugerencia
+P291,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,subidas de precio sin avisar,que le avisen de cuánto le queda y cuándo se renueva
+P292,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,poder usarlo con varios clientes sin pagar de más
+P293,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,falta de claridad sobre dónde se guardan los datos,que la IA solo proponga y él decida todo
+P294,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que la ayuda mensual se renueve sin pagar
+P295,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,errores en las sugerencias que le hacen perder confianza,que no haya suscripción
+P296,3 Dueño pyme,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no poder borrar su proyecto y sus datos,que la IA solo proponga y él decida todo
+P297,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,que los documentos de IA sirvan como borrador real
+P298,5 Consultor/mentor,pagaria,0,0,10,0,0,77,19,1,0,0,0,0,0,0,0,0,1,1,1,1,0,0,1,que el límite se agote justo al rehacer sugerencias,poder usarlo con varios clientes sin pagar de más
+P299,2 Autónomo,pagaria,0,0,5,0,5,0,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,esperar días a que se renueve la ayuda cuando necesita avanzar,que la ayuda mensual se renueve sin pagar
+P300,1 Primerizo,pagaria,0,0,10,40,15,0,5,1,0,0,1,1,0,1,1,0,0,0,0,0,0,0,0,subidas de precio sin avisar,que no haya suscripción
+P301,1 Primerizo,pagaria,0,0,11,20,10,7,0,1,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,no entender qué botón gasta,poder usarlo con varios clientes sin pagar de más
+P302,1 Primerizo,pagaria,0,0,6,15,10,0,0,1,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,subidas de precio sin avisar,que pagar una vez le cubra todo el proyecto
+P303,8 Otros: jubilado,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan quede desfasado al cambiar una decisión,que la IA solo proponga y él decida todo
+P304,2 Autónomo,pagaria,0,0,7,35,15,0,0,1,0,0,1,1,0,1,1,0,0,0,0,0,0,0,0,tener que rellenar demasiado antes de ver algo útil,poder aceptar o rechazar cada sugerencia
+P305,4 Estudiante,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,quedarse sin ayuda de IA a mitad de una tarea sin aviso,que la ayuda mensual se renueve sin pagar
+P306,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que el esqueleto del plan le ahorre horas
+P307,4 Estudiante,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,tener que rellenar demasiado antes de ver algo útil,poder aceptar o rechazar cada sugerencia
+P308,1 Primerizo,pagaria,0,0,5,20,5,5,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,enterarse de que su idea se usa para entrenar o la ven otros,poder aceptar o rechazar cada sugerencia
+P309,7 Escéptico,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,ver el coste de cada paso antes de pulsar
+P310,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que los documentos de IA sirvan como borrador real
+P311,4 Estudiante,pagaria,0,0,2,10,5,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,esperar días a que se renueve la ayuda cuando necesita avanzar,que le avisen de cuánto le queda y cuándo se renueva
+P312,3 Dueño pyme,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que le avisen de cuánto le queda y cuándo se renueva
+P313,1 Primerizo,pagaria,0,0,2,5,5,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,enterarse de que su idea se usa para entrenar o la ven otros,ver el coste de cada paso antes de pulsar
+P314,1 Primerizo,pagaria,0,0,6,15,10,0,0,1,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que el informe inicial sea gratis y útil
+P315,2 Autónomo,pagaria,0,0,0,40,20,17,9,0,0,0,1,1,0,1,1,0,1,0,0,0,0,0,0,quedarse sin ayuda de IA a mitad de una tarea sin aviso,que la ayuda mensual se renueve sin pagar
+P316,7 Escéptico,pagaria,0,0,9,25,10,0,7,1,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,enterarse de que su idea se usa para entrenar o la ven otros,que la IA solo proponga y él decida todo
+P317,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan quede desfasado al cambiar una decisión,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P318,1 Primerizo,pagaria,0,0,4,0,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,que no haya suscripción
+P319,3 Dueño pyme,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan quede desfasado al cambiar una decisión,poder aceptar o rechazar cada sugerencia
+P320,5 Consultor/mentor,pagaria,0,0,5,0,15,15,6,0,0,0,0,0,0,1,1,0,1,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,poder aceptar o rechazar cada sugerencia
+P321,1 Primerizo,pagaria,0,0,4,5,5,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que el esqueleto del plan le ahorre horas
+P322,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que el precio de salida sea más bajo de lo que esperaba
+P323,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,errores en las sugerencias que le hacen perder confianza,ver el coste de cada paso antes de pulsar
+P324,1 Primerizo,pagaria,0,0,2,5,5,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que le avisen de cuánto le queda y cuándo se renueva
+P325,1 Primerizo,pagaria,0,0,15,20,10,0,3,1,1,0,1,0,0,1,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que le avisen de cuánto le queda y cuándo se renueva
+P326,6 Con capital,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que el precio de salida sea más bajo de lo que esperaba
+P327,2 Autónomo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que no haya suscripción
+P328,6 Con capital,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que pagar una vez le cubra todo el proyecto
+P329,8 Otros: desempleado,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no entender qué botón gasta,que la ayuda mensual se renueve sin pagar
+P330,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,que los documentos de IA sirvan como borrador real
+P331,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,ver el coste de cada paso antes de pulsar
+P332,5 Consultor/mentor,pagaria,0,0,11,35,10,37,0,1,0,0,1,1,0,1,0,0,1,1,0,0,0,0,0,no poder borrar su proyecto y sus datos,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P333,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que la IA solo proponga y él decida todo
+P334,1 Primerizo,pagaria,0,0,3,10,5,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,errores en las sugerencias que le hacen perder confianza,ver el coste de cada paso antes de pulsar
+P335,2 Autónomo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que el plan se organice por departamentos con su gente
+P336,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que el plan se organice por departamentos con su gente
+P337,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,errores en las sugerencias que le hacen perder confianza,que los documentos de IA sirvan como borrador real
+P338,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que el informe inicial sea gratis y útil
+P339,7 Escéptico,pagaria,0,0,3,10,10,4,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que le avisen de cuánto le queda y cuándo se renueva
+P340,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,que los documentos de IA sirvan como borrador real
+P341,1 Primerizo,pagaria,0,0,8,20,0,8,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,poder aceptar o rechazar cada sugerencia
+P342,7 Escéptico,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no entender qué botón gasta,que le avisen de cuánto le queda y cuándo se renueva
+P343,6 Con capital,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,quedarse sin ayuda de IA a mitad de una tarea sin aviso,que no haya suscripción
+P344,2 Autónomo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan sea demasiado largo y se sienta abrumado,ver el coste de cada paso antes de pulsar
+P345,3 Dueño pyme,pagaria,0,0,37,120,0,48,34,1,1,1,1,1,1,0,0,0,1,1,1,1,1,0,0,que cada paso cueste algo sin saberlo antes,que no haya suscripción
+P346,3 Dueño pyme,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que le avisen de cuánto le queda y cuándo se renueva
+P347,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no poder borrar su proyecto y sus datos,que la IA solo proponga y él decida todo
+P348,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,tener que rellenar demasiado antes de ver algo útil,ver el coste de cada paso antes de pulsar
+P349,8 Otros: desempleado,pagaria,0,0,3,20,5,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que le avisen de cuánto le queda y cuándo se renueva
+P350,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que el plan se organice por departamentos con su gente
+P351,5 Consultor/mentor,pagaria,0,0,0,0,0,24,8,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que el plan se organice por departamentos con su gente
+P352,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que el esqueleto del plan le ahorre horas
+P353,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que el esqueleto del plan le ahorre horas
+P354,1 Primerizo,pagaria,0,0,2,5,0,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan quede desfasado al cambiar una decisión,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P355,2 Autónomo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,enterarse de que su idea se usa para entrenar o la ven otros,poder aceptar o rechazar cada sugerencia
+P356,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,subidas de precio sin avisar,que el precio de salida sea más bajo de lo que esperaba
+P357,8 Otros: desempleado,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,poder usarlo con varios clientes sin pagar de más
+P358,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,errores en las sugerencias que le hacen perder confianza,ver el coste de cada paso antes de pulsar
+P359,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,enterarse de que su idea se usa para entrenar o la ven otros,que los documentos de IA sirvan como borrador real
+P360,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan quede desfasado al cambiar una decisión,que la IA solo proponga y él decida todo
+P361,7 Escéptico,pagaria,0,0,5,15,5,3,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,falta de claridad sobre dónde se guardan los datos,que la IA solo proponga y él decida todo
+P362,3 Dueño pyme,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que el informe inicial sea gratis y útil
+P363,6 Con capital,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,falta de claridad sobre dónde se guardan los datos,que los documentos de IA sirvan como borrador real
+P364,5 Consultor/mentor,pagaria,0,0,8,0,0,22,0,1,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,no poder borrar su proyecto y sus datos,que el plan se organice por departamentos con su gente
+P365,4 Estudiante,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,quedarse sin ayuda de IA a mitad de una tarea sin aviso,que la ayuda mensual se renueve sin pagar
+P366,2 Autónomo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,falta de claridad sobre dónde se guardan los datos,poder aceptar o rechazar cada sugerencia
+P367,4 Estudiante,pagaria,0,0,3,0,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que el esqueleto del plan le ahorre horas
+P368,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que la IA solo proponga y él decida todo
+P369,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,tener que rellenar demasiado antes de ver algo útil,ver el coste de cada paso antes de pulsar
+P370,1 Primerizo,pagaria,0,0,2,5,5,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que pagar una vez le cubra todo el proyecto
+P371,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que la ayuda mensual se renueve sin pagar
+P372,2 Autónomo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,subidas de precio sin avisar,que los documentos de IA sirvan como borrador real
+P373,1 Primerizo,pagaria,0,0,4,10,0,3,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que el precio de salida sea más bajo de lo que esperaba
+P374,2 Autónomo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que el precio de salida sea más bajo de lo que esperaba
+P375,5 Consultor/mentor,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,falta de claridad sobre dónde se guardan los datos,ver el coste de cada paso antes de pulsar
+P376,2 Autónomo,pagaria,0,0,7,25,0,8,6,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,ver el coste de cada paso antes de pulsar
+P377,1 Primerizo,pagaria,0,0,2,5,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que no haya suscripción
+P378,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que el informe inicial sea gratis y útil
+P379,6 Con capital,pagaria,0,0,8,55,0,23,0,1,0,0,1,1,0,0,0,0,1,1,0,0,0,0,0,tener que rellenar demasiado antes de ver algo útil,que los documentos de IA sirvan como borrador real
+P380,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,tener que rellenar demasiado antes de ver algo útil,que el esqueleto del plan le ahorre horas
+P381,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,ver el coste de cada paso antes de pulsar
+P382,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que el informe inicial sea gratis y útil
+P383,6 Con capital,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,esperar días a que se renueve la ayuda cuando necesita avanzar,que la ayuda mensual se renueve sin pagar
+P384,5 Consultor/mentor,pagaria,0,0,79,0,165,245,43,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,quedarse sin ayuda de IA a mitad de una tarea sin aviso,que el plan se organice por departamentos con su gente
+P385,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,falta de claridad sobre dónde se guardan los datos,que la ayuda mensual se renueve sin pagar
+P386,2 Autónomo,pagaria,0,0,6,20,10,6,0,1,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que le avisen de cuánto le queda y cuándo se renueva
+P387,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que la IA solo proponga y él decida todo
+P388,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,falta de claridad sobre dónde se guardan los datos,ver el coste de cada paso antes de pulsar
+P389,6 Con capital,pagaria,0,0,4,40,5,10,0,0,0,0,1,1,0,0,0,0,1,0,0,0,0,0,0,falta de claridad sobre dónde se guardan los datos,ver el coste de cada paso antes de pulsar
+P390,5 Consultor/mentor,pagaria,0,0,13,0,30,34,9,1,1,0,0,0,0,1,1,1,1,1,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,poder usarlo con varios clientes sin pagar de más
+P391,4 Estudiante,pagaria,0,0,2,0,5,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no poder borrar su proyecto y sus datos,poder usarlo con varios clientes sin pagar de más
+P392,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,ver el coste de cada paso antes de pulsar
+P393,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P394,3 Dueño pyme,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que no haya suscripción
+P395,8 Otros: profesor,pagaria,0,0,9,0,15,16,12,1,0,0,0,0,0,1,1,0,1,0,0,1,0,0,0,que lo gratis sea lo único útil y el resto no compense,que el informe inicial sea gratis y útil
+P396,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,esperar días a que se renueve la ayuda cuando necesita avanzar,poder aceptar o rechazar cada sugerencia
+P397,1 Primerizo,pagaria,0,0,11,60,15,0,5,1,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,no entender qué botón gasta,poder aceptar o rechazar cada sugerencia
+P398,1 Primerizo,pagaria,0,0,8,25,20,0,5,1,0,0,1,0,0,1,1,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que el precio de salida sea más bajo de lo que esperaba
+P399,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que pagar una vez le cubra todo el proyecto
+P400,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,enterarse de que su idea se usa para entrenar o la ven otros,que los documentos de IA sirvan como borrador real
+P401,1 Primerizo,pagaria,0,0,12,0,15,5,9,1,1,0,0,0,0,1,1,0,0,0,0,0,0,0,0,subidas de precio sin avisar,que el precio de salida sea más bajo de lo que esperaba
+P402,2 Autónomo,pagaria,0,0,0,15,10,7,4,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que los documentos de IA sirvan como borrador real
+P403,4 Estudiante,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,poder aceptar o rechazar cada sugerencia
+P404,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan sea demasiado largo y se sienta abrumado,poder usarlo con varios clientes sin pagar de más
+P405,3 Dueño pyme,pagaria,0,0,11,25,0,10,4,1,0,0,1,0,0,0,0,0,1,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que no haya suscripción
+P406,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P407,3 Dueño pyme,pagaria,0,0,10,40,0,13,0,1,0,0,1,1,0,0,0,0,1,0,0,0,0,0,0,no poder borrar su proyecto y sus datos,que los documentos de IA sirvan como borrador real
+P408,5 Consultor/mentor,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,que el plan se organice por departamentos con su gente
+P409,6 Con capital,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que le avisen de cuánto le queda y cuándo se renueva
+P410,4 Estudiante,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que la ayuda mensual se renueve sin pagar
+P411,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,ver el coste de cada paso antes de pulsar
+P412,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que el informe inicial sea gratis y útil
+P413,3 Dueño pyme,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que le avisen de cuánto le queda y cuándo se renueva
+P414,6 Con capital,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,enterarse de que su idea se usa para entrenar o la ven otros,ver el coste de cada paso antes de pulsar
+P415,3 Dueño pyme,pagaria,0,0,0,50,0,23,13,0,0,0,1,1,0,0,0,0,1,1,0,1,0,0,0,que el plan quede desfasado al cambiar una decisión,que la IA solo proponga y él decida todo
+P416,1 Primerizo,pagaria,0,0,2,5,5,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan quede desfasado al cambiar una decisión,que la IA solo proponga y él decida todo
+P417,8 Otros: serial,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,poder aceptar o rechazar cada sugerencia
+P418,3 Dueño pyme,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,tener que rellenar demasiado antes de ver algo útil,que el plan se organice por departamentos con su gente
+P419,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,tener que rellenar demasiado antes de ver algo útil,que los documentos de IA sirvan como borrador real
+P420,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que le avisen de cuánto le queda y cuándo se renueva
+P421,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,subidas de precio sin avisar,que la IA solo proponga y él decida todo
+P422,3 Dueño pyme,pagaria,0,0,29,65,30,13,0,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,que pagar una vez le cubra todo el proyecto
+P423,1 Primerizo,pagaria,0,0,6,0,5,5,4,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,tener que rellenar demasiado antes de ver algo útil,que la IA solo proponga y él decida todo
+P424,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,que no haya suscripción
+P425,3 Dueño pyme,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que el precio de salida sea más bajo de lo que esperaba
+P426,3 Dueño pyme,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,quedarse sin ayuda de IA a mitad de una tarea sin aviso,que la ayuda mensual se renueve sin pagar
+P427,2 Autónomo,pagaria,0,0,2,10,0,6,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que la IA solo proponga y él decida todo
+P428,3 Dueño pyme,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que pagar una vez le cubra todo el proyecto
+P429,2 Autónomo,pagaria,0,0,4,5,5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,ver el coste de cada paso antes de pulsar
+P430,2 Autónomo,pagaria,0,0,7,0,20,7,5,1,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,enterarse de que su idea se usa para entrenar o la ven otros,que los documentos de IA sirvan como borrador real
+P431,2 Autónomo,pagaria,0,0,2,10,0,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,que el plan se organice por departamentos con su gente
+P432,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que la ayuda mensual se renueve sin pagar
+P433,7 Escéptico,pagaria,0,0,14,0,35,22,19,1,1,0,0,0,0,1,1,1,1,1,0,1,0,0,0,falta de claridad sobre dónde se guardan los datos,que la IA solo proponga y él decida todo
+P434,5 Consultor/mentor,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,que no haya suscripción
+P435,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P436,1 Primerizo,pagaria,0,0,3,25,5,4,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que la IA solo proponga y él decida todo
+P437,3 Dueño pyme,pagaria,0,0,14,0,15,22,13,1,1,0,0,0,0,1,1,0,1,1,0,1,0,0,0,quedarse sin ayuda de IA a mitad de una tarea sin aviso,que la IA solo proponga y él decida todo
+P438,2 Autónomo,pagaria,0,0,46,100,50,62,0,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,1,falta de claridad sobre dónde se guardan los datos,que los documentos de IA sirvan como borrador real
+P439,2 Autónomo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan quede desfasado al cambiar una decisión,que la IA solo proponga y él decida todo
+P440,3 Dueño pyme,pagaria,0,0,0,110,55,51,19,0,0,0,1,1,1,1,1,1,1,1,1,1,0,0,1,quedarse sin ayuda de IA a mitad de una tarea sin aviso,que le avisen de cuánto le queda y cuándo se renueva
+P441,3 Dueño pyme,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,quedarse sin ayuda de IA a mitad de una tarea sin aviso,que no haya suscripción
+P442,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que le avisen de cuánto le queda y cuándo se renueva
+P443,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que pagar una vez le cubra todo el proyecto
+P444,3 Dueño pyme,pagaria,0,0,5,35,5,5,0,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,que el plan quede desfasado al cambiar una decisión,que la IA solo proponga y él decida todo
+P445,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que el plan se organice por departamentos con su gente
+P446,4 Estudiante,pagaria,0,0,2,5,5,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que le avisen de cuánto le queda y cuándo se renueva
+P447,2 Autónomo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan sea demasiado largo y se sienta abrumado,que el informe inicial sea gratis y útil
+P448,3 Dueño pyme,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que la ayuda mensual se renueve sin pagar
+P449,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,poder aceptar o rechazar cada sugerencia
+P450,3 Dueño pyme,pagaria,0,0,16,65,0,15,0,1,1,0,1,1,1,0,0,0,1,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que pagar una vez le cubra todo el proyecto
+P451,3 Dueño pyme,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,ver el coste de cada paso antes de pulsar
+P452,1 Primerizo,pagaria,0,0,2,0,5,2,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que la ayuda mensual se renueve sin pagar
+P453,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,poder aceptar o rechazar cada sugerencia
+P454,3 Dueño pyme,pagaria,0,0,3,15,5,4,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que pagar una vez le cubra todo el proyecto
+P455,1 Primerizo,pagaria,0,0,9,25,25,0,5,1,0,0,1,0,0,1,1,0,0,0,0,0,0,0,0,tener que rellenar demasiado antes de ver algo útil,que la ayuda mensual se renueve sin pagar
+P456,3 Dueño pyme,pagaria,0,0,44,200,0,59,31,1,1,1,1,1,1,0,0,0,1,1,1,1,1,0,1,que el límite se agote justo al rehacer sugerencias,que le avisen de cuánto le queda y cuándo se renueva
+P457,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan quede desfasado al cambiar una decisión,que le avisen de cuánto le queda y cuándo se renueva
+P458,1 Primerizo,pagaria,0,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que le avisen de cuánto le queda y cuándo se renueva
+P459,3 Dueño pyme,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que no haya suscripción
+P460,2 Autónomo,pagaria,0,0,8,20,0,5,3,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que el precio de salida sea más bajo de lo que esperaba
+P461,8 Otros: ONG/cooperativa,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,quedarse sin ayuda de IA a mitad de una tarea sin aviso,ver el coste de cada paso antes de pulsar
+P462,3 Dueño pyme,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P463,8 Otros: serial,pagaria,0,0,2,0,5,4,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,subidas de precio sin avisar,que el precio de salida sea más bajo de lo que esperaba
+P464,4 Estudiante,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no entender qué botón gasta,que la ayuda mensual se renueve sin pagar
+P465,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que el esqueleto del plan le ahorre horas
+P466,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,pagar y no volver a usarlo en semanas,que el informe inicial sea gratis y útil
+P467,2 Autónomo,pagaria,0,0,11,0,20,15,11,1,0,0,0,0,0,1,1,0,1,0,0,1,0,0,0,tener que rellenar demasiado antes de ver algo útil,que el informe inicial sea gratis y útil
+P468,3 Dueño pyme,pagaria,0,0,16,45,0,16,11,1,1,0,1,1,0,0,0,0,1,0,0,1,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,que pagar una vez le cubra todo el proyecto
+P469,1 Primerizo,pagaria,0,0,0,20,10,3,5,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,poder usarlo con varios clientes sin pagar de más
+P470,6 Con capital,pagaria,0,0,6,20,5,0,5,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,un cobro que no esperaba o una renovación automática sin aviso,que pagar una vez le cubra todo el proyecto
+P471,5 Consultor/mentor,pagaria,0,0,21,0,0,53,0,1,1,0,0,0,0,0,0,0,1,1,1,0,0,0,1,subidas de precio sin avisar,que el plan se organice por departamentos con su gente
+P472,1 Primerizo,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,que la IA solo proponga y él decida todo
+P473,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,enterarse de que su idea se usa para entrenar o la ven otros,que el plan se organice por departamentos con su gente
+P474,4 Estudiante,pagaria,0,0,3,5,5,4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan sea demasiado largo y se sienta abrumado,que el plan se organice por departamentos con su gente
+P475,8 Otros: serial,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que un chat de IA corriente le dé lo mismo,que el informe inicial sea gratis y útil
+P476,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,quedarse sin ayuda de IA a mitad de una tarea sin aviso,que le avisen de cuánto le queda y cuándo se renueva
+P477,4 Estudiante,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,errores en las sugerencias que le hacen perder confianza,que los documentos de IA sirvan como borrador real
+P478,2 Autónomo,pagaria,0,0,14,35,20,0,0,1,1,0,1,1,0,1,1,0,0,0,0,0,0,0,0,no entender qué botón gasta,que el informe inicial sea gratis y útil
+P479,7 Escéptico,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,que el precio de salida sea más bajo de lo que esperaba
+P480,5 Consultor/mentor,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,esperar días a que se renueve la ayuda cuando necesita avanzar,poder usarlo con varios clientes sin pagar de más
+P481,4 Estudiante,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no entender qué botón gasta,que al cambiar una decisión se rehagan las sugerencias sin empezar de cero
+P482,4 Estudiante,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que la ayuda mensual se renueve sin pagar
+P483,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no entender qué botón gasta,que le avisen de cuánto le queda y cuándo se renueva
+P484,2 Autónomo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,tener que rellenar demasiado antes de ver algo útil,poder usarlo con varios clientes sin pagar de más
+P485,2 Autónomo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,documentos de IA genéricos que no sirven de borrador real,que la ayuda mensual se renueve sin pagar
+P486,6 Con capital,pagaria,0,0,0,70,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,falta de claridad sobre dónde se guardan los datos,que los documentos de IA sirvan como borrador real
+P487,3 Dueño pyme,pagaria,0,0,11,0,15,15,8,1,0,0,0,0,0,1,1,0,1,0,0,0,0,0,0,enterarse de que su idea se usa para entrenar o la ven otros,que los documentos de IA sirvan como borrador real
+P488,1 Primerizo,pagaria,0,0,10,20,20,0,9,1,0,0,1,0,0,1,1,0,0,0,0,0,0,0,0,subidas de precio sin avisar,que el precio de salida sea más bajo de lo que esperaba
+P489,6 Con capital,pagaria,0,0,0,270,120,236,53,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,subidas de precio sin avisar,que el precio de salida sea más bajo de lo que esperaba
+P490,4 Estudiante,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que lo gratis sea lo único útil y el resto no compense,que el precio de salida sea más bajo de lo que esperaba
+P491,4 Estudiante,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,subidas de precio sin avisar,poder usarlo con varios clientes sin pagar de más
+P492,5 Consultor/mentor,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que la ayuda mensual se renueve sin pagar
+P493,3 Dueño pyme,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,no poder borrar su proyecto y sus datos,que le avisen de cuánto le queda y cuándo se renueva
+P494,5 Consultor/mentor,pagaria,0,0,0,45,30,72,20,0,0,0,1,1,0,1,1,1,1,1,1,1,1,0,1,que el plan quede desfasado al cambiar una decisión,que la ayuda mensual se renueve sin pagar
+P495,3 Dueño pyme,pagaria,0,0,18,20,0,17,6,1,1,0,1,0,0,0,0,0,1,0,0,0,0,0,0,que cada paso cueste algo sin saberlo antes,que no haya suscripción
+P496,7 Escéptico,no_comprador,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,enterarse de que su idea se usa para entrenar o la ven otros,que los documentos de IA sirvan como borrador real
+P497,8 Otros: jubilado,pagaria,0,0,5,15,5,5,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,no entender qué botón gasta,que pagar una vez le cubra todo el proyecto
+P498,5 Consultor/mentor,pagaria,0,0,10,40,15,30,0,1,0,0,1,1,0,1,1,0,1,1,0,0,0,0,0,no entender qué botón gasta,que el plan se organice por departamentos con su gente
+P499,3 Dueño pyme,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el límite se agote justo al rehacer sugerencias,que la ayuda mensual se renueve sin pagar
+P500,1 Primerizo,abandona,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,que el plan quede desfasado al cambiar una decisión,que la ayuda mensual se renueve sin pagar
