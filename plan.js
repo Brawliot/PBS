@@ -179,7 +179,7 @@
   function parseRoute(hash) {
     const [rawPath, query = ''] = (hash.replace(/^#/, '') || '/').split('?');
     const params = new URLSearchParams(query);
-    if (rawPath === '/' || rawPath === '') return { name: 'general', all: params.get('departments') === 'all' };
+    if (rawPath === '/' || rawPath === '') return { name: 'general', all: params.get('departments') === 'all', allDecisions: params.get('decisions') === 'all' };
     if (rawPath === '/timeline') return { name: 'timeline' };
     if (rawPath === '/decisions') return { name: 'decisions' };
     if (rawPath === '/search') return { name: 'search', query: params.get('q') ?? '', status: params.get('status') ?? 'all' };
@@ -319,10 +319,24 @@
     return progressText(derived.departments[department.id]);
   }
 
+  /** What each level means, under the departments: a short line per level */
+  function tierLegend() {
+    return el(
+      'p',
+      { class: 'row__meta tier-legend' },
+      el('b', {}, 'Core'), ': needed for most decisions. ',
+      el('b', {}, 'Important'), ': needed for some. ',
+      el('b', {}, 'Light'), ': supports the others.',
+    );
+  }
+
+  /** How many decisions the overview lists before "Show all" */
+  const OVERVIEW_DECISIONS = 5;
+
   /** How many departments the overview shows before "Show all" */
   const OVERVIEW_DEPARTMENTS = 6;
 
-  function generalView(showAll) {
+  function generalView(showAll, showAllDecisions) {
     const { plan } = data;
     const items = needsYou();
     const shown = items.slice(0, 2);
@@ -396,14 +410,15 @@
       title: data.title,
       trail: null,
       heading: data.title,
-      body: [el('p', { class: 'dept-summary' }, lead), planProgress(), needs, timeline, departments, decisionsRegistry()],
+      body: [el('p', { class: 'dept-summary' }, lead), planProgress(), needs, timeline, departments, tierLegend(), decisionsRegistry(showAllDecisions)],
     };
   }
 
   /** The decisions the plan uses, what it replaced or rejected, the suggestions answered, and a form to add one */
-  function decisionsRegistry() {
+  function decisionsRegistry(showAll) {
     const { plan, catalog } = data;
-    const confirmed = (plan.facts ?? []).filter((fact) => fact.status === 'confirmed');
+    const allConfirmed = (plan.facts ?? []).filter((fact) => fact.status === 'confirmed');
+    const confirmed = showAll ? allConfirmed : allConfirmed.slice(0, OVERVIEW_DECISIONS);
     const earlier = (plan.facts ?? []).filter((fact) => fact.status === 'superseded' || fact.status === 'rejected');
     const answered = (plan.proposals ?? []).filter((item) => item.status !== 'pending');
     const sourceText = (fact) => (fact.from.kind === 'user' ? 'Entered by you' : 'Suggested by the assistant');
@@ -415,6 +430,9 @@
       confirmed.length
         ? el('ul', { class: 'list' }, confirmed.map((fact) => el('li', { class: 'row', 'data-fact-id': fact.id }, el('span', { class: 'row__name' }, factLabel(fact)), el('span', { class: 'row__meta' }, sourceText(fact)))))
         : el('p', { class: 'empty' }, 'No decisions confirmed yet.'),
+      allConfirmed.length > OVERVIEW_DECISIONS
+        ? el('p', { class: 'more' }, el('a', { href: showAll ? '#/' : '#/?decisions=all' }, showAll ? 'Show fewer decisions' : `Show all ${allConfirmed.length} decisions`))
+        : null,
       earlier.length
         ? el('details', { class: 'fold' }, el('summary', {}, `Replaced or rejected (${earlier.length})`), el('ul', { class: 'plain-list' }, earlier.map((fact) => el('li', {}, `${factLabel(fact)}: ${fact.status === 'rejected' ? 'Rejected' : 'Replaced'}`))))
         : null,
@@ -1567,15 +1585,22 @@
       body: [
         stale,
         el('p', { class: 'dept-summary' }, 'The assistant proposes. Nothing changes until you accept. Decisions are answered on the task, department or phase they affect.'),
-        el('h2', { class: 'section' }, 'Ask the assistant'),
-        structureAction,
-        departmentAction,
-        el('h2', { class: 'section' }, 'To define'),
-        gapItems,
-        el('h2', { class: 'section' }, 'Waiting for you'),
-        waitingList,
-        proposalItems,
-        departmentCards,
+        el(
+          'section',
+          { class: 'proposals-ask', 'aria-label': 'Ask the assistant' },
+          el('h2', { class: 'section' }, 'Ask the assistant'),
+          el('div', { class: 'proposals-ask__items' }, structureAction, departmentAction),
+          el('h3', { class: 'step__sub' }, 'To define'),
+          gapItems,
+        ),
+        el(
+          'section',
+          { class: 'proposals-waiting', 'aria-label': 'Waiting for you' },
+          el('h2', { class: 'section' }, 'Waiting for you'),
+          waitingList,
+          proposalItems,
+          departmentCards,
+        ),
         decidedFold,
       ],
     };
@@ -1828,7 +1853,7 @@
   function buildPage(route) {
     switch (route.name) {
       case 'general':
-        return generalView(route.all);
+        return generalView(route.all, route.allDecisions);
       case 'timeline':
         return timelineView();
       case 'decisions':
@@ -1863,7 +1888,7 @@
       planBar(route),
       tabs(route.name === 'general' ? 'overview' : route.name === 'timeline' ? 'timeline' : route.name === 'decisions' ? 'decisions' : null),
       page.trail ? crumbs(page.trail) : null,
-      notice ? el('p', { class: notice.error ? 'notice notice--error' : 'notice' }, notice.text) : null,
+      notice ? el('div', { class: notice.error ? 'notice notice--error' : 'notice' }, el('p', {}, notice.text), notice.items?.length ? el('ul', { class: 'plain-list' }, notice.items.map((line) => el('li', {}, line))) : null) : null,
       heading,
       page.body,
     ];
@@ -1917,6 +1942,29 @@
   }
 
   /** Every write: the body gets the version the screen shows, and the answer is applied or explained */
+  /** What a save changed, in plain words: tasks that can now be defined, suggestions that wait, and suggestions out of date */
+  function changesBetween(before, after) {
+    const lines = [];
+    // A gap whose last decision was answered can now be given its tasks
+    const waitingFor = (derived, task) => task.placeholder.waitsFor.filter((keyId) => !derived.confirmedFacts[keyId]);
+    for (const task of before.plan.tasks.filter((item) => item.placeholder)) {
+      const now = byId(after.plan.tasks, task.id);
+      if (now?.placeholder && waitingFor(before.derived, task).length && !waitingFor(after.derived, now).length) {
+        lines.push(`${now.title}: its decisions are answered. You can ask for its tasks on Proposals.`);
+      }
+    }
+    const waitingBefore = new Set(pendingProposals(before.plan).map((item) => item.id));
+    const newDepartment = pendingProposals(after.plan).filter((item) => isDepartmentProposal(item) && !waitingBefore.has(item.id));
+    for (const item of newDepartment) {
+      const count = item.add.tasks.length;
+      lines.push(`${count} suggested ${plural(count, 'task')} for ${deptName(item.add.tasks[0].primaryDepartmentId)} ${count === 1 ? 'is' : 'are'} waiting for your decision.`);
+    }
+    const outdated = (id) => after.derived.proposals[id]?.obsolete === true;
+    const nowOutdated = pendingProposals(after.plan).filter((item) => outdated(item.id) && !before.derived.proposals[item.id]?.obsolete);
+    if (nowOutdated.length) lines.push(`${nowOutdated.length} ${plural(nowOutdated.length, 'suggestion')} ${nowOutdated.length === 1 ? 'is' : 'are'} now out of date.`);
+    return lines;
+  }
+
   async function post(path, body, focusSelector = null, workingStepId = null) {
     if (busy || !data) return;
     busy = true;
@@ -1936,8 +1984,11 @@
       if (response.ok) {
         // The version does not move when the assistant had nothing new to add: nothing was saved then
         const unchanged = result.version === data.version;
+        const before = data;
         data = { ...data, version: result.version, plan: result.plan, derived: result.derived };
-        notice = { text: unchanged ? 'The assistant found nothing new to add, so nothing was saved.' : `Saved. The plan is at version ${result.version}.` };
+        notice = unchanged
+          ? { text: 'The assistant found nothing new to add, so nothing was saved.' }
+          : { text: `Saved. The plan is at version ${result.version}.`, items: changesBetween(before, data) };
       } else if (response.status === 409 && result.code === 'version_conflict') {
         await reload();
         notice = { text: ERROR_TEXT.version_conflict, error: true };
