@@ -453,7 +453,9 @@
 
       // 404: the server restarted or the job expired, so it cannot be recovered
       if (poll.res.status === 401) throw signedOutError();
-      if (poll.res.status === 404) throw userError('The analysis was interrupted. Please try again.', true);
+      if (poll.res.status === 404) {
+        throw userError('The analysis was lost, usually because the server restarted. Your idea is still there. Please try again.', true);
+      }
       if (!poll.res.ok) throw httpError(poll.res, poll.data);
       if (poll.data.status === 'done') return poll.data.result;
       if (poll.data.status === 'error') {
