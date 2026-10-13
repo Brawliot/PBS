@@ -120,6 +120,20 @@ When a run ends with a report (the final request, or the first round with no que
 
 "Build my plan" sends the id to `POST /api/plan`, and the server builds the plan from the stored report with the fixed rules (`server/plan/plan-skeleton.ts`). A report has at most one plan: a second request returns the same plan, and two requests at the same time leave one plan in the database. Each report belongs to the user who asked for it. When the report cannot be kept (a report that does not pass `parseReport`), the planner still answers, the result has no `reportId`, and "Build my plan" shows a notice instead.
 
+### The top of the report (the glance)
+
+The report opens with a short "glance": the idea's maturity, the stage, the location and the budget range with its fit, the four things the business asks of the person, and a line saying what the result is based on. The glance is stored in the report as the optional `glance` field (`server/plan/glance.ts`); reports kept before it have none, and then the top shows what the rest of the report has.
+
+Where each piece comes from:
+
+- **Idea (maturity), location, budget range and fit, and the source marks** ("you said" or "inferred"): phase 2 of the first round. On a first round with no questions the server builds the glance from its own phase 2 (`glanceOf` in `server/planner/planner-run.ts`). On a final request the server has no phase 2, so the browser sends the glance back with the request (`glance`, built from the analysis of the first round), and the server keeps it only if it passes the schema. A glance that does not pass is left out whole; the request still works.
+- **Stage** and **what the business asks** (time to first revenue, capital, team, regulation): the profile, which is built after the answers.
+- **Team, under what the business asks**: the team the person chose in the form, from the report's input.
+- **Budget mark**: the person's budget from the form, placed on the bar only for dollars (the form is in dollars).
+- **The line at the bottom**: the number of answers the report is based on.
+
+Known limit: a final request takes the glance fields from the browser, so they are the ones of the first round, not checked against the answers. The server only checks their shape and limits. Because the final report keeps no phase 2, a report made through questions shows no Business row after a reload (the row is shown on the live result only).
+
 ## Accounts and sessions
 
 Sign-up, sign-in and sign-out are real. There is no email verification and no password recovery yet, and the "Forgot password?" link and the Google buttons do nothing (see the limitations). Each route takes a JSON body with exactly the fields listed, and every error is `{ "error": "...", "code": "..." }` with a fixed text.
@@ -386,7 +400,7 @@ server/
   jobs.ts               In-memory job store: runs the planner in the background
   request.ts            Body reading, validation and limits for the planner request
   plan-routes.ts        Plan API as a pure function: routes, status codes, development routes, facts and proposals
-  plan/                 Plan model, rules, checks, derived values, and the plan and report repositories
+  plan/                 Plan model, rules, checks, derived values, and the plan and report repositories; the report's glance (glance.ts) and the sizes of the report (report-limits.ts)
   plan/plan-structure.ts  The plan structure: applied to a copy, proposed, and applied when accepted
   plan/agents/department-input.ts  The input of one department call, built from confirmed things and its own parts only
   plan/agents/department-suggestion.ts  The tasks of all departments: the calls, the review, the notes and the deadline
@@ -406,7 +420,7 @@ server/
   test/db/              Tests for the migrations and the PostgreSQL repositories
   test/eval/            Tests of the evaluation (fakes only: no network, no keys)
   test/auth/            Tests for the passwords, the cookie, the limit, the routes, the session store and the server's sign-in
-  test/e2e/             Browser checks of "Build my plan", of the Decisions page and of the sign-in dialogs (npm run test:e2e; the last one needs TEST_DATABASE_URL)
+  test/e2e/             Browser checks of "Build my plan", of the top of the report (result-glance.e2e.mjs), of the Decisions page and of the sign-in dialogs (npm run test:e2e; the last one needs TEST_DATABASE_URL)
   test/jobs.test.ts     Tests for the job store (expiry, limits, errors)
   package.json          Scripts and dev dependencies
   tsconfig.json         TypeScript settings (type-check only)
