@@ -1040,7 +1040,7 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
 .now--working { border-style: dashed; }
 /* Department view: summary, status filter, tasks grouped by phase, a box when there are none */
 .dept-summary { margin: 4px 0 14px; color: var(--gray-text); }
-.filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+.status-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
 .chip { padding: 4px 12px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--white); color: var(--dark); font-size: 14px; text-decoration: none; }
 .chip:hover { background: var(--surface-hover); }
 .chip[aria-current="true"] { background: var(--dark); border-color: var(--dark); color: var(--white); }
@@ -1110,7 +1110,7 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
 .progress__text { margin: 0 0 8px; }
 .progress__track { height: 10px; background: var(--gray-light); border-radius: 6px; overflow: hidden; }
 .progress__fill { height: 100%; background: var(--dark); border-radius: 6px; }
-@media print { .plan-bar, .giant, .tabs, .filters { display: none !important; } .plan { width: auto; } }
+@media print { .plan-bar, .giant, .tabs, .status-filters, .filters { display: none !important; } .plan { width: auto; } }
 .overview-grid + .more { margin: 10px 0 0; }
 .proposals-ask__items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .proposals-ask__items > * { margin: 0; }

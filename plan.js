@@ -539,7 +539,7 @@
       responsible.length >= FILTER_FROM
         ? el(
             'nav',
-            { class: 'filters', 'aria-label': 'Show tasks with status' },
+            { class: 'status-filters', 'aria-label': 'Show tasks with status' },
             DEPT_FILTERS.map(([key, label]) => {
               const count = responsible.filter((task) => key === 'all' || statusOf(task) === key).length;
               return el(
@@ -672,7 +672,7 @@
       tasks.length >= FILTER_FROM
         ? el(
             'nav',
-            { class: 'filters', 'aria-label': 'Show tasks with status' },
+            { class: 'status-filters', 'aria-label': 'Show tasks with status' },
             DEPT_FILTERS.map(([key, label]) => {
               const count = tasks.filter((task) => key === 'all' || statusOf(task) === key).length;
               return el('a', { class: 'chip', href: `#/phase/${enc(id)}?status=${key}`, 'aria-current': key === activeFilter ? 'true' : undefined }, `${label} ${count}`);
@@ -1802,7 +1802,7 @@
 
     const chips = el(
       'nav',
-      { class: 'filters', 'aria-label': 'Show tasks with status' },
+      { class: 'status-filters', 'aria-label': 'Show tasks with status' },
       TASK_FILTERS.map(([key, label]) =>
         el('a', { class: 'chip', href: `#/search?q=${enc(query)}&status=${key}`, 'aria-current': key === activeFilter ? 'true' : undefined }, label),
       ),

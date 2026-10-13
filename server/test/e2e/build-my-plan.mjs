@@ -333,6 +333,23 @@ async function scenarioCancelWait(browser) {
   return "cancel: the wait stops, the idea stays, the server is told to stop the job";
 }
 
+async function scenarioStartLayout(browser) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const page = await context.newPage();
+  await watch(page, scenarioLabel());
+  await mockApi(page, {});
+  await page.goto(`${BASE}/`);
+  await page.waitForSelector(".search__input");
+  // The four sliders sit in two rows of two (a rule of the plan pages once turned them into one wrapping line)
+  const tops = await page.evaluate(() => [...document.querySelectorAll(".filters .filter")].map((box) => Math.round(box.getBoundingClientRect().top)));
+  assert.equal(tops.length, 4, "four sliders");
+  assert.equal(new Set(tops).size, 2, `two rows of sliders, got tops ${tops}`);
+  const title = await page.evaluate(() => document.querySelector(".filters__title").getBoundingClientRect().top - document.querySelector(".hints__examples").getBoundingClientRect().top);
+  assert.ok(title > 4, "the heading sits below the examples, not beside them");
+  await context.close();
+  return "start page: the situation panel keeps its two rows of sliders";
+}
+
 let currentScenario = "";
 const scenarioLabel = () => currentScenario;
 
@@ -343,7 +360,7 @@ const browser = await chromium.launch({
 });
 let failed = 0;
 try {
-  for (const scenario of [scenarioFullFlow, scenarioError, scenarioNoReport, scenarioQuestions, scenarioQuestionsFlow, scenarioReport, scenarioCancelWait]) {
+  for (const scenario of [scenarioFullFlow, scenarioError, scenarioNoReport, scenarioQuestions, scenarioQuestionsFlow, scenarioReport, scenarioCancelWait, scenarioStartLayout]) {
     currentScenario = scenario.name;
     try {
       console.log("ok -", await scenario(browser));
