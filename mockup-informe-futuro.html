@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MANDO - Report mockup (future version)</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="theme.js"></script>
+  <style>
+    /* FUTURE VERSION. Mock only: it reuses styles.css (tokens, .result*, .tier, .btn) and adds the pieces
+       below. Everything marked "illustrative" does not exist in the product today: numeric ranges,
+       break-even from the person's capacity, named competition with sources, expert review,
+       templates, editable inferred data, first steps for this week. */
+    .result { width: min(980px, calc(100vw - 40px)); gap: 12px; }
+    .ribbon--top { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 9; background: var(--white); }
+    .ribbon { font-size: 12px; color: var(--gray-text); border: 1px dashed var(--border-strong); border-radius: 8px; padding: 6px 10px; }
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+    .glance__chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; list-style: none; }
+    .glance__chips li { padding: 4px 12px; font-size: 13px; border: 1px solid var(--border-strong); border-radius: 62px; color: var(--gray-text); }
+    .glance__chips b { font-weight: 800; color: var(--dark); }
+    .glance__idea { font-size: 16px; line-height: 1.35; padding: 10px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .src { margin-left: 6px; font-size: 12px; color: var(--gray-text); border: 1px solid var(--border); border-radius: 62px; padding: 1px 8px; white-space: nowrap; vertical-align: 1px; }
+    .link { border: 0; background: transparent; color: var(--dark); font: inherit; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; padding: 0 0 0 8px; }
+
+    .box { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--border-strong); border-radius: 10px; }
+    .box__row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 15px; }
+    .box__row b { font-weight: 800; letter-spacing: -0.01em; }
+    .box__note { font-size: 13px; color: var(--gray-text); }
+    .scale { position: relative; height: 14px; }
+    .scale__track { position: absolute; left: 0; right: 0; top: 4px; height: 6px; border-radius: 3px; background: var(--gray-light); }
+    .scale__zone { position: absolute; top: 4px; height: 6px; border-radius: 3px; background: var(--dark); }
+    .scale__you { position: absolute; top: 0; width: 2px; height: 14px; background: var(--danger); }
+    .meter { display: inline-flex; gap: 3px; vertical-align: middle; margin-left: 8px; }
+    .meter i { width: 20px; height: 6px; border-radius: 3px; background: var(--gray-light); }
+    .meter i.on { background: var(--dark); }
+    .rows > div { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0; border-top: 1px solid var(--border); font-size: 15px; }
+    .rows > div:first-child { border-top: 0; }
+    .rows dt { color: var(--gray-text); }
+    .rows dd { text-align: right; font-weight: 800; }
+    .rows dd small { display: block; font-weight: 400; font-size: 12px; color: var(--gray-text); }
+
+    .result__warnings li strong { display: block; font-weight: 800; }
+    .result__warnings li span { display: block; margin-top: 2px; font-size: 14px; color: var(--gray-text); }
+    .result__block { gap: 8px; }
+    .areas2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; list-style: none; }
+    .areas2 li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 12px; font-size: 14px; border: 1px solid var(--border); border-radius: 10px; }
+    .areas2 .why { display: block; font-size: 12px; color: var(--gray-text); }
+    .steps { list-style: none; counter-reset: s; display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+    .steps li { counter-increment: s; padding-left: 26px; position: relative; }
+    .steps li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 18px; height: 18px; border-radius: 50%; background: var(--dark); color: var(--white); font-size: 12px; text-align: center; line-height: 18px; }
+    .extras { display: flex; flex-wrap: wrap; gap: 8px; }
+    .glance__next { font-size: 13px; color: var(--gray-text); }
+    .glance__note { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); font-size: 12px; color: var(--gray-text); }
+    .result__actions .result__restart { margin-right: 0; }
+  </style>
+</head>
+<body class="has-result">
+  <p class="ribbon ribbon--top">Future version, illustrative: numeric ranges, break-even, named competition, expert review, templates and first steps do not exist today.</p>
+  <section class="result" id="result" aria-labelledby="result-title" tabindex="-1">
+    <header class="result__head">
+      <p class="result__eyebrow">Business analysis</p>
+      <h2 class="result__title" id="result-title">Your business at a glance</h2>
+      <ul class="glance__chips" aria-label="Where your idea stands">
+        <li>Idea: <b>In development</b></li>
+        <li>Stage: <b>Pre-launch</b></li>
+        <li>Location: <b>Manchester, UK</b></li>
+      </ul>
+    </header>
+    <p class="glance__idea">Mobile specialty coffee <small class="src">inferred</small> for commuters at train stations <button class="link" type="button">Edit</button></p>
+
+    <div class="cols">
+      <div class="col">
+        <section class="box" aria-label="Budget check">
+          <div class="box__row"><span>Budget</span><span><b>£5,000 – £9,000</b> <span class="tier tier--light">estimated</span></span></div>
+          <div class="scale" aria-hidden="true"><span class="scale__track"></span><span class="scale__zone" style="left:50%; width:40%"></span><span class="scale__you" style="left:40%"></span></div>
+          <p class="box__note"><span style="color: var(--danger)">&#9632;</span> Your £4,000 covers the low end only with a second-hand cart.</p>
+        </section>
+        <section class="box" aria-label="Time, cost and break-even">
+          <dl class="rows">
+            <div><dt>Time to open</dt><dd>3–5 months<small>medium confidence</small></dd></div>
+            <div><dt>Upfront cost</dt><dd>£5,000 – £9,000<small>cart 55%, licences 15%, stock 10%, other 20%</small></dd></div>
+            <div><dt>Break-even</dt><dd>about 28 cups a day<small>with 15 h a week you can serve about 40</small></dd></div>
+          </dl>
+        </section>
+        <section class="box" aria-label="Competition around you">
+          <div class="box__row"><span>Competition around you</span><b>Medium <span class="meter" aria-hidden="true"><i class="on"></i><i class="on"></i><i></i></span></b></div>
+          <dl class="rows">
+            <div><dt>Rail Roast <small class="src">example</small></dt><dd>Kiosk, 2 stations<small>source: maps data</small></dd></div>
+            <div><dt>Platform Beans <small class="src">example</small></dt><dd>Cart, 1 station<small>source: council licence list</small></dd></div>
+          </dl>
+          <p class="box__note">Medium confidence. Public sources; verify before you decide.</p>
+        </section>
+      </div>
+      <div class="col">
+        <section class="result__block">
+          <h3 class="result__label">Worth checking</h3>
+          <ul class="result__warnings">
+            <li><strong>Your budget may fall short</strong><span>Equipment and licences take most of the lower range.</span></li>
+            <li><strong>Revenue model may not match your customer</strong><span>Per-cup margins need high volume at peak hours.</span></li>
+            <li><strong>Your weekly hours may fall short</strong><span>You set 15 h; early service plus sourcing needs more.</span></li>
+          </ul>
+        </section>
+        <section class="result__block">
+          <h3 class="result__label">Key areas</h3>
+          <ul class="areas2">
+            <li><div>Legal &amp; Compliance<span class="why">Trading, hygiene rules</span></div><span class="tier tier--core">Essential</span></li>
+            <li><div>Finance<span class="why">Tightest limit</span></div><span class="tier tier--core">Essential</span></li>
+            <li><div>Marketing<span class="why">Foot traffic</span></div><span class="tier tier--important">Recommended</span></li>
+            <li><div>Operations<span class="why">Supply, hours</span></div><span class="tier tier--important">Recommended</span></li>
+          </ul>
+        </section>
+        <section class="result__block">
+          <h3 class="result__label">This week</h3>
+          <ol class="steps">
+            <li>Ask the council about a street-trading licence.</li>
+            <li>Get two quotes for a second-hand cart.</li>
+            <li>Watch three stations at 7:30–9:30.</li>
+          </ol>
+        </section>
+      </div>
+    </div>
+
+    <p class="glance__next">From your idea and 3 answers. Next: phases, departments, tasks, calendar.</p>
+
+    <div class="result__actions">
+      <button class="result__restart" type="button">Start over</button>
+      <button class="link" type="button">Ask an expert to review</button>
+      <button class="link" type="button" style="margin-right:auto">Starter templates (3)</button>
+      <button class="btn btn--outline" type="button">See full detail</button>
+      <button class="btn btn--dark" type="button">Build my plan</button>
+    </div>
+  </section>
+  <p class="glance__note">Guidance, not professional advice.</p>
+</body>
+</html>
