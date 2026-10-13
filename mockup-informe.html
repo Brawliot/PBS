@@ -8,30 +8,38 @@
   <script src="theme.js"></script>
   <style>
     /* Mockup only: the few pieces the first glance adds on top of the existing .result card.
-       Everything else reuses styles.css (tokens, .result*, .tier, .btn). */
+       Everything else reuses styles.css (tokens, .result*, .tier, .btn).
+       Only data that already exists is shown: stage, location, budget range and fit,
+       warnings with their reasons, key areas, said/inferred, the person's own answers. */
     .glance__chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; list-style: none; }
     .glance__chips li { padding: 4px 12px; font-size: 13px; border: 1px solid var(--border-strong); border-radius: 62px; color: var(--gray-text); }
     .glance__chips b { font-weight: 800; color: var(--dark); }
 
-    .budget { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border: 1px solid var(--border-strong); border-radius: 10px; }
+    .glance__idea { font-size: 17px; line-height: 1.35; padding: 12px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .src { margin-left: 6px; font-size: 12px; color: var(--gray-text); border: 1px solid var(--border); border-radius: 62px; padding: 1px 8px; white-space: nowrap; vertical-align: 1px; }
+
+    .budget { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border: 1px solid var(--border-strong); border-radius: 10px; }
     .budget__row { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 16px; }
     .budget__range { font-weight: 800; letter-spacing: -0.01em; }
+    .budget__scale { position: relative; height: 22px; }
+    .budget__track { position: absolute; left: 0; right: 0; top: 8px; height: 6px; border-radius: 3px; background: var(--gray-light); }
+    .budget__zone { position: absolute; top: 8px; height: 6px; border-radius: 3px; background: var(--dark); }
+    .budget__you { position: absolute; top: 2px; width: 2px; height: 18px; background: var(--danger); }
+    .budget__labels { position: relative; height: 16px; font-size: 12px; color: var(--gray-text); }
+    .budget__labels span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
     .budget__why { font-size: 14px; color: var(--gray-text); }
 
     .result__warnings li strong { display: block; font-weight: 800; }
     .result__warnings li span { display: block; margin-top: 2px; font-size: 14px; color: var(--gray-text); }
 
-    .result__areas li span.why { display: block; font-size: 13px; color: var(--gray-text); }
-    .result__areas li > div { min-width: 0; }
-
-    .glance__foot { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; font-size: 14px; color: var(--gray-text); }
-    .glance__foot button { border: 0; background: transparent; color: var(--dark); font: inherit; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; padding: 0; }
-    .glance__next { font-size: 14px; color: var(--gray-text); }
-      .result__pending li { display: inline-flex; align-items: center; gap: 8px; padding: 4px 6px 4px 14px; }
-      .src { margin-left: 6px; font-size: 12px; color: var(--gray-text); border: 1px solid var(--border); border-radius: 62px; padding: 1px 8px; white-space: nowrap; }
     .result__areas .why { display: block; font-size: 13px; color: var(--gray-text); }
     .result__areas li { padding: 7px 0; }
+    .result__areas li > div { min-width: 0; }
+    .result__pending li { display: inline-flex; align-items: center; gap: 8px; padding: 4px 6px 4px 14px; }
     .result__block { gap: 8px; }
+
+    .glance__next { font-size: 14px; color: var(--gray-text); }
+    .glance__note { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); font-size: 12px; color: var(--gray-text); }
   </style>
 </head>
 <body class="has-result">
@@ -46,17 +54,20 @@
       </ul>
     </header>
 
-    <dl class="result__list" id="result-summary">
-      <div><dt>Business</dt><dd>Mobile specialty coffee <small class="src">inferred</small></dd></div>
-      <div><dt>Customers</dt><dd>Commuters at train stations <small class="src">you said</small></dd></div>
-    </dl>
+    <p class="glance__idea">Mobile specialty coffee <small class="src">inferred</small> for commuters at train stations</p>
 
     <section class="budget" aria-label="Budget check">
       <div class="budget__row">
         <span>Budget</span>
         <span><span class="budget__range">£5,000 – £9,000</span> <span class="tier tier--light">estimated</span></span>
       </div>
-      <p class="budget__why">You said £4,000. That covers the low end only with a second-hand cart.</p>
+      <div class="budget__scale" aria-hidden="true">
+        <span class="budget__track"></span>
+        <span class="budget__zone" style="left:50%; width:40%"></span>
+        <span class="budget__you" style="left:40%"></span>
+      </div>
+      
+      <p class="budget__why"><span style="color: var(--danger)">&#9632;</span> Your £4,000 covers the low end only with a second-hand cart.</p>
     </section>
 
     <section class="result__block">
@@ -80,10 +91,7 @@
       </ul>
     </section>
 
-    
-    
-
-    <p class="glance__next">Next: your plan, built from this analysis. Guidance, not professional advice.</p>
+    <p class="glance__next">From your idea and 3 answers. Next: phases, departments, tasks, calendar.</p>
 
     <div class="result__actions">
       <button class="result__restart" type="button">Start over</button>
@@ -91,5 +99,6 @@
       <button class="btn btn--dark" type="button">Build my plan</button>
     </div>
   </section>
+  <p class="glance__note">Guidance, not professional advice.</p>
 </body>
 </html>
