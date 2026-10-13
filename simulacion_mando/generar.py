@@ -287,3 +287,14 @@ with open("extra_nuevas_formas.csv", "w", newline="", encoding="utf-8") as f:
             if a == "L": return int(wn[a] >= PNUEVAS[a][i] * (deps - 1))
             return int(wn[a] >= PNUEVAS[a][i])
         w.writerow([p["id"], seglabel(p), pref9, rej9] + [wn[a] for a in NUEVAS] + [buys(a, i) for a in NUEVAS for i in range(3)] + [deps])
+
+# ------------------------------------------------------------------ plan "informes + comparador + planificador" (supuestos; rng aparte)
+rng4 = random.Random(SEED + 777)
+IDEAS = {"1": (2, .6), "2": (1.5, .5), "3": (1.5, .5), "4": (3, .7), "5": (6, .6), "6": (3, .6), "7": (1.5, .5)}
+IDEAS8 = {"jubilado": (1.2, .4), "desempleado": (2, .5), "ONG/cooperativa": (2, .5), "profesor": (10, .5), "inversor pequeño": (5, .5), "serial": (5, .5)}
+with open("extra_plan_informes.csv", "w", newline="", encoding="utf-8") as f:
+    w = csv.writer(f); w.writerow(["id", "ideas_por_mes", "paciencia", "m_euros_mes", "d_base_D", "ruido"])
+    for p in pop:
+        med, sg = IDEAS8[p["segkey"].split(": ")[1]] if p["seg"] == "8" else IDEAS[p["seg"]]
+        ideas = max(1, round(med * math.exp(sg * rng4.gauss(0, 1))))
+        w.writerow([p["id"], ideas, round(p["patience"], 3), round(p["m"], 3), round(p["u"]["D"] - p["u"][p["pref"]], 3), round(math.exp(.25 * rng4.gauss(0, 1)), 3)])

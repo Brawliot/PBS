@@ -15,6 +15,7 @@
 | `extra_sensibilidad_precio.csv` | Por persona: estado (nunca paga / abandona / pagaría), máximo que pagaría por cada alternativa A–E, si compraría a mitad, referencia y doble de precio, qué le haría marcharse y qué le sorprendería |
 | `extra_costes.csv`, `resumen_costes.py`, `resumen_costes.md` | Anexo 1: costes de IA por persona y márgenes (ver final del informe) |
 | `extra_nuevas_formas.csv`, `resumen_nuevas.py`, `resumen_nuevas.md` | Anexo 2: cuatro formas de cobrar nuevas (F, G, H, L), por persona |
+| `extra_plan_informes.csv`, `resumen_plan.py`, `resumen_plan.md` | Anexo 3: tu propuesta de planes (gratis 3 informes/mes; 20 € con comparador y planificador) |
 | `generar.py`, `perfiles.py`, `textos.py`, `resumen.py` | El generador y los cálculos, reproducibles (`python3 generar.py && python3 resumen.py`) |
 
 **Definiciones.** *Nunca paga*: no pagaría aunque le guste (38 % de las 500; se pedía al menos 25 %). *Abandona*: prueba el producto y lo deja sin pagar (21 %; se pedía al menos 20 %). *Pagaría algo*: dice un importe mayor que 0 por su alternativa preferida. En `pago_mensual_o_por_proyecto` el importe va en la unidad de su preferida: €/mes para A, D y E; €/proyecto para B; €/paquete para C. En `sigue_pagando_a_3_meses`, "n/a" significa que no paga nada. En B y C, "seguir pagando" significa volver a comprar (otro proyecto o paquete).
@@ -452,3 +453,80 @@ K = veces más caro que el coste base de IA (la simulación parte de una media d
 - **Margen para ti:** con tu coste base, F, H y G dejan 480-550 € por 100 personas ofrecidas. Con costes 10 veces mayores, F baja a 241 €, G y H aguantan por el tope. El combo F + H deja 507 € ahora y 375 € con coste ×10.
 - **Lo que protege cada una:** F y H protegen porque separan el arranque (que cobras entero al principio) del goteo (que cobras solo cuando se gasta). G protege con el tope. Ninguna protege del arranque si resulta carísimo, así que conviene acotarlo en el diseño (por ejemplo, número máximo de departamentos y tareas que genera la IA al arrancar).
 - **Cautelas:** las preferencias de F, G, H y L salen de reglas mías, no de datos. Que H guste tanto depende de suponer que "pagar solo si uso" atrae a quien odia las suscripciones y no se asusta con el cobro. Que G gane margen cuanto más caro sea el coste es un efecto de suponer que la mitad de quien se pasa compra recargas al 2,5 de coste; sin recargas queda en 477-537 €. Y estas formas no recuperan a quien ya era "nunca paga" o "abandona".
+
+
+## Anexo 3: tu propuesta de planes (gratis 3 informes/mes; 20 € con 5 informes + comparador + planificador)
+
+**Cómo la he entendido (corrígeme si no):** *Gratis:* generar el informe, 3 por cuenta y mes, sin IA. *Plan de 20 €/mes:* 5 informes al mes, comparador de informes (para elegir el mejor negocio o el más claro) y uso del planificador con IA. *Luego otro plan:* un nivel superior (lo trato como 'Negocio' a 49 €/mes). Supuestos míos: el informe y su comparación no cuestan IA (se hacen con reglas); el planificador sí, con un tope de 2 $ de IA por mes y persona; en el nivel de 20 € caben hasta 3 proyectos; el pago de 20 € es mensual.
+
+Añado a cada persona cuántas ideas distintas querría pasar por el informe cada mes (suposición mía por segmento: estudiantes 3, consultores 6, profesores 10, primerizos 2, autónomos y dueños 1-2). Si ese número es mayor que el tope gratis, topa con el límite y se siente empujada a pagar; los impacientes, además, se enfadan.
+
+**Ideas por mes que querría analizar** (500 personas): mediana 2, percentil 90 = 6. Topan con el límite gratis de 3: 123 (25 %). Pasarían de 5 (tope de pago): 59 (12 %).
+
+| Seg. | Ideas/mes (mediana) | Topan con 3 gratis | Pasan de 5 |
+|---|---|---|---|
+| 1 Primerizo | 2 | 19 (15 %) | 4 (3 %) |
+| 2 Autónomo | 2 | 5 (7 %) | 1 (1 %) |
+| 3 Dueño pyme | 2 | 6 (8 %) | 1 (1 %) |
+| 4 Estudiante | 3 | 32 (43 %) | 19 (25 %) |
+| 5 Consultor/mentor | 6 | 34 (85 %) | 23 (58 %) |
+| 6 Con capital | 3 | 14 (40 %) | 4 (11 %) |
+| 7 Escéptico | 2 | 2 (4 %) | 0 (0 %) |
+| 8 Otros | 3 | 11 (44 %) | 7 (28 %) |
+
+## ¿Cuánta gente pagaría el plan de 20 €?
+
+| Variante | a 10 € | **a 20 €** | a 40 € | Ingreso inicial a 20 € por 100 |
+|---|---|---|---|---|
+| Tu propuesta: 3 gratis, 5 de pago, con comparador | 98 (20 %) | **63 (13 %)** | 28 (6 %) | 252 € |
+| Sin comparador (solo más informes y planificador) | 91 (18 %) | **59 (12 %)** | 21 (4 %) | 236 € |
+| 3 gratis, informes **ilimitados** de pago, con comparador | 98 (20 %) | **64 (13 %)** | 29 (6 %) | 256 € |
+| 5 gratis, ilimitados de pago, con comparador | 98 (20 %) | **64 (13 %)** | 29 (6 %) | 256 € |
+| 2 gratis, ilimitados de pago, con comparador | 97 (19 %) | **64 (13 %)** | 29 (6 %) | 256 € |
+| 10 gratis, ilimitados de pago, con comparador | 98 (20 %) | **64 (13 %)** | 29 (6 %) | 256 € |
+
+Para comparar, la suscripción D de antes (19 €/mes, sin comparador ni tope de informes) la compraba el 12 % (61 personas).
+
+**Quién compra tu propuesta a 20 €:** Autónomo 6, Dueño pyme 21, Consultor/mentor 20, Con capital 13, Escéptico 1, Otros 2.
+
+**De los 63 que pagarían:** 27 ya topaban con los 3 informes gratis y 13 pasan de 5 informes al mes (se les queda corto el plan de pago).
+
+**¿Cuánto importa cada pieza? Si cambio lo que pesa en mi modelo** (compradores a 20 € de 500):
+
+| Peso del comparador | Empuje del tope gratis | Enfado de impacientes | Compradores a 20 € |
+|---|---|---|---|
+| 0 | 0 | 0 | 57 (11 %) |
+| 0.35 | 0.25 | 0.5 | 63 (13 %) |
+| 0.7 | 0.25 | 0.5 | 69 (14 %) |
+| 0.35 | 0.5 | 0.25 | 66 (13 %) |
+| 0.35 | 0 | 1.0 | 59 (12 %) |
+| 0.7 | 0.5 | 0.25 | 72 (14 %) |
+| 0 | 0.5 | 0 | 61 (12 %) |
+
+Lo que se ve: el número de compradores se mueve poco (de 57 a 72 de 500) en todas las combinaciones. Es decir, en esta simulación lo que decide si pagan o no es el presupuesto y la disposición a pagar de cada persona, no los topes de informes ni el comparador. Esto puede ser verdad, o puede ser que mi modelo les da poco peso: solo se sabe preguntando.
+
+
+## Qué te deja (margen 12 meses por 100 personas ofrecidas; permanencia en meses como antes: sí 12, depende 6, no 2)
+
+| Variante | Compradores | Ingreso | IA planificador K=1 | **Margen K=1** | Margen K=10 |
+|---|---|---|---|---|---|
+| Tu propuesta (5 informes de pago) | 63 | 1464 € | 26 € | **1438 €** | 1365 € |
+| Informes ilimitados de pago | 64 | 1512 € | 26 € | **1486 €** | 1410 € |
+| Sin comparador | 59 | 1352 € | 25 € | **1327 €** | 1258 € |
+
+Para comparar (anexos anteriores, K=1): D 1.267 €; F + H 507 €; B con tope 477 €.
+
+
+## El 'otro plan' (nivel superior)
+
+A 49 €/mes con informes ilimitados lo pagarían 11 personas (Consultor/mentor 9, Con capital 1, Otros 1). Es un número pequeño: sirve a consultores, profesores e inversores, y casi a nadie más.
+
+
+**Cómo leerlo.**
+
+- **Tu estructura sirve, pero se parece mucho a la suscripción D de antes** con otra valla (informes y comparador en vez de IA). Por eso hereda sus virtudes (la compran dueños de pyme, consultores y personas con capital: 13 % a 20 €) y su riesgo: el ingreso depende de cuántos meses siga pagando cada uno. Con mis supuestos de permanencia (media de unos 5,7 meses) da 1.438 € de margen por 100 ofrecidas frente a 507 € de F + H; si el pagador medio se quedase menos de unos 2 meses, F + H le ganaría.
+- **El tope de 5 informes de pago no tiene sentido por coste**, porque el informe no usa IA: ilimitados sale igual o un poco mejor (64 compradores frente a 63) y evita que se quede corto quien genera muchos (13 de los 63 compradores, casi todos consultores).
+- **Los topes y el comparador mueven poco la compra en mi modelo** (57-72 compradores según el peso que les dé). No puedo decirte si son realmente decisivos; hay que preguntarlo a gente real.
+- **Los primerizos no compran este plan** (0 de 125 a 20 €/mes). Se quedan en F o H (pagar por proyecto o solo los meses activos).
+- **El 'otro plan'** (49 €/mes) lo pagarían unas 11 personas (2 %), casi todas consultores. Es un plan para más adelante, no para el lanzamiento.
+- **El coste de IA no es el problema** en este diseño: el planificador con tope mensual de 2 $ cuesta unos 26 € por 100 personas ofrecidas.
