@@ -52,19 +52,28 @@ export interface PlanRepository {
   update(id: string, userId: string, expectedVersion: number, plan: Plan, events: PlanEventRecord[], logs?: PlanLogRecord[]): Promise<UpdateResult>;
   /** Removes a plan that was created and never handed out: the loser of two requests for the same report */
   remove(id: string, userId: string): Promise<void>;
-  /** The user's plans, the latest change first, at most PROJECT_LIMIT. The whole plan comes with each row: the caller summarises it. */
+  /** The user's plans, the latest change first, at most PROJECT_LIMIT. Each row carries the step counts only: the caller summarises them. */
   list(userId: string): Promise<ProjectRow[]>;
 }
 
 /** The most plans one list returns. A list is a summary, so a long history stays a short answer. */
 export const PROJECT_LIMIT = 200;
 
+/** The step counts of a plan, leaving out the rejected steps: they are not work to do */
+export interface StepCounts {
+  /** The steps that are not rejected */
+  total: number;
+  done: number;
+  /** The steps that are not rejected and have left not_started */
+  started: number;
+}
+
 export interface ProjectRow {
   id: string;
   title: string;
   /** ISO time of the last change */
   updatedAt: string;
-  plan: Plan;
+  counts: StepCounts;
 }
 
 /** A stored row that cannot be read. The message is fixed: the code says why, and nothing from the row goes in. */

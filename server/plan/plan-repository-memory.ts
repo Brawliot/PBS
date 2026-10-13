@@ -5,6 +5,7 @@
 
 import { randomUUID } from "node:crypto";
 import { MAX_DOCUMENT_BYTES, parsePlan, type Plan } from "./plan-model.js";
+import { countSteps } from "./project-summary.js";
 import {
   PLAN_SCHEMA_VERSION,
   PROJECT_LIMIT,
@@ -81,7 +82,7 @@ export class InMemoryPlanRepository implements PlanRepository {
       .filter((row) => row.userId === userId)
       .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0))
       .slice(0, PROJECT_LIMIT)
-      .map((row) => ({ id: row.id, title: row.title, updatedAt: row.updatedAt, plan: readStoredPlan(row.schemaVersion, JSON.parse(row.document)) }));
+      .map((row) => ({ id: row.id, title: row.title, updatedAt: row.updatedAt, counts: countSteps(readStoredPlan(row.schemaVersion, JSON.parse(row.document))) }));
   }
 
   private stored(row: MemoryRow): StoredPlan {

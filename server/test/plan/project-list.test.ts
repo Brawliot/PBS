@@ -8,7 +8,7 @@ import { describe, it } from "node:test";
 import { restaurantPlan } from "../../plan/demo-plan.js";
 import { InMemoryPlanRepository } from "../../plan/plan-repository-memory.js";
 import { InMemoryReportRepository } from "../../plan/report-repository-memory.js";
-import { summarizeProject } from "../../plan/project-summary.js";
+import { countSteps, summarizeProject } from "../../plan/project-summary.js";
 import { handlePlanRequest } from "../../plan-routes.js";
 import type { Plan } from "../../plan/plan-model.js";
 
@@ -19,7 +19,7 @@ describe("project summary", () => {
   it("counts done steps against the steps that are not rejected", () => {
     const plan: Plan = restaurantPlan();
     const steps = plan.steps.map((step, index) => ({ ...step, status: index === 0 ? ("done" as const) : step.status }));
-    const summary = summarizeProject({ id: "p", title: "t", updatedAt: "2026-10-13T00:00:00.000Z", plan: { ...plan, steps } });
+    const summary = summarizeProject({ id: "p", title: "t", updatedAt: "2026-10-13T00:00:00.000Z", counts: countSteps({ ...plan, steps }) });
     const rejected = steps.filter((step) => step.status === "rejected").length;
     assert.equal(summary.total, steps.length - rejected);
     assert.equal(summary.done, 1);
@@ -29,9 +29,15 @@ describe("project summary", () => {
   it("a plan with no step started is not started", () => {
     const plan: Plan = restaurantPlan();
     const steps = plan.steps.map((step) => ({ ...step, status: "not_started" as const }));
-    const summary = summarizeProject({ id: "p", title: "t", updatedAt: "x", plan: { ...plan, steps } });
+    const summary = summarizeProject({ id: "p", title: "t", updatedAt: "x", counts: countSteps({ ...plan, steps }) });
     assert.equal(summary.status, "not_started");
     assert.equal(summary.percent, 0);
+  });
+
+  it("a rejected step that was started is neither counted as started nor as done", () => {
+    const plan: Plan = restaurantPlan();
+    const steps = plan.steps.map((step, index) => ({ ...step, status: index === 0 ? ("rejected" as const) : ("not_started" as const) }));
+    assert.deepEqual(countSteps({ ...plan, steps }), { total: steps.length - 1, done: 0, started: 0 });
   });
 });
 

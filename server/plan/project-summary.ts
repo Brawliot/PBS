@@ -4,7 +4,8 @@
  * A rejected step is not counted: it is not work to do.
  */
 
-import type { ProjectRow } from "./plan-repository.js";
+import type { Plan } from "./plan-model.js";
+import type { ProjectRow, StepCounts } from "./plan-repository.js";
 
 export type ProjectStatus = "not_started" | "in_progress" | "done";
 
@@ -18,12 +19,19 @@ export interface ProjectSummary {
   percent: number;
 }
 
+/** The counts the summary needs, made from a whole plan. The database makes the same counts in SQL (see pg-plan-repository.ts). */
+export function countSteps(plan: Plan): StepCounts {
+  const steps = plan.steps.filter((step) => step.status !== "rejected");
+  return {
+    total: steps.length,
+    done: steps.filter((step) => step.status === "done").length,
+    started: steps.filter((step) => step.status !== "not_started").length,
+  };
+}
+
 export function summarizeProject(row: ProjectRow): ProjectSummary {
-  const steps = row.plan.steps.filter((step) => step.status !== "rejected");
-  const done = steps.filter((step) => step.status === "done").length;
-  const total = steps.length;
-  const started = steps.some((step) => step.status !== "not_started");
-  const status: ProjectStatus = total > 0 && done === total ? "done" : started ? "in_progress" : "not_started";
+  const { total, done, started } = row.counts;
+  const status: ProjectStatus = total > 0 && done === total ? "done" : started > 0 ? "in_progress" : "not_started";
   return {
     id: row.id,
     title: row.title,

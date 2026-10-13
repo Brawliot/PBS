@@ -16,6 +16,7 @@ import {
   PROJECT_LIMIT,
   type PlanRepository,
   type ProjectRow,
+  StoredPlanError,
   type StoredPlan,
   type UpdateResult,
 } from "../plan/plan-repository.js";
@@ -26,6 +27,17 @@ interface PlanRow {
   version: number;
   schema_version: number;
   document: unknown;
+}
+
+/** One row of the project list: the step counts are made by the database, so the document does not travel */
+interface ProjectListRow {
+  id: string;
+  title: string;
+  schema_version: number;
+  updated_at: Date;
+  total: number;
+  done: number;
+  started: number;
 }
 
 const storedFrom = (row: PlanRow): StoredPlan => ({
@@ -62,13 +74,26 @@ export class PgPlanRepository implements PlanRepository {
   }
 
   async list(userId: string): Promise<ProjectRow[]> {
-    // Reads the whole document (the progress is counted from it) but returns only the summary's fields
-    const { rows } = await this.pool.query<PlanRow & { updated_at: Date }>(
-      `SELECT id, title, version, schema_version, document, updated_at
+    // The counts are made here, in the database, from the steps of each document. The same rules as countSteps
+    // (rejected steps are left out, a step that is not_started is not started), so the list and the plan page agree.
+    const { rows } = await this.pool.query<ProjectListRow>(
+      `SELECT id, title, schema_version, updated_at,
+              (SELECT count(*)::int FROM jsonb_array_elements(document->'steps') AS step WHERE step->>'status' <> 'rejected') AS total,
+              (SELECT count(*)::int FROM jsonb_array_elements(document->'steps') AS step WHERE step->>'status' = 'done') AS done,
+              (SELECT count(*)::int FROM jsonb_array_elements(document->'steps') AS step WHERE step->>'status' NOT IN ('rejected', 'not_started')) AS started
          FROM plans WHERE user_id = $1 ORDER BY updated_at DESC LIMIT $2`,
       [userId, PROJECT_LIMIT],
     );
-    return rows.map((row) => ({ id: row.id, title: row.title, updatedAt: row.updated_at.toISOString(), plan: storedFrom(row).plan }));
+    return rows.map((row) => {
+      // A row of another schema is not read, as before: a migration has to decide what it means
+      if (row.schema_version !== PLAN_SCHEMA_VERSION) throw new StoredPlanError("schema_mismatch");
+      return {
+        id: row.id,
+        title: row.title,
+        updatedAt: row.updated_at.toISOString(),
+        counts: { total: row.total, done: row.done, started: row.started },
+      };
+    });
   }
 
   async update(id: string, userId: string, expectedVersion: number, plan: Plan, events: PlanEventRecord[], logs: PlanLogRecord[] = []): Promise<UpdateResult> {
