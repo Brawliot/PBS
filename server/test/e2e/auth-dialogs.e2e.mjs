@@ -58,10 +58,10 @@ try {
     await page.screenshot({ path: join(SHOTS, "1-home-signed-out.png") });
   });
 
-  await check("the register dialog has no birth date, keeps Google and the Forgot password link, and every field has a label", async () => {
+  await check("the register dialog has no birth date, hides Google until it exists, and every field has a label", async () => {
     await page.click('#nav-guest [data-auth="register"]');
     assert.equal(await page.locator('input[name="birthdate"]').count(), 0);
-    assert.equal(await page.locator("text=Sign up with Google").count(), 1);
+    assert.equal(await page.locator("text=Sign up with Google").isVisible(), false, "Google is hidden until it exists");
     const unlabelled = await page.$$eval('#auth-modal input', (inputs) => inputs.filter((input) => input.labels.length === 0).length);
     assert.equal(unlabelled, 0);
     await page.keyboard.press("Escape");
