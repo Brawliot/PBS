@@ -34,9 +34,12 @@ const REPORT_ID = "44444444-4444-4444-8444-444444444444";
 const SCREENSHOTS = process.env.SCREENSHOTS;
 const SCHEME = process.env.SCHEME ?? "light";
 const THEME = process.env.THEME ?? "system";
+/** The theme is picked before any dialog opens: an open dialog covers the header's theme picker */
+const pickTheme = async (page) => {
+  if (SCREENSHOTS && THEME !== "system") await page.click(`[data-theme-choice="${THEME}"]`);
+};
 const shoot = async (page, name) => {
   if (!SCREENSHOTS) return;
-  if (THEME !== "system") await page.click(`[data-theme-choice="${THEME}"]`);
   await page.waitForTimeout(900);
   await page.screenshot({ path: join(SCREENSHOTS, `${name}-${THEME}-${SCHEME}.png`), fullPage: true });
 };
@@ -167,6 +170,7 @@ async function reachResult(page) {
   await page.click('.question__option:has-text("Yes")');
   await page.click(".question__submit");
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
+  await pickTheme(page);
 }
 
 /** What the time and cost block shows, read from the page, and the widths of the bar */
