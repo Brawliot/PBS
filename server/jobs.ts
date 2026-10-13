@@ -15,10 +15,11 @@ export interface JobStoreOptions {
   now?: () => number; // injectable clock, so tests do not wait
 }
 
-/** A job and the user it belongs to: only that user can read it */
+/** A job and the user it belongs to: only that user can read it. The abort stops the work when the job is cancelled. */
 interface JobEntry {
   owner: string;
   state: JobState;
+  abort: AbortController;
 }
 
 export class JobStore {
@@ -38,28 +39,49 @@ export class JobStore {
     return this.jobs.size;
   }
 
-  /** Starts `run` in the background for `owner` and returns the id to poll */
-  start(owner: string, run: () => Promise<unknown>): string {
+  /** Starts `run` in the background for `owner` and returns the id to poll. `run` gets a signal that is aborted on cancel. */
+  start(owner: string, run: (signal: AbortSignal) => Promise<unknown>): string {
     this.sweep();
     if (this.jobs.size >= this.maxJobs) {
       throw new HttpError(503, "Server busy, try again shortly");
     }
 
     const id = randomUUID();
-    this.jobs.set(id, { owner, state: { status: "pending", createdAt: this.now() } });
+    const abort = new AbortController();
+    this.jobs.set(id, { owner, state: { status: "pending", createdAt: this.now() }, abort });
 
     // The promise constructor calls run() and turns a synchronous throw into a rejection
-    new Promise<unknown>((resolve) => resolve(run())).then(
+    new Promise<unknown>((resolve) => resolve(run(abort.signal))).then(
       (result) => {
-        this.jobs.set(id, { owner, state: { status: "done", result, finishedAt: this.now() } });
+        this.finish(id, owner, { status: "done", result, finishedAt: this.now() });
       },
       (error) => {
-        logFailure("planner job", error);
+        // A cancelled job fails on purpose (its request was aborted): that is not a failure to log
+        if (!abort.signal.aborted) logFailure("planner job", error);
         const message = error instanceof Error && error.message ? error.message : "Internal server error";
-        this.jobs.set(id, { owner, state: { status: "error", message, finishedAt: this.now() } });
+        this.finish(id, owner, { status: "error", message, finishedAt: this.now() });
       },
     );
     return id;
+  }
+
+  /**
+   * Cancels a pending job of `owner`: its work is aborted and it is removed, so polling it answers not found.
+   * Returns false when there is no such pending job (unknown, someone else's, or already finished).
+   */
+  cancel(id: string, owner: string): boolean {
+    const entry = this.jobs.get(id);
+    if (!entry || entry.owner !== owner || entry.state.status !== "pending") return false;
+    this.jobs.delete(id);
+    entry.abort.abort();
+    return true;
+  }
+
+  /** Stores the outcome of a job. A job cancelled meanwhile has no entry, so its late outcome is dropped. */
+  private finish(id: string, owner: string, state: Exclude<JobState, { status: "pending" }>): void {
+    const entry = this.jobs.get(id);
+    if (!entry) return;
+    this.jobs.set(id, { ...entry, owner, state });
   }
 
   /**

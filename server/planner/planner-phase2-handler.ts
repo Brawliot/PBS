@@ -284,6 +284,7 @@ export async function analyzePhase2(
   input: PlannerInput,
   jev: JevResponse,
   answers: PlannerAnswer[] = [],
+  signal?: AbortSignal,
 ): Promise<Phase2Response> {
   const apiKey = process.env.OPENAI_API_KEY;
   const model = process.env.OPENAI_MODEL;
@@ -309,7 +310,8 @@ export async function analyzePhase2(
       temperature: 0.3,
       max_completion_tokens: 2500,
     }),
-    signal: AbortSignal.timeout(OPENAI_TIMEOUT_MS),
+    // The request stops at its time limit, or earlier when the job is cancelled
+    signal: AbortSignal.any([AbortSignal.timeout(OPENAI_TIMEOUT_MS), ...(signal ? [signal] : [])]),
   });
 
   if (!response.ok) {

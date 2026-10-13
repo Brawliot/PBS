@@ -302,6 +302,37 @@ async function scenarioReport(browser) {
   return "report: lists say what they leave out, levels in words, header usable, Start over asks first";
 }
 
+/** Cancel while the assistant works: the wait stops, the idea stays, and the server is told to stop the job */
+async function scenarioCancelWait(browser) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const page = await context.newPage();
+  await watch(page, scenarioLabel());
+  // The planner never answers: the job stays pending until it is cancelled
+  const deletes = [];
+  await page.route("**/api/auth/session", (route) => route.fulfill(json(200, { user: { name: "Ana" } })));
+  await page.route("**/api/planner", (route) => route.fulfill(json(202, { jobId: JOB_ID })));
+  await page.route("**/api/planner/*", (route) => {
+    if (route.request().method() === "DELETE") {
+      deletes.push(route.request().url());
+      return route.fulfill({ status: 204 });
+    }
+    return route.fulfill(json(200, { status: "pending" }));
+  });
+  await fillAndSend(page);
+  await page.waitForSelector("#wait-cancel:not([hidden])", { timeout: 10_000 });
+  await page.click("#wait-cancel");
+  await page.waitForFunction(() => document.getElementById("wait-cancel").hidden === true, null, { timeout: 10_000 });
+  // Several poll rounds later: no error, no result, the idea is still there
+  await page.waitForTimeout(3500);
+  assert.deepEqual(deletes, [`${BASE}/api/planner/${JOB_ID}`], "the server is told to stop the job, once");
+  assert.equal(await page.textContent("#status"), "Analysis cancelled. Your idea is still there.");
+  assert.equal(await page.evaluate(() => document.getElementById("submit-error").classList.contains("is-open")), false, "no error after a cancel");
+  assert.equal(await page.isHidden("#result"), true, "no result after a cancel");
+  assert.equal(await page.inputValue(".search__input"), "Bakery delivery", "the idea is kept");
+  await context.close();
+  return "cancel: the wait stops, the idea stays, the server is told to stop the job";
+}
+
 let currentScenario = "";
 const scenarioLabel = () => currentScenario;
 
@@ -312,7 +343,7 @@ const browser = await chromium.launch({
 });
 let failed = 0;
 try {
-  for (const scenario of [scenarioFullFlow, scenarioError, scenarioNoReport, scenarioQuestions, scenarioQuestionsFlow, scenarioReport]) {
+  for (const scenario of [scenarioFullFlow, scenarioError, scenarioNoReport, scenarioQuestions, scenarioQuestionsFlow, scenarioReport, scenarioCancelWait]) {
     currentScenario = scenario.name;
     try {
       console.log("ok -", await scenario(browser));

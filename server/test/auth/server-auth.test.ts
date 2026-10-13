@@ -152,6 +152,11 @@ describe("the protected routes", () => {
     assert.equal(job.status, 202);
     assert.equal((await call("GET", `/api/planner/${job.body.jobId}`, { cookie: cookieB })).status, 404);
     assert.equal((await call("GET", `/api/planner/${job.body.jobId}`, { cookie: cookieA })).status, 200);
+    // Cancel: only its owner can stop it, a request from another site is refused, and no session is 401
+    const cancelPath = `/api/planner/${job.body.jobId}`;
+    assert.equal((await call("DELETE", cancelPath)).status, 401);
+    assert.equal((await call("DELETE", cancelPath, { cookie: cookieB })).status, 404, "another user's job is not found");
+    assert.equal((await call("DELETE", cancelPath, { cookie: cookieA, origin: "https://elsewhere.example" })).status, 403, "a request from another site is refused");
   });
 });
 

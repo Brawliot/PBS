@@ -441,6 +441,15 @@ body.is-loading .search {
 .question__link:hover { opacity: 0.65; }
 .question__link[hidden] { display: none; }
 
+/* Cancel while the assistant works: shown under the loader, for any wait (start page and plan page) */
+.wait-cancel {
+  position: fixed; bottom: 28px; left: 50%; z-index: 8; transform: translateX(-50%);
+  border: 0; background: transparent; color: var(--dark); font: inherit; font-size: 14px;
+  text-decoration: underline; padding: 6px 10px;
+}
+.wait-cancel:hover { opacity: 0.65; }
+.wait-cancel[hidden] { display: none; }
+
 /* ==========================================================================
    Result: a card styled like the popups, replaces the hero once the analysis is done
    (body.has-result). Centred on the screen, a little above the middle (--result-lift).

@@ -65,6 +65,8 @@
   };
   const GENERIC_ERROR = 'Something went wrong on the server. Try again.';
   const NETWORK_ERROR = 'Could not reach the server. Check your connection and try again.';
+  const TIMEOUT_ERROR = 'The request took too long. Please try again.';
+  const PLAN_WAIT_MS = 120_000; // longest wait for one change; the assistant's own calls end before this
 
   const STATUS = {
     not_started: 'Not started',
@@ -108,6 +110,15 @@
   let data = null;
   let planId = null;
   let busy = false;
+  // The Cancel of a wait: its controller stops the request, and waitCancelled tells the catch that it was the person
+  let waitController = null;
+  let waitCancelled = false;
+  const waitCancel = document.getElementById('wait-cancel');
+  waitCancel.addEventListener('click', () => {
+    if (!waitController) return;
+    waitCancelled = true;
+    waitController.abort();
+  });
   let notice = null;
   let lastHash = null;
   // The AI step the assistant is working on (its Start or its answers), and the answers typed so far, kept across renders
@@ -1976,6 +1987,10 @@
     if (working) startClock();
     view.inert = true;
     Loader.show();
+    // Cancel stops waiting for the answer; the server may still finish, so the plan is read again afterwards
+    waitController = new AbortController();
+    waitCancelled = false;
+    waitCancel.hidden = false;
     if (working) render({ focusSelector });
     try {
       const response = await fetch(`${planUrl()}${path}`, {
@@ -1983,6 +1998,7 @@
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
         cache: 'no-store',
         body: JSON.stringify({ ...body, expectedVersion: data.version }),
+        signal: AbortSignal.any([waitController.signal, AbortSignal.timeout(PLAN_WAIT_MS)]),
       });
       const result = await response.json().catch(() => ({}));
       if (response.ok) {
@@ -1999,11 +2015,21 @@
       } else {
         notice = { text: ERROR_TEXT[result.code] ?? GENERIC_ERROR, error: true };
       }
-    } catch {
-      notice = { text: NETWORK_ERROR, error: true };
+    } catch (error) {
+      if (waitCancelled) {
+        // What was saved is what the server now has: the plan is read again, and the copy on screen is replaced
+        await reload();
+        notice = { text: 'Cancelled. The plan shows what was saved.' };
+      } else if (error?.name === 'TimeoutError') {
+        notice = { text: TIMEOUT_ERROR, error: true };
+      } else {
+        notice = { text: NETWORK_ERROR, error: true };
+      }
     } finally {
       busy = false;
       working = null;
+      waitController = null;
+      waitCancel.hidden = true;
       stopClock();
       view.inert = false;
       await Loader.hide();

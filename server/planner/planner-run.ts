@@ -134,11 +134,15 @@ export interface PlannerRunOptions {
   reports?: ReportRepository;
   /** The user the report belongs to */
   owner: string;
+  /** Aborted when the person cancels the analysis: the run stops, and no report is kept for it */
+  signal?: AbortSignal;
 }
 
 /** Keeps a report and returns its id; on failure, logs the code only and returns no id */
 async function keepReport(options: PlannerRunOptions, report: object): Promise<{ reportId?: string }> {
   if (!options.reports) return {};
+  // A cancelled run keeps nothing: this throws, and the job has no result to give anyway
+  options.signal?.throwIfAborted();
   try {
     return { reportId: await options.reports.create(options.owner, report) };
   } catch (error) {
@@ -156,7 +160,7 @@ export async function runPlanner(
   claims: Claims,
   options: PlannerRunOptions,
 ) {
-  const jev = await analyzeWithJev(input);
+  const jev = await analyzeWithJev(input, options.signal);
 
   // Final request: the questions are answered, so only the profile is left (no phase 2 in this report)
   if (final) {
@@ -164,7 +168,7 @@ export async function runPlanner(
     return { jev, ...built, ...(await keepReport(options, reportOf(input, answers, jev, built))) };
   }
 
-  const phase2 = await analyzePhase2(input, jev, answers);
+  const phase2 = await analyzePhase2(input, jev, answers, options.signal);
   const questions = selectQuestions(
     phase2.questions,
     answers,

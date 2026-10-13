@@ -144,6 +144,7 @@ export function buildState(input: PlannerInput): string {
 export async function callJev(
   state: string,
   questions: Record<string, JevQuestion>,
+  signal?: AbortSignal,
 ): Promise<JevResponse> {
   const apiKey = process.env.TYPESAFE_API_KEY;
   const model = process.env.JEV_MODEL;
@@ -159,7 +160,8 @@ export async function callJev(
       "Content-Type": "application/json",
     },
     body: JSON.stringify(request),
-    signal: AbortSignal.timeout(JEV_TIMEOUT_MS),
+    // The request stops at its time limit, or earlier when the job is cancelled
+    signal: AbortSignal.any([AbortSignal.timeout(JEV_TIMEOUT_MS), ...(signal ? [signal] : [])]),
   });
 
   if (!response.ok) {
@@ -186,8 +188,8 @@ export async function callJev(
   return result;
 }
 
-export function analyzeWithJev(input: PlannerInput): Promise<JevResponse> {
-  return callJev(buildState(input), JEV_QUESTIONS);
+export function analyzeWithJev(input: PlannerInput, signal?: AbortSignal): Promise<JevResponse> {
+  return callJev(buildState(input), JEV_QUESTIONS, signal);
 }
 
 export type { JevQuestion, JevResponse, JevAnswer };

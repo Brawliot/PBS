@@ -209,3 +209,63 @@ describe("JobStore owners", () => {
     assert.deepEqual(store.get(id, USER), { status: "error", message: "private detail", finishedAt: 0 });
   });
 });
+
+describe("JobStore.cancel", () => {
+  test("aborts the run's signal, removes the job, and answers not found", async () => {
+    const { store } = makeStore();
+    let seen: AbortSignal | undefined;
+    const id = store.start(USER, (signal) => {
+      seen = signal;
+      return new Promise(() => {});
+    });
+    assert.equal(store.cancel(id, USER), true);
+    assert.equal(seen?.aborted, true);
+    assert.equal(store.get(id, USER), undefined);
+  });
+
+  test("drops the late result of a cancelled run", async () => {
+    const { store } = makeStore();
+    const run = deferred<string>();
+    const id = store.start(USER, () => run.promise);
+    store.cancel(id, USER);
+    run.resolve("too late");
+    await flush();
+    assert.equal(store.get(id, USER), undefined);
+  });
+
+  test("a cancelled run's failure is not logged", async () => {
+    const { store } = makeStore();
+    const consoleError = mock.method(console, "error", () => {});
+    const run = deferred<never>();
+    const id = store.start(USER, () => run.promise);
+    store.cancel(id, USER);
+    run.reject(new Error("The operation was aborted"));
+    await flush();
+    assert.equal(consoleError.mock.callCount(), 0);
+    assert.equal(store.get(id, USER), undefined);
+  });
+
+  test("another user's job cannot be cancelled, and nothing changes", () => {
+    const { store } = makeStore();
+    const id = store.start(USER, () => new Promise(() => {}));
+    assert.equal(store.cancel(id, OTHER_USER), false);
+    assert.equal(store.get(id, USER)?.status, "pending");
+  });
+
+  test("a finished job cannot be cancelled: its result stays", async () => {
+    const { store } = makeStore();
+    const result = { ok: true };
+    const id = store.start(USER, async () => result);
+    await flush();
+    assert.equal(store.cancel(id, USER), false);
+    assert.deepEqual(store.get(id, USER), { status: "done", result, finishedAt: 0 });
+  });
+
+  test("a cancelled job frees its place for a new one", () => {
+    const { store } = makeStore(1);
+    const id = store.start(USER, () => new Promise(() => {}));
+    assert.throws(() => store.start(USER, () => new Promise(() => {})), HttpError);
+    store.cancel(id, USER);
+    assert.doesNotThrow(() => store.start(USER, () => new Promise(() => {})));
+  });
+});

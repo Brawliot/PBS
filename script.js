@@ -343,6 +343,17 @@
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   let loader = null;
   let sending = false;
+  // The planner job being waited for: { id, cancelled }. Cancel marks it, and the wait stops at its next check.
+  let activeJob = null;
+  const cancelledError = () => Object.assign(new Error('Analysis cancelled'), { cancelled: true });
+  // Tells the server to stop the job. Best effort: the wait has already stopped on this side.
+  const stopServerJob = (id) => {
+    fetch(`/api/planner/${encodeURIComponent(id)}`, { method: 'DELETE', cache: 'no-store', keepalive: true }).catch(() => {});
+  };
+  // Cancel is offered for any wait, but not under the question popup, which has its own Cancel
+  const waitCancel = document.getElementById('wait-cancel');
+  const syncWaitCancel = () => { waitCancel.hidden = !sending || document.getElementById('question').classList.contains('is-open'); };
+  waitCancel.addEventListener('click', () => cancelWait());
 
   // Submit error: a dismissable box under the search block
   const submitError = document.getElementById('submit-error');
@@ -401,8 +412,10 @@
     return userError(message, res.status >= 500);
   };
 
-  // Starts the planner job, then polls it until the result is ready
+  // Starts the planner job, then polls it until the result is ready. Cancel (cancelWait) stops both.
   const sendIdea = async (payload) => {
+    const job = { id: null, cancelled: false };
+    activeJob = job;
     const start = await requestJson('/api/planner', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -413,20 +426,29 @@
     if (start.res.status !== 202 || typeof start.data.jobId !== 'string') {
       throw userError('Something went wrong. Please try again.', true);
     }
+    job.id = start.data.jobId;
+    // Cancelled while the start request was in flight: the job exists now, so it is stopped too
+    if (job.cancelled) {
+      stopServerJob(job.id);
+      throw cancelledError();
+    }
 
     const deadline = Date.now() + JOB_TIMEOUT_MS;
     let networkErrors = 0;
     while (Date.now() < deadline) {
       await wait(POLL_MS);
+      if (job.cancelled) throw cancelledError();
       let poll;
       try {
-        poll = await requestJson(`/api/planner/${start.data.jobId}`, {}, POLL_TIMEOUT_MS);
+        poll = await requestJson(`/api/planner/${job.id}`, {}, POLL_TIMEOUT_MS);
       } catch {
+        if (job.cancelled) throw cancelledError();
         if (++networkErrors >= MAX_NETWORK_ERRORS) {
           throw userError('Could not reach the server. Check your connection.', true);
         }
         continue;
       }
+      if (job.cancelled) throw cancelledError();
       networkErrors = 0;
 
       // 404: the server restarted or the job expired, so it cannot be recovered
@@ -452,6 +474,7 @@
     search.style.setProperty('--origin-y', `${innerHeight / 2 - search.getBoundingClientRect().top}px`);
     document.body.classList.add('is-loading');
     loader = Loader.mount(loaderSlot);
+    syncWaitCancel();
   };
 
   const stopLoading = async () => {
@@ -462,6 +485,7 @@
     search.inert = false;
     search.removeAttribute('aria-busy');
     sending = false;
+    syncWaitCancel();
   };
 
   // Question flow: the first response carries the questions, asked one by one. Once they are
@@ -531,6 +555,8 @@
         throw new Error('No questions and no profile');
       }
     } catch (err) {
+      // Cancelled: cancelWait has already put the page back, so there is nothing more to show
+      if (err?.cancelled) return;
       failed = true;
       error = err;
       if (!err.signedOut) status.textContent = err.userMessage || 'Something went wrong. Please try again.';
@@ -886,12 +912,14 @@
 
     showNote('');
     question.classList.add('is-open');
+    syncWaitCancel();
     refreshQuestionFoot();
     requestAnimationFrame(() => answer.focus({ preventScroll: true }));
   };
 
   const hideQuestion = () => {
     question.classList.remove('is-open');
+    syncWaitCancel();
     answer.value = '';
     answer.blur();
     optionsContainer.replaceChildren();
@@ -940,22 +968,36 @@
     refreshQuestionFoot();
   });
 
-  // Cancel (button or Escape): leaves the questions and the loader, and returns to the idea with the text kept
-  const cancelQuestions = async () => {
-    if (!question.classList.contains('is-open')) return;
+  // Cancel (the wait's button, the question's Cancel, or Escape): stops the wait and the job on the server,
+  // leaves the questions and the loader, and returns to the idea with the text kept
+  let cancelling = false;
+  const cancelWait = async () => {
+    // One cancel at a time: Escape with the questions open reaches both the popup and the page
+    if (cancelling || (!sending && !question.classList.contains('is-open'))) return;
+    cancelling = true;
+    if (activeJob) {
+      activeJob.cancelled = true;
+      if (activeJob.id) stopServerJob(activeJob.id);
+      activeJob = null;
+    }
     hideQuestion();
     resetFlow();
     await stopLoading();
     hideSubmitError();
     status.textContent = 'Analysis cancelled. Your idea is still there.';
     idea.focus();
+    cancelling = false;
   };
-  document.getElementById('question-cancel').addEventListener('click', cancelQuestions);
+  document.getElementById('question-cancel').addEventListener('click', cancelWait);
   question.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       e.preventDefault();
-      cancelQuestions();
+      cancelWait();
     }
+  });
+  // Escape also cancels a wait that is not under the questions (the loader alone)
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && sending) cancelWait();
   });
 
   // ---------------------------------------------------------------------------

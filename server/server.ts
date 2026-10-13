@@ -168,8 +168,8 @@ export const server = createServer(async (req, res) => {
     res.writeHead(400, { ...securityHeaders(), "Content-Length": "0" });
     return res.end();
   }
-  // Every request that changes something must come from this site (see security.ts)
-  if (req.method === "POST" && !originAllowed(req.headers.origin, req.headers.host)) {
+  // Every request that changes something must come from this site (see security.ts). Cancelling a job changes it too.
+  if ((req.method === "POST" || req.method === "DELETE") && !originAllowed(req.headers.origin, req.headers.host)) {
     return sendJson(res, 403, { error: "Forbidden origin", code: "forbidden_origin" }, NO_STORE);
   }
   if (path.startsWith("/api/auth/")) return authRoute(req, res, path);
@@ -198,6 +198,17 @@ export const server = createServer(async (req, res) => {
     return sendJson(res, 200, { status: "error", message: job.message }, NO_STORE);
   }
 
+  // Cancel: the person stopped waiting. The work is aborted and nothing is kept for it.
+  if (req.method === "DELETE" && jobPath) {
+    if (!authStores) return sendJson(res, 503, NO_DATABASE, NO_STORE);
+    const owner = await userOf(req);
+    if (!owner) return sendJson(res, 401, UNAUTHENTICATED, NO_STORE);
+    const id = jobPath[1];
+    if (!UUID.test(id) || !jobs.cancel(id, owner)) return sendJson(res, 404, { error: "Job not found" }, NO_STORE);
+    res.writeHead(204, { ...securityHeaders(), ...NO_STORE });
+    return res.end();
+  }
+
   if (path === "/api/planner" && req.method === "POST") {
     try {
       // The body is read first, so a too-large body is 413 whoever sends it
@@ -208,8 +219,8 @@ export const server = createServer(async (req, res) => {
       const owner = await userOf(req);
       if (!owner) return sendJson(res, 401, UNAUTHENTICATED, NO_STORE);
       // Planner errors can carry internal details: only HttpError messages reach the client
-      const jobId = jobs.start(owner, () =>
-        runPlanner(input, answers, final, claims, { reports: reportRepository, owner }).catch((e) => {
+      const jobId = jobs.start(owner, (signal) =>
+        runPlanner(input, answers, final, claims, { reports: reportRepository, owner, signal }).catch((e) => {
           if (e instanceof HttpError) throw e;
           throw new Error("Internal server error", { cause: e });
         }),
