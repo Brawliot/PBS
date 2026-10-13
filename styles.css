@@ -245,14 +245,14 @@ body.is-finishing .hero__loader { opacity: 0; transition: opacity 0.35s ease; }
 .search__submit.arrow-btn:hover { background: var(--dark-hover); }
 .search__submit.arrow-btn svg { width: 26px; height: 26px; }
 
-/* Submit error: a box under the search block, styled like the search bar */
+/* Submit error: fixed to the bottom edge like the toast, so it is in view on any window height */
 .submit-error {
-  position: absolute; top: calc(100% + 14px); left: 50%; z-index: 7;
+  position: fixed; bottom: 28px; left: 50%; z-index: 7;
   width: min(100%, 640px); display: flex; align-items: center; justify-content: space-between; gap: 16px;
   padding: 0 14px 0 26px; min-height: 52px;
   background: var(--white); border: 1px solid var(--border-strong); border-radius: 62px;
   box-shadow: var(--shadow); text-align: left;
-  opacity: 0; visibility: hidden; transform: translate(-50%, -8px);
+  opacity: 0; visibility: hidden; transform: translate(-50%, 8px);
   transition: opacity 0.3s ease, transform 0.3s ease, visibility 0s 0.3s;
 }
 .submit-error.is-open {
@@ -725,9 +725,6 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
   /* Adjust sliders */
   .range { min-width: 200px; }
 
-  /* Adjust submit error */
-  .submit-error { top: calc(100% + 10px); }
-
   /* Adjust question popup */
   .question {
     width: min(80vw, 480px);
@@ -825,7 +822,7 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
 
   /* Submit error: full width */
   .submit-error {
-    top: calc(100% + 8px);
+    bottom: 16px;
     left: 50%;
     width: calc(100% - 24px);
     gap: 8px;
