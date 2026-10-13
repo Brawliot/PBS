@@ -26,7 +26,12 @@ const JOB_ID = "11111111-1111-4111-8111-111111111111";
 const PLAN_ID = "22222222-2222-4222-8222-222222222222";
 const REPORT_ID = "33333333-3333-4333-8333-333333333333";
 const snapshot = JSON.parse(readFileSync(join(serverDir, "test/planner/fixtures/planner-run.snapshot.json"), "utf8"));
-const report = snapshot.noQuestions;
+// A stored report: the input and the answers it was made from, and the run's own parts (the server keeps all of them)
+const report = {
+  input: { idea: "Bakery delivery", budget: 10_000, experience: 1, team: 1, hours: 1 },
+  answers: [],
+  ...snapshot.noQuestions,
+};
 
 const json = (status, body) => ({ status, contentType: "application/json", body: JSON.stringify(body) });
 

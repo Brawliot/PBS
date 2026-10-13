@@ -117,8 +117,26 @@
     <header class="result__head">
       <p class="result__eyebrow">Business analysis</p>
       <h2 class="result__title" id="result-title">Your business at a glance</h2>
+      <ul class="glance__chips" id="result-glance" aria-label="Where your idea stands" hidden></ul>
     </header>
     <dl class="result__list" id="result-summary"></dl>
+    <section class="budget" id="result-budget" aria-labelledby="result-budget-label" hidden>
+      <div class="budget__row" id="result-budget-row">
+        <span id="result-budget-label">Budget</span>
+        <span><span class="budget__range" id="result-budget-range"></span> <span class="tier tier--light">estimated</span></span>
+      </div>
+      <div class="budget__scale" id="result-budget-scale" aria-hidden="true" hidden>
+        <span class="budget__track"></span>
+        <span class="budget__zone" id="result-budget-zone"></span>
+        <span class="budget__you" id="result-budget-you" hidden></span>
+      </div>
+      <p class="sr-only" id="result-budget-note"></p>
+      <p class="budget__why" id="result-budget-fits" hidden></p>
+    </section>
+    <section class="needs" id="result-needs-block" aria-labelledby="result-needs-label" hidden>
+      <h3 class="result__label" id="result-needs-label">What this business asks of you</h3>
+      <dl class="needs__grid" id="result-needs"></dl>
+    </section>
     <div class="result__coverage">
       <p class="result__meta" id="result-meta"></p>
       <p class="result__hint" id="result-hint" hidden>Add more detail to your idea to fill these in.</p>
@@ -136,6 +154,7 @@
       <h3 class="result__label">Still to define</h3>
       <ul class="result__pending" id="result-pending"></ul>
     </section>
+    <p class="glance__next" id="result-next"></p>
     <div class="result__actions">
       <p class="result__hint result__hint--row" id="result-plan-note" hidden>This analysis could not be saved, so a plan cannot be built from it. Start over to try again.</p>
       <button class="result__restart" type="button" id="result-restart">Start over</button>

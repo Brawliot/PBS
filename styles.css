@@ -531,6 +531,33 @@ body.has-result .hero { display: none; }
 /* The reason the report gives under a warning or an area: one quiet line, in the theme's text tone */
 .result__reason { display: block; margin-top: 2px; font-size: 14px; line-height: 1.4; color: var(--gray-text); }
 
+/* The top of the report: where the idea stands (chips), the budget range against the person's budget, and what the
+   business asks of the person. Each part is drawn only with its data (script.js showChips, showBudget, showNeeds). */
+.glance__chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; list-style: none; }
+.glance__chips li { padding: 4px 12px; font-size: 13px; border: 1px solid var(--border-strong); border-radius: 62px; color: var(--gray-text); }
+.glance__chips b { font-weight: 800; color: var(--dark); }
+/* Where a value came from: "you said" or "inferred" */
+.src { margin-left: 6px; font-size: 12px; color: var(--gray-text); border: 1px solid var(--border); border-radius: 62px; padding: 1px 8px; white-space: nowrap; vertical-align: 1px; }
+
+.budget { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border: 1px solid var(--border-strong); border-radius: 10px; }
+.budget__row { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 16px; }
+.budget__range { font-weight: 800; letter-spacing: -0.01em; }
+.budget__scale { position: relative; height: 22px; }
+.budget__track { position: absolute; left: 0; right: 0; top: 8px; height: 6px; border-radius: 3px; background: var(--gray-light); }
+.budget__zone { position: absolute; top: 8px; height: 6px; min-width: 4px; border-radius: 3px; background: var(--dark); }
+.budget__you { position: absolute; top: 2px; width: 2px; height: 18px; background: var(--danger); }
+.budget__why { font-size: 14px; color: var(--gray-text); }
+
+.needs { display: flex; flex-direction: column; gap: 8px; }
+.needs__grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 0; }
+.needs__grid > div { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
+.needs__grid dt { font-size: 12px; color: var(--gray-text); }
+.needs__grid dd { margin: 2px 0 0; font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
+.needs__grid small { display: block; margin-top: 1px; font-size: 12px; font-weight: 400; color: var(--gray-text); letter-spacing: 0; }
+
+/* The line under the report: what it is based on, and what comes next */
+.glance__next { font-size: 14px; color: var(--gray-text); }
+
 .result__hint { font-size: 14px; color: var(--gray-text); }
 .result__hint--row { flex-basis: 100%; }
 

@@ -500,6 +500,19 @@
   let analysis = null; // phase 2 analysis from the first response
   let reportId = null; // id of the report the server kept for this analysis (see POST /api/plan)
   const CLAIM_KEYS = ['subsector', 'location', 'target_customer', 'value_proposition', 'revenue_model', 'stage', 'competition'];
+  // The facts the top of the report shows, from the first round's analysis. The server checks them and keeps them
+  // only if they pass, so this is sent as it is: the same fields, in the same shape.
+  const glanceFrom = (phase2) => phase2 && {
+    maturity: phase2.maturity,
+    subsectorSource: phase2.subsector?.source,
+    location: { value: phase2.location?.value, source: phase2.location?.source },
+    budget: {
+      min: phase2.constraints?.budget?.min,
+      max: phase2.constraints?.budget?.max,
+      currency: phase2.constraints?.budget?.currency,
+      fits: phase2.constraints?.budget?.fits,
+    },
+  };
 
   const resetFlow = () => {
     answers = [];
@@ -523,17 +536,21 @@
       idea: idea.value.trim(),
       ...Object.fromEntries(ranges.map((range) => [range.id, Number(range.value)])),
     };
+    const final = answers.length > 0;
     const payload = {
       ...input,
       answers,
-      final: answers.length > 0,
+      final,
       // The final request validates the analysis, so it needs the values the first one produced
       analysis: Object.fromEntries(CLAIM_KEYS.map((key) => [key, analysis?.[key]?.value])),
+      // The same first round also gives the top of the report (the server keeps it only if it passes)
+      ...(final && { glance: glanceFrom(analysis) }),
     };
     let failed = false;
     let profile = null;
     let validation = null;
     let explanations = null;
+    let glance = null;
     let error = null;
 
     hideSubmitError();
@@ -549,6 +566,7 @@
       profile = result.profile ?? null;
       validation = result.validation ?? null;
       explanations = result.explanations ?? null;
+      glance = result.glance ?? null;
       if (profile) reportId = result.reportId ?? null;
       // The browser keeps only the report's id, in this history entry: going back shows the report again
       if (profile && reportId) history.replaceState({ reportId }, '');
@@ -579,7 +597,12 @@
       showSubmitError(error.userMessage || 'Something went wrong. Please try again.', { retry: error?.retryable });
       idea.focus();
     } else {
-      await revealResult(analysis, profile, validation, explanations);
+      await revealResult(analysis, profile, validation, explanations, {
+        glance,
+        answers: answers.length,
+        budget: input.budget,
+        team: input.team,
+      });
     }
   };
 
@@ -602,16 +625,28 @@
     third_party_dependency: 'Dependence on others',
     money_handling: 'Handling other people\u2019s money',
   };
-  const SUMMARY_KEYS = ['customer_segment', 'revenue_model', 'offering_type', 'validation_stage', 'competition', 'differentiator'];
+  const SUMMARY_KEYS = ['customer_segment', 'revenue_model', 'offering_type', 'competition', 'differentiator'];
   const PENDING_KEYS = ['validation_stage', 'customer_segment', 'revenue_model', 'acquisition_channel', 'regulatory_load', 'money_handling'];
   const NOT_DEFINED = 'Not specified';
 
-  const addRow = (list, term, value, empty = false) => {
+  // Where a value came from: what the person said, or what the model inferred. Nothing for an unknown source.
+  const SOURCES = { stated: 'you said', inferred: 'inferred' };
+  const sourceTag = (source) => {
+    if (!Object.hasOwn(SOURCES, source)) return null;
+    const tag = document.createElement('span');
+    tag.className = 'src';
+    tag.textContent = SOURCES[source];
+    return tag;
+  };
+
+  const addRow = (list, term, value, empty = false, source) => {
     const row = document.createElement('div');
     const dt = document.createElement('dt');
     const dd = document.createElement('dd');
     dt.textContent = term;
     dd.textContent = value;
+    const tag = sourceTag(source);
+    if (tag) dd.append(' ', tag);
     dd.classList.toggle('is-empty', empty);
     row.append(dt, dd);
     list.append(row);
@@ -628,7 +663,120 @@
     consistency: 'Some details of the description seem to contradict each other.',
   };
 
-  const showResult = (phase2, profile, validation, explanations) => {
+  // --- The top of the report: where the idea stands, the budget range, what the business asks -----------
+  // Each part is drawn only with its data. The same view comes from the reveal and from a saved report.
+  const MATURITY = { vague: 'Still vague', developing: 'In development', advanced: 'Well developed' };
+  const NEEDS = [
+    ['time_to_revenue', 'Time to first revenue'],
+    ['capital_intensity', 'Capital'],
+    ['team_requirement', 'Team'],
+    ['regulatory_load', 'Regulation'],
+  ];
+
+  // The form is in dollars, so only dollar amounts are placed against the person's budget
+  const isDollars = (currency) => ['USD', '$'].includes(String(currency).trim().toUpperCase());
+  // Dollars as the form shows them ($5,000); a code gets a space (GBP 5,000), a symbol none (£5,000)
+  const money = (value, currency) => {
+    const number = value.toLocaleString('en-US');
+    if (isDollars(currency)) return `$${number}`;
+    if (!currency) return number;
+    return /^[A-Za-z]+$/.test(currency) ? `${currency} ${number}` : `${currency}${number}`;
+  };
+  const rangeText = ({ min, max, currency }) => {
+    if (min !== null && max !== null) return `${money(min, currency)} – ${money(max, currency)}`;
+    return min !== null ? `from ${money(min, currency)}` : `up to ${money(max, currency)}`;
+  };
+
+  const showChips = (profile, glance) => {
+    const chips = document.getElementById('result-glance');
+    chips.replaceChildren();
+    const addChip = (label, value, source) => {
+      const item = document.createElement('li');
+      const strong = document.createElement('b');
+      strong.textContent = value;
+      item.append(`${label}: `, strong);
+      const tag = sourceTag(source);
+      if (tag) item.append(' ', tag);
+      chips.append(item);
+    };
+    if (MATURITY[glance?.maturity]) addChip('Idea', MATURITY[glance.maturity]);
+    // The stage comes from the profile, which is built after the answers
+    const stage = profile.values.validation_stage;
+    if (stage && stage !== NOT_DEFINED) addChip('Stage', stage);
+    if (glance?.location.value) addChip('Location', glance.location.value, glance.location.source);
+    chips.hidden = !chips.children.length;
+  };
+
+  // The bar is drawn only with both ends of the range; the mark of the person's budget only for dollars
+  const showBudget = (glance, yours) => {
+    const box = document.getElementById('result-budget');
+    const budget = glance?.budget;
+    const hasRange = !!budget && (budget.min !== null || budget.max !== null);
+    const hasFits = !!budget?.fits;
+    box.hidden = !hasRange && !hasFits;
+    if (box.hidden) return;
+
+    document.getElementById('result-budget-row').hidden = !hasRange;
+    if (hasRange) document.getElementById('result-budget-range').textContent = rangeText(budget);
+    const bothEnds = budget.min !== null && budget.max !== null;
+    const mine = isDollars(budget.currency) && typeof yours === 'number' ? yours : null;
+    document.getElementById('result-budget-scale').hidden = !bothEnds;
+    document.getElementById('result-budget-you').hidden = !bothEnds || mine === null;
+    if (bothEnds) {
+      // The scale runs from 0 to the largest figure shown, so every mark is inside it
+      const top = Math.max(budget.max, mine ?? 0, 1);
+      const zone = document.getElementById('result-budget-zone');
+      zone.style.left = `${(budget.min / top) * 100}%`;
+      zone.style.width = `${((budget.max - budget.min) / top) * 100}%`;
+      if (mine !== null) document.getElementById('result-budget-you').style.left = `${(mine / top) * 100}%`;
+    }
+    // The bar is decorative: the same figures are said in words for a screen reader
+    const spoken = [];
+    if (hasRange) spoken.push(`Estimated budget: ${rangeText(budget)}.`);
+    if (mine !== null) spoken.push(`Your budget: ${money(mine, '$')}.`);
+    document.getElementById('result-budget-note').textContent = spoken.join(' ');
+
+    const fits = document.getElementById('result-budget-fits');
+    fits.textContent = budget.fits;
+    fits.hidden = !hasFits;
+  };
+
+  // What the business asks, from the profile. The team line adds what the person offers, with the form's labels.
+  const showNeeds = (profile, team) => {
+    const grid = document.getElementById('result-needs');
+    grid.replaceChildren();
+    NEEDS.forEach(([key, label]) => {
+      const value = profile.values[key];
+      if (!value || value === NOT_DEFINED) return;
+      // "Heavy (health, finance, food)": the value first, the part in brackets as small text under it
+      const cut = value.indexOf(' (');
+      const cell = document.createElement('div');
+      const term = document.createElement('dt');
+      const detail = document.createElement('dd');
+      term.textContent = label;
+      detail.textContent = cut === -1 ? value : value.slice(0, cut);
+      if (cut !== -1) {
+        const rest = document.createElement('small');
+        rest.textContent = value.slice(cut + 2, -1);
+        detail.append(rest);
+      }
+      if (key === 'team_requirement' && team !== undefined) {
+        const offer = document.createElement('small');
+        offer.textContent = `You offer: ${document.getElementById('team').dataset.labels.split('|')[team]}`;
+        detail.append(offer);
+      }
+      cell.append(term, detail);
+      grid.append(cell);
+    });
+    document.getElementById('result-needs-block').hidden = !grid.children.length;
+  };
+
+  const showNext = (answerCount) => {
+    const basis = answerCount === 0 ? 'From your idea.' : `From your idea and ${answerCount === 1 ? '1 answer' : `${answerCount} answers`}.`;
+    document.getElementById('result-next').textContent = `${basis} Next: phases, departments, tasks, calendar.`;
+  };
+
+  const showResult = (phase2, profile, validation, explanations, view = {}) => {
     const summary = document.getElementById('result-summary');
     const pending = document.getElementById('result-pending');
     const detail = document.getElementById('result-detail');
@@ -642,7 +790,7 @@
     const unsupported = validation?.unsupported ?? [];
     const subsector = phase2?.subsector?.value;
     const subsectorShown = subsector && subsector.toLowerCase() !== 'unknown' && !unsupported.includes('subsector');
-    if (subsectorShown) addRow(summary, 'Business', subsector);
+    if (subsectorShown) addRow(summary, 'Business', subsector, false, view.glance?.subsectorSource);
     SUMMARY_KEYS.filter((key) => profile.values[key] !== NOT_DEFINED)
       .forEach((key) => addRow(summary, LABELS[key], profile.values[key]));
     if (!summary.children.length) addRow(summary, 'Business', 'Not enough information yet', true);
@@ -725,6 +873,13 @@
     document.getElementById('detail-defined-block').hidden = !detail.children.length;
     document.getElementById('detail-pending-block').hidden = !openLabels.length;
 
+    // The top of the report: the chips, the budget and what the business asks, then the line about the basis
+    const glance = view.glance ?? null;
+    showChips(profile, glance);
+    showBudget(glance, view.budget);
+    showNeeds(profile, view.team);
+    showNext(view.answers ?? 0);
+
     document.getElementById('result-meta').textContent = `${profile.known} of ${profile.total} topics defined`;
     document.getElementById('detail-meta').textContent = `${profile.known} of ${profile.total} topics defined`;
     document.getElementById('result-hint').hidden = profile.known > 0;
@@ -744,7 +899,7 @@
 
   // Loader -> result without going back to the initial page: the loader fades out where it is,
   // then the hero goes away, the giant wordmark slides up to its new place and the result fades in
-  const revealResult = async (phase2, profile, validation, explanations) => {
+  const revealResult = async (phase2, profile, validation, explanations, view) => {
     document.body.classList.add('is-finishing');
     await wait(FINISH_MS);
 
@@ -752,7 +907,7 @@
     const letter = giant.querySelector('.giant__letter');
     const before = letter.getBoundingClientRect().top;
 
-    showResult(phase2, profile, validation, explanations);
+    showResult(phase2, profile, validation, explanations, view);
     document.body.classList.remove('is-loading', 'is-finishing');
     loader.destroy();
     loader = null;
@@ -1049,7 +1204,13 @@
       if (!response.ok) throw new Error('report not found');
       const { id, report } = await response.json();
       reportId = id;
-      showResult(report.phase2, report.profile, report.validation, report.explanations);
+      // The same view as the reveal: the glance, the answers given, and the budget and team of the form
+      showResult(report.phase2, report.profile, report.validation, report.explanations, {
+        glance: report.glance,
+        answers: report.answers.length,
+        budget: report.input.budget,
+        team: report.input.team,
+      });
     } catch {
       history.replaceState(null, '');
       showToast('We could not find that report. Start a new analysis.');
