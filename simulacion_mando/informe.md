@@ -604,6 +604,6 @@ Para comparar, F + H y B con tope (margen K=1 sin informes: 507 € y 477 €) p
 
 - **Lo gratis ya no es gratis para ti.** Cada registro cuesta del orden de 0,34 € (si un informe cuesta 0,10 $) a 3,40 € (si cuesta 1 $) con un tope de 3 informes al mes. Es un coste de captación que hay que cubrir con quien paga.
 - **Cuántos tienen que pagar:** con el plan de 20 €/mes, entre el 0,3 % y el 3 % de los registrados según lo que cueste el informe. Con pago por proyecto (F + H) hacen falta entre el 1,4 % y el 14 %, porque cada comprador te deja bastante menos (24 € frente a 114 €, y ese 114 € depende de que el pagador siga pagando meses).
-- **Tu tope de 3 al mes ahorra un 28 % frente a ilimitados.** Una regla más estricta ahorra más (1 al mes: 52 % menos), a costa de que quien tiene 2 o 3 ideas se sienta limitado.
+- **Tu tope de 3 al mes ahorra un 28 % frente a ilimitados.** Una regla más estricta ahorra más (1 al mes: 66 % menos que ilimitados), a costa de que quien tiene 2 o 3 ideas se sienta limitado.
 - **El tope de informes de pago (5, 10, 20 o ilimitado) casi no cambia el margen** (unos 1.250-1.280 € con R = 0,30 $). Con R = 1 $ el tope de 5 es un poco mejor (812 € frente a 787 €). Es una decisión de riesgo (cuentas abusivas), no de margen.
 - **Lo que necesito de ti:** cuánto cuesta de verdad generar un informe, y si el esqueleto y el comparador también usan IA. Con ese número rehago la simulación sin rangos.
