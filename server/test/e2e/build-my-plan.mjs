@@ -276,8 +276,13 @@ async function scenarioReport(browser) {
   assert.equal(await page.textContent("#result-meta"), "5 of 15 topics defined");
   assert.equal(await page.isVisible("#result-hint"), false, "the hint is only for 0 topics");
 
-  // While the report is open, the header behind it cannot take the focus
-  assert.equal(await page.evaluate(() => document.querySelector(".header").inert), true);
+  // While the report is open, the header stays usable: the profile menu, the projects and the theme still answer
+  assert.equal(await page.evaluate(() => document.querySelector(".header").inert), false);
+  assert.equal(await page.evaluate(() => document.querySelector(".header").contains(document.activeElement)), false, "the focus stays in the report");
+  await page.click("#avatar");
+  assert.equal(await page.isVisible("#profile-menu"), true, "the profile menu opens over the report");
+  await page.keyboard.press("Escape");
+  assert.equal(await page.isVisible("#profile-menu"), false, "Escape closes the menu");
 
   // Start over asks first; "Keep my analysis" is the default and leaves everything as it was
   await page.evaluate(() => { window.__alive = true; });
@@ -294,7 +299,7 @@ async function scenarioReport(browser) {
   await Promise.all([page.waitForEvent("load"), page.click("#restart-confirm")]);
   assert.equal(await page.evaluate(() => window.__alive === undefined && document.getElementById("result").hidden), true, "reloaded: the report is gone");
   await context.close();
-  return "report: lists say what they leave out, levels in words, header inert, Start over asks first";
+  return "report: lists say what they leave out, levels in words, header usable, Start over asks first";
 }
 
 let currentScenario = "";

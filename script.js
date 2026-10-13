@@ -692,8 +692,7 @@
     // A plan is built from the saved report only; without one the button says why it cannot be used
     document.getElementById('result-plan').disabled = !reportId;
     document.getElementById('result-plan-note').hidden = !!reportId;
-    // The report is the only thing to read now: the header behind it cannot take the focus
-    document.querySelector('.header').inert = true;
+    // The header stays usable (profile menu, projects, theme); the report takes the focus when it opens
     document.getElementById('result-bar').style.width = '0';
     document.body.classList.add('has-result');
     resultSection.hidden = false;
