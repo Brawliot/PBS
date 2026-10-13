@@ -228,3 +228,16 @@ with open("extra_sensibilidad_precio.csv", "w", newline="", encoding="utf-8") as
                    + [p["w"][a] for a in ALTS] + [compra(p, a, i) for a in ALTS for i in range(3)]
                    + [int(p["w"]["D"] >= NEGOCIO[1] and p["w"]["D"] > 0), p["marcha"], p["sorp"]])
 
+
+# ------------------------------------------------------------------ costes de IA por persona (supuestos; rng aparte para no alterar nada de lo anterior)
+rng2 = random.Random(SEED + 999)
+TEAMF = {"solo": 1.0, "pequeño": 1.2, "mediano": 1.5, "grande": 2.0}
+with open("extra_costes.csv", "w", newline="", encoding="utf-8") as f:
+    w = csv.writer(f); w.writerow(["id", "n_proyectos_al_ano", "coste_ia_por_proyecto_usd_base", "penalizacion_ventanas_base"])
+    for p in pop:
+        g = math.exp(.7 * rng2.gauss(0, 1)) * (.4 + 1.2 * p["heavy"]) * TEAMF[p["equipo"]] * (3 if rng2.random() < .10 else 1)
+        if p["seg"] == "5": npj = rng2.randint(3, 8)
+        elif p["multi"] > .6: npj = rng2.randint(2, 5)
+        else: npj = 1 + (1 if rng2.random() < p["multi"] * .5 else 0)
+        pen = .8 * (1 - p["patience"]) + .5 * p["heavy"]
+        w.writerow([p["id"], npj, round(g, 3), round(pen, 3)])
