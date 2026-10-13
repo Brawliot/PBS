@@ -1578,7 +1578,9 @@
             ),
           );
         })
-      : [el('p', { class: 'empty' }, 'No suggestions are waiting.')];
+      : pending.length
+        ? []
+        : [el('p', { class: 'empty' }, 'No suggestions are waiting.')];
 
     const decidedFold = decided.length
       ? el(
