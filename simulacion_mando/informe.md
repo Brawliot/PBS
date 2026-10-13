@@ -348,4 +348,4 @@ Coste solo de los usuarios que no pagan (K no lo cambia): A 38 €, B 0 €, C 3
 - Lo que no sabemos es el coste real. Eso se mide con 20 o 30 proyectos de prueba reales, no con esta simulación.
 - Poner tope (o ventanas) a lo incluido en los 29 € cuesta poco si el coste es bajo (477 frente a 502 € con el dato base, porque pierdes algunos compradores impacientes) y protege mucho si es alto (354 frente a 134 € con K=10). Es un seguro barato.
 - Los topes de A, D y E salen siempre protegidos porque así los definí. Su coste en enfado no se ha modelado aparte, salvo el de E, que ya estaba en la simulación original; la comparación con B con tope no es del todo justa.
-- Mucho margen no significa buen negocio: los cuantos de cada uno vienen de las mismas suposiciones del informe principal.
+- Un margen alto aquí no garantiza un buen negocio: los compradores y los ingresos salen de las mismas suposiciones del informe principal.
