@@ -738,7 +738,11 @@
     const phases = [...plan.phases].sort((a, b) => a.order - b.order);
     const placed = plan.timeline ? phases.filter((phase) => phase.startUnit !== undefined && phase.lengthUnits !== undefined) : [];
     const unit = plan.timeline?.unit;
-    const scale = Math.max(1, ...placed.map((phase) => phase.startUnit + phase.lengthUnits));
+    const end = Math.max(1, ...placed.map((phase) => phase.startUnit + phase.lengthUnits));
+    // A scale mark every few units, so the axis has about eight labels at most
+    const step = TICK_STEPS.find((candidate) => end / candidate <= 8) ?? TICK_STEPS.at(-1);
+    // The scale ends on a mark, so its last label is always shown (it may be a little past the last phase)
+    const scale = Math.ceil(end / step) * step;
     const percent = (value) => `${(value / scale) * 100}%`;
     const done = phases.filter((phase) => derived.phases[phase.id].status === 'done').length;
     const count = `${phases.length} ${plural(phases.length, 'phase')}`;
@@ -770,8 +774,6 @@
       };
     }
 
-    // A scale mark every few units, so the axis has about eight labels at most
-    const step = TICK_STEPS.find((candidate) => scale / candidate <= 8) ?? TICK_STEPS.at(-1);
     const marks = [];
     for (let value = 0; value <= scale; value += step) marks.push(value);
     const ticks = marks.map((value) => el('span', { class: 'timeline__tick', style: { left: percent(value) } }, String(value)));
