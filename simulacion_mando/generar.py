@@ -119,10 +119,11 @@ for p in pop: p["obj"] = pick_obj(p)
 # disposición a pagar (WTP) por alternativa
 for p in pop:
     prof = P[p["segkey"]]
-    p["w"] = {a: 0 for a in ALTS}
+    p["w"] = {a: 0 for a in ALTS}; p["m"] = 0
     if p["estado"] != "PG": continue
     m = prof["m"] * M_SCALE * math.exp(.55 * rng.gauss(0, 1)) * {0: 1.5, 1: 1.0, 2: .55}[p["ps"]]
     if p["pais"] == "Latinoamérica": m *= .8
+    p["m"] = m
     for a in ALTS:
         d = p["u"][a] - p["u"][p["pref"]]
         if a == p["rej"] or d < -1.6:
@@ -240,4 +241,49 @@ with open("extra_costes.csv", "w", newline="", encoding="utf-8") as f:
         elif p["multi"] > .6: npj = rng2.randint(2, 5)
         else: npj = 1 + (1 if rng2.random() < p["multi"] * .5 else 0)
         pen = .8 * (1 - p["patience"]) + .5 * p["heavy"]
+        p["cp"], p["npj"], p["pen"] = g, npj, pen
         w.writerow([p["id"], npj, round(g, 3), round(pen, 3)])
+
+# ------------------------------------------------------------------ formas de cobro nuevas, pensadas para la estructura del coste de IA (supuestos; rng aparte)
+rng3 = random.Random(SEED + 4242)
+NUEVAS = ["F", "G", "H", "L"]
+PNUEVAS = {"F": (9.5, 19, 38), "G": (14.5, 29, 58), "H": (3, 6, 12), "L": (4, 8, 16)}   # F,G por proyecto; H por mes activo; L por departamento extra
+DEPS = {"solo": 3, "pequeño": 4, "mediano": 6, "grande": 8}      # departamentos típicos del plan según equipo (suposición)
+UNI_N = {"F": 2.0, "G": 2.4, "H": 1.3, "L": 1.9}
+CAP_G = 5.0
+def u_nuevas(p):
+    t = p["tec"]; low, high, psn = (3 - t) / 2, (t - 1) / 2, p["ps"] / 2
+    budn = clamp(math.log10(p["pres"] + 1) / 5.5)
+    over = min(1, p["cp"] / CAP_G)
+    pen = p["pen"]
+    uB = p["u"]["B"]
+    u = {}
+    u["F"] = .85 + .9 * p["serious"] * (1 - p["multi"]) + .8 * p["sub"] - .8 * psn + .6 * budn - .8 * p["multi"] - .4 * (1 - p["trust"]) - .25 * pen * min(1, p["cp"] / 2.5) - .3 * low
+    u["G"] = uB + .15 - .3 * over * pen - .25 * p["meter"] * over
+    u["H"] = .65 + .9 * p["sub"] + .5 * (1 - p["heavy"]) + .3 * high - .6 * psn - .5 * low - .3 * p["meter"] - .3 * p["multi"] - .3 * (1 - p["trust"])
+    u["L"] = -.2 + .5 * p["sub"] + .4 * (1 - p["heavy"]) - .6 * low - .6 * psn - .9 * p["multi"] + .3 * high - .5 * p["meter"]
+    return u
+HN = ["id", "segmento", "preferida_entre_9", "rechazada_entre_9"] + [f"wtp_{a}" for a in NUEVAS] + \
+     [f"compra_{a}_{n}" for a in NUEVAS for n in ("mitad", "ref", "doble")] + ["departamentos_tipicos"]
+with open("extra_nuevas_formas.csv", "w", newline="", encoding="utf-8") as f:
+    w = csv.writer(f); w.writerow(HN)
+    for p in pop:
+        un = u_nuevas(p); allu = {**p["u"], **un}
+        g3 = lambda: -.5 * math.log(-math.log(rng3.random() + 1e-12))
+        noisy = {a: allu[a] + g3() for a in allu}
+        pref9 = max(noisy, key=noisy.get)
+        rest = {a: -(allu[a] + g3()) for a in allu if a != pref9}
+        rej9 = max(rest, key=rest.get)
+        wn = {a: 0 for a in NUEVAS}
+        if p["estado"] == "PG":
+            for a in NUEVAS:
+                d = un[a] - p["u"][p["pref"]]
+                if a == rej9 or d < -1.6: continue
+                v = p["m"] * UNI_N[a] * math.exp(.45 * d) * math.exp(.25 * rng3.gauss(0, 1))
+                wn[a] = max(5, 5 * round(v / 5)) if a in "FG" else (max(5, 5 * round(v / 5)) if a == "L" else max(1, round(v * 2) / 2))
+        deps = DEPS[p["equipo"]]
+        def buys(a, i):
+            if wn[a] <= 0: return 0
+            if a == "L": return int(wn[a] >= PNUEVAS[a][i] * (deps - 1))
+            return int(wn[a] >= PNUEVAS[a][i])
+        w.writerow([p["id"], seglabel(p), pref9, rej9] + [wn[a] for a in NUEVAS] + [buys(a, i) for a in NUEVAS for i in range(3)] + [deps])
