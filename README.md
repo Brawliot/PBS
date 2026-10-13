@@ -41,8 +41,8 @@ Read from the environment in `server/.env` (loaded by `--env-file=.env`).
 | --- | --- | --- | --- |
 | `TYPESAFE_API_KEY` | Yes | `server/planner/planner-handler.ts` | Bearer key for the Typesafe Jev API (`https://api.typesafe.ai/v1/systemone`). |
 | `JEV_MODEL` | Yes | `server/planner/planner-handler.ts` | Jev model name sent with every Jev request. The example uses `jev-1.13.0`. |
-| `OPENAI_API_KEY` | Yes | `server/planner/planner-phase2-handler.ts` | Bearer key for the OpenAI Chat Completions API. |
-| `OPENAI_MODEL` | Yes | `server/planner/planner-phase2-handler.ts` | OpenAI model name. The example uses `gpt-4o`. |
+| `OPENAI_API_KEY` | Yes | `server/planner/planner-phase2-handler.ts`, `server/planner/planner-explain-handler.ts` | Bearer key for the OpenAI Chat Completions API. |
+| `OPENAI_MODEL` | Yes | `server/planner/planner-phase2-handler.ts`, `server/planner/planner-explain-handler.ts` | OpenAI model name. The example uses `gpt-4o`. |
 | `PORT` | No | `server/server.ts` | HTTP port. Defaults to `3000` when unset or not a number. |
 | `DATABASE_URL` | No | `server/server.ts`, `server/db/migrate-cli.ts` | PostgreSQL connection string (`postgres://user:password@host:port/database`) where the users, their sessions, the reports and the plans are stored. Without it there are no accounts: sign-up and sign-in answer `503`, and so do the planner and the plan routes. The start page still loads. |
 | `TEST_DATABASE_URL` | No | `server/test/db/` | A PostgreSQL database for the integration tests. Each run uses its own schema, dropped at the end. Without it those tests are skipped. |
@@ -110,6 +110,7 @@ HSTS and TLS are not in the server: they belong to the proxy in front of it (see
 2. **OpenAI, phase 2** (`server/planner/planner-phase2-handler.ts`): rates the maturity of the idea (`vague`, `developing`, `advanced`), fills the analysis sections (subsector, location, target customer, value proposition, revenue model, stage, competition, constraints) and proposes follow-up questions with a strict JSON schema.
 3. **Question policy** (`server/planner/question-policy.ts`): the model proposes, the server decides. It sets the question limit from maturity (vague 2, developing 3, advanced 4, adjusted by commitment signals and clamped to 1-5), removes topics already answered, and keeps the most valuable questions first.
 4. **Final request** (`server/planner/planner-profile-handler.ts`, `server/planner/planner-validation-handler.ts`): once all questions are answered, the server asks Jev for a 15-dimension business profile and validates the analysis. Claims are checked against the description, seven coherence checks are run, and 10 departments are scored. Departments are shown as groups or as individual departments depending on team size and the profile's team requirement (`departmentLevel`).
+5. **Explanations** (`server/planner/planner-explain-handler.ts`): when a report is built, one more OpenAI call writes a short reason for each warning and each key area the report shows (the first three warnings, the first four areas that are not light). The reply is checked, never corrected: an item that was not asked for, a repeat, or a reason that is empty, longer than 140 characters or not one plain line discards the whole reply. A failed call leaves the report without reasons and logs only its code. The call is not made while questions are still open.
 
 Each request runs as a background job, kept in memory by `server/jobs.ts`: `POST /api/planner` returns a job id at once and the front end polls `GET /api/planner/:id` until the result is ready. The front end (`script.js`) sends the phase 2 claims back in the final request (`analysis`), so the validation can check them.
 
@@ -187,7 +188,7 @@ The `result` of a done job has one of these shapes:
   }
   ```
 
-- **Final** (`final: true`), or not final with no questions left: the Jev result and the report. The non-final variant also includes `phase2` with `questions: []`.
+- **Final** (`final: true`), or not final with no questions left: the Jev result and the report. The non-final variant also includes `phase2` with `questions: []`. When the model gave usable reasons, the result also has `explanations` (`{ "warningReasons": [{ "key", "reason" }], "areaReasons": [{ "name", "reason" }] }`); without them the key is absent.
 
   ```json
   {
