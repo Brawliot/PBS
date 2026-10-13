@@ -63,7 +63,7 @@
 
   const restartDialog = document.getElementById('restart-modal');
 
-  [authDialog, gate, detailDialog, restartDialog].forEach((dialog) => {
+  [authDialog, gate, detailDialog, restartDialog, document.getElementById('templates-modal')].forEach((dialog) => {
     // Close on backdrop click, but not when a drag that started inside ends outside
     let pressedOnBackdrop = false;
     dialog.addEventListener('mousedown', (e) => { pressedOnBackdrop = e.target === dialog; });
@@ -741,6 +741,111 @@
     fits.hidden = !hasFits;
   };
 
+  // Time & cost: the time to open (an estimate, in weeks or months) and the split of the upfront cost in percentages.
+  // The bar is decorative: the same split is written under it, so a screen reader reads the text.
+  const TIME_UNITS = { weeks: ['week', 'weeks'], months: ['month', 'months'] };
+  const showCosts = (explanations) => {
+    const time = explanations?.timeToOpen;
+    const cost = explanations?.costBreakdown;
+    const timeRow = document.getElementById('result-time-row');
+    const costRow = document.getElementById('result-cost-row');
+    timeRow.hidden = !time;
+    if (time) {
+      const [singular, plural] = TIME_UNITS[time.unit];
+      const span = time.min === time.max
+        ? `${time.min} ${time.min === 1 ? singular : plural}`
+        : `${time.min}–${time.max} ${time.max === 1 ? singular : plural}`;
+      document.getElementById('result-time-value').textContent = span;
+      document.getElementById('result-time-note').textContent = `${time.confidence} confidence · estimate`;
+    }
+    costRow.hidden = !cost;
+    if (cost) {
+      const stack = document.getElementById('result-cost-stack');
+      stack.replaceChildren();
+      cost.forEach(({ percent }, index) => {
+        const segment = document.createElement('span');
+        segment.className = `costs__segment costs__segment--${index + 1}`;
+        segment.style.width = `${percent}%`;
+        stack.append(segment);
+      });
+      document.getElementById('result-cost-note').textContent = cost.map(({ label, percent }) => `${label} ${percent}%`).join(' · ');
+    }
+    document.getElementById('result-costs-block').hidden = timeRow.hidden && costRow.hidden;
+  };
+
+  // Starter templates: the model picks three ids; the text is the fixed catalog from the server. The only automatic
+  // part is {{location}}, filled here. The catalog is loaded the first time and kept in memory.
+  const templatesOpen = document.getElementById('result-templates-open');
+  const templatesDialog = document.getElementById('templates-modal');
+  let templateCatalog = null;
+  let templatePicks = [];
+  let templateGlance = null;
+
+  const fillTemplate = (body) => {
+    const place = templateGlance?.location?.value?.trim();
+    return body.replaceAll('{{location}}', place && place !== 'unknown' ? place : '[your city]');
+  };
+
+  const loadTemplates = async () => {
+    if (templateCatalog) return templateCatalog;
+    const response = await fetch('/api/report-templates', { cache: 'no-store', headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error('templates');
+    const data = await response.json();
+    templateCatalog = data.templates;
+    return templateCatalog;
+  };
+
+  const copyTemplate = async (button, text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      clearTimeout(button.resetTimer);
+      button.textContent = 'Copied';
+      button.resetTimer = setTimeout(() => { button.textContent = 'Copy'; }, 2000);
+    } catch {
+      showToast('Could not copy. Select the text and copy it by hand.');
+    }
+  };
+
+  const openTemplates = async () => {
+    templatesOpen.disabled = true;
+    let catalog;
+    try {
+      catalog = await loadTemplates();
+    } catch {
+      showToast('We could not load the templates. Try again.');
+      return;
+    } finally {
+      templatesOpen.disabled = false;
+    }
+    const list = document.getElementById('templates-list');
+    list.replaceChildren();
+    // An id the catalog does not know is skipped
+    templatePicks.forEach((id) => {
+      const template = catalog.find((item) => item.id === id);
+      if (!template) return;
+      const section = document.createElement('section');
+      section.className = 'template';
+      const title = document.createElement('h3');
+      title.className = 'template__title';
+      title.textContent = template.title;
+      const purpose = document.createElement('p');
+      purpose.className = 'template__purpose';
+      purpose.textContent = template.purpose;
+      const body = document.createElement('pre');
+      body.className = 'template__body';
+      body.textContent = fillTemplate(template.body);
+      const copy = document.createElement('button');
+      copy.className = 'btn btn--outline template__copy';
+      copy.type = 'button';
+      copy.textContent = 'Copy';
+      copy.addEventListener('click', () => copyTemplate(copy, body.textContent));
+      section.append(title, purpose, body, copy);
+      list.append(section);
+    });
+    templatesDialog.showModal();
+  };
+  templatesOpen.addEventListener('click', openTemplates);
+
   // What the business asks, from the profile. The team line adds what the person offers, with the form's labels.
   const showNeeds = (profile, team) => {
     const grid = document.getElementById('result-needs');
@@ -877,7 +982,11 @@
     const glance = view.glance ?? null;
     showChips(profile, glance);
     showBudget(glance, view.budget);
+    showCosts(explanations);
     showNeeds(profile, view.team);
+    templatePicks = explanations?.templates ?? [];
+    templateGlance = glance;
+    templatesOpen.hidden = !templatePicks.length;
     showNext(view.answers ?? 0);
 
     document.getElementById('result-meta').textContent = `${profile.known} of ${profile.total} topics defined`;

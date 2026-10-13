@@ -133,6 +133,22 @@
       <p class="sr-only" id="result-budget-note"></p>
       <p class="budget__why" id="result-budget-fits" hidden></p>
     </section>
+    <section class="costs" id="result-costs-block" aria-labelledby="result-costs-label" hidden>
+      <h3 class="result__label" id="result-costs-label">Time &amp; cost</h3>
+      <dl class="costs__rows">
+        <div class="costs__row" id="result-time-row" hidden>
+          <dt>Time to open</dt>
+          <dd><span id="result-time-value"></span><small id="result-time-note"></small></dd>
+        </div>
+        <div class="costs__row costs__row--stack" id="result-cost-row" hidden>
+          <dt>Upfront cost</dt>
+          <dd>
+            <span class="costs__stack" id="result-cost-stack" aria-hidden="true"></span>
+            <small id="result-cost-note"></small>
+          </dd>
+        </div>
+      </dl>
+    </section>
     <section class="needs" id="result-needs-block" aria-labelledby="result-needs-label" hidden>
       <h3 class="result__label" id="result-needs-label">What this business asks of you</h3>
       <dl class="needs__grid" id="result-needs"></dl>
@@ -158,6 +174,7 @@
     <div class="result__actions">
       <p class="result__hint result__hint--row" id="result-plan-note" hidden>This analysis could not be saved, so a plan cannot be built from it. Start over to try again.</p>
       <button class="result__restart" type="button" id="result-restart">Start over</button>
+      <button class="link" type="button" id="result-templates-open" hidden>Starter templates (3)</button>
       <button class="btn btn--outline" type="button" id="result-detail-open">See full detail</button>
       <button class="btn btn--dark" type="button" id="result-plan">Build my plan</button>
     </div>
@@ -250,6 +267,16 @@
         <h3 class="result__label">Key areas</h3>
         <ul class="result__areas" id="result-departments"></ul>
       </section>
+    </div>
+  </dialog>
+
+  <dialog class="modal" id="templates-modal" aria-labelledby="templates-title">
+    <div class="modal__card">
+      <button class="modal__close" type="button" aria-label="Close" data-close>&times;</button>
+      <p class="result__eyebrow">Business analysis</p>
+      <h2 class="modal__title" id="templates-title">Starter templates</h2>
+      <p class="result__meta">Copy a template, fill in the text in [brackets], and use it as it is.</p>
+      <div class="templates" id="templates-list"></div>
     </div>
   </dialog>
 

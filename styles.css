@@ -37,6 +37,7 @@
   --danger-bg: #fdf0ee;                               /* danger button on hover */
   --glow: 0 0 0 4px rgba(99, 102, 241, 0.28), 0 0 32px 8px rgba(99, 102, 241, 0.40);  /* focus glow of the idea bar, in the page tint */
   --danger-strong: #8f1c12;                           /* danger button text and border on hover */
+  --segment-1: #272727; --segment-2: #6366f1; --segment-3: #919195; --segment-4: #c4c4cc; --segment-5: #a5b4fc;  /* upfront cost bar */
 }
 
 /* ==========================================================================
@@ -53,6 +54,7 @@
     --shadow-soft: 0 6px 14px rgba(0, 0, 0, 0.45); --ring: 0 0 0 6px rgba(242, 242, 245, 0.14);
     --surface-hover: #1f1f26; --danger-bg: #3a1a18; --glow: 0 0 0 4px rgba(129, 132, 255, 0.35), 0 0 32px 8px rgba(129, 132, 255, 0.40);
     --danger-strong: #ffc2b9; color-scheme: dark;
+    --segment-1: #f2f2f5; --segment-2: #8184ff; --segment-3: #6e6e78; --segment-4: #4a4a55; --segment-5: #c7c8ff;
   }
 }
 :root[data-theme="dark"] {
@@ -62,6 +64,7 @@
   --shadow-soft: 0 6px 14px rgba(0, 0, 0, 0.45); --ring: 0 0 0 6px rgba(242, 242, 245, 0.14);
   --surface-hover: #1f1f26; --danger-bg: #3a1a18; --glow: 0 0 0 4px rgba(129, 132, 255, 0.35), 0 0 32px 8px rgba(129, 132, 255, 0.40);
   --danger-strong: #ffc2b9; color-scheme: dark;
+  --segment-1: #f2f2f5; --segment-2: #8184ff; --segment-3: #6e6e78; --segment-4: #4a4a55; --segment-5: #c7c8ff;
 }
 :root[data-theme="contrast"] {
   --black: #fff; --dark: #fff; --dark-hover: #d6d6d6; --white: #000; --gray: #8a8a8a;
@@ -69,6 +72,7 @@
   --danger: #ffb4aa; --tint: rgba(150, 150, 255, 0.25); --shadow: 0 0 0 1px #fff; --shadow-soft: 0 0 0 1px #fff;
   --ring: 0 0 0 6px rgba(255, 255, 255, 0.35); --surface-hover: #1a1a1a; --danger-bg: #2a0a08;
   --glow: 0 0 0 4px #fff, 0 0 32px 8px rgba(150, 150, 255, 0.5); --danger-strong: #ffd6cf; color-scheme: dark;
+  --segment-1: #fff; --segment-2: #9696ff; --segment-3: #8a8a8a; --segment-4: #5a5a5a; --segment-5: #d6d6ff;
 }
 
 /* ==========================================================================
@@ -507,6 +511,12 @@ body.has-result .hero { display: none; }
   transition: color 0.15s ease;
 }
 .result__restart:hover { color: var(--dark); }
+.result__actions .result__restart { margin-right: 0; }
+/* A quiet text link in the row (starter templates): it takes the space that the start-over link leaves */
+.link {
+  border: 0; background: transparent; color: var(--dark); font: inherit; font-size: 15px; height: 44px; padding: 0 8px;
+  text-decoration: underline; text-underline-offset: 3px; margin-right: auto;
+}
 
 /* Key areas: one row per area, its tier on the right */
 .result__areas { display: flex; flex-direction: column; list-style: none; font-size: 15px; }
@@ -548,6 +558,21 @@ body.has-result .hero { display: none; }
 .budget__you { position: absolute; top: 2px; width: 2px; height: 18px; background: var(--danger); }
 .budget__why { font-size: 14px; color: var(--gray-text); }
 
+/* Time & cost: the time to open, and the split of the upfront cost as a bar with its text under it */
+.costs { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border: 1px solid var(--border-strong); border-radius: 10px; }
+.costs__rows { display: flex; flex-direction: column; gap: 10px; margin: 0; }
+.costs__row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 16px; }
+.costs__row dd { margin: 0; text-align: right; font-weight: 800; letter-spacing: -0.01em; }
+.costs__row dd small { display: block; margin-top: 2px; font-size: 12px; font-weight: 400; letter-spacing: 0; color: var(--gray-text); }
+.costs__row--stack { flex-direction: column; align-items: stretch; gap: 6px; }
+.costs__row--stack dd { text-align: left; }
+.costs__stack { display: flex; width: 100%; height: 10px; border-radius: 3px; overflow: hidden; background: var(--gray-light); }
+.costs__segment { flex: none; height: 100%; }
+.costs__segment--1 { background: var(--segment-1); }
+.costs__segment--2 { background: var(--segment-2); }
+.costs__segment--3 { background: var(--segment-3); }
+.costs__segment--4 { background: var(--segment-4); }
+.costs__segment--5 { background: var(--segment-5); }
 .needs { display: flex; flex-direction: column; gap: 8px; }
 .needs__grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 0; }
 .needs__grid > div { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
@@ -569,6 +594,7 @@ body.has-result .hero { display: none; }
 .modal__buttons { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; }
 .modal__buttons .btn { padding: 0 20px; }
 #detail-modal { max-width: 560px; }
+#templates-modal { max-width: 620px; }
 #detail-modal .result__list > div { padding: 9px 0; font-size: 15px; }
 /* Full detail: a value may be a sentence, so it takes most of the row and wraps inside it */
 #detail-modal .result__list dt { flex: none; }
@@ -686,6 +712,19 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
   font-size: 28px; line-height: 1; color: var(--gray-text);
 }
 .modal__actions, .auth { display: flex; flex-direction: column; gap: 16px; }
+
+/* Starter templates: the title and purpose, the text in a monospace box that scrolls inside the dialog */
+.templates { display: flex; flex-direction: column; gap: 22px; }
+.template { display: flex; flex-direction: column; gap: 8px; padding-top: 18px; border-top: 1px solid var(--border); }
+.template:first-child { border-top: 0; padding-top: 0; }
+.template__title { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; }
+.template__purpose { font-size: 14px; color: var(--gray-text); }
+.template__body {
+  max-height: 260px; overflow: auto; padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; line-height: 1.5;
+  color: var(--dark); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.template__copy { align-self: flex-end; }
 
 .auth__field { display: flex; flex-direction: column; gap: 8px; font-size: 16px; }
 .auth__field input, .question__input {
