@@ -52,6 +52,12 @@ export function mockFetch(handler: FetchHandler): CapturedRequest[] {
   return calls;
 }
 
+/** The explanations call of a planner run (planner-explain-handler.ts), told apart from the others by its schema name */
+export const isExplanationCall = (request: CapturedRequest) => request.body?.response_format?.json_schema?.name === "explanations";
+
+/** An empty explanations reply: it passes the checks, so the report keeps the same content it had before */
+export const EMPTY_EXPLANATIONS = { warningReasons: [], areaReasons: [] };
+
 export function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status,

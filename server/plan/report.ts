@@ -13,7 +13,7 @@
 import { z } from "zod";
 import { RANGES, MAX_ANSWERS, MAX_IDEA, MAX_TEXT } from "../request.js";
 import { CLAIM_KEYS } from "../planner/planner-validation-handler.js";
-import { CHECK_KEYS } from "../planner/planner-validation-handler.js";
+import { CHECK_KEYS, GROUPS } from "../planner/planner-validation-handler.js";
 import { DIMENSION_KEYS, DIMENSION_OPTIONS } from "../planner/planner-profile-handler.js";
 
 // Sizes of the report. Each limit is named here, and nowhere else.
@@ -40,6 +40,10 @@ export const MAX_SCORE = 100;
 export const MAX_REPORT_OBJECTS = 20;
 export const MAX_REPORT_NAME = 120;
 export const MAX_REPORT_UNSUPPORTED = CLAIM_KEYS.length;
+/** Explanations: the warnings and the key areas the report shows (the screen shows three and four), and the length of a reason */
+export const MAX_EXPLAINED_WARNINGS = 3;
+export const MAX_EXPLAINED_AREAS = 4;
+export const MAX_EXPLANATION_REASON = 140;
 
 const num = (min: number, max: number) => z.number().min(min).max(max);
 /** The NUL character cannot be stored in PostgreSQL's jsonb, so no report text may carry it */
@@ -140,6 +144,27 @@ const ValidationSchema = z.strictObject({
   level: z.union([z.literal(1), z.literal(2)]),
 });
 
+/** Every area name the validation can show: the groups and the departments */
+const AREA_NAMES = [...new Set(GROUPS.flatMap(({ group, departments }) => [group, ...departments.map(([name]) => name)]))];
+
+/** A reason is one plain line: no control characters, between 1 and MAX_EXPLANATION_REASON characters */
+export const ReasonSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(MAX_EXPLANATION_REASON)
+  .refine((value) => !/[\u0000-\u001F\u007F]/.test(value), "control characters are not allowed");
+
+/** Why each shown warning and key area matters here. Optional: reports kept before it have none. */
+export const ExplanationsSchema = z.strictObject({
+  warningReasons: z
+    .array(z.strictObject({ key: z.enum(CHECK_KEYS as [string, ...string[]]), reason: ReasonSchema }))
+    .max(MAX_EXPLAINED_WARNINGS),
+  areaReasons: z
+    .array(z.strictObject({ name: z.enum(AREA_NAMES as [string, ...string[]]), reason: ReasonSchema }))
+    .max(MAX_EXPLAINED_AREAS),
+});
+
 export const ReportSchema = z.strictObject({
   input: InputSchema,
   answers: z.array(AnswerSchema).max(MAX_ANSWERS),
@@ -147,9 +172,11 @@ export const ReportSchema = z.strictObject({
   phase2: Phase2Schema.optional(),
   profile: ProfileSchema,
   validation: ValidationSchema,
+  explanations: ExplanationsSchema.optional(),
 });
 
 export type Report = z.infer<typeof ReportSchema>;
+export type Explanations = z.infer<typeof ExplanationsSchema>;
 export type ReportCode = "too_large" | "invalid_json" | "invalid_report";
 export type ParseReportResult = { ok: true; report: Report } | { ok: false; code: ReportCode };
 

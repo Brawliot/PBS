@@ -232,7 +232,7 @@ const Phase2Schema: z.ZodType<Phase2Response> = z.object({
 });
 
 // The chat envelope: only the parts the code reads
-const ChatCompletionSchema = z.object({
+export const ChatCompletionSchema = z.object({
   choices: z
     .array(
       z.object({
@@ -250,7 +250,7 @@ function fail(reason: string): never {
 }
 
 /** Escapes closing tags so user text cannot end the <idea> or <answers> block early */
-const escapeTags = (text: string) => text.replace(/<\//g, "<\\/");
+export const escapeTags = (text: string) => text.replace(/<\//g, "<\\/");
 
 function buildPrompt(input: PlannerInput, jev: JevResponse, answers: PlannerAnswer[]): string {
   const choice = (key: string) => jev.answers[key]?.choice ?? "unknown";

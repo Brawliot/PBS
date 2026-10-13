@@ -37,7 +37,7 @@ const CLAIM_LABELS: Record<ClaimKey, string> = {
   competition: "the competition",
 };
 
-const CHECKS = {
+export const CHECKS = {
   budget_fit: "The budget in the form is enough to launch this business.",
   timeline_realistic: "The expected timeline is realistic for the current stage of this business.",
   team_fit: "The team size and weekly hours are enough for what this business requires.",

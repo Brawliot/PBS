@@ -4,7 +4,7 @@ import { request } from "node:http";
 import type { AddressInfo } from "node:net";
 import { readFileSync } from "node:fs";
 import { server } from "../../server.js";
-import { mockFetch, jsonResponse, type CapturedRequest } from "./helpers.js";
+import { EMPTY_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, type CapturedRequest } from "./helpers.js";
 import { signUp } from "../auth/signed-in.js";
 import "./helpers.js";
 
@@ -60,9 +60,9 @@ async function runJob(payload: unknown): Promise<unknown> {
 }
 
 /** The outside calls in order: Jev, then phase 2 (first round only), then Jev again for the profile and the validation */
-const hostOf = (call: CapturedRequest) => (call.url.includes("typesafe.ai") ? "jev" : "phase2");
-const FIRST_ROUND_CALLS = ["jev", "phase2", "jev", "jev"];
-const FINAL_CALLS = ["jev", "jev", "jev"];
+const hostOf = (call: CapturedRequest) => (call.url.includes("typesafe.ai") ? "jev" : isExplanationCall(call) ? "explain" : "phase2");
+const FIRST_ROUND_CALLS = ["jev", "phase2", "jev", "jev", "explain"];
+const FINAL_CALLS = ["jev", "jev", "jev", "explain"];
 
 const input = { idea: "Bakery delivery", budget: 10_000, experience: 1, team: 1, hours: 1 };
 
@@ -98,11 +98,10 @@ const phase2Reply = (questions: unknown[]) => ({
 
 /** Mocks the two outside calls: Jev (typesafe) and phase 2 (OpenAI chat, with the given questions) */
 function mockOutside(questions: unknown[]): CapturedRequest[] {
-  return mockFetch(({ url }) => {
-    if (url.includes("typesafe.ai")) return jsonResponse(200, jevReply);
-    return jsonResponse(200, {
-      choices: [{ finish_reason: "stop", message: { content: JSON.stringify(phase2Reply(questions)) } }],
-    });
+  return mockFetch((request) => {
+    if (request.url.includes("typesafe.ai")) return jsonResponse(200, jevReply);
+    const content = isExplanationCall(request) ? EMPTY_EXPLANATIONS : phase2Reply(questions);
+    return jsonResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(content) } }] });
   });
 }
 

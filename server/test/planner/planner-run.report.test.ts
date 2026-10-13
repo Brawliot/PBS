@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { runPlanner } from "../../planner/planner-run.js";
 import { InMemoryReportRepository } from "../../plan/report-repository-memory.js";
 import { ReportStoreError, type ReportRepository } from "../../plan/report-repository.js";
-import { mockFetch, jsonResponse, silenceConsoleError } from "./helpers.js";
+import { EMPTY_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, silenceConsoleError } from "./helpers.js";
 import "./helpers.js";
 
 // The reports a run keeps: built from its own values, checked by parseReport, and linked by reportId
@@ -42,9 +42,10 @@ const phase2Reply = (questions: unknown[]) => ({
   questions,
 });
 function mockOutside(questions: unknown[]) {
-  mockFetch(({ url }) => {
-    if (url.includes("typesafe.ai")) return jsonResponse(200, jevReply);
-    return jsonResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(phase2Reply(questions)) } }] });
+  mockFetch((request) => {
+    if (request.url.includes("typesafe.ai")) return jsonResponse(200, jevReply);
+    const content = isExplanationCall(request) ? EMPTY_EXPLANATIONS : phase2Reply(questions);
+    return jsonResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(content) } }] });
   });
 }
 
@@ -55,7 +56,14 @@ describe("runPlanner keeps the report of the runs that end with one", () => {
     const result = (await runPlanner(input, answers, true, claims, { reports, owner: USER })) as Record<string, unknown>;
     assert.equal(typeof result.reportId, "string");
     const stored = await reports.get(result.reportId as string, USER);
-    assert.deepEqual(stored?.report, { input, answers, jev: result.jev, profile: result.profile, validation: result.validation });
+    assert.deepEqual(stored?.report, {
+      input,
+      answers,
+      jev: result.jev,
+      profile: result.profile,
+      validation: result.validation,
+      explanations: { warningReasons: [], areaReasons: [] },
+    });
     assert.equal("phase2" in (stored?.report ?? {}), false);
   });
 

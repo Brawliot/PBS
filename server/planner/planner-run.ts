@@ -12,7 +12,7 @@
 
 import type { FieldAnalysis, Phase2Response } from "./planner-phase2-handler.js";
 import type { ReportRepository } from "../plan/report-repository.js";
-import type { Report } from "../plan/report.js";
+import type { Explanations, Report } from "../plan/report.js";
 import {
   MAX_CURRENCY,
   MAX_PHASE2_LIST,
@@ -25,6 +25,7 @@ import {
 import type { JevResponse, PlannerInput } from "./planner-handler.js";
 import { analyzeWithJev } from "./planner-handler.js";
 import { analyzePhase2, type PlannerAnswer } from "./planner-phase2-handler.js";
+import { explainReport } from "./planner-explain-handler.js";
 import { analyzeProfile } from "./planner-profile-handler.js";
 import { questionLimit, selectQuestions } from "./question-policy.js";
 import {
@@ -102,7 +103,8 @@ export function fitPhase2(phase2: Phase2Response): NonNullable<Report["phase2"]>
 
 /**
  * The report of a run, from the values of the run. The phase 2 part is included only when the run had one,
- * and it is fitted to the report's limits. Pure: the caller decides where it is kept.
+ * and it is fitted to the report's limits. The explanations are included only when the model gave usable ones
+ * (planner-explain-handler.ts); they are already within the report's limits. Pure: the caller decides where it is kept.
  */
 export function reportOf(
   input: PlannerInput,
@@ -110,8 +112,9 @@ export function reportOf(
   jev: JevResponse,
   built: Awaited<ReturnType<typeof buildReport>>,
   phase2?: Phase2Response,
+  explanations?: Explanations,
 ) {
-  return { input, answers, jev, ...(phase2 && { phase2: fitPhase2(phase2) }), ...built };
+  return { input, answers, jev, ...(phase2 && { phase2: fitPhase2(phase2) }), ...built, ...(explanations && { explanations }) };
 }
 
 /** Last step: classify the profile and validate the analysis, both at once */
@@ -165,7 +168,13 @@ export async function runPlanner(
   // Final request: the questions are answered, so only the profile is left (no phase 2 in this report)
   if (final) {
     const built = await buildReport(input, jev, answers, claims);
-    return { jev, ...built, ...(await keepReport(options, reportOf(input, answers, jev, built))) };
+    const explanations = await explainReport({ input, answers, validation: built.validation }, options.signal);
+    return {
+      jev,
+      ...built,
+      ...(explanations && { explanations }),
+      ...(await keepReport(options, reportOf(input, answers, jev, built, undefined, explanations))),
+    };
   }
 
   const phase2 = await analyzePhase2(input, jev, answers, options.signal);
@@ -177,7 +186,14 @@ export async function runPlanner(
   if (questions.length === 0) {
     const built = await buildReport(input, jev, answers, claimsFromPhase2(phase2), phase2);
     const withPhase2 = { ...phase2, questions };
-    return { jev, phase2: withPhase2, ...built, ...(await keepReport(options, reportOf(input, answers, jev, built, withPhase2))) };
+    const explanations = await explainReport({ input, answers, validation: built.validation, phase2 }, options.signal);
+    return {
+      jev,
+      phase2: withPhase2,
+      ...built,
+      ...(explanations && { explanations }),
+      ...(await keepReport(options, reportOf(input, answers, jev, built, withPhase2, explanations))),
+    };
   }
   return {
     jev,

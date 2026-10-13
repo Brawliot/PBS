@@ -201,6 +201,10 @@
         }
       ],
       "level": 1
+    },
+    "explanations": {
+      "areaReasons": [],
+      "warningReasons": []
     }
   },
   "withQuestions": {
@@ -438,6 +442,10 @@
         }
       ],
       "level": 1
+    },
+    "explanations": {
+      "areaReasons": [],
+      "warningReasons": []
     }
   }
 }
