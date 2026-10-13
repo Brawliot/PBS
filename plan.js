@@ -269,7 +269,7 @@
   }
 
   const progressText = (progress) =>
-    progress && progress.total > 0 ? `${progress.done} of ${progress.total} tasks done` : 'No tasks yet';
+    progress && progress.total > 0 ? `${progress.done} of ${progress.total} ${plural(progress.total, 'task')} done` : 'No tasks yet';
 
   function phaseName(id) {
     return byId(data.plan.phases, id)?.name ?? '';
