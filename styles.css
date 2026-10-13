@@ -603,6 +603,10 @@ body.has-result .hero { display: none; }
    ========================================================================== */
 body:has(> .hero) { overflow-y: auto; }
 .hero ~ .giant { min-height: 40px; }
+/* Short windows and phones: the wordmark would be a sliver or sit below the fold, so it is left out (it is decoration) */
+@media (max-height: 560px), (max-width: 600px) {
+  .hero ~ .giant { display: none; }
+}
 
 /* ==========================================================================
    Giant wordmark (endless loop to the right)
