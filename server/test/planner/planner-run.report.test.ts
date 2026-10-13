@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { runPlanner } from "../../planner/planner-run.js";
 import { InMemoryReportRepository } from "../../plan/report-repository-memory.js";
 import { ReportStoreError, type ReportRepository } from "../../plan/report-repository.js";
-import { EMPTY_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, silenceConsoleError } from "./helpers.js";
+import { REASONLESS_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, silenceConsoleError } from "./helpers.js";
 import "./helpers.js";
 
 // The reports a run keeps: built from its own values, checked by parseReport, and linked by reportId
@@ -44,7 +44,7 @@ const phase2Reply = (questions: unknown[]) => ({
 function mockOutside(questions: unknown[]) {
   mockFetch((request) => {
     if (request.url.includes("typesafe.ai")) return jsonResponse(200, jevReply);
-    const content = isExplanationCall(request) ? EMPTY_EXPLANATIONS : phase2Reply(questions);
+    const content = isExplanationCall(request) ? REASONLESS_EXPLANATIONS : phase2Reply(questions);
     return jsonResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(content) } }] });
   });
 }
@@ -62,7 +62,7 @@ describe("runPlanner keeps the report of the runs that end with one", () => {
       jev: result.jev,
       profile: result.profile,
       validation: result.validation,
-      explanations: { warningReasons: [], areaReasons: [] },
+      explanations: REASONLESS_EXPLANATIONS,
     });
     assert.equal("phase2" in (stored?.report ?? {}), false);
   });

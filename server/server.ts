@@ -6,6 +6,7 @@ import type { PlannerInput } from "./planner/planner-handler.js";
 import type { PlannerAnswer } from "./planner/planner-phase2-handler.js";
 import type { Claims } from "./planner/planner-validation-handler.js";
 import { runPlanner } from "./planner/planner-run.js";
+import { REPORT_TEMPLATES } from "./planner/report-templates.js";
 import { JobStore } from "./jobs.js";
 import { environmentProblem, originAllowed, securityHeaders } from "./security.js";
 import { logFailure } from "./log.js";
@@ -180,6 +181,13 @@ export const server = createServer(async (req, res) => {
     if (path === "/plan") return sendFile(res, "plan.html");
     if (path === "/projects") return sendFile(res, "projects.html");
     if (isPublic(path)) return sendFile(res, path.slice(1));
+  }
+
+  // The starter templates: the fixed catalog, for any signed-in person. It reads no table (planner/report-templates.ts).
+  if (req.method === "GET" && path === "/api/report-templates") {
+    const owner = await userOf(req);
+    if (!owner) return sendJson(res, 401, UNAUTHENTICATED, NO_STORE);
+    return sendJson(res, 200, { templates: REPORT_TEMPLATES.map(({ id, title, purpose, body }) => ({ id, title, purpose, body })) }, NO_STORE);
   }
 
   const jobPath = path.match(/^\/api\/planner\/([^/]+)$/);

@@ -55,8 +55,17 @@ export function mockFetch(handler: FetchHandler): CapturedRequest[] {
 /** The explanations call of a planner run (planner-explain-handler.ts), told apart from the others by its schema name */
 export const isExplanationCall = (request: CapturedRequest) => request.body?.response_format?.json_schema?.name === "explanations";
 
-/** An empty explanations reply: it passes the checks, so the report keeps the same content it had before */
-export const EMPTY_EXPLANATIONS = { warningReasons: [], areaReasons: [] };
+/** A explanations reply with no reasons and valid time, cost split and templates: every part passes the checks */
+export const REASONLESS_EXPLANATIONS = {
+  warningReasons: [],
+  areaReasons: [],
+  timeToOpen: { min: 3, max: 5, unit: "months", confidence: "medium" },
+  costBreakdown: [
+    { label: "Equipment", percent: 60 },
+    { label: "Stock", percent: 40 },
+  ],
+  templates: ["supplier-quote", "customer-interviews", "price-test"],
+};
 
 export function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {

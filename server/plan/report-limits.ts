@@ -30,5 +30,14 @@ export const MAX_REPORT_NAME = 120;
 export const MAX_EXPLAINED_WARNINGS = 3;
 export const MAX_EXPLAINED_AREAS = 4;
 export const MAX_EXPLANATION_REASON = 140;
+/** Time to open: the estimate is a whole number of weeks or months, no longer than these */
+export const MAX_TIME_TO_OPEN_WEEKS = 104;
+export const MAX_TIME_TO_OPEN_MONTHS = 60;
+/** Upfront cost: the split of the cost, from MIN to MAX items, each label at most MAX_COST_LABEL characters */
+export const MIN_COST_ITEMS = 2;
+export const MAX_COST_ITEMS = 5;
+export const MAX_COST_LABEL = 24;
+/** Starter templates: the model picks exactly this many from the catalog */
+export const TEMPLATE_PICKS = 3;
 /** Largest money amount of the glance (the budget range): above it, the figure is not a small business's budget */
 export const MAX_GLANCE_MONEY = 1_000_000_000;

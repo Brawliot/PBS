@@ -196,7 +196,10 @@ export async function runPlanner(
   // Final request: the questions are answered, so only the profile is left (no phase 2 in this report)
   if (final) {
     const built = await buildReport(input, jev, answers, claims);
-    const explanations = await explainReport({ input, answers, validation: built.validation }, options.signal);
+    const explanations = await explainReport(
+      { input, answers, validation: built.validation, glance, timeToRevenue: built.profile.values.time_to_revenue },
+      options.signal,
+    );
     return {
       jev,
       ...built,
@@ -215,8 +218,11 @@ export async function runPlanner(
   if (questions.length === 0) {
     const built = await buildReport(input, jev, answers, claimsFromPhase2(phase2), phase2);
     const withPhase2 = { ...phase2, questions };
-    const explanations = await explainReport({ input, answers, validation: built.validation, phase2 }, options.signal);
     const glance = glanceOf(withPhase2);
+    const explanations = await explainReport(
+      { input, answers, validation: built.validation, phase2, glance, timeToRevenue: built.profile.values.time_to_revenue },
+      options.signal,
+    );
     return {
       jev,
       phase2: withPhase2,

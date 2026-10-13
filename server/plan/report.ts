@@ -14,11 +14,14 @@ import { z } from "zod";
 import { RANGES, MAX_ANSWERS, MAX_IDEA, MAX_TEXT } from "../request.js";
 import { CLAIM_KEYS } from "../planner/planner-validation-handler.js";
 import { CHECK_KEYS, GROUPS } from "../planner/planner-validation-handler.js";
+import { REPORT_TEMPLATES } from "../planner/report-templates.js";
 import { DIMENSION_KEYS, DIMENSION_OPTIONS } from "../planner/planner-profile-handler.js";
 import { GlanceSchema } from "./glance.js";
 import {
   MAX_CURRENCY,
   MAX_EXPLAINED_AREAS,
+  MAX_COST_ITEMS,
+  MAX_COST_LABEL,
   MAX_EXPLAINED_WARNINGS,
   MAX_EXPLANATION_REASON,
   MAX_JEV_ANSWERS,
@@ -34,6 +37,10 @@ import {
   MAX_REPORT_NAME,
   MAX_REPORT_OBJECTS,
   MAX_SCORE,
+  MAX_TIME_TO_OPEN_MONTHS,
+  MAX_TIME_TO_OPEN_WEEKS,
+  MIN_COST_ITEMS,
+  TEMPLATE_PICKS,
 } from "./report-limits.js";
 
 // The sizes of the report live in report-limits.ts; they are re-exported here for the code that reads the report
@@ -152,14 +159,54 @@ export const ReasonSchema = z
   .max(MAX_EXPLANATION_REASON)
   .refine((value) => !/[\u0000-\u001F\u007F]/.test(value), "control characters are not allowed");
 
-/** Why each shown warning and key area matters here. Optional: reports kept before it have none. */
+/** Each part of the explanations is checked on its own (planner-explain-handler.ts); the report keeps the ones that pass */
+export const WarningReasonsSchema = z
+  .array(z.strictObject({ key: z.enum(CHECK_KEYS as [string, ...string[]]), reason: ReasonSchema }))
+  .max(MAX_EXPLAINED_WARNINGS);
+
+export const AreaReasonsSchema = z
+  .array(z.strictObject({ name: z.enum(AREA_NAMES as [string, ...string[]]), reason: ReasonSchema }))
+  .max(MAX_EXPLAINED_AREAS);
+
+/** The time to open is an estimate of the model: whole weeks or months, within the caps, and a confidence */
+export const TimeToOpenSchema = z
+  .strictObject({
+    min: z.number().int().min(1),
+    max: z.number().int().min(1),
+    unit: z.enum(["weeks", "months"]),
+    confidence: z.enum(["low", "medium", "high"]),
+  })
+  .refine(({ min, max }) => min <= max, "max is below min")
+  .refine(({ max, unit }) => max <= (unit === "weeks" ? MAX_TIME_TO_OPEN_WEEKS : MAX_TIME_TO_OPEN_MONTHS), "above the cap");
+
+/** Labels are plain text: no spaces at the edges, no control characters, distinct from each other */
+const CostLabelSchema = z
+  .string()
+  .min(1)
+  .max(MAX_COST_LABEL)
+  .refine((value) => value === value.trim() && !/[\u0000-\u001F\u007F]/.test(value), "not plain text");
+
+/** The split of the upfront cost in percentages: two to five items, and the percentages add up to exactly 100 */
+export const CostBreakdownSchema = z
+  .array(z.strictObject({ label: CostLabelSchema, percent: z.number().int().min(1).max(100) }))
+  .min(MIN_COST_ITEMS)
+  .max(MAX_COST_ITEMS)
+  .refine((items) => new Set(items.map(({ label }) => label)).size === items.length, "labels repeat")
+  .refine((items) => items.reduce((sum, { percent }) => sum + percent, 0) === 100, "percentages do not add up to 100");
+
+/** The starter templates the model picks: exactly TEMPLATE_PICKS distinct ids of the catalog */
+export const TemplatePicksSchema = z
+  .array(z.enum(REPORT_TEMPLATES.map(({ id }) => id) as [string, ...string[]]))
+  .length(TEMPLATE_PICKS)
+  .refine((ids) => new Set(ids).size === ids.length, "ids repeat");
+
+/** The explanations of the report. Every part is optional: a report kept before a part existed still reads. */
 export const ExplanationsSchema = z.strictObject({
-  warningReasons: z
-    .array(z.strictObject({ key: z.enum(CHECK_KEYS as [string, ...string[]]), reason: ReasonSchema }))
-    .max(MAX_EXPLAINED_WARNINGS),
-  areaReasons: z
-    .array(z.strictObject({ name: z.enum(AREA_NAMES as [string, ...string[]]), reason: ReasonSchema }))
-    .max(MAX_EXPLAINED_AREAS),
+  warningReasons: WarningReasonsSchema.optional(),
+  areaReasons: AreaReasonsSchema.optional(),
+  timeToOpen: TimeToOpenSchema.optional(),
+  costBreakdown: CostBreakdownSchema.optional(),
+  templates: TemplatePicksSchema.optional(),
 });
 
 export const ReportSchema = z.strictObject({

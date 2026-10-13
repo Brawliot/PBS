@@ -12,7 +12,7 @@ import { InMemoryReportRepository } from "../../plan/report-repository-memory.js
 import { buildPlanSkeleton } from "../../plan/plan-skeleton.js";
 import { reportWith } from "../plan/report-fixtures.js";
 import { prng } from "../plan/prng.js";
-import { EMPTY_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, silenceConsoleError } from "./helpers.js";
+import { REASONLESS_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, silenceConsoleError } from "./helpers.js";
 import "./helpers.js";
 
 const input = { idea: "Bakery delivery", budget: 10_000, experience: 1, team: 1, hours: 1 };
@@ -166,7 +166,7 @@ describe("contract: planner outputs of any size are always kept", () => {
       };
       mockFetch((request) => {
         if (request.url.includes("typesafe.ai")) return jsonResponse(200, { model: "test", answers: {}, usage: { input_tokens: 1, output_tokens: 1 } });
-        const content = isExplanationCall(request) ? EMPTY_EXPLANATIONS : output;
+        const content = isExplanationCall(request) ? REASONLESS_EXPLANATIONS : output;
         return jsonResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(content) } }] });
       });
       const reports = new InMemoryReportRepository();

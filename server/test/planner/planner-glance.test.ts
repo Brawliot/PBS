@@ -5,7 +5,7 @@ import { glanceOf, runPlanner } from "../../planner/planner-run.js";
 import type { Phase2Response } from "../../planner/planner-phase2-handler.js";
 import type { Glance } from "../../plan/glance.js";
 import { InMemoryReportRepository } from "../../plan/report-repository-memory.js";
-import { EMPTY_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse } from "./helpers.js";
+import { REASONLESS_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse } from "./helpers.js";
 import "./helpers.js";
 
 // The glance of a run: a final request keeps the glance the browser sends (checked by the request parser), and a
@@ -51,7 +51,7 @@ function mockOutside(options: { budget?: Phase2Response["constraints"]["budget"]
   return mockFetch((request) => {
     if (request.url.includes("typesafe.ai")) return jsonResponse(200, jevReply);
     const content = isExplanationCall(request)
-      ? EMPTY_EXPLANATIONS
+      ? REASONLESS_EXPLANATIONS
       : { ...phase2Reply(options.budget ?? budget), questions: options.questions ?? [] };
     return jsonResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(content) } }] });
   });

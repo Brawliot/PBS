@@ -204,7 +204,28 @@
     },
     "explanations": {
       "areaReasons": [],
-      "warningReasons": []
+      "warningReasons": [],
+      "timeToOpen": {
+        "min": 3,
+        "max": 5,
+        "unit": "months",
+        "confidence": "medium"
+      },
+      "costBreakdown": [
+        {
+          "label": "Equipment",
+          "percent": 60
+        },
+        {
+          "label": "Stock",
+          "percent": 40
+        }
+      ],
+      "templates": [
+        "supplier-quote",
+        "customer-interviews",
+        "price-test"
+      ]
     },
     "glance": {
       "maturity": "developing",
@@ -459,7 +480,28 @@
     },
     "explanations": {
       "areaReasons": [],
-      "warningReasons": []
+      "warningReasons": [],
+      "timeToOpen": {
+        "min": 3,
+        "max": 5,
+        "unit": "months",
+        "confidence": "medium"
+      },
+      "costBreakdown": [
+        {
+          "label": "Equipment",
+          "percent": 60
+        },
+        {
+          "label": "Stock",
+          "percent": 40
+        }
+      ],
+      "templates": [
+        "supplier-quote",
+        "customer-interviews",
+        "price-test"
+      ]
     }
   }
 }

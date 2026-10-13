@@ -4,7 +4,7 @@ import { request } from "node:http";
 import type { AddressInfo } from "node:net";
 import { readFileSync } from "node:fs";
 import { server } from "../../server.js";
-import { EMPTY_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, type CapturedRequest } from "./helpers.js";
+import { REASONLESS_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, type CapturedRequest } from "./helpers.js";
 import { signUp } from "../auth/signed-in.js";
 import "./helpers.js";
 
@@ -100,7 +100,7 @@ const phase2Reply = (questions: unknown[]) => ({
 function mockOutside(questions: unknown[]): CapturedRequest[] {
   return mockFetch((request) => {
     if (request.url.includes("typesafe.ai")) return jsonResponse(200, jevReply);
-    const content = isExplanationCall(request) ? EMPTY_EXPLANATIONS : phase2Reply(questions);
+    const content = isExplanationCall(request) ? REASONLESS_EXPLANATIONS : phase2Reply(questions);
     return jsonResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(content) } }] });
   });
 }
