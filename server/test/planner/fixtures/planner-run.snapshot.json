@@ -205,6 +205,20 @@
     "explanations": {
       "areaReasons": [],
       "warningReasons": []
+    },
+    "glance": {
+      "maturity": "developing",
+      "subsectorSource": "stated",
+      "location": {
+        "value": "Madrid",
+        "source": "stated"
+      },
+      "budget": {
+        "min": 5000,
+        "max": null,
+        "currency": "EUR",
+        "fits": "Enough for a first version"
+      }
     }
   },
   "withQuestions": {

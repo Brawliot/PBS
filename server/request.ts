@@ -2,6 +2,7 @@ import type { IncomingMessage } from "node:http";
 import type { PlannerInput } from "./planner/planner-handler.js";
 import type { PlannerAnswer } from "./planner/planner-phase2-handler.js";
 import { cleanClaims, type Claims } from "./planner/planner-validation-handler.js";
+import { parseGlance, type Glance } from "./plan/glance.js";
 
 /** Request parsing and limits for the planner API: everything that turns the body into trusted input */
 // Slider ranges, same as index.html
@@ -85,6 +86,7 @@ export function parsePlannerRequest(raw: string): {
   answers: PlannerAnswer[];
   final: boolean;
   claims: Claims;
+  glance?: Glance;
 } {
   let body: Record<string, unknown>;
   try {
@@ -119,5 +121,7 @@ export function parsePlannerRequest(raw: string): {
     }
     input[key] = value;
   }
-  return { input, answers: parseAnswers(body.answers), final, claims: cleanClaims(body.analysis) };
+  // The glance is only used by the final request: the first round builds its own from its phase 2
+  const glance = final ? parseGlance(body.glance) : undefined;
+  return { input, answers: parseAnswers(body.answers), final, claims: cleanClaims(body.analysis), ...(glance && { glance }) };
 }

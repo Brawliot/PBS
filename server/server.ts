@@ -214,13 +214,13 @@ export const server = createServer(async (req, res) => {
       // The body is read first, so a too-large body is 413 whoever sends it
       const raw = await readBody(req);
       // The body is checked first, as on the plan routes: a bad request is 400 whoever sends it
-      const { input, answers, final, claims } = parsePlannerRequest(raw);
+      const { input, answers, final, claims, glance } = parsePlannerRequest(raw);
       if (!authStores || !reportRepository) return sendJson(res, 503, NO_DATABASE, NO_STORE);
       const owner = await userOf(req);
       if (!owner) return sendJson(res, 401, UNAUTHENTICATED, NO_STORE);
       // Planner errors can carry internal details: only HttpError messages reach the client
       const jobId = jobs.start(owner, (signal) =>
-        runPlanner(input, answers, final, claims, { reports: reportRepository, owner, signal }).catch((e) => {
+        runPlanner(input, answers, final, claims, { reports: reportRepository, owner, signal }, glance).catch((e) => {
           if (e instanceof HttpError) throw e;
           throw new Error("Internal server error", { cause: e });
         }),

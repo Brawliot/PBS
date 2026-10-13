@@ -13,6 +13,7 @@
 import type { FieldAnalysis, Phase2Response } from "./planner-phase2-handler.js";
 import type { ReportRepository } from "../plan/report-repository.js";
 import type { Explanations, Report } from "../plan/report.js";
+import { parseGlance, type Glance } from "../plan/glance.js";
 import {
   MAX_CURRENCY,
   MAX_PHASE2_LIST,
@@ -102,9 +103,23 @@ export function fitPhase2(phase2: Phase2Response): NonNullable<Report["phase2"]>
 }
 
 /**
+ * The glance of a run that has its phase 2: built from that phase 2 (fitted, as the report keeps it), never
+ * from the browser. Undefined when the glance does not pass its schema (glance.ts), so it is left out.
+ */
+export function glanceOf(phase2: Phase2Response): Glance | undefined {
+  const fitted = fitPhase2(phase2);
+  return parseGlance({
+    maturity: fitted.maturity,
+    subsectorSource: fitted.subsector.source,
+    location: { value: fitted.location.value, source: fitted.location.source },
+    budget: fitted.constraints.budget,
+  });
+}
+
+/**
  * The report of a run, from the values of the run. The phase 2 part is included only when the run had one,
- * and it is fitted to the report's limits. The explanations are included only when the model gave usable ones
- * (planner-explain-handler.ts); they are already within the report's limits. Pure: the caller decides where it is kept.
+ * and it is fitted to the report's limits. The glance and the explanations are included only when there are
+ * (the explanations only when the model gave usable ones, planner-explain-handler.ts). Pure: the caller decides where it is kept.
  */
 export function reportOf(
   input: PlannerInput,
@@ -113,8 +128,17 @@ export function reportOf(
   built: Awaited<ReturnType<typeof buildReport>>,
   phase2?: Phase2Response,
   explanations?: Explanations,
+  glance?: Glance,
 ) {
-  return { input, answers, jev, ...(phase2 && { phase2: fitPhase2(phase2) }), ...built, ...(explanations && { explanations }) };
+  return {
+    input,
+    answers,
+    jev,
+    ...(phase2 && { phase2: fitPhase2(phase2) }),
+    ...built,
+    ...(explanations && { explanations }),
+    ...(glance && { glance }),
+  };
 }
 
 /** Last step: classify the profile and validate the analysis, both at once */
@@ -155,13 +179,17 @@ async function keepReport(options: PlannerRunOptions, report: object): Promise<{
   }
 }
 
-/** One planner run: Jev, then phase 2 or the final report. Returns the response body. */
+/**
+ * One planner run: Jev, then phase 2 or the final report. Returns the response body. The glance is the one the
+ * browser sends with a final request (already checked by parsePlannerRequest); it is not used otherwise.
+ */
 export async function runPlanner(
   input: PlannerInput,
   answers: PlannerAnswer[],
   final: boolean,
   claims: Claims,
   options: PlannerRunOptions,
+  glance?: Glance,
 ) {
   const jev = await analyzeWithJev(input, options.signal);
 
@@ -173,7 +201,8 @@ export async function runPlanner(
       jev,
       ...built,
       ...(explanations && { explanations }),
-      ...(await keepReport(options, reportOf(input, answers, jev, built, undefined, explanations))),
+      ...(glance && { glance }),
+      ...(await keepReport(options, reportOf(input, answers, jev, built, undefined, explanations, glance))),
     };
   }
 
@@ -187,12 +216,14 @@ export async function runPlanner(
     const built = await buildReport(input, jev, answers, claimsFromPhase2(phase2), phase2);
     const withPhase2 = { ...phase2, questions };
     const explanations = await explainReport({ input, answers, validation: built.validation, phase2 }, options.signal);
+    const glance = glanceOf(withPhase2);
     return {
       jev,
       phase2: withPhase2,
       ...built,
       ...(explanations && { explanations }),
-      ...(await keepReport(options, reportOf(input, answers, jev, built, withPhase2, explanations))),
+      ...(glance && { glance }),
+      ...(await keepReport(options, reportOf(input, answers, jev, built, withPhase2, explanations, glance))),
     };
   }
   return {
