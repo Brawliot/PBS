@@ -245,6 +245,8 @@ async function scenarioQuestionsFlow(browser) {
   return "questions flow: three answers, the final request carries them, the report opens";
 }
 
+// The first area of the level in use is core, so it is always on screen: it gets a reason, with the first warning
+const firstArea = (snapshot.final.validation.level === 2 ? snapshot.final.validation.departments : snapshot.final.validation.groups)[0].name;
 const reportResult = {
   ...snapshot.final,
   reportId: REPORT_ID,
@@ -254,6 +256,10 @@ const reportResult = {
     warnings: ["budget_fit", "timeline_realistic", "team_fit", "experience_fit", "model_fit", "regulation_fit", "consistency"],
     departments: snapshot.final.validation.departments.map((area, index) => (index === 0 ? { ...area, tier: "core" } : area)),
     groups: snapshot.final.validation.groups.map((area, index) => (index === 0 ? { ...area, tier: "core" } : area)),
+  },
+  explanations: {
+    warningReasons: [{ key: "budget_fit", reason: "Equipment and licences take most of the lower range." }],
+    areaReasons: [{ name: firstArea, reason: "Street trading, food hygiene." }],
   },
 };
 
@@ -269,10 +275,21 @@ async function scenarioReport(browser) {
   assert.equal(warnings.length, 4);
   assert.deepEqual(warnings[3], { text: "and 4 more to check in the full detail", more: true });
 
+  // The reasons sit under the item they explain, as text; an item with no reason shows no reason line
+  const warningReasons = await page.$$eval("#result-warnings li", (items) => items.map((item) => item.querySelector(".result__reason")?.textContent ?? null));
+  assert.deepEqual(warningReasons, ["Equipment and licences take most of the lower range.", null, null, null]);
+  assert.equal(await page.isVisible("#result-warnings .result__reason"), true, "the warning's reason is on screen");
+  const areaReasons = await page.$$eval("#result-departments-top .result__reason", (notes) => notes.map((note) => note.textContent));
+  assert.deepEqual(areaReasons, ["Street trading, food hygiene."]);
+  assert.equal(await page.isVisible("#result-departments-top .result__reason"), true, "the area's reason is on screen");
+
   // Key areas: one row each, with its level in words
   const areas = await page.$$eval("#result-departments-top li", (items) => items.filter((item) => !item.classList.contains("is-more")).map((item) => item.querySelector(".tier")?.textContent));
   assert.ok(areas.length >= 1 && areas.every((label) => ["Essential", "Recommended", "Optional"].includes(label)), `levels: ${areas}`);
   assert.ok(areas.includes("Essential"));
+  // The full detail shows the reason of the area that has one, and nothing else is added to its rows
+  const detailReasons = await page.$$eval("#result-departments .result__reason", (notes) => notes.map((note) => note.textContent));
+  assert.deepEqual(detailReasons, ["Street trading, food hygiene."]);
   assert.equal(await page.textContent("#result-meta"), "5 of 15 topics defined");
   assert.equal(await page.isVisible("#result-hint"), false, "the hint is only for 0 topics");
 

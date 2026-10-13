@@ -528,6 +528,9 @@ body.has-result .hero { display: none; }
 .result__pending li.is-more { padding: 5px 0; }
 .result__areas li.is-more { display: block; border-top: 0; }
 
+/* The reason the report gives under a warning or an area: one quiet line, in the theme's text tone */
+.result__reason { display: block; margin-top: 2px; font-size: 14px; line-height: 1.4; color: var(--gray-text); }
+
 .result__hint { font-size: 14px; color: var(--gray-text); }
 .result__hint--row { flex-basis: 100%; }
 

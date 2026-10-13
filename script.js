@@ -533,6 +533,7 @@
     let failed = false;
     let profile = null;
     let validation = null;
+    let explanations = null;
     let error = null;
 
     hideSubmitError();
@@ -547,6 +548,7 @@
       analysis = result.phase2 ?? analysis;
       profile = result.profile ?? null;
       validation = result.validation ?? null;
+      explanations = result.explanations ?? null;
       if (profile) reportId = result.reportId ?? null;
       // The browser keeps only the report's id, in this history entry: going back shows the report again
       if (profile && reportId) history.replaceState({ reportId }, '');
@@ -577,7 +579,7 @@
       showSubmitError(error.userMessage || 'Something went wrong. Please try again.', { retry: error?.retryable });
       idea.focus();
     } else {
-      await revealResult(analysis, profile, validation);
+      await revealResult(analysis, profile, validation, explanations);
     }
   };
 
@@ -626,7 +628,7 @@
     consistency: 'Some details of the description seem to contradict each other.',
   };
 
-  const showResult = (phase2, profile, validation) => {
+  const showResult = (phase2, profile, validation, explanations) => {
     const summary = document.getElementById('result-summary');
     const pending = document.getElementById('result-pending');
     const detail = document.getElementById('result-detail');
@@ -645,9 +647,20 @@
       .forEach((key) => addRow(summary, LABELS[key], profile.values[key]));
     if (!summary.children.length) addRow(summary, 'Business', 'Not enough information yet', true);
 
-    const addItem = (list, text) => {
+    // Reasons from the model for the warnings and the areas on screen: a quiet line under the item, as text
+    const warningReasons = new Map((explanations?.warningReasons ?? []).map(({ key, reason }) => [key, reason]));
+    const areaReasons = new Map((explanations?.areaReasons ?? []).map(({ name, reason }) => [name, reason]));
+    const reasonNote = (reason) => {
+      const note = document.createElement('span');
+      note.className = 'result__reason';
+      note.textContent = reason;
+      return note;
+    };
+
+    const addItem = (list, text, reason) => {
       const item = document.createElement('li');
       item.textContent = text;
+      if (reason) item.append(reasonNote(reason));
       list.append(item);
     };
     const pendingLabels = [
@@ -668,37 +681,35 @@
     document.getElementById('result-pending-block').hidden = !pending.children.length;
 
     const warningKeys = validation?.warnings ?? [];
-    warningKeys.slice(0, 3).forEach((key) => addItem(warnings, WARNINGS[key]));
+    warningKeys.slice(0, 3).forEach((key) => addItem(warnings, WARNINGS[key], warningReasons.get(key)));
     addMore(warnings, warningKeys.length - 3, `and ${warningKeys.length - 3} more to check in the full detail`);
     document.getElementById('result-warnings-block').hidden = !warnings.children.length;
 
     // Small businesses see the groups, larger ones the departments. Light areas stay in the popup
     const TIERS = { core: 'Essential', important: 'Recommended', light: 'Optional' };
-    const areas = validation ? (validation.level === 2 ? validation.departments : validation.groups) : [];
-    const mainAreas = areas.filter(({ tier }) => tier !== 'light');
-    mainAreas.slice(0, 4).forEach(({ name, tier }) => {
+    const addArea = (list, name, tier, reason) => {
       const item = document.createElement('li');
       const label = document.createElement('span');
       const chip = document.createElement('span');
       label.textContent = name;
       chip.className = `tier tier--${tier}`;
       chip.textContent = TIERS[tier];
-      item.append(label, chip);
-      topDepartments.append(item);
-    });
+      if (reason) {
+        const text = document.createElement('div');
+        text.append(label, reasonNote(reason));
+        item.append(text, chip);
+      } else {
+        item.append(label, chip);
+      }
+      list.append(item);
+    };
+    const areas = validation ? (validation.level === 2 ? validation.departments : validation.groups) : [];
+    const mainAreas = areas.filter(({ tier }) => tier !== 'light');
+    mainAreas.slice(0, 4).forEach(({ name, tier }) => addArea(topDepartments, name, tier, areaReasons.get(name)));
     addMore(topDepartments, areas.length - Math.min(mainAreas.length, 4), `and ${areas.length - Math.min(mainAreas.length, 4)} more in the full detail`);
     document.getElementById('result-departments-block').hidden = !topDepartments.children.length;
     // The same tier marks as the card, one row per area
-    areas.forEach(({ name, tier }) => {
-      const item = document.createElement('li');
-      const label = document.createElement('span');
-      const chip = document.createElement('span');
-      label.textContent = name;
-      chip.className = `tier tier--${tier}`;
-      chip.textContent = TIERS[tier];
-      item.append(label, chip);
-      departmentList.append(item);
-    });
+    areas.forEach(({ name, tier }) => addArea(departmentList, name, tier, areaReasons.get(name)));
     document.getElementById('detail-areas-block').hidden = !areas.length;
 
     // What is known is listed in full; what is still open is only a list of names
@@ -733,7 +744,7 @@
 
   // Loader -> result without going back to the initial page: the loader fades out where it is,
   // then the hero goes away, the giant wordmark slides up to its new place and the result fades in
-  const revealResult = async (phase2, profile, validation) => {
+  const revealResult = async (phase2, profile, validation, explanations) => {
     document.body.classList.add('is-finishing');
     await wait(FINISH_MS);
 
@@ -741,7 +752,7 @@
     const letter = giant.querySelector('.giant__letter');
     const before = letter.getBoundingClientRect().top;
 
-    showResult(phase2, profile, validation);
+    showResult(phase2, profile, validation, explanations);
     document.body.classList.remove('is-loading', 'is-finishing');
     loader.destroy();
     loader = null;
@@ -1038,7 +1049,7 @@
       if (!response.ok) throw new Error('report not found');
       const { id, report } = await response.json();
       reportId = id;
-      showResult(report.phase2, report.profile, report.validation);
+      showResult(report.phase2, report.profile, report.validation, report.explanations);
     } catch {
       history.replaceState(null, '');
       showToast('We could not find that report. Start a new analysis.');
