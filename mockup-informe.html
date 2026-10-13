@@ -40,15 +40,19 @@
 
     .glance__next { font-size: 14px; color: var(--gray-text); }
     .glance__note { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); font-size: 12px; color: var(--gray-text); }
-    .market { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border: 1px solid var(--border-strong); border-radius: 10px; }
-    .market__row { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 16px; }
-    .market__level { display: flex; align-items: center; gap: 10px; font-weight: 800; }
-    .market__meter { display: inline-flex; gap: 3px; }
-    .market__meter i { width: 22px; height: 6px; border-radius: 3px; background: var(--gray-light); }
-    .market__meter i.on { background: var(--dark); }
-    .market__why { font-size: 14px; color: var(--gray-text); }
-    .market__sure { font-size: 12px; color: var(--gray-text); }
     .result { gap: 14px; }
+    .glance__idea p + p { margin-top: 4px; }
+    .glance__alt { font-size: 14px; color: var(--gray-text); }
+    .needs { display: flex; flex-direction: column; gap: 8px; }
+    .needs__grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .needs__grid > div { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
+    .needs__grid dt { font-size: 12px; color: var(--gray-text); }
+    .needs__grid dd { margin-top: 2px; font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
+    .needs__grid small { display: block; margin-top: 1px; font-size: 12px; font-weight: 400; color: var(--gray-text); letter-spacing: 0; }
+    .result { gap: 14px; }
+    .areas2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; list-style: none; }
+    .areas2 li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 12px; font-size: 15px; border: 1px solid var(--border); border-radius: 10px; }
+    .areas2 .why { display: block; font-size: 12px; color: var(--gray-text); }
   </style>
 </head>
 <body class="has-result">
@@ -79,13 +83,14 @@
       <p class="budget__why"><span style="color: var(--danger)">&#9632;</span> Your £4,000 covers the low end only with a second-hand cart.</p>
     </section>
 
-    <section class="market" aria-label="Competition around you">
-      <div class="market__row">
-        <span>Competition around you</span>
-        <span class="market__level">Medium <span class="market__meter" aria-hidden="true"><i class="on"></i><i class="on"></i><i></i></span></span>
-      </div>
-      <p class="market__why">Mostly small cafés and chain kiosks near stations.</p>
-      <p class="market__sure">First look, medium confidence. Check it before you decide.</p>
+    <section class="needs" aria-label="What this business asks of you">
+      <h3 class="result__label">What this business asks of you</h3>
+      <dl class="needs__grid">
+        <div><dt>First revenue</dt><dd>0–3 months</dd></div>
+        <div><dt>Capital</dt><dd>Medium</dd></div>
+        <div><dt>Team · you: solo</dt><dd>Feasible solo</dd></div>
+        <div><dt>Regulation</dt><dd>Moderate</dd></div>
+      </dl>
     </section>
 
     <section class="result__block">
@@ -99,13 +104,11 @@
 
     <section class="result__block">
       <h3 class="result__label">Key areas</h3>
-      <ul class="result__areas">
-        <li><div>Legal &amp; Compliance<span class="why">Street trading and food hygiene rules apply</span></div><span class="tier tier--core">Essential</span></li>
+      <ul class="areas2">
+        <li><div>Legal &amp; Compliance<span class="why">Street trading, food hygiene</span></div><span class="tier tier--core">Essential</span></li>
         <li><div>Finance<span class="why">Your budget is the tightest limit</span></div><span class="tier tier--core">Essential</span></li>
-      </ul>
-      <ul class="result__pending">
-        <li>Marketing <span class="tier tier--important">Recommended</span></li>
-        <li>Operations <span class="tier tier--important">Recommended</span></li>
+        <li><div>Marketing<span class="why">Foot traffic decides sales</span></div><span class="tier tier--important">Recommended</span></li>
+        <li><div>Operations<span class="why">Supply and opening hours</span></div><span class="tier tier--important">Recommended</span></li>
       </ul>
     </section>
 
