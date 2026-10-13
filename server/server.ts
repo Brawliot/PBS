@@ -76,7 +76,7 @@ const MIME: Record<string, string> = {
 };
 
 // Only these front-end files are public (the repo root also holds .git, server/, etc.)
-const STATIC_FILES = new Set(["/plan.html", "/plan.js", "/giant.js", "/loader.js", "/script.js", "/styles.css", "/tech-text.js"]);
+const STATIC_FILES = new Set(["/plan.html", "/plan.js", "/giant.js", "/loader.js", "/script.js", "/styles.css", "/tech-text.js", "/theme.js", "/projects.html", "/projects.js"]);
 const isPublic = (path: string) =>
   STATIC_FILES.has(path) || /^\/fonts\/[\w.-]+$/.test(path);
 
@@ -178,6 +178,7 @@ export const server = createServer(async (req, res) => {
   if (req.method === "GET") {
     if (path === "/") return sendFile(res, "index.html");
     if (path === "/plan") return sendFile(res, "plan.html");
+    if (path === "/projects") return sendFile(res, "projects.html");
     if (isPublic(path)) return sendFile(res, path.slice(1));
   }
 

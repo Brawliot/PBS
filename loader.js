@@ -14,6 +14,8 @@
 
   const options = (slot) => {
     const style = getComputedStyle(slot);
+    // The drawing takes the theme's colours, read when the loader starts
+    const tokens = getComputedStyle(document.documentElement);
     const size = parseFloat(style.fontSize);
     return {
       text: TEXT,
@@ -24,8 +26,8 @@
       dashLength: 4,
       dashGap: 2,
       specks: 15,
-      color: '#000000',
-      accentColor: '#272727',
+      color: tokens.getPropertyValue('--black').trim() || '#000000',
+      accentColor: tokens.getPropertyValue('--dark').trim() || '#272727',
     };
   };
 

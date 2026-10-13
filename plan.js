@@ -1673,6 +1673,8 @@
   // ---- The plan bar: search, export or print, and the account
   function planBar(route) {
     const query = route.name === 'search' ? route.query : '';
+    const themeSlot = el('div', { class: 'plan-bar__theme' });
+    window.MandoTheme?.mount(themeSlot);
     return el(
       'header',
       { class: 'plan-bar' },
@@ -1704,7 +1706,9 @@
           el('button', { type: 'button', on: { click: exportTasksCsv } }, 'Export tasks as CSV'),
         ),
       ),
+      el('a', { class: 'plan-bar__link', href: '/projects' }, 'My projects'),
       el('a', { class: 'plan-bar__link', href: '/' }, 'Start page'),
+      themeSlot,
       el('button', { type: 'button', class: 'btn btn--outline', on: { click: logOut } }, 'Log out'),
     );
   }

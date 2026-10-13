@@ -522,6 +522,8 @@
       profile = result.profile ?? null;
       validation = result.validation ?? null;
       if (profile) reportId = result.reportId ?? null;
+      // The browser keeps only the report's id, in this history entry: going back shows the report again
+      if (profile && reportId) history.replaceState({ reportId }, '');
       if (!profile) {
         queue = result.phase2?.questions ?? [];
         total = result.questionTotal ?? queue.length;
@@ -736,7 +738,11 @@
     syncModalState();
   });
   document.getElementById('restart-cancel').addEventListener('click', () => restartDialog.close());
-  document.getElementById('restart-confirm').addEventListener('click', () => location.reload());
+  document.getElementById('restart-confirm').addEventListener('click', () => {
+    // The saved id goes first: the reload must not bring the old report back
+    history.replaceState(null, '');
+    location.reload();
+  });
   document.getElementById('result-detail-open').addEventListener('click', () => {
     detailDialog.showModal();
     syncModalState();
@@ -974,10 +980,28 @@
     toast.classList.remove('is-open');
   });
 
-  // View my projects: show coming soon notice
+  // View my projects: the list of the person's plans (projects.html)
   document.querySelector('.nav__projects').addEventListener('click', () => {
-    showToast('Projects are not available yet.');
+    location.assign('/projects');
   });
+
+  // Coming back (the browser's back button, or a reload) shows the saved report again. The report is read
+  // from the server by its id; if it cannot be read, the start page stays as it is and says so.
+  const restoreReport = async () => {
+    const saved = history.state?.reportId;
+    if (typeof saved !== 'string') return;
+    try {
+      const response = await fetch(`/api/reports/${encodeURIComponent(saved)}`, { cache: 'no-store', headers: { Accept: 'application/json' } });
+      if (!response.ok) throw new Error('report not found');
+      const { id, report } = await response.json();
+      reportId = id;
+      showResult(report.phase2, report.profile, report.validation);
+    } catch {
+      history.replaceState(null, '');
+      showToast('We could not find that report. Start a new analysis.');
+    }
+  };
+  restoreReport();
 
   // Giant wordmark: duplicate the group so the loop is seamless
   // ---------------------------------------------------------------------------

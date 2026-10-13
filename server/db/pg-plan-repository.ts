@@ -13,7 +13,9 @@ import {
   readStoredPlan,
   type PlanEventRecord,
   type PlanLogRecord,
+  PROJECT_LIMIT,
   type PlanRepository,
+  type ProjectRow,
   type StoredPlan,
   type UpdateResult,
 } from "../plan/plan-repository.js";
@@ -57,6 +59,16 @@ export class PgPlanRepository implements PlanRepository {
 
   async remove(id: string, userId: string): Promise<void> {
     await this.pool.query("DELETE FROM plans WHERE id = $1 AND user_id = $2", [id, userId]);
+  }
+
+  async list(userId: string): Promise<ProjectRow[]> {
+    // Reads the whole document (the progress is counted from it) but returns only the summary's fields
+    const { rows } = await this.pool.query<PlanRow & { updated_at: Date }>(
+      `SELECT id, title, version, schema_version, document, updated_at
+         FROM plans WHERE user_id = $1 ORDER BY updated_at DESC LIMIT $2`,
+      [userId, PROJECT_LIMIT],
+    );
+    return rows.map((row) => ({ id: row.id, title: row.title, updatedAt: row.updated_at.toISOString(), plan: storedFrom(row).plan }));
   }
 
   async update(id: string, userId: string, expectedVersion: number, plan: Plan, events: PlanEventRecord[], logs: PlanLogRecord[] = []): Promise<UpdateResult> {

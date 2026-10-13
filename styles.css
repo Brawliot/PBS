@@ -40,6 +40,38 @@
 }
 
 /* ==========================================================================
+   Themes. The light tokens above are the default. A dark system setting
+   switches to the dark set (unless the person chose light); the picker
+   sets data-theme to dark or contrast, or light. Contrast is last, so it
+   wins over the dark set. Every set defines every token.
+   ========================================================================== */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --black: #f2f2f5; --dark: #f2f2f5; --dark-hover: #d4d4da; --white: #121214; --gray: #5a5a64;
+    --gray-text: #b0b0ba; --gray-light: #3a3a42; --border: #2c2c33; --border-strong: #6e6e78; --border-control: #8c8c96;
+    --danger: #ff9d91; --tint: rgba(129, 132, 255, 0.16); --shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+    --shadow-soft: 0 6px 14px rgba(0, 0, 0, 0.45); --ring: 0 0 0 6px rgba(242, 242, 245, 0.14);
+    --surface-hover: #1f1f26; --danger-bg: #3a1a18; --glow: 0 0 0 4px rgba(129, 132, 255, 0.35), 0 0 32px 8px rgba(129, 132, 255, 0.40);
+    --danger-strong: #ffc2b9; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --black: #f2f2f5; --dark: #f2f2f5; --dark-hover: #d4d4da; --white: #121214; --gray: #5a5a64;
+  --gray-text: #b0b0ba; --gray-light: #3a3a42; --border: #2c2c33; --border-strong: #6e6e78; --border-control: #8c8c96;
+  --danger: #ff9d91; --tint: rgba(129, 132, 255, 0.16); --shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+  --shadow-soft: 0 6px 14px rgba(0, 0, 0, 0.45); --ring: 0 0 0 6px rgba(242, 242, 245, 0.14);
+  --surface-hover: #1f1f26; --danger-bg: #3a1a18; --glow: 0 0 0 4px rgba(129, 132, 255, 0.35), 0 0 32px 8px rgba(129, 132, 255, 0.40);
+  --danger-strong: #ffc2b9; color-scheme: dark;
+}
+:root[data-theme="contrast"] {
+  --black: #fff; --dark: #fff; --dark-hover: #d6d6d6; --white: #000; --gray: #8a8a8a;
+  --gray-text: #d6d6d6; --gray-light: #5a5a5a; --border: #5a5a5a; --border-strong: #fff; --border-control: #fff;
+  --danger: #ffb4aa; --tint: rgba(150, 150, 255, 0.25); --shadow: 0 0 0 1px #fff; --shadow-soft: 0 0 0 1px #fff;
+  --ring: 0 0 0 6px rgba(255, 255, 255, 0.35); --surface-hover: #1a1a1a; --danger-bg: #2a0a08;
+  --glow: 0 0 0 4px #fff, 0 0 32px 8px rgba(150, 150, 255, 0.5); --danger-strong: #ffd6cf; color-scheme: dark;
+}
+
+/* ==========================================================================
    Base
    ========================================================================== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1110,3 +1142,60 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
   .plan { width: calc(100% - 32px); }
 }
 
+
+/* ==========================================================================
+   Print: always the light set on paper, whatever theme is on screen
+   (a browser drops background colours when printing, so light text would vanish)
+   ========================================================================== */
+@media print {
+  :root:root, :root:root[data-theme] {
+    --black: #000; --dark: #272727; --dark-hover: #3d3d3d; --white: #fff; --gray: #919195;
+    --gray-text: #4f4f56; --gray-light: #e6e6e6; --border: #dcdcdc; --border-strong: #8f8f98; --border-control: #7f7f7f;
+    --danger: #b42318; --tint: rgba(99, 102, 241, 0.22); --shadow: 0 18px 40px rgba(39, 39, 39, 0.18);
+    --shadow-soft: 0 6px 14px rgba(39, 39, 39, 0.18); --ring: 0 0 0 6px rgba(39, 39, 39, 0.12);
+    --surface-hover: #f3f3f7; --danger-bg: #fdf0ee; --glow: 0 0 0 4px rgba(99, 102, 241, 0.28), 0 0 32px 8px rgba(99, 102, 241, 0.40);
+    --danger-strong: #8f1c12; color-scheme: light;
+  }
+}
+
+/* ==========================================================================
+   Theme picker (built by theme.js into [data-theme-picker])
+   ========================================================================== */
+.theme-picker {
+  display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px;
+  border: 1px solid var(--border-strong); border-radius: 999px; background: var(--white);
+}
+.theme-picker button {
+  font: inherit; font-size: 14px; border: 0; background: transparent; color: var(--dark);
+  padding: 6px 12px; border-radius: 999px; cursor: pointer;
+}
+.theme-picker button[aria-pressed="true"] { background: var(--dark); color: var(--white); }
+
+/* ==========================================================================
+   Projects page (projects.html)
+   ========================================================================== */
+.projects-page { max-width: 880px; margin: 0 auto; padding-block: 28px 56px; padding-inline: 16px; }
+.projects-head {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px;
+  padding-bottom: 18px; border-bottom: 1px solid var(--border);
+}
+.projects-head h1 { font-size: 28px; letter-spacing: -0.02em; margin: 0; }
+.projects-nav { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.projects-nav a { color: var(--black); font-weight: 700; }
+.projects-count { color: var(--gray-text); font-size: 14px; margin: 14px 0 0; min-height: 1.4em; }
+.project-list { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 10px; }
+.project {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 16px; align-items: center;
+  padding: 14px 16px; background: var(--white); border: 1px solid var(--border-strong); border-radius: 12px;
+}
+.project__title { margin: 0; font-size: 16px; font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
+.project__title a { color: var(--black); text-decoration: underline; text-underline-offset: 3px; }
+.project__status { font-size: 13px; padding: 2px 10px; border: 1px solid var(--border-strong); border-radius: 999px; white-space: nowrap; color: var(--dark); }
+.project__meta { grid-column: 1 / -1; margin: 0; font-size: 14px; color: var(--gray-text); }
+.project__bar { grid-column: 1 / -1; height: 8px; background: var(--gray-light); border-radius: 4px; overflow: hidden; }
+.project__bar i { display: block; height: 100%; background: var(--black); }
+.projects-empty { margin-top: 18px; padding: 20px; border: 1px dashed var(--border-strong); border-radius: 12px; color: var(--gray-text); }
+.projects-empty p { margin: 0 0 12px; }
+
+/* The projects page scrolls like a document; the start and plan pages use the fixed-height layout above */
+.projects-body { display: block; height: auto; min-height: 100vh; min-height: 100dvh; overflow: visible; }

@@ -8,6 +8,7 @@ import { z } from "zod";
 import { restaurantPlan } from "./plan/demo-plan.js";
 import { applyPlanAction, type PlanActionError } from "./plan/plan-actions.js";
 import { derivePlan } from "./plan/plan-derived.js";
+import { summarizeProject } from "./plan/project-summary.js";
 import { buildPlanSkeleton } from "./plan/plan-skeleton.js";
 import { EVENT_ACTIONS, FactTermSchema, IdSchema, parsePlan, type FactTerm, type Plan } from "./plan/plan-model.js";
 import { applyProposalAction, createProposal, proposeExpansion, type ProposalError } from "./plan/proposals.js";
@@ -126,7 +127,7 @@ const NOT_FOUND: PlanResponse = { status: 404, body: { error: "Not found" } };
 
 /** The paths this module answers, so server.ts can hand them over */
 export function isPlanPath(path: string): boolean {
-  return path === "/api/plan" || path.startsWith("/api/plan/") || path.startsWith("/api/dev/");
+  return path === "/api/plan" || path.startsWith("/api/plan/") || path.startsWith("/api/dev/") || path === "/api/projects" || path.startsWith("/api/reports/");
 }
 
 // The body of an action: the actor is not here, the server sets it. strictObject refuses any other key.
@@ -155,6 +156,9 @@ async function route(request: PlanRequest): Promise<PlanResponse> {
   if (isDev && !devRoutesAllowed(env)) return NOT_FOUND;
 
   if (method === "POST" && path === "/api/plan") return createPlan(request);
+  if (method === "GET" && path === "/api/projects") return listProjects(request);
+  const report = path.match(/^\/api\/reports\/([^/]+)$/);
+  if (method === "GET" && report) return getReport(request, report[1]);
 
   const fact = path.match(/^\/api\/plan\/([^/]+)\/facts$/);
   if (method === "POST" && fact) return createFact(request, fact[1]);
@@ -187,6 +191,22 @@ async function route(request: PlanRequest): Promise<PlanResponse> {
   if (isDev && method === "POST" && fakeProposal) return fakeFactProposal(request, fakeProposal[1]);
 
   return NOT_FOUND;
+}
+
+/** GET /api/projects: the user's plans as summaries, the latest change first. The documents stay on the server. */
+async function listProjects(request: PlanRequest): Promise<PlanResponse> {
+  if (!request.repo) return fail("storage_unavailable");
+  const rows = await request.repo.list(request.userId);
+  return { status: 200, body: { projects: rows.map(summarizeProject) } };
+}
+
+/** GET /api/reports/:id: a report of the user, for the start page to show again. Another user's report is not found. */
+async function getReport(request: PlanRequest, id: string): Promise<PlanResponse> {
+  if (!UUID.test(id)) return fail("not_found");
+  if (!request.reports) return fail("storage_unavailable");
+  const stored = await request.reports.get(id, request.userId);
+  if (!stored) return fail("not_found");
+  return { status: 200, body: { id: stored.id, report: stored.report, planId: stored.planId } };
 }
 
 async function getPlan(request: PlanRequest, id: string): Promise<PlanResponse> {

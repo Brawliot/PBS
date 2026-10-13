@@ -7,11 +7,13 @@ import { randomUUID } from "node:crypto";
 import { MAX_DOCUMENT_BYTES, parsePlan, type Plan } from "./plan-model.js";
 import {
   PLAN_SCHEMA_VERSION,
+  PROJECT_LIMIT,
   preparePlan,
   readStoredPlan,
   type PlanEventRecord,
   type PlanLogRecord,
   type PlanRepository,
+  type ProjectRow,
   type StoredPlan,
   type UpdateResult,
 } from "./plan-repository.js";
@@ -25,6 +27,7 @@ export interface MemoryRow {
   document: string;
   events: PlanEventRecord[];
   log: PlanLogRecord[];
+  updatedAt: string;
 }
 
 /** Kept as a contract for the tests (no product code calls it yet): in-memory storage with the same rules as the database one, for the tests. */
@@ -43,6 +46,7 @@ export class InMemoryPlanRepository implements PlanRepository {
       document: JSON.stringify(prepared.plan),
       events: [],
       log: [],
+      updatedAt: new Date().toISOString(),
     };
     this.rows.set(row.id, row);
     return this.stored(row);
@@ -61,6 +65,7 @@ export class InMemoryPlanRepository implements PlanRepository {
     if (Buffer.byteLength(document) > MAX_DOCUMENT_BYTES) return { ok: false, code: "plan_too_large" };
     row.document = document;
     row.version += 1;
+    row.updatedAt = new Date().toISOString();
     row.events.push(...events);
     row.log.push(...logs);
     return { ok: true, stored: this.stored(row) };
@@ -69,6 +74,14 @@ export class InMemoryPlanRepository implements PlanRepository {
   async remove(id: string, userId: string): Promise<void> {
     const row = this.rows.get(id);
     if (row && row.userId === userId) this.rows.delete(id);
+  }
+
+  async list(userId: string): Promise<ProjectRow[]> {
+    return [...this.rows.values()]
+      .filter((row) => row.userId === userId)
+      .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : a.updatedAt > b.updatedAt ? -1 : 0))
+      .slice(0, PROJECT_LIMIT)
+      .map((row) => ({ id: row.id, title: row.title, updatedAt: row.updatedAt, plan: readStoredPlan(row.schemaVersion, JSON.parse(row.document)) }));
   }
 
   private stored(row: MemoryRow): StoredPlan {
