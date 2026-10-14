@@ -11,10 +11,10 @@
   const CHOICES = ['system', 'light', 'dark', 'contrast'];
   const LABELS = { system: 'System', light: 'Light', dark: 'Dark', contrast: 'Contrast' };
   // The browser bar colour and the tab icon of each theme (the icon's colours are the theme's tokens)
-  const BAR = { light: '#ffffff', dark: '#121214', contrast: '#000000' };
+  const BAR = { light: '#ffffff', dark: '#0b0c0f', contrast: '#000000' };
   const ICON = {
     light: { tile: '#272727', letter: '#ffffff' },
-    dark: { tile: '#f2f2f5', letter: '#121214' },
+    dark: { tile: '#c6f36b', letter: '#0b0c0f' },
     contrast: { tile: '#ffffff', letter: '#000000' },
   };
 

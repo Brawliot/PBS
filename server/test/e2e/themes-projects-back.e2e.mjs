@@ -98,7 +98,7 @@ async function scenarioThemes(browser) {
   assert.equal(await page.getAttribute("html", "data-theme"), null, "System sets no attribute");
   await picker(page).nth(2).click();
   assert.equal(await page.getAttribute("html", "data-theme"), "dark");
-  assert.equal(await page.getAttribute('meta[name="theme-color"]', "content"), "#121214", "the browser bar follows the theme");
+  assert.equal(await page.getAttribute('meta[name="theme-color"]', "content"), "#0b0c0f", "the browser bar follows the theme");
   assert.equal(await page.evaluate(() => localStorage.getItem("mando.theme")), "dark");
   await page.reload();
   assert.equal(await page.getAttribute("html", "data-theme"), "dark", "the choice survives a reload");
@@ -117,7 +117,7 @@ async function scenarioSystemDark(browser) {
   await watch(page, scenarioLabel());
   await mockSignedIn(page);
   await page.goto(`${BASE}/`);
-  assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), "rgb(18, 18, 20)", "a dark device gets the dark page");
+  assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), "rgb(11, 12, 15)", "a dark device gets the dark page");
   await picker(page).nth(1).click();
   assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), "rgb(255, 255, 255)", "light beats a dark device");
   await context.close();
