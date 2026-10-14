@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="MANDO helps you plan and execute your business: describe your idea and set your budget, experience, team size and weekly hours.">
+  <meta name="theme-color" content="#ffffff">
+  <title>MANDO - Your situation (mockup)</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23272727'/%3E%3Ctext x='16' y='23' font-size='20' font-weight='800' text-anchor='middle' fill='%23fff' font-family='Arial'%3EM%3C/text%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css">
+  <script src="theme.js"></script>
+  <style>
+    /* Mockup only: the controls of the "Your situation" panel in the recommended version.
+       Everything else is the real home page (styles.css). Chips replace the sliders; the budget is a typed
+       amount with a currency, with ranges as a shortcut; every group is optional ("Not sure"). */
+    .filter { display: flex; flex-direction: column; gap: 8px; }
+    .filter__sub { font-size: 13px; color: var(--gray-text); }
+    .opts { display: flex; flex-wrap: wrap; gap: 6px; }
+    .opt { padding: 6px 12px; font-size: 15px; background: var(--white); color: var(--dark); border: 1px solid var(--border-control); border-radius: 62px; transition: border-color 0.15s ease, background 0.15s ease; }
+    .opt:hover { border-color: var(--dark); }
+    .opt[aria-checked="true"] { background: var(--dark); color: var(--white); border-color: var(--dark); }
+    .opt--skip { border-style: dashed; color: var(--gray-text); }
+    .opt--skip[aria-checked="true"] { color: var(--white); border-style: solid; }
+    .money { display: flex; align-items: stretch; border: 1px solid var(--border-control); border-radius: 10px; background: var(--white); overflow: hidden; }
+    .money:focus-within { border-color: var(--dark); box-shadow: var(--glow); }
+    .money__cur { border: 0; border-right: 1px solid var(--border); background: var(--surface-hover); color: var(--dark); font: inherit; font-size: 16px; padding: 0 12px; }
+    .money__input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--black); font: inherit; font-size: 20px; padding: 10px 14px; }
+    .money__input::placeholder { color: var(--gray-text); }
+  </style>
+</head>
+<body>
+  <svg class="sprite" width="0" height="0" aria-hidden="true"><symbol id="google" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.5 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4.1 7.1-10.1 7.1-17.5z"/><path fill="#FBBC05" d="M10.5 28.7c-.5-1.4-.8-3-.8-4.7s.3-3.2.8-4.7l-7.9-6.1C.9 16.4 0 20.1 0 24s.9 7.6 2.6 10.8l7.9-6.1z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.5-5.8c-2.1 1.4-4.9 2.3-8.4 2.3-6.3 0-11.6-4.1-13.5-9.8l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></symbol></svg>
+
+  <header class="header">
+    <nav class="nav">
+      <div class="nav__guest" id="nav-guest">
+        <button type="button" class="nav__login" data-auth="login">Log In</button>
+        <button type="button" class="btn btn--dark" data-auth="register">Register</button>
+      </div>
+      <div class="nav__user" id="nav-user" hidden>
+        <div class="menu">
+          <button type="button" class="avatar" id="avatar" aria-haspopup="menu" aria-expanded="false" aria-controls="profile-menu" aria-label="Your profile">?</button>
+          <div class="menu__panel" id="profile-menu" role="menu" hidden>
+            <button type="button" class="menu__item" role="menuitem" id="logout">Log out</button>
+          </div>
+        </div>
+        <button type="button" class="btn btn--dark nav__projects">View my projects</button>
+      </div>
+      <div data-theme-picker></div>
+    </nav>
+  </header>
+
+  <main class="hero">
+    <div class="hero__brand">
+      <div class="hero__title-wrap">
+        <h1 class="hero__title">MANDO</h1>
+        <div class="hero__loader" aria-hidden="true"></div>
+      </div>
+      <p class="hero__subtitle">Plan &amp; Execute your Business</p>
+    </div>
+
+    <form class="search" action="#" novalidate>
+      <div class="search__bar">
+        <input class="search__input" type="text" name="idea" placeholder="e.g. An app to book hairdressers in Madrid" aria-label="Describe your business" aria-describedby="search-error" maxlength="2000">
+        <p class="field-error" id="search-error" role="alert" hidden>Describe your business to continue.</p>
+        <button class="arrow-btn search__submit" type="submit" aria-label="Submit">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+
+      <div class="filters">
+        <div class="hints__examples">
+          <span>Try:</span>
+          <button type="button" class="hints__chip">Japanese restaurant</button>
+          <button type="button" class="hints__chip">Fitness app</button>
+          <button type="button" class="hints__chip">Online store</button>
+        </div>
+        <div class="filters__title">
+          <p class="filters__heading">Your situation</p>
+          <p class="filters__help">All four are optional: tell us what you know, skip what you do not. Click a choice again to clear it.</p>
+        </div>
+
+        <div class="filter">
+          <div class="filter__head"><label for="budget">Budget</label><output class="is-example" id="budget-out">optional</output></div>
+          <div class="money">
+            <select class="money__cur" aria-label="Currency"><option>USD $</option><option>EUR &euro;</option><option>GBP &pound;</option><option>MXN $</option><option>ARS $</option><option>COP $</option></select>
+            <input class="money__input" id="budget" inputmode="numeric" placeholder="e.g. 10,000" aria-label="Budget amount">
+          </div>
+          <p class="filter__sub">Or pick a range</p>
+          <div class="opts" role="radiogroup" aria-label="Budget range" data-group="budget">
+            <button type="button" class="opt" role="radio" aria-checked="false">&lt; 10k</button>
+            <button type="button" class="opt" role="radio" aria-checked="false">10 – 50k</button>
+            <button type="button" class="opt" role="radio" aria-checked="false">50 – 200k</button>
+            <button type="button" class="opt" role="radio" aria-checked="false">200k – 1M</button>
+            <button type="button" class="opt" role="radio" aria-checked="false">1M +</button>
+            </div>
+        </div>
+
+        <div class="filter">
+          <div class="filter__head"><label>Years in this industry</label><output class="is-example">optional</output></div>
+          <div class="opts" role="radiogroup" aria-label="Years in this industry" data-group="experience">
+            <button type="button" class="opt" role="radio" aria-checked="false">None</button>
+            <button type="button" class="opt" role="radio" aria-checked="false">&lt; 2</button>
+            <button type="button" class="opt" role="radio" aria-checked="false">2 – 5</button>
+            <button type="button" class="opt" role="radio" aria-checked="false">5 – 10</button>
+            <button type="button" class="opt" role="radio" aria-checked="false">10 +</button>
+            </div>
+          
+        </div>
+
+        <div class="filter">
+          <div class="filter__head"><label>Team size</label><output class="is-example">optional</output></div>
+          <div class="opts" role="radiogroup" aria-label="Team size" data-group="team">
+            <button type="button" class="opt" role="radio" aria-checked="false">Solo</button>
+            <button type="button" class="opt" role="radio" aria-checked="false">2 – 3</button>
+            <button type="button" class="opt" role="radio" aria-checked="false">4 – 10</button>
+            <button type="button" class="opt" role="radio" aria-checked="false">11 – 50</button>
+            <button type="button" class="opt" role="radio" aria-checked="false">50 +</button>
+            </div>
+          
+        </div>
+
+        <div class="filter">
+          <div class="filter__head"><label>Weekly hours</label><output class="is-example">optional</output></div>
+          <div class="opts" role="radiogroup" aria-label="Weekly hours" data-group="hours">
+            <button type="button" class="opt" role="radio" aria-checked="false">&lt; 10 h</button>
+            <button type="button" class="opt" role="radio" aria-checked="false">10 – 20 h</button>
+            <button type="button" class="opt" role="radio" aria-checked="false">20 – 40 h</button>
+            <button type="button" class="opt" role="radio" aria-checked="false">Full time</button>
+            </div>
+          
+        </div>
+      </div>
+      <div class="hints">
+        <p class="hints__note">We will ask a few questions · about 1 minute · Guidance only, not professional advice</p>
+      </div>
+      <div class="submit-error" id="submit-error" role="alert">
+        <p class="submit-error__text" id="submit-error-text"></p>
+        <button class="submit-error__retry" type="button" id="submit-error-retry">Retry</button>
+        <button class="submit-error__close" type="button" id="submit-error-close" aria-label="Dismiss error">&times;</button>
+      </div>
+    </form>
+  </main>
+
+  <div class="giant" aria-hidden="true">
+    <div class="giant__track">
+      <div class="giant__group">
+        <span class="giant__letter giant__letter--gray">M</span>
+        <span class="giant__letter">A</span>
+        <span class="giant__letter giant__letter--gray">N</span>
+        <span class="giant__letter">D</span>
+        <span class="giant__letter">O</span>
+      </div>
+    </div>
+  </div>
+
+  
+  <script src="giant.js" defer></script>
+  <script>
+    // Mockup behaviour only: one chip per group; typing an amount clears the budget range, and a range clears it.
+    document.querySelectorAll('.opts').forEach((group) => {
+      group.addEventListener('click', (event) => {
+        const chip = event.target.closest('.opt');
+        if (!chip) return;
+        group.querySelectorAll('.opt').forEach((o) => o.setAttribute('aria-checked', String(o === chip && o.getAttribute('aria-checked') !== 'true')));
+        if (group.dataset.group === 'budget') document.getElementById('budget').value = '';
+      });
+    });
+    document.getElementById('budget').addEventListener('input', () => {
+      document.querySelectorAll('[data-group="budget"] .opt').forEach((o) => o.setAttribute('aria-checked', 'false'));
+    });
+  </script>
+</body>
+</html>
