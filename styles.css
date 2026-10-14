@@ -959,12 +959,9 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
 /* ==========================================================================
    Plan page (plan.html, plan.js): one scrollable column above the wordmark
    ========================================================================== */
-/* The views sit in a solid card the size of their content: it shrinks to the room above the wordmark and
-   scrolls inside when a view is taller. The page tint stays behind it. */
 .plan {
-  position: relative; z-index: 2; flex: 0 1 auto; min-height: 0; overflow-y: auto;
-  width: min(960px, calc(100% - 32px)); margin: 2.5vh auto 2vh; padding: 24px 28px 28px;
-  background: var(--white); border: 1px solid var(--border-strong); border-radius: 14px; box-shadow: var(--shadow);
+  position: relative; z-index: 2; flex: 1 1 auto; min-height: 0; overflow-y: auto;
+  width: min(960px, calc(100% - 32px)); margin: 0 auto; padding: 2.5vh 0 2vh;
 }
 /* Desktop: the wordmark keeps a strip of the bottom 28 % of the window, and the plan has the rest (72 %,
    above the 70 % it needs). Its animation is unchanged. Phones keep the page layout of the home page. */
@@ -1071,7 +1068,7 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
 .timeline-card--list .timeline__row { grid-template-columns: minmax(0, 1fr); }
 /* Full-screen message (no plan, plan not found, not signed in): a box centred on the window, text aligned left */
 .plan--message ~ .giant { position: fixed; left: 0; right: 0; bottom: 0; }
-.plan--message { position: fixed; inset: 0; z-index: 4; width: auto; margin: 0; padding: 24px; display: flex; align-items: center; justify-content: center; overflow-y: auto; background: none; border: 0; border-radius: 0; box-shadow: none; }
+.plan--message { position: fixed; inset: 0; z-index: 4; width: auto; margin: 0; padding: 24px; display: flex; align-items: center; justify-content: center; overflow-y: auto; }
 .message { width: 100%; max-width: 480px; padding: 32px; background: var(--white); border: 1px solid var(--border-strong); border-radius: 14px; box-shadow: var(--shadow); text-align: left; }
 .message .page__title { font-size: 28px; margin: 0 0 10px; }
 .message__text { margin: 0 0 22px; color: var(--gray-text); line-height: 1.5; }
@@ -1113,7 +1110,7 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
 .progress__text { margin: 0 0 8px; }
 .progress__track { height: 10px; background: var(--gray-light); border-radius: 6px; overflow: hidden; }
 .progress__fill { height: 100%; background: var(--dark); border-radius: 6px; }
-@media print { .plan-bar, .giant, .tabs, .status-filters, .filters { display: none !important; } .plan { width: auto; margin: 0; padding: 0; background: none; border: 0; border-radius: 0; box-shadow: none; } }
+@media print { .plan-bar, .giant, .tabs, .status-filters, .filters { display: none !important; } .plan { width: auto; } }
 .overview-grid + .more { margin: 10px 0 0; }
 .proposals-ask__items { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .proposals-ask__items > * { margin: 0; }
@@ -1152,7 +1149,7 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
 @media (max-width: 480px) {
   .facts { grid-template-columns: 1fr; gap: 2px; }
   .facts dt { margin-top: 8px; }
-  .plan { width: calc(100% - 32px); padding: 16px; }
+  .plan { width: calc(100% - 32px); }
 }
 
 
