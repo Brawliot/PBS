@@ -18,28 +18,29 @@
    Tokens
    ========================================================================== */
 :root {
-  --black: #000;
-  --dark: #272727;
-  --dark-hover: #3d3d3d;
-  --white: #fff;
-  --gray: #919195;            /* decorative (giant letters) */
-  --gray-text: #4f4f56;       /* text, AA on white and on the tint */
-  --gray-light: #e6e6e6;      /* slider track */
-  --border: #dcdcdc;
-  --border-strong: #8f8f98;   /* form controls, 3:1 against white */
-  --border-control: #7f7f7f;  /* idea bar, filter panel, examples: 3:1 against the tinted page (3.02:1), 4:1 against white */
-  --danger: #b42318;
-  --tint: rgba(99, 102, 241, 0.22);
-  --shadow: 0 18px 40px rgba(39, 39, 39, 0.18);
-  --shadow-soft: 0 6px 14px rgba(39, 39, 39, 0.18);   /* button lift on hover */
-  --ring: 0 0 0 6px rgba(39, 39, 39, 0.12);           /* halo of the slider thumb while pressed */
-  --surface-hover: #f3f3f7;                           /* outline button on hover */
-  --danger-bg: #fdf0ee;                               /* danger button on hover */
-  --glow: 0 0 0 4px rgba(99, 102, 241, 0.28), 0 0 32px 8px rgba(99, 102, 241, 0.40);  /* focus glow of the idea bar, in the page tint */
-  --danger-strong: #8f1c12;                           /* danger button text and border on hover */
-  --accent: #272727;                                  /* main action, selection and progress fills */
-  --accent-hover: #3d3d3d;                            /* main action on hover */
-  --segment-1: #272727; --segment-2: #6366f1; --segment-3: #919195; --segment-4: #c4c4cc; --segment-5: #a5b4fc;  /* upfront cost bar */
+  --black: #0b0c0f;
+  --dark: #0b0c0f;
+  --dark-hover: #2a2c31;
+  --white: #f6f7f8;
+  --gray: #a9abb0;            /* decorative (giant letters) */
+  --gray-text: #55575c;       /* text, AA on the page and on the tint */
+  --gray-light: #e3e5e8;      /* slider track */
+  --border: #dfe1e4;
+  --border-strong: #8a8c91;   /* form controls, 3:1 against the page */
+  --border-control: #7c7e83;  /* idea bar, filter panel, examples: 3:1 against the tinted page */
+  --danger: #c2185b;
+  --tint: rgba(246, 247, 248, 0.5);
+  --shadow: 0 18px 40px rgba(11, 12, 15, 0.14);
+  --shadow-soft: 0 6px 14px rgba(11, 12, 15, 0.14);   /* button lift on hover */
+  --ring: 0 0 0 6px rgba(11, 12, 15, 0.12);           /* halo of the slider thumb while pressed */
+  --surface-hover: #eceef0;                           /* outline button on hover */
+  --danger-bg: #fdecf2;                               /* danger button on hover */
+  --glow: 0 0 0 4px rgba(198, 243, 107, 0.55), 0 0 32px 8px rgba(198, 243, 107, 0.45);  /* focus glow of the idea bar, in the accent */
+  --danger-strong: #8e0f41;                           /* danger button text and border on hover */
+  --accent: #0b0c0f;                                  /* main action, selection and progress fills */
+  --accent-hover: #2a2c31;                            /* main action on hover */
+  --on-accent: #c6f36b;                               /* text on the accent: the lime of the dark theme */
+  --segment-1: #0b0c0f; --segment-2: #4f63d8; --segment-3: #8a8c91; --segment-4: #c9ccd1; --segment-5: #e0477d;  /* upfront cost bar */
 }
 
 /* ==========================================================================
@@ -56,7 +57,7 @@
     --shadow-soft: 0 6px 14px rgba(0, 0, 0, 0.45); --ring: 0 0 0 6px rgba(198, 243, 107, 0.18);
     --surface-hover: #131519; --danger-bg: #2a1620; --glow: 0 0 0 4px rgba(198, 243, 107, 0.30), 0 0 32px 8px rgba(198, 243, 107, 0.22);
     --danger-strong: #ffc4d6; color-scheme: dark;
-    --accent: #c6f36b; --accent-hover: #d7f88f;
+    --accent: #c6f36b; --accent-hover: #d7f88f; --on-accent: #0b0c0f;
     --segment-1: #c6f36b; --segment-2: #8a9cf6; --segment-3: #acadaf; --segment-4: #3f4044; --segment-5: #ff8fb1;
   }
 }
@@ -67,17 +68,17 @@
   --shadow-soft: 0 6px 14px rgba(0, 0, 0, 0.45); --ring: 0 0 0 6px rgba(198, 243, 107, 0.18);
   --surface-hover: #131519; --danger-bg: #2a1620; --glow: 0 0 0 4px rgba(198, 243, 107, 0.30), 0 0 32px 8px rgba(198, 243, 107, 0.22);
   --danger-strong: #ffc4d6; color-scheme: dark;
-  --accent: #c6f36b; --accent-hover: #d7f88f;
+  --accent: #c6f36b; --accent-hover: #d7f88f; --on-accent: #0b0c0f;
   --segment-1: #c6f36b; --segment-2: #8a9cf6; --segment-3: #acadaf; --segment-4: #3f4044; --segment-5: #ff8fb1;
 }
 :root[data-theme="contrast"] {
   --black: #fff; --dark: #fff; --dark-hover: #d6d6d6; --white: #000; --gray: #8a8a8a;
   --gray-text: #d6d6d6; --gray-light: #5a5a5a; --border: #5a5a5a; --border-strong: #fff; --border-control: #fff;
-  --danger: #ffb4aa; --tint: rgba(150, 150, 255, 0.25); --shadow: 0 0 0 1px #fff; --shadow-soft: 0 0 0 1px #fff;
-  --ring: 0 0 0 6px rgba(255, 255, 255, 0.35); --surface-hover: #1a1a1a; --danger-bg: #2a0a08;
-  --glow: 0 0 0 4px #fff, 0 0 32px 8px rgba(150, 150, 255, 0.5); --danger-strong: #ffd6cf; color-scheme: dark;
-  --accent: #fff; --accent-hover: #d6d6d6;
-  --segment-1: #fff; --segment-2: #9696ff; --segment-3: #8a8a8a; --segment-4: #5a5a5a; --segment-5: #d6d6ff;
+  --danger: #ffb3c8; --tint: rgba(0, 0, 0, 0.6); --shadow: 0 0 0 1px #fff; --shadow-soft: 0 0 0 1px #fff;
+  --ring: 0 0 0 6px rgba(212, 255, 112, 0.45); --surface-hover: #1a1a1a; --danger-bg: #2a0a14;
+  --glow: 0 0 0 4px #d4ff70, 0 0 32px 8px rgba(212, 255, 112, 0.5); --danger-strong: #ffd6e2; color-scheme: dark;
+  --accent: #d4ff70; --accent-hover: #e6ffaa; --on-accent: #000;
+  --segment-1: #d4ff70; --segment-2: #a8b8ff; --segment-3: #fff; --segment-4: #8a8a8a; --segment-5: #ffb3c8;
 }
 
 /* ==========================================================================
@@ -125,7 +126,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
   height: 44px; padding: 0 34px; border: 1px solid transparent; border-radius: 10px;
   font-size: 16px;
 }
-.btn--dark { background: var(--accent); color: var(--white); }
+.btn--dark { background: var(--accent); color: var(--on-accent); }
 .btn--outline { background: var(--white); color: var(--dark); border-color: var(--border-strong); }
 .btn--danger { background: var(--white); color: var(--danger); border-color: var(--danger); }
 
@@ -169,7 +170,7 @@ button.avatar { padding: 0; font: inherit; cursor: pointer; }
 .avatar {
   width: 48px; height: 48px; border-radius: 50%; flex: none;
   display: flex; align-items: center; justify-content: center;
-  background: var(--accent); color: var(--white); font-size: 20px; font-weight: 800;
+  background: var(--accent); color: var(--on-accent); font-size: 20px; font-weight: 800;
   border: 2px solid var(--white); box-shadow: var(--shadow-soft); user-select: none;
 }
 
@@ -248,7 +249,7 @@ body.is-finishing .hero__loader { opacity: 0; transition: opacity 0.35s ease; }
 /* The send button of the idea bar: a round dark button, the main action of the page */
 .search__submit.arrow-btn {
   flex: none; width: 56px; height: 56px; border-radius: 50%;
-  align-items: center; justify-content: center; background: var(--accent); color: var(--white);
+  align-items: center; justify-content: center; background: var(--accent); color: var(--on-accent);
   transition: background-color 0.15s ease;
 }
 .search__submit.arrow-btn:hover { background: var(--accent-hover); }
@@ -415,7 +416,7 @@ body.is-loading .search {
 .question__submit.arrow-btn {
   position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
   width: 40px; height: 40px; border-radius: 50%;
-  align-items: center; justify-content: center; background: var(--accent); color: var(--white);
+  align-items: center; justify-content: center; background: var(--accent); color: var(--on-accent);
   transition: background-color 0.15s ease;
 }
 .question__submit.arrow-btn:hover { background: var(--accent-hover); }
@@ -435,7 +436,7 @@ body.is-loading .search {
 }
 .question__option:hover, .question__option:focus { border-color: var(--dark); }
 /* The option that matches the field: marked, the arrow sends it */
-.question__option[aria-pressed="true"] { background: var(--accent); color: var(--white); border-color: var(--accent); }
+.question__option[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 
 /* Footer: the message (or the counter), then Back and Cancel */
 .question__foot { display: flex; align-items: center; gap: 16px; min-height: 22px; font-size: 14px; color: var(--gray-text); }
@@ -532,7 +533,7 @@ body.has-result .hero { display: none; }
   border: 1px solid var(--border-strong); color: var(--dark); background: var(--white);
 }
 .tier--important { border-style: solid; }
-.tier--core { background: var(--accent); border-color: var(--accent); color: var(--white); }
+.tier--core { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .tier--light { border-style: dashed; color: var(--gray-text); }
 
 /* "and N more": said in words, never a silent cut */
@@ -1117,7 +1118,7 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
 .status-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
 .chip { padding: 4px 12px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--white); color: var(--dark); font-size: 14px; text-decoration: none; }
 .chip:hover { background: var(--surface-hover); }
-.chip[aria-current="true"] { background: var(--accent); border-color: var(--accent); color: var(--white); }
+.chip[aria-current="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .phase-group { margin-bottom: 12px; background: var(--white); border: 1px solid var(--border-strong); border-radius: 12px; overflow: hidden; }
 .phase-group > summary { display: flex; justify-content: space-between; gap: 12px; padding: 12px 16px; font-weight: 800; cursor: pointer; list-style: none; }
 .phase-group > summary::-webkit-details-marker { display: none; }
@@ -1233,12 +1234,12 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
    ========================================================================== */
 @media print {
   :root:root, :root:root[data-theme] {
-    --black: #000; --dark: #272727; --dark-hover: #3d3d3d; --white: #fff; --gray: #919195;
-    --gray-text: #4f4f56; --gray-light: #e6e6e6; --border: #dcdcdc; --border-strong: #8f8f98; --border-control: #7f7f7f;
-    --danger: #b42318; --tint: rgba(99, 102, 241, 0.22); --shadow: 0 18px 40px rgba(39, 39, 39, 0.18);
-    --shadow-soft: 0 6px 14px rgba(39, 39, 39, 0.18); --ring: 0 0 0 6px rgba(39, 39, 39, 0.12);
-    --surface-hover: #f3f3f7; --danger-bg: #fdf0ee; --glow: 0 0 0 4px rgba(99, 102, 241, 0.28), 0 0 32px 8px rgba(99, 102, 241, 0.40);
-    --danger-strong: #8f1c12; --accent: #272727; --accent-hover: #3d3d3d; color-scheme: light;
+    --black: #0b0c0f; --dark: #0b0c0f; --dark-hover: #2a2c31; --white: #fff; --gray: #a9abb0;
+    --gray-text: #55575c; --gray-light: #e3e5e8; --border: #dfe1e4; --border-strong: #8a8c91; --border-control: #7c7e83;
+    --danger: #c2185b; --tint: transparent; --shadow: none; --shadow-soft: none; --ring: none;
+    --surface-hover: #eceef0; --danger-bg: #fdecf2; --glow: none; --danger-strong: #8e0f41;
+    --accent: #0b0c0f; --accent-hover: #2a2c31; --on-accent: #fff; color-scheme: light;
+    --segment-1: #0b0c0f; --segment-2: #4f63d8; --segment-3: #8a8c91; --segment-4: #c9ccd1; --segment-5: #e0477d;
   }
 }
 
@@ -1253,7 +1254,7 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
   font: inherit; font-size: 14px; border: 0; background: transparent; color: var(--dark);
   padding: 6px 12px; border-radius: 999px; cursor: pointer;
 }
-.theme-picker button[aria-pressed="true"] { background: var(--accent); color: var(--white); }
+.theme-picker button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
 
 /* ==========================================================================
    Projects page (projects.html)

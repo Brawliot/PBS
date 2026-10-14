@@ -119,7 +119,7 @@ async function scenarioSystemDark(browser) {
   await page.goto(`${BASE}/`);
   assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), "rgb(11, 12, 15)", "a dark device gets the dark page");
   await picker(page).nth(1).click();
-  assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), "rgb(255, 255, 255)", "light beats a dark device");
+  assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), "rgb(246, 247, 248)", "light beats a dark device");
   await context.close();
   return "system dark: dark page, and an explicit light choice wins";
 }
