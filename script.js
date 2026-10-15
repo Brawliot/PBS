@@ -381,6 +381,7 @@
 
   // --- Sending: title leaves, loader runs while the request is pending -------
   const EXIT_MS = 850;        // subtitle exit + title-to-loader travel to the centre (keep in sync with CSS)
+  const FIRST_QUESTION_MS = 600; // entrance of the first question (keep in sync with .question.is-entering in CSS)
   const MIN_LOADER_MS = 1500; // visible time of the loader, so it never flashes
   const FADE_MS = 700;        // loader travels back and fades out (keep in sync with CSS)
   const FINISH_MS = 350;      // loader fades out in place before the result (keep in sync with CSS)
@@ -589,14 +590,23 @@
   };
 
   // Starts a session: the loader, then the fixed questions over it. The last answer sends the idea.
-  const startFlow = () => {
+  // The first question waits for the search block to leave and the loader to reach the centre, so the
+  // popup does not open over the moving title; then it comes in with a slower entrance (is-entering).
+  let flowRun = 0; // a Cancel during that wait ends the run, and the question is not shown
+  const startFlow = async () => {
     resetFlow();
     hideSubmitError();
     startLoading();
     status.textContent = 'A few questions about your situation.';
+    const run = ++flowRun;
+    await wait(EXIT_MS);
+    if (run !== flowRun || !sending) return;
     queue = PROFILE_QUESTIONS.map((q) => ({ ...q, fixed: true }));
     total = PROFILE_QUESTIONS.length + MODEL_QUESTIONS; // corrected when the server says how many it asks
+    question.classList.add('is-entering');
+    void question.offsetWidth; // the lower start position applies before the popup opens
     nextQuestion();
+    setTimeout(() => question.classList.remove('is-entering'), FIRST_QUESTION_MS);
   };
 
   const submitIdea = async () => {
@@ -1352,6 +1362,7 @@
       if (activeJob.id) stopServerJob(activeJob.id);
       activeJob = null;
     }
+    flowRun++; // a first question still waiting for the loader is not shown
     hideQuestion();
     resetFlow();
     await stopLoading();
