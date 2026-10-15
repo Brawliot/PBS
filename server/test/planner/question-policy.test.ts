@@ -9,7 +9,7 @@ type Maturity = Phase2Response["maturity"];
 type Topic = Question["topic"];
 
 // No commitment signal and no low commitment: the base limit applies
-const neutral: PlannerInput = { idea: "x", budget: 50_000, experience: 2, team: 1, hours: 1 };
+const neutral: PlannerInput = { idea: "x", budget: 50_000, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const};
 const withInput = (overrides: Partial<PlannerInput>): PlannerInput => ({ ...neutral, ...overrides });
 
 const question = (topic: string, text = `${topic}?`): Question => ({
@@ -49,76 +49,32 @@ describe("questionLimit", () => {
     assert.equal(limit, questionLimit("developing", neutral));
   });
 
-  test("budget counts as a signal from highBudget on, not one below it", () => {
-    // hours = fullTime is one signal; the budget decides whether there is a second
-    const base = { hours: POLICY.fullTimeHours, experience: 0 };
-    assert.equal(questionLimit("developing", withInput({ ...base, budget: POLICY.highBudget - 1 })), 3);
-    assert.equal(questionLimit("developing", withInput({ ...base, budget: POLICY.highBudget })), 4);
+  test("a budget from highBudget on adds one question, one below it adds nothing", () => {
+    assert.equal(questionLimit("developing", withInput({ budget: POLICY.highBudget - 1 })), 3);
+    assert.equal(questionLimit("developing", withInput({ budget: POLICY.highBudget })), 4);
   });
 
-  test("experience counts as a signal from highExperience on, not one below it", () => {
-    const base = { hours: POLICY.fullTimeHours, budget: 0 };
-    assert.equal(questionLimit("developing", withInput({ ...base, experience: POLICY.highExperience - 1 })), 3);
-    assert.equal(questionLimit("developing", withInput({ ...base, experience: POLICY.highExperience })), 4);
+  test("a budget under lowBudget takes one question off, the edge does not", () => {
+    assert.equal(questionLimit("developing", withInput({ budget: POLICY.lowBudget - 1 })), 2);
+    assert.equal(questionLimit("developing", withInput({ budget: POLICY.lowBudget })), 3);
   });
 
-  test("hours count as a signal from fullTimeHours on, not one below it", () => {
-    const base = { budget: POLICY.highBudget, experience: 0 };
-    assert.equal(questionLimit("developing", withInput({ ...base, hours: POLICY.fullTimeHours - 1 })), 3);
-    assert.equal(questionLimit("developing", withInput({ ...base, hours: POLICY.fullTimeHours })), 4);
-  });
-
-  test("one signal adds nothing; two or three signals add one", () => {
-    const oneSignal = withInput({ hours: POLICY.fullTimeHours, budget: 0, experience: 0 });
-    const twoSignals = withInput({ hours: POLICY.fullTimeHours, budget: POLICY.highBudget, experience: 0 });
-    const threeSignals = withInput({
-      hours: POLICY.fullTimeHours,
-      budget: POLICY.highBudget,
-      experience: POLICY.highExperience,
-    });
-    assert.equal(questionLimit("developing", oneSignal), 3);
-    assert.equal(questionLimit("developing", twoSignals), 4);
-    assert.equal(questionLimit("developing", threeSignals), 4);
-  });
-
-  test("low commitment (no signal, under lowHours and lowBudget) subtracts one", () => {
-    const low = withInput({ hours: POLICY.lowHours, budget: POLICY.lowBudget - 1, experience: 0 });
-    assert.equal(questionLimit("developing", low), 2);
-  });
-
-  test("low commitment does not apply when the budget is exactly lowBudget", () => {
-    const edge = withInput({ hours: POLICY.lowHours, budget: POLICY.lowBudget, experience: 0 });
-    assert.equal(questionLimit("developing", edge), 3);
-  });
-
-  test("low commitment does not apply when there is any signal", () => {
-    const withExperience = withInput({
-      hours: POLICY.lowHours,
-      budget: POLICY.lowBudget - 1,
-      experience: POLICY.highExperience,
-    });
-    assert.equal(questionLimit("developing", withExperience), 3);
-  });
-
-  test("low commitment does not apply when hours are above lowHours", () => {
-    const moreHours = withInput({ hours: POLICY.lowHours + 1, budget: POLICY.lowBudget - 1, experience: 0 });
-    assert.equal(questionLimit("developing", moreHours), 3);
+  test("the location and the answers about how they start and premises are no signal", () => {
+    const plain = withInput({ budget: 50_000 });
+    assert.equal(questionLimit("developing", { ...plain, location: "online", start_mode: "undecided", premises: "unsure" }), 3);
+    assert.equal(questionLimit("developing", { ...plain, start_mode: "already_open", premises: "have" }), 3);
   });
 
   test("the result never goes below POLICY.min", () => {
     withBaseLimit("vague", -10, () => {
-      const lowest = withInput({ hours: POLICY.lowHours, budget: 0, experience: 0 });
+      const lowest = withInput({ budget: 0 });
       assert.equal(questionLimit("vague", lowest), POLICY.min);
     });
   });
 
   test("the result never goes above POLICY.max", () => {
     withBaseLimit("advanced", 10, () => {
-      const highest = withInput({
-        hours: POLICY.fullTimeHours,
-        budget: POLICY.highBudget,
-        experience: POLICY.highExperience,
-      });
+      const highest = withInput({ budget: POLICY.highBudget });
       assert.equal(questionLimit("advanced", highest), POLICY.max);
     });
   });
@@ -225,17 +181,15 @@ describe("selectQuestions", () => {
 });
 
 describe('questionLimit: an "I don\'t know" is no signal', () => {
-  test("a flagged high budget or full time does not raise the limit", () => {
-    const high = withInput({ budget: 500_000, hours: 3 });
+  test("a flagged high budget does not raise the limit", () => {
+    const high = withInput({ budget: 500_000 });
     assert.equal(questionLimit("developing", high), POLICY.baseByMaturity.developing + 1);
     assert.equal(questionLimit("developing", { ...high, unknown: ["budget"] }), POLICY.baseByMaturity.developing);
   });
 
-  test("a flagged budget or hours (their placeholder is 0) never counts as low commitment", () => {
-    const low = withInput({ budget: 0, experience: 0, hours: 0 });
+  test("a flagged budget (its placeholder is 0) never counts as low commitment", () => {
+    const low = withInput({ budget: 0 });
     assert.equal(questionLimit("developing", low), POLICY.baseByMaturity.developing - 1);
     assert.equal(questionLimit("developing", { ...low, unknown: ["budget"] }), POLICY.baseByMaturity.developing);
-    assert.equal(questionLimit("developing", { ...low, unknown: ["hours"] }), POLICY.baseByMaturity.developing);
-    assert.equal(questionLimit("developing", { ...low, unknown: ["budget", "experience", "team", "hours"] }), POLICY.baseByMaturity.developing);
   });
 });

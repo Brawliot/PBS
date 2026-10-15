@@ -125,7 +125,7 @@ describe("buildDepartments", () => {
   test("the base departments (Legal & Compliance, Finance, Marketing) are at least important, from the real validation", async () => {
     // Jev scores nothing: every department is at zero, so only the baseline can lift them
     mockFetch(() => jsonResponse(200, { model: "test", answers: {}, usage: { input_tokens: 0, output_tokens: 0 } }));
-    const input: PlannerInput = { idea: "Bakery delivery", budget: 10_000, experience: 1, team: 1, hours: 1 };
+    const input: PlannerInput = { idea: "Bakery delivery", budget: 10_000, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const};
     const jev: JevResponse = { model: "test", answers: {}, usage: { input_tokens: 0, output_tokens: 0 } };
     const result = buildDepartments(await analyzeValidation(input, jev, {}, []));
     assert.ok(result.ok);

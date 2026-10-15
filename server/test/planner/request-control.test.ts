@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { HttpError, parseAnswers, parsePlannerRequest } from "../../request.js";
 import "./helpers.js";
 
-const validBody = { idea: "A bakery that delivers", budget: 0, experience: 0, team: 0, hours: 0 };
+const validBody = { idea: "A bakery that delivers", budget: 0, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const};
 const answer = (text: string) => [{ topic: "validation", question: "Tested?", answer: text }];
 
 /** Refused: NUL, the first and last of the C0 range before tab, the range after newline, DEL */

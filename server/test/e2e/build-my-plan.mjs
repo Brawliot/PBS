@@ -79,9 +79,9 @@ async function mockApi(page, { result, results = [result], plan }) {
 }
 
 /** Fills the form like a user and submits it */
-/** Answers the four fixed questions (budget, experience, team, hours) with the largest values */
+/** Answers the four fixed questions (location, budget, how they start, premises) with the largest values */
 async function answerSituation(page) {
-  for (const [index, value] of ["1,000,000 €", "20", "Large (10+)", "Full time"].entries()) {
+  for (const [index, value] of ["Madrid", "Over 150,000 €", "From scratch", "I have them"].entries()) {
     await page.waitForFunction(
       (number) => document.getElementById("question").classList.contains("is-open")
         && document.getElementById("question-progress").textContent.startsWith(`Question ${number} of`),

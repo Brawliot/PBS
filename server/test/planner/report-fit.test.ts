@@ -15,7 +15,7 @@ import { prng } from "../plan/prng.js";
 import { REASONLESS_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, silenceConsoleError } from "./helpers.js";
 import "./helpers.js";
 
-const input = { idea: "Bakery delivery", budget: 10_000, experience: 1, team: 1, hours: 1 };
+const input = { idea: "Bakery delivery", budget: 10_000, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const};
 const answers = [{ topic: "validation", question: "Have you tested it?", answer: "Yes" }];
 const { profile, validation } = reportWith();
 const built = { profile, validation } as never;

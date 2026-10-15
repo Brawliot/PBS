@@ -16,16 +16,17 @@ const UNKNOWN: Phase2Sources = {
   stage: "unknown",
   competition: "unknown",
 };
+// The place is not asked in these cases unless a test says so: the concept numbers below count the rest
 const clarity = (input: Partial<ClarityInput>) =>
-  computeClarity({ phase2: UNKNOWN, profile: NONE, unknownInputs: [], topics: [], ...input });
+  computeClarity({ phase2: UNKNOWN, profile: NONE, unknownInputs: ["location"], topics: [], ...input });
 
 describe("computeClarity: business concept", () => {
-  test('"an app", only the four answers: concept Low (~7 %), person Medium', () => {
+  test('"an app", only the three fixed answers left (budget, start, premises): concept Low (~7 %), person Low', () => {
     const result = clarity({ phase2: { ...UNKNOWN, subsector: "inferred" } });
     assert.equal(result.version, CLARITY_VERSION);
     assert.deepEqual(result.concept, { level: "low", score: 7, missing: ["Value proposition", "Target customer", "How it makes money"], essentialMissing: true });
-    assert.equal(result.person.level, "medium");
-    assert.equal(result.person.score, 61);
+    assert.equal(result.person.level, "low");
+    assert.equal(result.person.score, 53);
     assert.deepEqual(result.person.missing, ["What you can do yourself", "Handling other people's money", "Fixed deadline"]);
   });
 
@@ -109,24 +110,24 @@ describe("computeClarity: the cap rule", () => {
       topics: ["own_skills", "money_handling", "deadline", "existing_assets"],
     };
     assert.equal(clarity(complete).person.level, "high");
-    const withoutHours = clarity({ ...complete, unknownInputs: ["hours"] });
-    // With these weights one essential costs 3 of 18 points, so the score alone already stays below High (83 %)
-    assert.equal(withoutHours.person.score, 83);
-    assert.equal(withoutHours.person.level, "medium");
-    assert.deepEqual(withoutHours.person.missing, ["Weekly hours"]);
+    const withoutStart = clarity({ ...complete, unknownInputs: ["start_mode"] });
+    // With these weights the one essential that is unknown keeps the score below High (80 %)
+    assert.equal(withoutStart.person.score, 80);
+    assert.equal(withoutStart.person.level, "medium");
+    assert.deepEqual(withoutStart.person.missing, ["How you start"]);
   });
 });
 
 describe("computeClarity: the person", () => {
   test('every fixed question answered "I don\'t know": Low, and the missing list keeps three, heaviest first', () => {
-    const result = clarity({ unknownInputs: ["budget", "experience", "team", "hours"] });
+    const result = clarity({ unknownInputs: ["budget", "start_mode", "premises"] });
     assert.equal(result.person.score, 0);
     assert.equal(result.person.level, "low");
-    assert.deepEqual(result.person.missing, ["Budget", "Weekly hours", "Team"]);
+    assert.deepEqual(result.person.missing, ["Budget", "How you start", "What you can do yourself"]);
   });
 
   test("an answer on own skills counts as said", () => {
-    assert.equal(clarity({ topics: ["own_skills"] }).person.score, 78);
+    assert.equal(clarity({ topics: ["own_skills"] }).person.score, 73);
   });
 });
 

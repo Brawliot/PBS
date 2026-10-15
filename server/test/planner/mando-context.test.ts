@@ -10,7 +10,7 @@ import "./helpers.js";
 // profile, the validation and the explanations get the short note. Only the first classification (Jev's sector,
 // scope and timeline) goes without it: it reads the idea alone.
 
-const input: PlannerInput = { idea: "Online shop for handmade soap", budget: 5_000, experience: 1, team: 0, hours: 1 };
+const input: PlannerInput = { idea: "Online shop for handmade soap", budget: 5_000, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const};
 const section = (value: string) => ({ value, source: "stated", confidence: 80 });
 const phase2Reply = {
   maturity: "developing",

@@ -11,7 +11,7 @@ import "./helpers.js";
 // The glance of a run: a final request keeps the glance the browser sends (checked by the request parser), and a
 // first round builds its own from its phase 2. The browser's glance is never used by a first round.
 
-const input = { idea: "Bakery delivery", budget: 10_000, experience: 1, team: 1, hours: 1 };
+const input = { idea: "Bakery delivery", budget: 10_000, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const};
 const answers = [{ topic: "validation", question: "Have you tested it?", answer: "Yes, ten people" }];
 
 const jevReply = {

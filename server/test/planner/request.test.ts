@@ -7,15 +7,17 @@ import {
   MAX_ANSWERS,
   MAX_BODY,
   MAX_IDEA,
+  MAX_BUDGET,
+  MAX_LOCATION,
   MAX_TEXT,
-  RANGES,
   parseAnswers,
   parsePlannerRequest,
   readBody,
 } from "../../request.js";
+import { PREMISES, START_MODES } from "../../planner/fixed-answers.js";
 import "./helpers.js";
 
-const validBody = { idea: "A bakery that delivers", budget: 0, experience: 0, team: 0, hours: 0 };
+const validBody = { idea: "A bakery that delivers", budget: 0, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const};
 const parse = (overrides: Record<string, unknown>) => parsePlannerRequest(JSON.stringify({ ...validBody, ...overrides }));
 
 function assertHttpError(run: () => unknown, status: number, message?: string) {
@@ -50,16 +52,14 @@ describe("parsePlannerRequest", () => {
       JSON.stringify({
         idea: "  A bakery  ",
         budget: 1000,
-        experience: 3,
-        team: 1,
-        hours: 2,
+        location: "Madrid", start_mode: "scratch" as const, premises: "have" as const,
         final: true,
         answers: [{ topic: " scope ", question: " Where? ", answer: " Madrid " }],
         analysis: { subsector: "Bakery" },
       }),
     );
     assert.deepEqual(result, {
-      input: { idea: "A bakery", budget: 1000, experience: 3, team: 1, hours: 2 },
+      input: { idea: "A bakery", budget: 1000, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const},
       answers: [{ topic: "scope", question: "Where?", answer: "Madrid" }],
       final: true,
       claims: { subsector: "Bakery" },
@@ -73,7 +73,7 @@ describe("parsePlannerRequest", () => {
   }
 
   test("rejects a missing idea with 400", () => {
-    assertHttpError(() => parsePlannerRequest(JSON.stringify({ budget: 0, experience: 0, team: 0, hours: 0 })), 400, "Idea is required");
+    assertHttpError(() => parsePlannerRequest(JSON.stringify({ budget: 0, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const})), 400, "Idea is required");
   });
 
   test("accepts an idea of MAX_IDEA characters", () => {
@@ -88,19 +88,40 @@ describe("parsePlannerRequest", () => {
     assert.equal(parse({ idea: `${"a".repeat(MAX_IDEA)}   ` }).input.idea.length, MAX_IDEA);
   });
 
-  for (const [key, [min, max]] of Object.entries(RANGES)) {
-    test(`${key} accepts ${min} and ${max}`, () => {
-      assert.equal(parse({ [key]: min }).input[key as keyof typeof RANGES], min);
-      assert.equal(parse({ [key]: max }).input[key as keyof typeof RANGES], max);
-    });
+  test("budget accepts 0 and MAX_BUDGET, and refuses a number out of range or a string with 400", () => {
+    assert.equal(parse({ budget: 0 }).input.budget, 0);
+    assert.equal(parse({ budget: MAX_BUDGET }).input.budget, MAX_BUDGET);
+    assertHttpError(() => parse({ budget: -1 }), 400, "budget is not a valid answer");
+    assertHttpError(() => parse({ budget: MAX_BUDGET + 1 }), 400);
+    assertHttpError(() => parse({ budget: String(10_000) }), 400);
+  });
 
-    test(`${key} rejects ${min - 1}, ${max + 1} and a numeric string with 400`, () => {
-      assertHttpError(() => parse({ [key]: min - 1 }), 400, `${key} must be a number between ${min} and ${max}`);
-      assertHttpError(() => parse({ [key]: max + 1 }), 400);
-      assertHttpError(() => parse({ [key]: String(min) }), 400);
+  test("location is trimmed, kept, and refused when empty, too long or with control characters", () => {
+    assert.equal(parse({ location: "  Madrid, Malasaña  " }).input.location, "Madrid, Malasaña");
+    assert.equal(parse({ location: "online" }).input.location, "online");
+    assert.equal(parse({ location: "a".repeat(MAX_LOCATION) }).input.location.length, MAX_LOCATION);
+    assertHttpError(() => parse({ location: "   " }), 400, "location is not a valid answer");
+    assertHttpError(() => parse({ location: "a".repeat(MAX_LOCATION + 1) }), 400);
+    assertHttpError(() => parse({ location: "Madrid\u0000" }), 400);
+  });
+
+  for (const mode of START_MODES) {
+    test(`start_mode accepts "${mode}"`, () => {
+      assert.equal(parse({ start_mode: mode }).input.start_mode, mode);
     });
   }
 
+  for (const premises of PREMISES) {
+    test(`premises accepts "${premises}"`, () => {
+      assert.equal(parse({ premises }).input.premises, premises);
+    });
+  }
+
+  test("a choice outside its closed list is refused with 400", () => {
+    assertHttpError(() => parse({ start_mode: "franchising" }), 400);
+    assertHttpError(() => parse({ premises: "maybe" }), 400);
+    assertHttpError(() => parse({ start_mode: undefined }), 400);
+  });
   test("rejects bodies that are not JSON objects with 400", () => {
     for (const raw of ["nope", "", "{", "null", "42", '"text"']) {
       assertHttpError(() => parsePlannerRequest(raw), 400, "Invalid JSON");
@@ -242,19 +263,19 @@ describe('parsePlannerRequest: "I don\'t know" in the fixed questions', () => {
     const { input } = parse({ budget: 25_000 });
     assert.equal(input.budget, 25_000);
     assert.equal("unknown" in input, false);
-    assertHttpError(() => parse({ budget: undefined }), 400, "budget must be a number between 0 and 1000000");
+    assertHttpError(() => parse({ budget: undefined }), 400, "budget is not a valid answer");
   });
 
   test("a flagged input needs no number: the lowest of its range stands in", () => {
-    const body = { idea: "A bakery", experience: 2, hours: 1, unknown: ["team", "budget"] };
+    const body = { idea: "A bakery", location: "ignored", start_mode: "franchise", premises: "have", unknown: ["location", "budget"] };
     const { input } = parsePlannerRequest(JSON.stringify(body));
-    assert.deepEqual(input, { idea: "A bakery", budget: 0, experience: 2, team: 0, hours: 1, unknown: ["budget", "team"] });
+    assert.deepEqual(input, { idea: "A bakery", budget: 0, location: "", start_mode: "franchise", premises: "have", unknown: ["location", "budget"] });
   });
 
   test("a number sent for a flagged input is ignored, even out of range", () => {
-    const { input } = parse({ budget: 50_000, hours: 99, unknown: ["budget", "hours"] });
-    assert.equal(input.budget, RANGES.budget[0]);
-    assert.equal(input.hours, RANGES.hours[0]);
+    const { input } = parse({ budget: 50_000, premises: "not a choice", unknown: ["budget", "premises"] });
+    assert.equal(input.budget, 0);
+    assert.equal(input.premises, PREMISES[0]);
   });
 
   test("an empty list is the same as none", () => {
@@ -262,20 +283,21 @@ describe('parsePlannerRequest: "I don\'t know" in the fixed questions', () => {
   });
 
   test("the inputs that are not flagged keep their checks", () => {
-    assertHttpError(() => parse({ unknown: ["budget"], hours: 4 }), 400, "hours must be a number between 0 and 3");
+    assertHttpError(() => parse({ unknown: ["budget"], start_mode: "franchising" }), 400);
   });
 
   const invalid: [string, unknown][] = [
     ["a string", "budget"],
     ["an unknown key", ["budget", "money"]],
-    ["a repeated key", ["team", "team"]],
+    ["a repeated key", ["budget", "budget"]],
+    ["a removed key", ["team"]],
     ["a non-string item", [1]],
     ["an object", { budget: true }],
     ["null", null],
   ];
   for (const [name, value] of invalid) {
     test(`${name} is refused with 400`, () => {
-      assertHttpError(() => parse({ unknown: value }), 400, "unknown must be a list of distinct keys among budget, experience, team, hours");
+      assertHttpError(() => parse({ unknown: value }), 400, "unknown must be a list of distinct keys among location, budget, start_mode, premises");
     });
   }
 });

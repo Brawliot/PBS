@@ -105,10 +105,10 @@ const storedReport = (posts, result, glance) => {
     // As the server keeps it: an "I don't know" has the lowest number of its range as a placeholder
     input: {
       idea: body.idea,
+      location: body.location ?? "",
       budget: body.budget ?? 0,
-      experience: body.experience ?? 0,
-      team: body.team ?? 0,
-      hours: body.hours ?? 0,
+      start_mode: body.start_mode ?? "scratch",
+      premises: body.premises ?? "have",
       ...(body.unknown && { unknown: body.unknown }),
     },
     answers: body.answers,
@@ -156,9 +156,9 @@ async function mockApi(page, { results, report }) {
 }
 
 /** Fills the form like a user (every fixed question at its largest value) and submits it */
-/** Answers the four fixed questions (budget, experience, team, hours) with the largest values */
+/** Answers the four fixed questions (location, budget, how they start, premises) with the largest values */
 async function answerSituation(page) {
-  for (const [index, value] of ["1,000,000 €", "20", "Large (10+)", "Full time"].entries()) {
+  for (const [index, value] of ["Madrid", "Over 150,000 €", "From scratch", "I have them"].entries()) {
     await page.waitForFunction(
       (number) => document.getElementById("question").classList.contains("is-open")
         && document.getElementById("question-progress").textContent.startsWith(`Question ${number} of`),
@@ -237,14 +237,14 @@ async function scenarioFinalRequest(browser) {
   const live = await topOfReport(page);
   await shoot(page, "glance-complete");
   assert.equal(live.understood, "Bakery you said · for Households inferred · Madrid you said · Idea only", "the business in one line, the stage included");
-  assert.equal(await page.textContent("#result-understood-you"), "You: Large (10+) · €1,000,000 to invest · full time");
+  assert.equal(await page.textContent("#result-understood-you"), "You: €200,000 to invest · From scratch · I have them");
   assert.equal(live.budget.row, "Budget €5,000 – €9,000 estimated");
-  assert.equal(live.budget.note, "Estimated budget: €5,000 – €9,000. Your budget: €1,000,000.");
+  assert.equal(live.budget.note, "Estimated budget: €5,000 – €9,000. Your budget: €200,000.");
   assert.equal(live.budget.fits, "Enough for a first version", "the fit text is shown under the range");
   assert.match(live.budget.bar.zoneLeft, /^0\.5/);
   assert.equal(live.budget.bar.you, "100%", "the person's budget is the top of the scale");
-  // The fixed questions were answered with their largest values: team 3 is "Large (10+)"
-  assert.deepEqual(live.needs, NEEDS_FOR_TEAM_LARGE, "the money against the person's budget, the four needs, and what the person offers");
+  // The fixed questions were answered with their largest values: the budget range's top, and the rest as they are
+  assert.deepEqual(live.needs, NEEDS_FOR_BUDGET_TOP, "the money against the person's budget, and the time and team");
   assert.deepEqual(live.clarity, [
     "Your business Medium Missing: How it makes money, how it reaches customers…",
     "You Medium Missing: What you can do yourself, handling other people's money…",
@@ -311,11 +311,11 @@ async function scenarioNoRange(browser) {
   return "no range: only the fit text shows, and the location chip is left out";
 }
 
-// The four needs, as the profile above and the form's team (3) read them
-const NEEDS_FOR_TEAM_LARGE = [
-  { term: "Money", value: "€5,000 – €9,000", small: ["You have €1,000,000: covers it"] },
-  { term: "Your time", value: "Full time", small: ["What you can put in"] },
-  { term: "Team", value: "Feasible solo", small: ["You offer: Large (10+)"] },
+// The needs, as the profile above and the budget's top range read them
+const NEEDS_FOR_BUDGET_TOP = [
+  { term: "Money", value: "€5,000 – €9,000", small: ["You have €200,000: covers it"] },
+  { term: "Your time", value: "Not known yet", small: ["For your own parts"] },
+  { term: "Team", value: "Feasible solo", small: ["Estimate"] },
   { term: "First revenue", value: "0-3 months", small: ["Estimate"] },
 ];
 
@@ -331,7 +331,7 @@ async function scenarioDontKnow(browser) {
   const clarity = {
     version: 1,
     concept: CLARITY.concept,
-    person: { level: "low", score: 44, missing: ["Budget", "Team", "What you can do yourself"] },
+    person: { level: "low", score: 44, missing: ["How you start", "Premises", "What you can do yourself"] },
   };
   const posts = await mockApi(page, {
     results: [{ ...withProfile(snapshot.noQuestions), reportId: REPORT_ID, glance, clarity }],
@@ -348,7 +348,7 @@ async function scenarioDontKnow(browser) {
       { timeout: 20_000 },
     );
 
-  // Budget: the "I don't know" option, sent with the arrow
+  // Location: the "I don't know" option, sent with the arrow
   await at(1);
   const options = await page.$$eval(".question__option", (buttons) => buttons.map((b) => b.textContent));
   assert.equal(options.at(-1), "I don't know", "every fixed question offers I don't know");
@@ -363,33 +363,33 @@ async function scenarioDontKnow(browser) {
   assert.equal(await page.getAttribute(".question__input", "aria-invalid"), null, "the note is not an error");
   await shoot(page, "dont-know-back");
   await page.press(".question__input", "Enter");
+  // Budget: typed
   await at(2);
-  await page.fill(".question__input", "3");
+  await page.fill(".question__input", "25,000");
   await page.press(".question__input", "Enter");
-  // Team: typed, not clicked
+  // How they start: typed "I don't know"
   await at(3);
   await page.fill(".question__input", "i dont know");
   await page.press(".question__input", "Enter");
+  // Premises: typed, the choice's words
   await at(4);
-  await page.fill(".question__input", "Full time");
+  await page.fill(".question__input", "Not sure if I need one");
   await page.press(".question__input", "Enter");
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
 
   const body = posts[0];
-  assert.deepEqual(body.unknown, ["budget", "team"]);
-  assert.equal("budget" in body, false, "no number for an unknown budget");
-  assert.equal("team" in body, false, "no number for an unknown team");
-  assert.equal(body.experience, 3);
-  assert.equal(body.hours, 3);
+  assert.deepEqual(body.unknown, ["location", "start_mode"]);
+  assert.equal("location" in body, false, "no value for an unknown location");
+  assert.equal("start_mode" in body, false, "no value for an unknown start");
+  assert.equal(body.budget, 25_000);
+  assert.equal(body.premises, "unsure", "not sure is an answer, sent as it is");
 
   const live = await topOfReport(page);
   await shoot(page, "dont-know-result");
-  assert.equal(live.budget.bar.you, null, "no mark for a budget the person does not know");
-  assert.equal(live.budget.fits, null, "no sentence on how an unknown budget fits");
-  assert.deepEqual(live.needs.find(({ term }) => term === "Team").small, ["Your team: not given"], "no team offer when the team is unknown");
+  assert.equal(live.budget.bar.you !== null, true, "the budget typed is marked");
   assert.deepEqual(live.clarity, [
     "Your business Medium Missing: How it makes money, how it reaches customers…",
-    "You Low Missing: Budget, team…",
+    "You Low Missing: How you start, premises…",
   ]);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   assert.ok(overflow <= 0, `no horizontal scroll at phone width (${overflow}px)`);

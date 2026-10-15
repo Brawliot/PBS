@@ -51,7 +51,7 @@ export function reportWith(options: ReportOptions = {}): Report {
   };
   if (options.timeline !== null) answers.timeline = { type: "choice", choice: options.timeline ?? "Fast (3-6m)" };
   return {
-    input: { idea: "Restaurante japonés en Madrid", budget: 80000, experience: 5, team: 1, hours: 2 },
+    input: { idea: "Restaurante japonés en Madrid", budget: 80000, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const},
     answers: [],
     jev: { answers: answers as Report["jev"]["answers"] },
     profile: { values, unknown, known: DIMENSION_KEYS.length - unknown.length, total: DIMENSION_KEYS.length },

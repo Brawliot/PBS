@@ -108,7 +108,7 @@ async function mockApi(page, results) {
     const { reportId: _id, ...parts } = typeof results[index + 1] === "function" ? results[index + 1](body) : results[index + 1];
     return route.fulfill(json(200, {
       id,
-      report: { input: { idea: body.idea, budget: body.budget ?? 0, experience: body.experience ?? 0, team: body.team ?? 0, hours: body.hours ?? 0 }, answers: body.answers, ...parts },
+      report: { input: { idea: body.idea, location: body.location ?? "", budget: body.budget ?? 0, start_mode: body.start_mode ?? "scratch", premises: body.premises ?? "have" }, answers: body.answers, ...parts },
       planId: null,
     }));
   });

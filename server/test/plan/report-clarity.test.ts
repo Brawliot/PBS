@@ -42,11 +42,11 @@ describe("the report schema: clarity and unknown inputs", () => {
   test("a report with a valid clarity, glance sources and unknown inputs reads, and keeps them", () => {
     const base = oldShape();
     const sources = { target_customer: "inferred", value_proposition: "stated", revenue_model: "unknown", stage: "stated", competition: "unknown" };
-    const report = { ...base, input: { ...base.input, unknown: ["budget", "hours"] }, glance: { ...base.glance, sources }, clarity };
+    const report = { ...base, input: { ...base.input, unknown: ["budget", "start_mode"] }, glance: { ...base.glance, sources }, clarity };
     const result = read(report);
     assert.equal(result.ok, true);
     assert.deepEqual(result.ok && result.report.clarity, clarity);
-    assert.deepEqual(result.ok && result.report.input.unknown, ["budget", "hours"]);
+    assert.deepEqual(result.ok && result.report.input.unknown, ["budget", "start_mode"]);
     assert.deepEqual(result.ok && result.report.glance?.sources, sources);
   });
 

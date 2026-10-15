@@ -28,7 +28,7 @@ const REPORT_ID = "33333333-3333-4333-8333-333333333333";
 const snapshot = JSON.parse(readFileSync(join(serverDir, "test/planner/fixtures/planner-run.snapshot.json"), "utf8"));
 // A stored report: the input and the answers it was made from, and the run's own parts (the server keeps all of them)
 const report = {
-  input: { idea: "Bakery delivery", budget: 10_000, experience: 1, team: 1, hours: 1 },
+  input: { idea: "Bakery delivery", location: "Madrid", budget: 10_000, start_mode: "scratch" as const, premises: "have" as const },
   answers: [],
   ...snapshot.noQuestions,
   // Ready for a plan (green): a yellow or red report gates the button (improve-report.e2e.mjs checks that)
@@ -74,9 +74,9 @@ async function mockSignedIn(page, { reportStatus = 200 } = {}) {
   );
 }
 
-/** Answers the four fixed questions (budget, experience, team, hours) with the largest values */
+/** Answers the four fixed questions (location, budget, how they start, premises) with the largest values */
 async function answerSituation(page) {
-  for (const [index, value] of ["1,000,000 €", "20", "Large (10+)", "Full time"].entries()) {
+  for (const [index, value] of ["Madrid", "Over 150,000 €", "From scratch", "I have them"].entries()) {
     await page.waitForFunction(
       (number) => document.getElementById("question").classList.contains("is-open")
         && document.getElementById("question-progress").textContent.startsWith(`Question ${number} of`),

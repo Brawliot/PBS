@@ -19,7 +19,7 @@ import "./helpers.js";
 // checked: anything not asked for, repeated, or not a plain reason of 1 to MAX_EXPLANATION_REASON characters
 // discards the whole reply. A failed call leaves the report without reasons; a cancelled run stops.
 
-const input = { idea: "Bakery delivery", budget: 10_000, experience: 1, team: 1, hours: 1 };
+const input = { idea: "Bakery delivery", budget: 10_000, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const};
 const answers = [{ topic: "validation", question: "Have you tested it?", answer: "Yes, ten people" }];
 
 const area = (name: string, tier: "core" | "important" | "light", confidence: number) => ({ name, tier, confidence });

@@ -97,7 +97,7 @@ const storedReport = (posts, result, glance) => {
   const body = posts.at(-1);
   const { reportId, glance: _ignored, ...parts } = result;
   return {
-    input: { idea: body.idea, budget: body.budget, experience: body.experience, team: body.team, hours: body.hours },
+    input: { idea: body.idea, location: body.location, budget: body.budget, start_mode: body.start_mode, premises: body.premises },
     answers: body.answers,
     ...parts,
     ...(glance && { glance }),
@@ -146,9 +146,9 @@ async function mockApi(page, { results, report, catalog = () => json(200, { temp
 }
 
 /** Fills the form like a user (every fixed question at its largest value) and submits it */
-/** Answers the four fixed questions (budget, experience, team, hours) with the largest values */
+/** Answers the four fixed questions (location, budget, how they start, premises) with the largest values */
 async function answerSituation(page) {
-  for (const [index, value] of ["1,000,000 €", "20", "Large (10+)", "Full time"].entries()) {
+  for (const [index, value] of ["Madrid", "Over 150,000 €", "From scratch", "I have them"].entries()) {
     await page.waitForFunction(
       (number) => document.getElementById("question").classList.contains("is-open")
         && document.getElementById("question-progress").textContent.startsWith(`Question ${number} of`),
