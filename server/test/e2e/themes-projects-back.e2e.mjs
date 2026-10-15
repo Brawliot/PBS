@@ -28,7 +28,7 @@ const REPORT_ID = "33333333-3333-4333-8333-333333333333";
 const snapshot = JSON.parse(readFileSync(join(serverDir, "test/planner/fixtures/planner-run.snapshot.json"), "utf8"));
 // A stored report: the input and the answers it was made from, and the run's own parts (the server keeps all of them)
 const report = {
-  input: { idea: "Bakery delivery", location: "Madrid", budget: 10_000, start_mode: "scratch" as const, premises: "have" as const },
+  input: { idea: "Bakery delivery", location: "Madrid", budget: 10_000, start_mode: "scratch", premises: "have" },
   answers: [],
   ...snapshot.noQuestions,
   // Ready for a plan (green): a yellow or red report gates the button (improve-report.e2e.mjs checks that)
