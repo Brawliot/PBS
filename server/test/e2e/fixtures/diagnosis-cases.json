@@ -1,0 +1,3041 @@
+{
+  "tapas": {
+    "input": {
+      "idea": "A tapas bar in Malasaña, Madrid",
+      "budget": 40000,
+      "location": "Malasaña, Madrid",
+      "start_mode": "takeover",
+      "premises": "looking"
+    },
+    "detect": {
+      "location": "Malasaña, Madrid",
+      "budget": 40000,
+      "start_mode": "takeover",
+      "premises": "looking"
+    },
+    "firstRound": {
+      "jev": {
+        "model": "fixture",
+        "answers": {
+          "sector": {
+            "type": "choice",
+            "choice": "Hospitality/Food service"
+          },
+          "geographic_scope": {
+            "type": "choice",
+            "choice": "Hyper-local"
+          },
+          "timeline": {
+            "type": "choice",
+            "choice": "Fast (3-6m)"
+          },
+          "concept": {
+            "type": "choice",
+            "choice": "Strong"
+          },
+          "location": {
+            "type": "choice",
+            "choice": "Strong"
+          },
+          "competition": {
+            "type": "choice",
+            "choice": "Risk"
+          },
+          "experience": {
+            "type": "choice",
+            "choice": "Watch"
+          }
+        },
+        "usage": {
+          "input_tokens": 1,
+          "output_tokens": 1
+        }
+      },
+      "phase2": {
+        "maturity": "developing",
+        "subsector": {
+          "value": "Tapas bar",
+          "source": "stated",
+          "confidence": 80
+        },
+        "location": {
+          "value": "Malasaña, Madrid",
+          "source": "stated",
+          "confidence": 80
+        },
+        "target_customer": {
+          "value": "Locals and visitors",
+          "source": "inferred",
+          "confidence": 60
+        },
+        "value_proposition": {
+          "value": "A tapas bar in Malasaña, Madrid",
+          "source": "stated",
+          "confidence": 80
+        },
+        "revenue_model": {
+          "value": "Sales per visit",
+          "source": "unknown",
+          "confidence": 0
+        },
+        "stage": {
+          "value": "Idea only",
+          "source": "stated",
+          "confidence": 80
+        },
+        "competition": {
+          "value": "Other businesses in the area",
+          "source": "stated",
+          "confidence": 80
+        },
+        "constraints": {
+          "budget": {
+            "min": 45000,
+            "max": 60000,
+            "currency": "EUR",
+            "fits": "Estimated range for this idea"
+          },
+          "exclusions": [],
+          "risks": [],
+          "assumptions": []
+        },
+        "questions": [],
+        "execution": [
+          {
+            "name": "Menu and recipes",
+            "who": "you",
+            "mando_key": "",
+            "cost_min": null,
+            "cost_max": null,
+            "hours_week": 10,
+            "reason": "The owner knows the kitchen"
+          },
+          {
+            "name": "Website and bookings",
+            "who": "mando",
+            "mando_key": "website",
+            "cost_min": null,
+            "cost_max": null,
+            "hours_week": null,
+            "reason": "Built in Mando"
+          }
+        ]
+      },
+      "questionTotal": 0,
+      "glance": {
+        "maturity": "developing",
+        "subsectorSource": "stated",
+        "location": {
+          "value": "Malasaña, Madrid",
+          "source": "stated"
+        },
+        "budget": {
+          "min": 45000,
+          "max": 60000,
+          "currency": "EUR",
+          "fits": "Estimated range for this idea"
+        },
+        "sources": {
+          "target_customer": "inferred",
+          "value_proposition": "stated",
+          "revenue_model": "unknown",
+          "stage": "stated",
+          "competition": "stated"
+        },
+        "execution": {
+          "items": [
+            {
+              "name": "Menu and recipes",
+              "who": "you",
+              "mandoKey": null,
+              "costMin": null,
+              "costMax": null,
+              "hoursWeek": 10,
+              "reason": "The owner knows the kitchen"
+            },
+            {
+              "name": "Website and bookings",
+              "who": "mando",
+              "mandoKey": "website",
+              "costMin": null,
+              "costMax": null,
+              "hoursWeek": null,
+              "reason": "Built in Mando"
+            }
+          ],
+          "pay": null,
+          "saved": null,
+          "hours": 10
+        }
+      }
+    },
+    "final": {
+      "jev": {
+        "model": "fixture",
+        "answers": {
+          "sector": {
+            "type": "choice",
+            "choice": "Hospitality/Food service"
+          },
+          "geographic_scope": {
+            "type": "choice",
+            "choice": "Hyper-local"
+          },
+          "timeline": {
+            "type": "choice",
+            "choice": "Fast (3-6m)"
+          },
+          "concept": {
+            "type": "choice",
+            "choice": "Strong"
+          },
+          "location": {
+            "type": "choice",
+            "choice": "Strong"
+          },
+          "competition": {
+            "type": "choice",
+            "choice": "Risk"
+          },
+          "experience": {
+            "type": "choice",
+            "choice": "Watch"
+          }
+        },
+        "usage": {
+          "input_tokens": 1,
+          "output_tokens": 1
+        }
+      },
+      "profile": {
+        "values": {
+          "customer_segment": "Not specified",
+          "revenue_model": "Not specified",
+          "offering_type": "Not specified",
+          "acquisition_channel": "Not specified",
+          "competition": "Not specified",
+          "differentiator": "Not specified",
+          "validation_stage": "Not specified",
+          "founder_profile": "Not specified",
+          "deadline_rigidity": "Not specified",
+          "capital_intensity": "Not specified",
+          "team_requirement": "Not specified",
+          "time_to_revenue": "Not specified",
+          "regulatory_load": "Not specified",
+          "third_party_dependency": "Not specified",
+          "money_handling": "Not specified"
+        },
+        "unknown": [
+          "customer_segment",
+          "revenue_model",
+          "offering_type",
+          "acquisition_channel",
+          "competition",
+          "differentiator",
+          "validation_stage",
+          "founder_profile",
+          "deadline_rigidity",
+          "capital_intensity",
+          "team_requirement",
+          "time_to_revenue",
+          "regulatory_load",
+          "third_party_dependency",
+          "money_handling"
+        ],
+        "known": 0,
+        "total": 15
+      },
+      "validation": {
+        "unsupported": [],
+        "warnings": [],
+        "departments": [
+          {
+            "name": "Legal & Compliance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Finance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Marketing",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "HR",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Sales",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Product",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Technology",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Operations",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Infrastructure",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Health",
+            "confidence": 0,
+            "tier": "light"
+          }
+        ],
+        "groups": [
+          {
+            "name": "Legal & Compliance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Finance & People",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Growth",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Product & Tech",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Operations",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Health",
+            "confidence": 0,
+            "tier": "light"
+          }
+        ],
+        "level": 1
+      },
+      "explanations": {
+        "warningReasons": [],
+        "areaReasons": [],
+        "timeToOpen": {
+          "min": 3,
+          "max": 5,
+          "unit": "months",
+          "confidence": "medium"
+        },
+        "costBreakdown": [
+          {
+            "label": "Licences",
+            "percent": 60
+          },
+          {
+            "label": "Equipment",
+            "percent": 40
+          }
+        ],
+        "templates": [
+          "supplier-quote",
+          "customer-interviews",
+          "licence-enquiry"
+        ]
+      },
+      "glance": {
+        "maturity": "developing",
+        "subsectorSource": "stated",
+        "location": {
+          "value": "Malasaña, Madrid",
+          "source": "stated"
+        },
+        "budget": {
+          "min": 45000,
+          "max": 60000,
+          "currency": "EUR",
+          "fits": "Estimated range for this idea"
+        },
+        "sources": {
+          "target_customer": "inferred",
+          "value_proposition": "stated",
+          "revenue_model": "unknown",
+          "stage": "stated",
+          "competition": "stated"
+        },
+        "execution": {
+          "items": [
+            {
+              "name": "Menu and recipes",
+              "who": "you",
+              "mandoKey": null,
+              "costMin": null,
+              "costMax": null,
+              "hoursWeek": 10,
+              "reason": "The owner knows the kitchen"
+            },
+            {
+              "name": "Website and bookings",
+              "who": "mando",
+              "mandoKey": "website",
+              "costMin": null,
+              "costMax": null,
+              "hoursWeek": null,
+              "reason": "Built in Mando"
+            }
+          ],
+          "pay": null,
+          "saved": null,
+          "hours": 10
+        }
+      },
+      "clarity": {
+        "version": 3,
+        "concept": {
+          "level": "medium",
+          "score": 61,
+          "missing": [
+            "How it makes money",
+            "How it reaches customers",
+            "What sets it apart"
+          ],
+          "essentialMissing": true
+        },
+        "person": {
+          "level": "low",
+          "score": 53,
+          "missing": [
+            "What you can do yourself",
+            "Handling other people's money",
+            "Fixed deadline"
+          ],
+          "essentialMissing": true
+        },
+        "readiness": "yellow"
+      },
+      "diagnosis": {
+        "idea": "A neighbourhood tapas bar for locals and after-work crowds in Malasaña.",
+        "checks": [
+          {
+            "key": "concept",
+            "status": "strong",
+            "why": "Locals already eat tapas in this street, so the offer has a ready market.",
+            "estimated": true,
+            "decidedBy": "jev"
+          },
+          {
+            "key": "location",
+            "status": "strong",
+            "why": "The street is busy after work, though rents are high.",
+            "estimated": true,
+            "decidedBy": "jev"
+          },
+          {
+            "key": "money",
+            "status": "watch",
+            "why": "€40k is tight against a typical €45–60k takeover, with little cushion.",
+            "estimated": true,
+            "decidedBy": "rule"
+          },
+          {
+            "key": "experience",
+            "status": "watch",
+            "why": "The owner has run a kitchen for years, but not this trade's front of house.",
+            "estimated": true,
+            "decidedBy": "jev"
+          },
+          {
+            "key": "competition",
+            "status": "risk",
+            "why": "Very dense: many tapas bars in Malasaña, so price alone will not set you apart.",
+            "estimated": true,
+            "decidedBy": "jev"
+          }
+        ],
+        "risks": [
+          "High rent in this area.",
+          "Dependence on the terrace: licence and season.",
+          "Very dense competition."
+        ],
+        "split": {
+          "mando": [
+            "Website"
+          ],
+          "you": [
+            "Menu and recipes"
+          ],
+          "outsource": []
+        }
+      },
+      "reportId": "9832d58f-62f6-4bd8-8c26-97a4b63eeda7"
+    },
+    "report": {
+      "input": {
+        "idea": "A tapas bar in Malasaña, Madrid",
+        "location": "Malasaña, Madrid",
+        "budget": 40000,
+        "start_mode": "takeover",
+        "premises": "looking"
+      },
+      "answers": [],
+      "jev": {
+        "model": "fixture",
+        "answers": {
+          "sector": {
+            "type": "choice",
+            "choice": "Hospitality/Food service"
+          },
+          "geographic_scope": {
+            "type": "choice",
+            "choice": "Hyper-local"
+          },
+          "timeline": {
+            "type": "choice",
+            "choice": "Fast (3-6m)"
+          },
+          "concept": {
+            "type": "choice",
+            "choice": "Strong"
+          },
+          "location": {
+            "type": "choice",
+            "choice": "Strong"
+          },
+          "competition": {
+            "type": "choice",
+            "choice": "Risk"
+          },
+          "experience": {
+            "type": "choice",
+            "choice": "Watch"
+          }
+        },
+        "usage": {
+          "input_tokens": 1,
+          "output_tokens": 1
+        }
+      },
+      "profile": {
+        "values": {
+          "customer_segment": "Not specified",
+          "revenue_model": "Not specified",
+          "offering_type": "Not specified",
+          "acquisition_channel": "Not specified",
+          "competition": "Not specified",
+          "differentiator": "Not specified",
+          "validation_stage": "Not specified",
+          "founder_profile": "Not specified",
+          "deadline_rigidity": "Not specified",
+          "capital_intensity": "Not specified",
+          "team_requirement": "Not specified",
+          "time_to_revenue": "Not specified",
+          "regulatory_load": "Not specified",
+          "third_party_dependency": "Not specified",
+          "money_handling": "Not specified"
+        },
+        "unknown": [
+          "customer_segment",
+          "revenue_model",
+          "offering_type",
+          "acquisition_channel",
+          "competition",
+          "differentiator",
+          "validation_stage",
+          "founder_profile",
+          "deadline_rigidity",
+          "capital_intensity",
+          "team_requirement",
+          "time_to_revenue",
+          "regulatory_load",
+          "third_party_dependency",
+          "money_handling"
+        ],
+        "known": 0,
+        "total": 15
+      },
+      "validation": {
+        "unsupported": [],
+        "warnings": [],
+        "departments": [
+          {
+            "name": "Legal & Compliance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Finance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Marketing",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "HR",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Sales",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Product",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Technology",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Operations",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Infrastructure",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Health",
+            "confidence": 0,
+            "tier": "light"
+          }
+        ],
+        "groups": [
+          {
+            "name": "Legal & Compliance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Finance & People",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Growth",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Product & Tech",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Operations",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Health",
+            "confidence": 0,
+            "tier": "light"
+          }
+        ],
+        "level": 1
+      },
+      "explanations": {
+        "warningReasons": [],
+        "areaReasons": [],
+        "timeToOpen": {
+          "min": 3,
+          "max": 5,
+          "unit": "months",
+          "confidence": "medium"
+        },
+        "costBreakdown": [
+          {
+            "label": "Licences",
+            "percent": 60
+          },
+          {
+            "label": "Equipment",
+            "percent": 40
+          }
+        ],
+        "templates": [
+          "supplier-quote",
+          "customer-interviews",
+          "licence-enquiry"
+        ]
+      },
+      "glance": {
+        "maturity": "developing",
+        "subsectorSource": "stated",
+        "location": {
+          "value": "Malasaña, Madrid",
+          "source": "stated"
+        },
+        "budget": {
+          "min": 45000,
+          "max": 60000,
+          "currency": "EUR",
+          "fits": "Estimated range for this idea"
+        },
+        "sources": {
+          "target_customer": "inferred",
+          "value_proposition": "stated",
+          "revenue_model": "unknown",
+          "stage": "stated",
+          "competition": "stated"
+        },
+        "execution": {
+          "items": [
+            {
+              "name": "Menu and recipes",
+              "who": "you",
+              "mandoKey": null,
+              "costMin": null,
+              "costMax": null,
+              "hoursWeek": 10,
+              "reason": "The owner knows the kitchen"
+            },
+            {
+              "name": "Website and bookings",
+              "who": "mando",
+              "mandoKey": "website",
+              "costMin": null,
+              "costMax": null,
+              "hoursWeek": null,
+              "reason": "Built in Mando"
+            }
+          ],
+          "pay": null,
+          "saved": null,
+          "hours": 10
+        }
+      },
+      "diagnosis": {
+        "idea": "A neighbourhood tapas bar for locals and after-work crowds in Malasaña.",
+        "checks": [
+          {
+            "key": "concept",
+            "status": "strong",
+            "why": "Locals already eat tapas in this street, so the offer has a ready market.",
+            "estimated": true,
+            "decidedBy": "jev"
+          },
+          {
+            "key": "location",
+            "status": "strong",
+            "why": "The street is busy after work, though rents are high.",
+            "estimated": true,
+            "decidedBy": "jev"
+          },
+          {
+            "key": "money",
+            "status": "watch",
+            "why": "€40k is tight against a typical €45–60k takeover, with little cushion.",
+            "estimated": true,
+            "decidedBy": "rule"
+          },
+          {
+            "key": "experience",
+            "status": "watch",
+            "why": "The owner has run a kitchen for years, but not this trade's front of house.",
+            "estimated": true,
+            "decidedBy": "jev"
+          },
+          {
+            "key": "competition",
+            "status": "risk",
+            "why": "Very dense: many tapas bars in Malasaña, so price alone will not set you apart.",
+            "estimated": true,
+            "decidedBy": "jev"
+          }
+        ],
+        "risks": [
+          "High rent in this area.",
+          "Dependence on the terrace: licence and season.",
+          "Very dense competition."
+        ],
+        "split": {
+          "mando": [
+            "Website"
+          ],
+          "you": [
+            "Menu and recipes"
+          ],
+          "outsource": []
+        }
+      },
+      "clarity": {
+        "version": 3,
+        "concept": {
+          "level": "medium",
+          "score": 61,
+          "missing": [
+            "How it makes money",
+            "How it reaches customers",
+            "What sets it apart"
+          ],
+          "essentialMissing": true
+        },
+        "person": {
+          "level": "low",
+          "score": 53,
+          "missing": [
+            "What you can do yourself",
+            "Handling other people's money",
+            "Fixed deadline"
+          ],
+          "essentialMissing": true
+        },
+        "readiness": "yellow"
+      }
+    }
+  },
+  "physio": {
+    "input": {
+      "idea": "Physio clinic in Valencia",
+      "budget": 60000,
+      "location": "Valencia",
+      "start_mode": "scratch",
+      "premises": "looking"
+    },
+    "detect": {
+      "location": "Valencia",
+      "budget": 60000,
+      "start_mode": "scratch",
+      "premises": "looking"
+    },
+    "firstRound": {
+      "jev": {
+        "model": "fixture",
+        "answers": {
+          "sector": {
+            "type": "choice",
+            "choice": "Health/Medicine"
+          },
+          "geographic_scope": {
+            "type": "choice",
+            "choice": "Local"
+          },
+          "timeline": {
+            "type": "choice",
+            "choice": "Normal (6-12m)"
+          },
+          "concept": {
+            "type": "choice",
+            "choice": "Strong"
+          },
+          "location": {
+            "type": "choice",
+            "choice": "Strong"
+          },
+          "competition": {
+            "type": "choice",
+            "choice": "Watch"
+          },
+          "experience": {
+            "type": "choice",
+            "choice": "Strong"
+          }
+        },
+        "usage": {
+          "input_tokens": 1,
+          "output_tokens": 1
+        }
+      },
+      "phase2": {
+        "maturity": "developing",
+        "subsector": {
+          "value": "Tapas bar",
+          "source": "stated",
+          "confidence": 80
+        },
+        "location": {
+          "value": "Valencia",
+          "source": "stated",
+          "confidence": 80
+        },
+        "target_customer": {
+          "value": "Locals and visitors",
+          "source": "inferred",
+          "confidence": 60
+        },
+        "value_proposition": {
+          "value": "Physio clinic in Valencia",
+          "source": "stated",
+          "confidence": 80
+        },
+        "revenue_model": {
+          "value": "Sales per visit",
+          "source": "unknown",
+          "confidence": 0
+        },
+        "stage": {
+          "value": "Idea only",
+          "source": "stated",
+          "confidence": 80
+        },
+        "competition": {
+          "value": "Other businesses in the area",
+          "source": "stated",
+          "confidence": 80
+        },
+        "constraints": {
+          "budget": {
+            "min": 40000,
+            "max": 55000,
+            "currency": "EUR",
+            "fits": "Estimated range for this idea"
+          },
+          "exclusions": [],
+          "risks": [],
+          "assumptions": []
+        },
+        "questions": [],
+        "execution": []
+      },
+      "questionTotal": 0,
+      "glance": {
+        "maturity": "developing",
+        "subsectorSource": "stated",
+        "location": {
+          "value": "Valencia",
+          "source": "stated"
+        },
+        "budget": {
+          "min": 40000,
+          "max": 55000,
+          "currency": "EUR",
+          "fits": "Estimated range for this idea"
+        },
+        "sources": {
+          "target_customer": "inferred",
+          "value_proposition": "stated",
+          "revenue_model": "unknown",
+          "stage": "stated",
+          "competition": "stated"
+        }
+      }
+    },
+    "final": {
+      "jev": {
+        "model": "fixture",
+        "answers": {
+          "sector": {
+            "type": "choice",
+            "choice": "Health/Medicine"
+          },
+          "geographic_scope": {
+            "type": "choice",
+            "choice": "Local"
+          },
+          "timeline": {
+            "type": "choice",
+            "choice": "Normal (6-12m)"
+          },
+          "concept": {
+            "type": "choice",
+            "choice": "Strong"
+          },
+          "location": {
+            "type": "choice",
+            "choice": "Strong"
+          },
+          "competition": {
+            "type": "choice",
+            "choice": "Watch"
+          },
+          "experience": {
+            "type": "choice",
+            "choice": "Strong"
+          }
+        },
+        "usage": {
+          "input_tokens": 1,
+          "output_tokens": 1
+        }
+      },
+      "profile": {
+        "values": {
+          "customer_segment": "Not specified",
+          "revenue_model": "Not specified",
+          "offering_type": "Not specified",
+          "acquisition_channel": "Not specified",
+          "competition": "Not specified",
+          "differentiator": "Not specified",
+          "validation_stage": "Not specified",
+          "founder_profile": "Not specified",
+          "deadline_rigidity": "Not specified",
+          "capital_intensity": "Not specified",
+          "team_requirement": "Not specified",
+          "time_to_revenue": "Not specified",
+          "regulatory_load": "Heavy (health, finance, food)",
+          "third_party_dependency": "Not specified",
+          "money_handling": "Not specified"
+        },
+        "unknown": [
+          "customer_segment",
+          "revenue_model",
+          "offering_type",
+          "acquisition_channel",
+          "competition",
+          "differentiator",
+          "validation_stage",
+          "founder_profile",
+          "deadline_rigidity",
+          "capital_intensity",
+          "team_requirement",
+          "time_to_revenue",
+          "third_party_dependency",
+          "money_handling"
+        ],
+        "known": 1,
+        "total": 15
+      },
+      "validation": {
+        "unsupported": [],
+        "warnings": [],
+        "departments": [
+          {
+            "name": "Legal & Compliance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Finance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Marketing",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "HR",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Sales",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Product",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Technology",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Operations",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Infrastructure",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Health",
+            "confidence": 0,
+            "tier": "light"
+          }
+        ],
+        "groups": [
+          {
+            "name": "Legal & Compliance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Finance & People",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Growth",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Product & Tech",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Operations",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Health",
+            "confidence": 0,
+            "tier": "light"
+          }
+        ],
+        "level": 1
+      },
+      "explanations": {
+        "warningReasons": [],
+        "areaReasons": [],
+        "timeToOpen": {
+          "min": 3,
+          "max": 5,
+          "unit": "months",
+          "confidence": "medium"
+        },
+        "costBreakdown": [
+          {
+            "label": "Licences",
+            "percent": 60
+          },
+          {
+            "label": "Equipment",
+            "percent": 40
+          }
+        ],
+        "templates": [
+          "supplier-quote",
+          "customer-interviews",
+          "licence-enquiry"
+        ]
+      },
+      "glance": {
+        "maturity": "developing",
+        "subsectorSource": "stated",
+        "location": {
+          "value": "Valencia",
+          "source": "stated"
+        },
+        "budget": {
+          "min": 40000,
+          "max": 55000,
+          "currency": "EUR",
+          "fits": "Estimated range for this idea"
+        },
+        "sources": {
+          "target_customer": "inferred",
+          "value_proposition": "stated",
+          "revenue_model": "unknown",
+          "stage": "stated",
+          "competition": "stated"
+        }
+      },
+      "clarity": {
+        "version": 3,
+        "concept": {
+          "level": "medium",
+          "score": 61,
+          "missing": [
+            "How it makes money",
+            "How it reaches customers",
+            "What sets it apart"
+          ],
+          "essentialMissing": true
+        },
+        "person": {
+          "level": "low",
+          "score": 53,
+          "missing": [
+            "What you can do yourself",
+            "Handling other people's money",
+            "Fixed deadline"
+          ],
+          "essentialMissing": true
+        },
+        "readiness": "yellow"
+      },
+      "diagnosis": {
+        "idea": "A physiotherapy clinic in Valencia for sports injuries and back pain, booked by phone and online.",
+        "checks": [
+          {
+            "key": "concept",
+            "status": "strong",
+            "why": "Patients already look for physio for sports injuries in this area.",
+            "estimated": true,
+            "decidedBy": "jev"
+          },
+          {
+            "key": "location",
+            "status": "strong",
+            "why": "The street has foot traffic and parking nearby.",
+            "estimated": true,
+            "decidedBy": "jev"
+          },
+          {
+            "key": "money",
+            "status": "strong",
+            "why": "The budget covers the first months of a small clinic.",
+            "estimated": true,
+            "decidedBy": "rule"
+          },
+          {
+            "key": "experience",
+            "status": "risk",
+            "why": "No degree or registration is on file for the clinic's treatments.",
+            "estimated": false,
+            "decidedBy": "rule"
+          },
+          {
+            "key": "competition",
+            "status": "watch",
+            "why": "Several physio clinics are nearby, and the difference is not yet clear.",
+            "estimated": true,
+            "decidedBy": "jev"
+          }
+        ],
+        "risks": [
+          "Licence and registration must be in place before the first patient.",
+          "Insurance and malpractice cover take a large part of the budget.",
+          "Several clinics are nearby."
+        ],
+        "split": {
+          "mando": [],
+          "you": [],
+          "outsource": []
+        }
+      },
+      "reportId": "51bdc771-12ca-4e02-b304-605a2491c822"
+    },
+    "report": {
+      "input": {
+        "idea": "Physio clinic in Valencia",
+        "location": "Valencia",
+        "budget": 60000,
+        "start_mode": "scratch",
+        "premises": "looking"
+      },
+      "answers": [],
+      "jev": {
+        "model": "fixture",
+        "answers": {
+          "sector": {
+            "type": "choice",
+            "choice": "Health/Medicine"
+          },
+          "geographic_scope": {
+            "type": "choice",
+            "choice": "Local"
+          },
+          "timeline": {
+            "type": "choice",
+            "choice": "Normal (6-12m)"
+          },
+          "concept": {
+            "type": "choice",
+            "choice": "Strong"
+          },
+          "location": {
+            "type": "choice",
+            "choice": "Strong"
+          },
+          "competition": {
+            "type": "choice",
+            "choice": "Watch"
+          },
+          "experience": {
+            "type": "choice",
+            "choice": "Strong"
+          }
+        },
+        "usage": {
+          "input_tokens": 1,
+          "output_tokens": 1
+        }
+      },
+      "profile": {
+        "values": {
+          "customer_segment": "Not specified",
+          "revenue_model": "Not specified",
+          "offering_type": "Not specified",
+          "acquisition_channel": "Not specified",
+          "competition": "Not specified",
+          "differentiator": "Not specified",
+          "validation_stage": "Not specified",
+          "founder_profile": "Not specified",
+          "deadline_rigidity": "Not specified",
+          "capital_intensity": "Not specified",
+          "team_requirement": "Not specified",
+          "time_to_revenue": "Not specified",
+          "regulatory_load": "Heavy (health, finance, food)",
+          "third_party_dependency": "Not specified",
+          "money_handling": "Not specified"
+        },
+        "unknown": [
+          "customer_segment",
+          "revenue_model",
+          "offering_type",
+          "acquisition_channel",
+          "competition",
+          "differentiator",
+          "validation_stage",
+          "founder_profile",
+          "deadline_rigidity",
+          "capital_intensity",
+          "team_requirement",
+          "time_to_revenue",
+          "third_party_dependency",
+          "money_handling"
+        ],
+        "known": 1,
+        "total": 15
+      },
+      "validation": {
+        "unsupported": [],
+        "warnings": [],
+        "departments": [
+          {
+            "name": "Legal & Compliance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Finance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Marketing",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "HR",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Sales",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Product",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Technology",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Operations",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Infrastructure",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Health",
+            "confidence": 0,
+            "tier": "light"
+          }
+        ],
+        "groups": [
+          {
+            "name": "Legal & Compliance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Finance & People",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Growth",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Product & Tech",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Operations",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Health",
+            "confidence": 0,
+            "tier": "light"
+          }
+        ],
+        "level": 1
+      },
+      "explanations": {
+        "warningReasons": [],
+        "areaReasons": [],
+        "timeToOpen": {
+          "min": 3,
+          "max": 5,
+          "unit": "months",
+          "confidence": "medium"
+        },
+        "costBreakdown": [
+          {
+            "label": "Licences",
+            "percent": 60
+          },
+          {
+            "label": "Equipment",
+            "percent": 40
+          }
+        ],
+        "templates": [
+          "supplier-quote",
+          "customer-interviews",
+          "licence-enquiry"
+        ]
+      },
+      "glance": {
+        "maturity": "developing",
+        "subsectorSource": "stated",
+        "location": {
+          "value": "Valencia",
+          "source": "stated"
+        },
+        "budget": {
+          "min": 40000,
+          "max": 55000,
+          "currency": "EUR",
+          "fits": "Estimated range for this idea"
+        },
+        "sources": {
+          "target_customer": "inferred",
+          "value_proposition": "stated",
+          "revenue_model": "unknown",
+          "stage": "stated",
+          "competition": "stated"
+        }
+      },
+      "diagnosis": {
+        "idea": "A physiotherapy clinic in Valencia for sports injuries and back pain, booked by phone and online.",
+        "checks": [
+          {
+            "key": "concept",
+            "status": "strong",
+            "why": "Patients already look for physio for sports injuries in this area.",
+            "estimated": true,
+            "decidedBy": "jev"
+          },
+          {
+            "key": "location",
+            "status": "strong",
+            "why": "The street has foot traffic and parking nearby.",
+            "estimated": true,
+            "decidedBy": "jev"
+          },
+          {
+            "key": "money",
+            "status": "strong",
+            "why": "The budget covers the first months of a small clinic.",
+            "estimated": true,
+            "decidedBy": "rule"
+          },
+          {
+            "key": "experience",
+            "status": "risk",
+            "why": "No degree or registration is on file for the clinic's treatments.",
+            "estimated": false,
+            "decidedBy": "rule"
+          },
+          {
+            "key": "competition",
+            "status": "watch",
+            "why": "Several physio clinics are nearby, and the difference is not yet clear.",
+            "estimated": true,
+            "decidedBy": "jev"
+          }
+        ],
+        "risks": [
+          "Licence and registration must be in place before the first patient.",
+          "Insurance and malpractice cover take a large part of the budget.",
+          "Several clinics are nearby."
+        ],
+        "split": {
+          "mando": [],
+          "you": [],
+          "outsource": []
+        }
+      },
+      "clarity": {
+        "version": 3,
+        "concept": {
+          "level": "medium",
+          "score": 61,
+          "missing": [
+            "How it makes money",
+            "How it reaches customers",
+            "What sets it apart"
+          ],
+          "essentialMissing": true
+        },
+        "person": {
+          "level": "low",
+          "score": 53,
+          "missing": [
+            "What you can do yourself",
+            "Handling other people's money",
+            "Fixed deadline"
+          ],
+          "essentialMissing": true
+        },
+        "readiness": "yellow"
+      }
+    }
+  },
+  "salon": {
+    "input": {
+      "idea": "Taking over a hair salon in Seville, I have premises",
+      "budget": 40000,
+      "location": "Seville",
+      "start_mode": "takeover",
+      "premises": "have"
+    },
+    "detect": {
+      "location": "Seville",
+      "budget": null,
+      "start_mode": "takeover",
+      "premises": "have"
+    },
+    "firstRound": {
+      "jev": {
+        "model": "fixture",
+        "answers": {
+          "sector": {
+            "type": "choice",
+            "choice": "Retail/Commerce"
+          },
+          "geographic_scope": {
+            "type": "choice",
+            "choice": "Local"
+          },
+          "timeline": {
+            "type": "choice",
+            "choice": "Fast (3-6m)"
+          },
+          "concept": {
+            "type": "choice",
+            "choice": "Watch"
+          },
+          "location": {
+            "type": "choice",
+            "choice": "Strong"
+          },
+          "competition": {
+            "type": "choice",
+            "choice": "Watch"
+          },
+          "experience": {
+            "type": "choice",
+            "choice": "Strong"
+          }
+        },
+        "usage": {
+          "input_tokens": 1,
+          "output_tokens": 1
+        }
+      },
+      "phase2": {
+        "maturity": "developing",
+        "subsector": {
+          "value": "Tapas bar",
+          "source": "stated",
+          "confidence": 80
+        },
+        "location": {
+          "value": "Seville",
+          "source": "stated",
+          "confidence": 80
+        },
+        "target_customer": {
+          "value": "Locals and visitors",
+          "source": "inferred",
+          "confidence": 60
+        },
+        "value_proposition": {
+          "value": "Taking over a hair salon in Seville, I have premises",
+          "source": "stated",
+          "confidence": 80
+        },
+        "revenue_model": {
+          "value": "Sales per visit",
+          "source": "unknown",
+          "confidence": 0
+        },
+        "stage": {
+          "value": "Idea only",
+          "source": "stated",
+          "confidence": 80
+        },
+        "competition": {
+          "value": "Other businesses in the area",
+          "source": "stated",
+          "confidence": 80
+        },
+        "constraints": {
+          "budget": {
+            "min": 15000,
+            "max": 25000,
+            "currency": "EUR",
+            "fits": "Estimated range for this idea"
+          },
+          "exclusions": [],
+          "risks": [],
+          "assumptions": []
+        },
+        "questions": [],
+        "execution": []
+      },
+      "questionTotal": 0,
+      "glance": {
+        "maturity": "developing",
+        "subsectorSource": "stated",
+        "location": {
+          "value": "Seville",
+          "source": "stated"
+        },
+        "budget": {
+          "min": 15000,
+          "max": 25000,
+          "currency": "EUR",
+          "fits": "Estimated range for this idea"
+        },
+        "sources": {
+          "target_customer": "inferred",
+          "value_proposition": "stated",
+          "revenue_model": "unknown",
+          "stage": "stated",
+          "competition": "stated"
+        }
+      }
+    },
+    "final": {
+      "jev": {
+        "model": "fixture",
+        "answers": {
+          "sector": {
+            "type": "choice",
+            "choice": "Retail/Commerce"
+          },
+          "geographic_scope": {
+            "type": "choice",
+            "choice": "Local"
+          },
+          "timeline": {
+            "type": "choice",
+            "choice": "Fast (3-6m)"
+          },
+          "concept": {
+            "type": "choice",
+            "choice": "Watch"
+          },
+          "location": {
+            "type": "choice",
+            "choice": "Strong"
+          },
+          "competition": {
+            "type": "choice",
+            "choice": "Watch"
+          },
+          "experience": {
+            "type": "choice",
+            "choice": "Strong"
+          }
+        },
+        "usage": {
+          "input_tokens": 1,
+          "output_tokens": 1
+        }
+      },
+      "profile": {
+        "values": {
+          "customer_segment": "Not specified",
+          "revenue_model": "Not specified",
+          "offering_type": "Not specified",
+          "acquisition_channel": "Not specified",
+          "competition": "Not specified",
+          "differentiator": "Not specified",
+          "validation_stage": "Not specified",
+          "founder_profile": "Sector expert",
+          "deadline_rigidity": "Not specified",
+          "capital_intensity": "Not specified",
+          "team_requirement": "Not specified",
+          "time_to_revenue": "Not specified",
+          "regulatory_load": "Not specified",
+          "third_party_dependency": "Not specified",
+          "money_handling": "Not specified"
+        },
+        "unknown": [
+          "customer_segment",
+          "revenue_model",
+          "offering_type",
+          "acquisition_channel",
+          "competition",
+          "differentiator",
+          "validation_stage",
+          "deadline_rigidity",
+          "capital_intensity",
+          "team_requirement",
+          "time_to_revenue",
+          "regulatory_load",
+          "third_party_dependency",
+          "money_handling"
+        ],
+        "known": 1,
+        "total": 15
+      },
+      "validation": {
+        "unsupported": [],
+        "warnings": [],
+        "departments": [
+          {
+            "name": "Legal & Compliance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Finance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Marketing",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "HR",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Sales",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Product",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Technology",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Operations",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Infrastructure",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Health",
+            "confidence": 0,
+            "tier": "light"
+          }
+        ],
+        "groups": [
+          {
+            "name": "Legal & Compliance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Finance & People",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Growth",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Product & Tech",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Operations",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Health",
+            "confidence": 0,
+            "tier": "light"
+          }
+        ],
+        "level": 1
+      },
+      "explanations": {
+        "warningReasons": [],
+        "areaReasons": [],
+        "timeToOpen": {
+          "min": 3,
+          "max": 5,
+          "unit": "months",
+          "confidence": "medium"
+        },
+        "costBreakdown": [
+          {
+            "label": "Licences",
+            "percent": 60
+          },
+          {
+            "label": "Equipment",
+            "percent": 40
+          }
+        ],
+        "templates": [
+          "supplier-quote",
+          "customer-interviews",
+          "licence-enquiry"
+        ]
+      },
+      "glance": {
+        "maturity": "developing",
+        "subsectorSource": "stated",
+        "location": {
+          "value": "Seville",
+          "source": "stated"
+        },
+        "budget": {
+          "min": 15000,
+          "max": 25000,
+          "currency": "EUR",
+          "fits": "Estimated range for this idea"
+        },
+        "sources": {
+          "target_customer": "inferred",
+          "value_proposition": "stated",
+          "revenue_model": "unknown",
+          "stage": "stated",
+          "competition": "stated"
+        }
+      },
+      "clarity": {
+        "version": 3,
+        "concept": {
+          "level": "medium",
+          "score": 61,
+          "missing": [
+            "How it makes money",
+            "How it reaches customers",
+            "What sets it apart"
+          ],
+          "essentialMissing": true
+        },
+        "person": {
+          "level": "medium",
+          "score": 63,
+          "missing": [
+            "Handling other people's money",
+            "Fixed deadline",
+            "Existing assets"
+          ],
+          "essentialMissing": false
+        },
+        "readiness": "yellow"
+      },
+      "diagnosis": {
+        "idea": "Taking over a hair salon in Seville, in premises the owner already has.",
+        "checks": [
+          {
+            "key": "concept",
+            "status": "watch",
+            "why": "The salon's regulars are the clear base; what is new is still to be shown.",
+            "estimated": true,
+            "decidedBy": "jev"
+          },
+          {
+            "key": "location",
+            "status": "strong",
+            "why": "The premises are already the owner's, on a street people walk along.",
+            "estimated": true,
+            "decidedBy": "jev"
+          },
+          {
+            "key": "money",
+            "status": "strong",
+            "why": "The budget covers a takeover of a small salon.",
+            "estimated": true,
+            "decidedBy": "rule"
+          },
+          {
+            "key": "experience",
+            "status": "strong",
+            "why": "The owner has worked in hairdressing for years.",
+            "estimated": false,
+            "decidedBy": "rule"
+          },
+          {
+            "key": "competition",
+            "status": "watch",
+            "why": "Other salons are close by, and the difference is not yet clear.",
+            "estimated": true,
+            "decidedBy": "jev"
+          }
+        ],
+        "risks": [
+          "The takeover price must match the salon's real takings.",
+          "Staff who leave with the old owner.",
+          "Other salons are close by."
+        ],
+        "split": {
+          "mando": [],
+          "you": [],
+          "outsource": []
+        }
+      },
+      "reportId": "bd85969b-8dd0-416e-9403-bd72747f9751"
+    },
+    "report": {
+      "input": {
+        "idea": "Taking over a hair salon in Seville, I have premises",
+        "location": "Seville",
+        "budget": 40000,
+        "start_mode": "takeover",
+        "premises": "have"
+      },
+      "answers": [],
+      "jev": {
+        "model": "fixture",
+        "answers": {
+          "sector": {
+            "type": "choice",
+            "choice": "Retail/Commerce"
+          },
+          "geographic_scope": {
+            "type": "choice",
+            "choice": "Local"
+          },
+          "timeline": {
+            "type": "choice",
+            "choice": "Fast (3-6m)"
+          },
+          "concept": {
+            "type": "choice",
+            "choice": "Watch"
+          },
+          "location": {
+            "type": "choice",
+            "choice": "Strong"
+          },
+          "competition": {
+            "type": "choice",
+            "choice": "Watch"
+          },
+          "experience": {
+            "type": "choice",
+            "choice": "Strong"
+          }
+        },
+        "usage": {
+          "input_tokens": 1,
+          "output_tokens": 1
+        }
+      },
+      "profile": {
+        "values": {
+          "customer_segment": "Not specified",
+          "revenue_model": "Not specified",
+          "offering_type": "Not specified",
+          "acquisition_channel": "Not specified",
+          "competition": "Not specified",
+          "differentiator": "Not specified",
+          "validation_stage": "Not specified",
+          "founder_profile": "Sector expert",
+          "deadline_rigidity": "Not specified",
+          "capital_intensity": "Not specified",
+          "team_requirement": "Not specified",
+          "time_to_revenue": "Not specified",
+          "regulatory_load": "Not specified",
+          "third_party_dependency": "Not specified",
+          "money_handling": "Not specified"
+        },
+        "unknown": [
+          "customer_segment",
+          "revenue_model",
+          "offering_type",
+          "acquisition_channel",
+          "competition",
+          "differentiator",
+          "validation_stage",
+          "deadline_rigidity",
+          "capital_intensity",
+          "team_requirement",
+          "time_to_revenue",
+          "regulatory_load",
+          "third_party_dependency",
+          "money_handling"
+        ],
+        "known": 1,
+        "total": 15
+      },
+      "validation": {
+        "unsupported": [],
+        "warnings": [],
+        "departments": [
+          {
+            "name": "Legal & Compliance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Finance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Marketing",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "HR",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Sales",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Product",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Technology",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Operations",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Infrastructure",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Health",
+            "confidence": 0,
+            "tier": "light"
+          }
+        ],
+        "groups": [
+          {
+            "name": "Legal & Compliance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Finance & People",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Growth",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Product & Tech",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Operations",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Health",
+            "confidence": 0,
+            "tier": "light"
+          }
+        ],
+        "level": 1
+      },
+      "explanations": {
+        "warningReasons": [],
+        "areaReasons": [],
+        "timeToOpen": {
+          "min": 3,
+          "max": 5,
+          "unit": "months",
+          "confidence": "medium"
+        },
+        "costBreakdown": [
+          {
+            "label": "Licences",
+            "percent": 60
+          },
+          {
+            "label": "Equipment",
+            "percent": 40
+          }
+        ],
+        "templates": [
+          "supplier-quote",
+          "customer-interviews",
+          "licence-enquiry"
+        ]
+      },
+      "glance": {
+        "maturity": "developing",
+        "subsectorSource": "stated",
+        "location": {
+          "value": "Seville",
+          "source": "stated"
+        },
+        "budget": {
+          "min": 15000,
+          "max": 25000,
+          "currency": "EUR",
+          "fits": "Estimated range for this idea"
+        },
+        "sources": {
+          "target_customer": "inferred",
+          "value_proposition": "stated",
+          "revenue_model": "unknown",
+          "stage": "stated",
+          "competition": "stated"
+        }
+      },
+      "diagnosis": {
+        "idea": "Taking over a hair salon in Seville, in premises the owner already has.",
+        "checks": [
+          {
+            "key": "concept",
+            "status": "watch",
+            "why": "The salon's regulars are the clear base; what is new is still to be shown.",
+            "estimated": true,
+            "decidedBy": "jev"
+          },
+          {
+            "key": "location",
+            "status": "strong",
+            "why": "The premises are already the owner's, on a street people walk along.",
+            "estimated": true,
+            "decidedBy": "jev"
+          },
+          {
+            "key": "money",
+            "status": "strong",
+            "why": "The budget covers a takeover of a small salon.",
+            "estimated": true,
+            "decidedBy": "rule"
+          },
+          {
+            "key": "experience",
+            "status": "strong",
+            "why": "The owner has worked in hairdressing for years.",
+            "estimated": false,
+            "decidedBy": "rule"
+          },
+          {
+            "key": "competition",
+            "status": "watch",
+            "why": "Other salons are close by, and the difference is not yet clear.",
+            "estimated": true,
+            "decidedBy": "jev"
+          }
+        ],
+        "risks": [
+          "The takeover price must match the salon's real takings.",
+          "Staff who leave with the old owner.",
+          "Other salons are close by."
+        ],
+        "split": {
+          "mando": [],
+          "you": [],
+          "outsource": []
+        }
+      },
+      "clarity": {
+        "version": 3,
+        "concept": {
+          "level": "medium",
+          "score": 61,
+          "missing": [
+            "How it makes money",
+            "How it reaches customers",
+            "What sets it apart"
+          ],
+          "essentialMissing": true
+        },
+        "person": {
+          "level": "medium",
+          "score": 63,
+          "missing": [
+            "Handling other people's money",
+            "Fixed deadline",
+            "Existing assets"
+          ],
+          "essentialMissing": false
+        },
+        "readiness": "yellow"
+      }
+    }
+  },
+  "software": {
+    "input": {
+      "idea": "Software to manage bar bookings",
+      "budget": 20000,
+      "location": "online",
+      "start_mode": "scratch",
+      "premises": "not_needed"
+    },
+    "detect": {
+      "location": null,
+      "budget": 20000,
+      "start_mode": "scratch",
+      "premises": "not_needed"
+    },
+    "firstRound": {
+      "jev": {
+        "model": "fixture",
+        "answers": {
+          "sector": {
+            "type": "choice",
+            "choice": "Technology/SaaS"
+          },
+          "geographic_scope": {
+            "type": "choice",
+            "choice": "Online"
+          },
+          "timeline": {
+            "type": "choice",
+            "choice": "Fast (3-6m)"
+          },
+          "concept": {
+            "type": "choice",
+            "choice": "Strong"
+          },
+          "location": {
+            "type": "choice",
+            "choice": "Watch"
+          },
+          "competition": {
+            "type": "choice",
+            "choice": "Risk"
+          },
+          "experience": {
+            "type": "choice",
+            "choice": "Watch"
+          }
+        },
+        "usage": {
+          "input_tokens": 1,
+          "output_tokens": 1
+        }
+      },
+      "phase2": {
+        "maturity": "developing",
+        "subsector": {
+          "value": "Tapas bar",
+          "source": "stated",
+          "confidence": 80
+        },
+        "location": {
+          "value": "online",
+          "source": "stated",
+          "confidence": 80
+        },
+        "target_customer": {
+          "value": "Locals and visitors",
+          "source": "inferred",
+          "confidence": 60
+        },
+        "value_proposition": {
+          "value": "Software to manage bar bookings",
+          "source": "stated",
+          "confidence": 80
+        },
+        "revenue_model": {
+          "value": "Sales per visit",
+          "source": "unknown",
+          "confidence": 0
+        },
+        "stage": {
+          "value": "Idea only",
+          "source": "stated",
+          "confidence": 80
+        },
+        "competition": {
+          "value": "Other businesses in the area",
+          "source": "stated",
+          "confidence": 80
+        },
+        "constraints": {
+          "budget": {
+            "min": 5000,
+            "max": 9000,
+            "currency": "EUR",
+            "fits": "Estimated range for this idea"
+          },
+          "exclusions": [],
+          "risks": [],
+          "assumptions": []
+        },
+        "questions": [],
+        "execution": [
+          {
+            "name": "Bar booking software",
+            "who": "mando",
+            "mando_key": "invented",
+            "cost_min": 2000,
+            "cost_max": 4000,
+            "hours_week": null,
+            "reason": "The product itself"
+          },
+          {
+            "name": "Booking page",
+            "who": "mando",
+            "mando_key": "website",
+            "cost_min": null,
+            "cost_max": null,
+            "hours_week": null,
+            "reason": "Built in Mando"
+          }
+        ]
+      },
+      "questionTotal": 0,
+      "glance": {
+        "maturity": "developing",
+        "subsectorSource": "stated",
+        "location": {
+          "value": "online",
+          "source": "stated"
+        },
+        "budget": {
+          "min": 5000,
+          "max": 9000,
+          "currency": "EUR",
+          "fits": "Estimated range for this idea"
+        },
+        "sources": {
+          "target_customer": "inferred",
+          "value_proposition": "stated",
+          "revenue_model": "unknown",
+          "stage": "stated",
+          "competition": "stated"
+        },
+        "execution": {
+          "items": [
+            {
+              "name": "Bar booking software",
+              "who": "outsource",
+              "mandoKey": null,
+              "costMin": 2000,
+              "costMax": 4000,
+              "hoursWeek": null,
+              "reason": "The product itself"
+            },
+            {
+              "name": "Booking page",
+              "who": "mando",
+              "mandoKey": "website",
+              "costMin": null,
+              "costMax": null,
+              "hoursWeek": null,
+              "reason": "Built in Mando"
+            }
+          ],
+          "pay": {
+            "min": 2000,
+            "max": 4000
+          },
+          "saved": null,
+          "hours": null
+        }
+      }
+    },
+    "final": {
+      "jev": {
+        "model": "fixture",
+        "answers": {
+          "sector": {
+            "type": "choice",
+            "choice": "Technology/SaaS"
+          },
+          "geographic_scope": {
+            "type": "choice",
+            "choice": "Online"
+          },
+          "timeline": {
+            "type": "choice",
+            "choice": "Fast (3-6m)"
+          },
+          "concept": {
+            "type": "choice",
+            "choice": "Strong"
+          },
+          "location": {
+            "type": "choice",
+            "choice": "Watch"
+          },
+          "competition": {
+            "type": "choice",
+            "choice": "Risk"
+          },
+          "experience": {
+            "type": "choice",
+            "choice": "Watch"
+          }
+        },
+        "usage": {
+          "input_tokens": 1,
+          "output_tokens": 1
+        }
+      },
+      "profile": {
+        "values": {
+          "customer_segment": "Not specified",
+          "revenue_model": "Not specified",
+          "offering_type": "Not specified",
+          "acquisition_channel": "Not specified",
+          "competition": "Not specified",
+          "differentiator": "Not specified",
+          "validation_stage": "Not specified",
+          "founder_profile": "Technical",
+          "deadline_rigidity": "Not specified",
+          "capital_intensity": "Not specified",
+          "team_requirement": "Not specified",
+          "time_to_revenue": "Not specified",
+          "regulatory_load": "Not specified",
+          "third_party_dependency": "Not specified",
+          "money_handling": "Not specified"
+        },
+        "unknown": [
+          "customer_segment",
+          "revenue_model",
+          "offering_type",
+          "acquisition_channel",
+          "competition",
+          "differentiator",
+          "validation_stage",
+          "deadline_rigidity",
+          "capital_intensity",
+          "team_requirement",
+          "time_to_revenue",
+          "regulatory_load",
+          "third_party_dependency",
+          "money_handling"
+        ],
+        "known": 1,
+        "total": 15
+      },
+      "validation": {
+        "unsupported": [],
+        "warnings": [],
+        "departments": [
+          {
+            "name": "Legal & Compliance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Finance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Marketing",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "HR",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Sales",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Product",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Technology",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Operations",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Infrastructure",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Health",
+            "confidence": 0,
+            "tier": "light"
+          }
+        ],
+        "groups": [
+          {
+            "name": "Legal & Compliance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Finance & People",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Growth",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Product & Tech",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Operations",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Health",
+            "confidence": 0,
+            "tier": "light"
+          }
+        ],
+        "level": 1
+      },
+      "explanations": {
+        "warningReasons": [],
+        "areaReasons": [],
+        "timeToOpen": {
+          "min": 3,
+          "max": 5,
+          "unit": "months",
+          "confidence": "medium"
+        },
+        "costBreakdown": [
+          {
+            "label": "Licences",
+            "percent": 60
+          },
+          {
+            "label": "Equipment",
+            "percent": 40
+          }
+        ],
+        "templates": [
+          "supplier-quote",
+          "customer-interviews",
+          "licence-enquiry"
+        ]
+      },
+      "glance": {
+        "maturity": "developing",
+        "subsectorSource": "stated",
+        "location": {
+          "value": "online",
+          "source": "stated"
+        },
+        "budget": {
+          "min": 5000,
+          "max": 9000,
+          "currency": "EUR",
+          "fits": "Estimated range for this idea"
+        },
+        "sources": {
+          "target_customer": "inferred",
+          "value_proposition": "stated",
+          "revenue_model": "unknown",
+          "stage": "stated",
+          "competition": "stated"
+        },
+        "execution": {
+          "items": [
+            {
+              "name": "Bar booking software",
+              "who": "outsource",
+              "mandoKey": null,
+              "costMin": 2000,
+              "costMax": 4000,
+              "hoursWeek": null,
+              "reason": "The product itself"
+            },
+            {
+              "name": "Booking page",
+              "who": "mando",
+              "mandoKey": "website",
+              "costMin": null,
+              "costMax": null,
+              "hoursWeek": null,
+              "reason": "Built in Mando"
+            }
+          ],
+          "pay": {
+            "min": 2000,
+            "max": 4000
+          },
+          "saved": null,
+          "hours": null
+        }
+      },
+      "clarity": {
+        "version": 3,
+        "concept": {
+          "level": "medium",
+          "score": 61,
+          "missing": [
+            "How it makes money",
+            "How it reaches customers",
+            "What sets it apart"
+          ],
+          "essentialMissing": true
+        },
+        "person": {
+          "level": "medium",
+          "score": 63,
+          "missing": [
+            "Handling other people's money",
+            "Fixed deadline",
+            "Existing assets"
+          ],
+          "essentialMissing": false
+        },
+        "readiness": "yellow"
+      },
+      "diagnosis": {
+        "idea": "Booking software that bars use to take reservations and manage tables online.",
+        "checks": [
+          {
+            "key": "concept",
+            "status": "strong",
+            "why": "Bars already take bookings by phone and by message, so the need is clear.",
+            "estimated": true,
+            "decidedBy": "jev"
+          },
+          {
+            "key": "reach",
+            "status": "watch",
+            "why": "Bars can be reached online, but each one has to be found and shown the product.",
+            "estimated": true,
+            "decidedBy": "jev"
+          },
+          {
+            "key": "money",
+            "status": "strong",
+            "why": "The budget covers a first version and its first customers.",
+            "estimated": true,
+            "decidedBy": "rule"
+          },
+          {
+            "key": "experience",
+            "status": "watch",
+            "why": "The owner builds software, but has not sold to bars yet.",
+            "estimated": false,
+            "decidedBy": "rule"
+          },
+          {
+            "key": "competition",
+            "status": "risk",
+            "why": "Several booking tools already serve bars, with the same offer.",
+            "estimated": true,
+            "decidedBy": "jev"
+          }
+        ],
+        "risks": [
+          "Bars already use free booking tools.",
+          "Sales to bars take time and visits.",
+          "Several booking tools already serve bars."
+        ],
+        "split": {
+          "mando": [
+            "Website"
+          ],
+          "you": [],
+          "outsource": [
+            "Bar booking software"
+          ]
+        }
+      },
+      "reportId": "4e45a98b-2c3b-4c9d-90b2-b98973c4dad7"
+    },
+    "report": {
+      "input": {
+        "idea": "Software to manage bar bookings",
+        "location": "online",
+        "budget": 20000,
+        "start_mode": "scratch",
+        "premises": "not_needed"
+      },
+      "answers": [],
+      "jev": {
+        "model": "fixture",
+        "answers": {
+          "sector": {
+            "type": "choice",
+            "choice": "Technology/SaaS"
+          },
+          "geographic_scope": {
+            "type": "choice",
+            "choice": "Online"
+          },
+          "timeline": {
+            "type": "choice",
+            "choice": "Fast (3-6m)"
+          },
+          "concept": {
+            "type": "choice",
+            "choice": "Strong"
+          },
+          "location": {
+            "type": "choice",
+            "choice": "Watch"
+          },
+          "competition": {
+            "type": "choice",
+            "choice": "Risk"
+          },
+          "experience": {
+            "type": "choice",
+            "choice": "Watch"
+          }
+        },
+        "usage": {
+          "input_tokens": 1,
+          "output_tokens": 1
+        }
+      },
+      "profile": {
+        "values": {
+          "customer_segment": "Not specified",
+          "revenue_model": "Not specified",
+          "offering_type": "Not specified",
+          "acquisition_channel": "Not specified",
+          "competition": "Not specified",
+          "differentiator": "Not specified",
+          "validation_stage": "Not specified",
+          "founder_profile": "Technical",
+          "deadline_rigidity": "Not specified",
+          "capital_intensity": "Not specified",
+          "team_requirement": "Not specified",
+          "time_to_revenue": "Not specified",
+          "regulatory_load": "Not specified",
+          "third_party_dependency": "Not specified",
+          "money_handling": "Not specified"
+        },
+        "unknown": [
+          "customer_segment",
+          "revenue_model",
+          "offering_type",
+          "acquisition_channel",
+          "competition",
+          "differentiator",
+          "validation_stage",
+          "deadline_rigidity",
+          "capital_intensity",
+          "team_requirement",
+          "time_to_revenue",
+          "regulatory_load",
+          "third_party_dependency",
+          "money_handling"
+        ],
+        "known": 1,
+        "total": 15
+      },
+      "validation": {
+        "unsupported": [],
+        "warnings": [],
+        "departments": [
+          {
+            "name": "Legal & Compliance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Finance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Marketing",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "HR",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Sales",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Product",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Technology",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Operations",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Infrastructure",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Health",
+            "confidence": 0,
+            "tier": "light"
+          }
+        ],
+        "groups": [
+          {
+            "name": "Legal & Compliance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Finance & People",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Growth",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Product & Tech",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Operations",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Health",
+            "confidence": 0,
+            "tier": "light"
+          }
+        ],
+        "level": 1
+      },
+      "explanations": {
+        "warningReasons": [],
+        "areaReasons": [],
+        "timeToOpen": {
+          "min": 3,
+          "max": 5,
+          "unit": "months",
+          "confidence": "medium"
+        },
+        "costBreakdown": [
+          {
+            "label": "Licences",
+            "percent": 60
+          },
+          {
+            "label": "Equipment",
+            "percent": 40
+          }
+        ],
+        "templates": [
+          "supplier-quote",
+          "customer-interviews",
+          "licence-enquiry"
+        ]
+      },
+      "glance": {
+        "maturity": "developing",
+        "subsectorSource": "stated",
+        "location": {
+          "value": "online",
+          "source": "stated"
+        },
+        "budget": {
+          "min": 5000,
+          "max": 9000,
+          "currency": "EUR",
+          "fits": "Estimated range for this idea"
+        },
+        "sources": {
+          "target_customer": "inferred",
+          "value_proposition": "stated",
+          "revenue_model": "unknown",
+          "stage": "stated",
+          "competition": "stated"
+        },
+        "execution": {
+          "items": [
+            {
+              "name": "Bar booking software",
+              "who": "outsource",
+              "mandoKey": null,
+              "costMin": 2000,
+              "costMax": 4000,
+              "hoursWeek": null,
+              "reason": "The product itself"
+            },
+            {
+              "name": "Booking page",
+              "who": "mando",
+              "mandoKey": "website",
+              "costMin": null,
+              "costMax": null,
+              "hoursWeek": null,
+              "reason": "Built in Mando"
+            }
+          ],
+          "pay": {
+            "min": 2000,
+            "max": 4000
+          },
+          "saved": null,
+          "hours": null
+        }
+      },
+      "diagnosis": {
+        "idea": "Booking software that bars use to take reservations and manage tables online.",
+        "checks": [
+          {
+            "key": "concept",
+            "status": "strong",
+            "why": "Bars already take bookings by phone and by message, so the need is clear.",
+            "estimated": true,
+            "decidedBy": "jev"
+          },
+          {
+            "key": "reach",
+            "status": "watch",
+            "why": "Bars can be reached online, but each one has to be found and shown the product.",
+            "estimated": true,
+            "decidedBy": "jev"
+          },
+          {
+            "key": "money",
+            "status": "strong",
+            "why": "The budget covers a first version and its first customers.",
+            "estimated": true,
+            "decidedBy": "rule"
+          },
+          {
+            "key": "experience",
+            "status": "watch",
+            "why": "The owner builds software, but has not sold to bars yet.",
+            "estimated": false,
+            "decidedBy": "rule"
+          },
+          {
+            "key": "competition",
+            "status": "risk",
+            "why": "Several booking tools already serve bars, with the same offer.",
+            "estimated": true,
+            "decidedBy": "jev"
+          }
+        ],
+        "risks": [
+          "Bars already use free booking tools.",
+          "Sales to bars take time and visits.",
+          "Several booking tools already serve bars."
+        ],
+        "split": {
+          "mando": [
+            "Website"
+          ],
+          "you": [],
+          "outsource": [
+            "Bar booking software"
+          ]
+        }
+      },
+      "clarity": {
+        "version": 3,
+        "concept": {
+          "level": "medium",
+          "score": 61,
+          "missing": [
+            "How it makes money",
+            "How it reaches customers",
+            "What sets it apart"
+          ],
+          "essentialMissing": true
+        },
+        "person": {
+          "level": "medium",
+          "score": 63,
+          "missing": [
+            "Handling other people's money",
+            "Fixed deadline",
+            "Existing assets"
+          ],
+          "essentialMissing": false
+        },
+        "readiness": "yellow"
+      }
+    }
+  }
+}
