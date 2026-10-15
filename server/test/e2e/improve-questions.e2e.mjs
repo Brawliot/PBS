@@ -23,6 +23,15 @@ const PORT = 3987;
 const BASE = `http://127.0.0.1:${PORT}`;
 const JOB_ID = "77777777-7777-4777-8777-777777777777";
 const json = (status, body) => ({ status, contentType: "application/json", body: JSON.stringify(body) });
+/** The state, and the identified note, of each check as the page shows them */
+const readChecks = (page) =>
+  page.evaluate(() => Object.fromEntries([...document.querySelectorAll("#diagnosis-checks > li")].map((item) => [
+    item.querySelector(".name").textContent.toLowerCase(),
+    {
+      state: item.querySelector(".state").textContent,
+      identified: item.querySelector(".identified")?.textContent ?? null,
+    },
+  ])));
 
 function startServer() {
   const child = spawn(process.execPath, ["--import", "tsx", "server.ts"], {
@@ -56,7 +65,9 @@ async function mockApi(page) {
   });
   await page.route("**/api/planner/*", (route) => {
     const number = Number(route.request().url().slice(-1));
-    return route.fulfill(json(200, { status: "done", result: number === 1 ? fixture.firstRound : fixture.final }));
+    // 1: the first round; 2: the final request of the first analysis; 3 on: the update, with the answers of the round
+    const result = number === 1 ? fixture.firstRound : number === 2 ? fixture.final : fixture.improved;
+    return route.fulfill(json(200, { status: "done", result }));
   });
   await page.route("**/api/plan/**", (route) => route.fulfill(json(404, { error: "Plan not found", code: "not_found" })));
   await page.route("**/api/reports/**", (route) => route.fulfill(json(404, { error: "Report not found", code: "not_found" })));
@@ -102,6 +113,11 @@ async function scenario() {
   const posts = await mockApi(page);
   await reachResult(page);
 
+  const before = await readChecks(page);
+  assert.equal(before.concept.state, "Risk", "the concept starts at risk");
+  assert.equal(before.money.state, "Watch", "money starts at watch");
+  assert.equal(await page.isVisible("#diagnosis-checks .identified"), false, "nothing identified before the answers");
+
   // The link shows once the server's questions are in
   await page.waitForFunction(() => !document.getElementById("result-improve").hidden, null, { timeout: 20_000 });
   assert.match(await page.textContent("#result-improve-text"), /^\d+ quick questions|^1 quick question/);
@@ -114,19 +130,30 @@ async function scenario() {
   assert.equal(groups[0], "Concept · ✕ Risk", "each group says its check and its state");
   assert.ok(groups.some((text) => text.startsWith("Money · !")), "money at watch is in the questions");
 
-  // One option each: the button is pressed and the answer is the option's text
-  const chosen = [];
-  for (const item of fixture.improve.slice(0, 2)) {
-    const label = item.options.find((option) => !option.startsWith("I don't know")) ?? item.options[0];
-    chosen.push({ key: item.key, label });
-    await page.click(`#result-quiz .quiz__item:has(legend:text-is("${item.question}")) .quiz__opts button:text-is("${label}")`);
-    assert.equal(
-      await page.getAttribute(`#result-quiz .quiz__item:has(legend:text-is("${item.question}")) .quiz__opts button:text-is("${label}")`, "aria-pressed"),
-      "true",
-    );
+  // One option each: "I don't know yet" on what makes it different, and a cushion of 3+ months
+  const chosen = [
+    { key: "imp_concept_difference", label: "I don't know yet" },
+    { key: "imp_money_cushion", label: "Yes, 3+ months of costs" },
+  ];
+  for (const { key, label } of chosen) {
+    const question = fixture.improve.find((item) => item.key === key).question;
+    const button = `#result-quiz .quiz__item:has(legend:text-is("${question}")) .quiz__opts button:text-is("${label}")`;
+    await page.click(button);
+    assert.equal(await page.getAttribute(button, "aria-pressed"), "true");
   }
   await page.click("#result-quiz-send");
   await page.waitForFunction(() => document.getElementById("result-quiz").hidden, null, { timeout: 20_000 });
+
+  // The update: concept goes from Risk to Watch, identified, and money from Watch to Strong by the rule
+  await page.waitForFunction(() => document.querySelector("#diagnosis-checks .identified") !== null, null, { timeout: 20_000 });
+  const after = await readChecks(page);
+  assert.equal(after.concept.state, "Watch");
+  assert.equal(after.concept.identified, "Identified: your plan will work on it");
+  assert.equal(after.money.state, "Strong");
+  assert.equal(after.money.identified, null);
+  const announced = await page.textContent("#status");
+  assert.match(announced, /Concept: Risk to Watch/);
+  assert.match(announced, /Money: Watch to Strong/);
 
   // The update sends the answers under their question keys, and the report is shown again
   const sent = posts.at(-1).answers.filter(({ topic }) => topic.startsWith("imp_"));

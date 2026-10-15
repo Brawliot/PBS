@@ -437,35 +437,45 @@
             "status": "strong",
             "why": "Locals already eat tapas in this street, so the offer has a ready market.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "location",
             "status": "strong",
             "why": "The street is busy after work, though rents are high.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "money",
             "status": "watch",
             "why": "€40k is tight against a typical €45–60k takeover, with little cushion.",
             "estimated": true,
-            "decidedBy": "rule"
+            "decidedBy": "rule",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "experience",
             "status": "watch",
             "why": "The owner has run a kitchen for years, but not this trade's front of house.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "competition",
             "status": "risk",
             "why": "Very dense: many tapas bars in Malasaña, so price alone will not set you apart.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           }
         ],
         "risks": [
@@ -483,7 +493,7 @@
           "outsource": []
         }
       },
-      "reportId": "2b5a7a5c-51ff-4ae0-ae39-4f912a082dbc"
+      "reportId": "1ea06984-04ea-4304-9fb0-05b31a0d55bc"
     },
     "report": {
       "input": {
@@ -737,35 +747,45 @@
             "status": "strong",
             "why": "Locals already eat tapas in this street, so the offer has a ready market.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "location",
             "status": "strong",
             "why": "The street is busy after work, though rents are high.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "money",
             "status": "watch",
             "why": "€40k is tight against a typical €45–60k takeover, with little cushion.",
             "estimated": true,
-            "decidedBy": "rule"
+            "decidedBy": "rule",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "experience",
             "status": "watch",
             "why": "The owner has run a kitchen for years, but not this trade's front of house.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "competition",
             "status": "risk",
             "why": "Very dense: many tapas bars in Malasaña, so price alone will not set you apart.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           }
         ],
         "risks": [
@@ -1241,35 +1261,45 @@
             "status": "strong",
             "why": "Patients already look for physio for sports injuries in this area.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "location",
             "status": "strong",
             "why": "The street has foot traffic and parking nearby.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "money",
             "status": "strong",
             "why": "The budget covers the first months of a small clinic.",
             "estimated": true,
-            "decidedBy": "rule"
+            "decidedBy": "rule",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "experience",
             "status": "risk",
             "why": "No degree or registration is on file for the clinic's treatments.",
             "estimated": false,
-            "decidedBy": "rule"
+            "decidedBy": "rule",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "competition",
             "status": "watch",
             "why": "Several physio clinics are nearby, and the difference is not yet clear.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           }
         ],
         "risks": [
@@ -1283,7 +1313,7 @@
           "outsource": []
         }
       },
-      "reportId": "8c0b799c-fb13-4ad0-9ab6-a38613d71451"
+      "reportId": "c3a0cb41-23b3-4824-9d43-4a6126bc6e5e"
     },
     "report": {
       "input": {
@@ -1511,35 +1541,45 @@
             "status": "strong",
             "why": "Patients already look for physio for sports injuries in this area.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "location",
             "status": "strong",
             "why": "The street has foot traffic and parking nearby.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "money",
             "status": "strong",
             "why": "The budget covers the first months of a small clinic.",
             "estimated": true,
-            "decidedBy": "rule"
+            "decidedBy": "rule",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "experience",
             "status": "risk",
             "why": "No degree or registration is on file for the clinic's treatments.",
             "estimated": false,
-            "decidedBy": "rule"
+            "decidedBy": "rule",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "competition",
             "status": "watch",
             "why": "Several physio clinics are nearby, and the difference is not yet clear.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           }
         ],
         "risks": [
@@ -1999,35 +2039,45 @@
             "status": "watch",
             "why": "The salon's regulars are the clear base; what is new is still to be shown.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "location",
             "status": "strong",
             "why": "The premises are already the owner's, on a street people walk along.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "money",
             "status": "strong",
             "why": "The budget covers a takeover of a small salon.",
             "estimated": true,
-            "decidedBy": "rule"
+            "decidedBy": "rule",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "experience",
             "status": "strong",
             "why": "The owner has worked in hairdressing for years.",
             "estimated": false,
-            "decidedBy": "rule"
+            "decidedBy": "rule",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "competition",
             "status": "watch",
             "why": "Other salons are close by, and the difference is not yet clear.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           }
         ],
         "risks": [
@@ -2041,7 +2091,7 @@
           "outsource": []
         }
       },
-      "reportId": "736b91ae-5cb0-456f-a5ef-359ef7d5067a"
+      "reportId": "3f5ee941-cf9d-4d1f-8ffd-2e6daba3a837"
     },
     "report": {
       "input": {
@@ -2269,35 +2319,45 @@
             "status": "watch",
             "why": "The salon's regulars are the clear base; what is new is still to be shown.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "location",
             "status": "strong",
             "why": "The premises are already the owner's, on a street people walk along.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "money",
             "status": "strong",
             "why": "The budget covers a takeover of a small salon.",
             "estimated": true,
-            "decidedBy": "rule"
+            "decidedBy": "rule",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "experience",
             "status": "strong",
             "why": "The owner has worked in hairdressing for years.",
             "estimated": false,
-            "decidedBy": "rule"
+            "decidedBy": "rule",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "competition",
             "status": "watch",
             "why": "Other salons are close by, and the difference is not yet clear.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           }
         ],
         "risks": [
@@ -2759,35 +2819,45 @@
             "status": "risk",
             "why": "The offer is not yet clear enough to tell it apart from the other bars.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "location",
             "status": "strong",
             "why": "The street is busy after work, though rents are high.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "money",
             "status": "watch",
             "why": "€40k is tight against a typical €45–60k takeover, with little cushion.",
             "estimated": true,
-            "decidedBy": "rule"
+            "decidedBy": "rule",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "experience",
             "status": "strong",
             "why": "The owner has run a kitchen for years.",
             "estimated": false,
-            "decidedBy": "rule"
+            "decidedBy": "rule",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "competition",
             "status": "watch",
             "why": "Several tapas bars are nearby.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           }
         ],
         "risks": [
@@ -2801,7 +2871,7 @@
           "outsource": []
         }
       },
-      "reportId": "ecafc51e-1911-4fdd-ad47-2914ac5cec90"
+      "reportId": "3c7766c6-be72-4ee6-9cb4-ec19ac611f66"
     },
     "report": {
       "input": {
@@ -3029,35 +3099,45 @@
             "status": "risk",
             "why": "The offer is not yet clear enough to tell it apart from the other bars.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "location",
             "status": "strong",
             "why": "The street is busy after work, though rents are high.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "money",
             "status": "watch",
             "why": "€40k is tight against a typical €45–60k takeover, with little cushion.",
             "estimated": true,
-            "decidedBy": "rule"
+            "decidedBy": "rule",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "experience",
             "status": "strong",
             "why": "The owner has run a kitchen for years.",
             "estimated": false,
-            "decidedBy": "rule"
+            "decidedBy": "rule",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "competition",
             "status": "watch",
             "why": "Several tapas bars are nearby.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           }
         ],
         "risks": [
@@ -3160,7 +3240,621 @@
           "I don't know yet"
         ]
       }
-    ]
+    ],
+    "improved": {
+      "jev": {
+        "model": "fixture",
+        "answers": {
+          "sector": {
+            "type": "choice",
+            "choice": "Hospitality/Food service"
+          },
+          "geographic_scope": {
+            "type": "choice",
+            "choice": "Hyper-local"
+          },
+          "timeline": {
+            "type": "choice",
+            "choice": "Fast (3-6m)"
+          },
+          "concept": {
+            "type": "choice",
+            "choice": "Risk"
+          },
+          "location": {
+            "type": "choice",
+            "choice": "Strong"
+          },
+          "competition": {
+            "type": "choice",
+            "choice": "Watch"
+          },
+          "experience": {
+            "type": "choice",
+            "choice": "Strong"
+          }
+        },
+        "usage": {
+          "input_tokens": 1,
+          "output_tokens": 1
+        }
+      },
+      "profile": {
+        "values": {
+          "customer_segment": "Not specified",
+          "revenue_model": "Not specified",
+          "offering_type": "Not specified",
+          "acquisition_channel": "Not specified",
+          "competition": "Not specified",
+          "differentiator": "Not specified",
+          "validation_stage": "Not specified",
+          "founder_profile": "Sector expert",
+          "deadline_rigidity": "Not specified",
+          "capital_intensity": "Not specified",
+          "team_requirement": "Not specified",
+          "time_to_revenue": "Not specified",
+          "regulatory_load": "Not specified",
+          "third_party_dependency": "Not specified",
+          "money_handling": "Not specified"
+        },
+        "unknown": [
+          "customer_segment",
+          "revenue_model",
+          "offering_type",
+          "acquisition_channel",
+          "competition",
+          "differentiator",
+          "validation_stage",
+          "deadline_rigidity",
+          "capital_intensity",
+          "team_requirement",
+          "time_to_revenue",
+          "regulatory_load",
+          "third_party_dependency",
+          "money_handling"
+        ],
+        "known": 1,
+        "total": 15
+      },
+      "validation": {
+        "unsupported": [],
+        "warnings": [],
+        "departments": [
+          {
+            "name": "Legal & Compliance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Finance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Marketing",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "HR",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Sales",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Product",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Technology",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Operations",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Infrastructure",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Health",
+            "confidence": 0,
+            "tier": "light"
+          }
+        ],
+        "groups": [
+          {
+            "name": "Legal & Compliance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Finance & People",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Growth",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Product & Tech",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Operations",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Health",
+            "confidence": 0,
+            "tier": "light"
+          }
+        ],
+        "level": 1
+      },
+      "explanations": {
+        "warningReasons": [],
+        "areaReasons": [],
+        "timeToOpen": {
+          "min": 3,
+          "max": 5,
+          "unit": "months",
+          "confidence": "medium"
+        },
+        "costBreakdown": [
+          {
+            "label": "Licences",
+            "percent": 60
+          },
+          {
+            "label": "Equipment",
+            "percent": 40
+          }
+        ],
+        "templates": [
+          "supplier-quote",
+          "customer-interviews",
+          "licence-enquiry"
+        ]
+      },
+      "glance": {
+        "maturity": "developing",
+        "subsectorSource": "stated",
+        "location": {
+          "value": "Malasaña, Madrid",
+          "source": "stated"
+        },
+        "budget": {
+          "min": 45000,
+          "max": 60000,
+          "currency": "EUR",
+          "fits": "Estimated range for this idea"
+        },
+        "sources": {
+          "target_customer": "inferred",
+          "value_proposition": "stated",
+          "revenue_model": "unknown",
+          "stage": "stated",
+          "competition": "stated"
+        }
+      },
+      "clarity": {
+        "version": 3,
+        "concept": {
+          "level": "medium",
+          "score": 61,
+          "missing": [
+            "How it makes money",
+            "How it reaches customers",
+            "What sets it apart"
+          ],
+          "essentialMissing": true
+        },
+        "person": {
+          "level": "medium",
+          "score": 63,
+          "missing": [
+            "Handling other people's money",
+            "Fixed deadline",
+            "Existing assets"
+          ],
+          "essentialMissing": false
+        },
+        "readiness": "yellow"
+      },
+      "diagnosis": {
+        "idea": "A neighbourhood tapas bar for locals and after-work crowds in Malasaña.",
+        "checks": [
+          {
+            "key": "concept",
+            "status": "watch",
+            "why": "The offer is not yet clear enough to tell it apart from the other bars.",
+            "estimated": true,
+            "decidedBy": "jev",
+            "identified": true,
+            "planTask": "Define what makes you different before opening"
+          },
+          {
+            "key": "location",
+            "status": "strong",
+            "why": "The street is busy after work, though rents are high.",
+            "estimated": true,
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
+          },
+          {
+            "key": "money",
+            "status": "strong",
+            "why": "€40k is tight against a typical €45–60k takeover, with little cushion.",
+            "estimated": true,
+            "decidedBy": "rule",
+            "identified": false,
+            "planTask": null
+          },
+          {
+            "key": "experience",
+            "status": "strong",
+            "why": "The owner has run a kitchen for years.",
+            "estimated": false,
+            "decidedBy": "rule",
+            "identified": false,
+            "planTask": null
+          },
+          {
+            "key": "competition",
+            "status": "watch",
+            "why": "Several tapas bars are nearby.",
+            "estimated": true,
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
+          }
+        ],
+        "risks": [
+          "The offer may not stand out.",
+          "High rent in this area.",
+          "Little cushion for the first months."
+        ],
+        "split": {
+          "mando": [],
+          "you": [],
+          "outsource": []
+        }
+      },
+      "reportId": "71363433-4977-4282-b232-a25396386865",
+      "report": {
+        "input": {
+          "idea": "A tapas bar in Malasaña, Madrid",
+          "location": "Malasaña, Madrid",
+          "budget": 40000,
+          "start_mode": "takeover",
+          "premises": "looking"
+        },
+        "answers": [
+          {
+            "topic": "imp_concept_difference",
+            "question": "What will make you different?",
+            "answer": "I don't know yet"
+          },
+          {
+            "topic": "imp_money_cushion",
+            "question": "Do you have a cushion apart from your budget?",
+            "answer": "Yes, 3+ months of costs"
+          }
+        ],
+        "jev": {
+          "model": "fixture",
+          "answers": {
+            "sector": {
+              "type": "choice",
+              "choice": "Hospitality/Food service"
+            },
+            "geographic_scope": {
+              "type": "choice",
+              "choice": "Hyper-local"
+            },
+            "timeline": {
+              "type": "choice",
+              "choice": "Fast (3-6m)"
+            },
+            "concept": {
+              "type": "choice",
+              "choice": "Risk"
+            },
+            "location": {
+              "type": "choice",
+              "choice": "Strong"
+            },
+            "competition": {
+              "type": "choice",
+              "choice": "Watch"
+            },
+            "experience": {
+              "type": "choice",
+              "choice": "Strong"
+            }
+          },
+          "usage": {
+            "input_tokens": 1,
+            "output_tokens": 1
+          }
+        },
+        "profile": {
+          "values": {
+            "customer_segment": "Not specified",
+            "revenue_model": "Not specified",
+            "offering_type": "Not specified",
+            "acquisition_channel": "Not specified",
+            "competition": "Not specified",
+            "differentiator": "Not specified",
+            "validation_stage": "Not specified",
+            "founder_profile": "Sector expert",
+            "deadline_rigidity": "Not specified",
+            "capital_intensity": "Not specified",
+            "team_requirement": "Not specified",
+            "time_to_revenue": "Not specified",
+            "regulatory_load": "Not specified",
+            "third_party_dependency": "Not specified",
+            "money_handling": "Not specified"
+          },
+          "unknown": [
+            "customer_segment",
+            "revenue_model",
+            "offering_type",
+            "acquisition_channel",
+            "competition",
+            "differentiator",
+            "validation_stage",
+            "deadline_rigidity",
+            "capital_intensity",
+            "team_requirement",
+            "time_to_revenue",
+            "regulatory_load",
+            "third_party_dependency",
+            "money_handling"
+          ],
+          "known": 1,
+          "total": 15
+        },
+        "validation": {
+          "unsupported": [],
+          "warnings": [],
+          "departments": [
+            {
+              "name": "Legal & Compliance",
+              "confidence": 40,
+              "tier": "important"
+            },
+            {
+              "name": "Finance",
+              "confidence": 40,
+              "tier": "important"
+            },
+            {
+              "name": "Marketing",
+              "confidence": 40,
+              "tier": "important"
+            },
+            {
+              "name": "HR",
+              "confidence": 0,
+              "tier": "light"
+            },
+            {
+              "name": "Sales",
+              "confidence": 0,
+              "tier": "light"
+            },
+            {
+              "name": "Product",
+              "confidence": 0,
+              "tier": "light"
+            },
+            {
+              "name": "Technology",
+              "confidence": 0,
+              "tier": "light"
+            },
+            {
+              "name": "Operations",
+              "confidence": 0,
+              "tier": "light"
+            },
+            {
+              "name": "Infrastructure",
+              "confidence": 0,
+              "tier": "light"
+            },
+            {
+              "name": "Health",
+              "confidence": 0,
+              "tier": "light"
+            }
+          ],
+          "groups": [
+            {
+              "name": "Legal & Compliance",
+              "confidence": 40,
+              "tier": "important"
+            },
+            {
+              "name": "Finance & People",
+              "confidence": 40,
+              "tier": "important"
+            },
+            {
+              "name": "Growth",
+              "confidence": 40,
+              "tier": "important"
+            },
+            {
+              "name": "Product & Tech",
+              "confidence": 0,
+              "tier": "light"
+            },
+            {
+              "name": "Operations",
+              "confidence": 0,
+              "tier": "light"
+            },
+            {
+              "name": "Health",
+              "confidence": 0,
+              "tier": "light"
+            }
+          ],
+          "level": 1
+        },
+        "explanations": {
+          "warningReasons": [],
+          "areaReasons": [],
+          "timeToOpen": {
+            "min": 3,
+            "max": 5,
+            "unit": "months",
+            "confidence": "medium"
+          },
+          "costBreakdown": [
+            {
+              "label": "Licences",
+              "percent": 60
+            },
+            {
+              "label": "Equipment",
+              "percent": 40
+            }
+          ],
+          "templates": [
+            "supplier-quote",
+            "customer-interviews",
+            "licence-enquiry"
+          ]
+        },
+        "glance": {
+          "maturity": "developing",
+          "subsectorSource": "stated",
+          "location": {
+            "value": "Malasaña, Madrid",
+            "source": "stated"
+          },
+          "budget": {
+            "min": 45000,
+            "max": 60000,
+            "currency": "EUR",
+            "fits": "Estimated range for this idea"
+          },
+          "sources": {
+            "target_customer": "inferred",
+            "value_proposition": "stated",
+            "revenue_model": "unknown",
+            "stage": "stated",
+            "competition": "stated"
+          }
+        },
+        "diagnosis": {
+          "idea": "A neighbourhood tapas bar for locals and after-work crowds in Malasaña.",
+          "checks": [
+            {
+              "key": "concept",
+              "status": "watch",
+              "why": "The offer is not yet clear enough to tell it apart from the other bars.",
+              "estimated": true,
+              "decidedBy": "jev",
+              "identified": true,
+              "planTask": "Define what makes you different before opening"
+            },
+            {
+              "key": "location",
+              "status": "strong",
+              "why": "The street is busy after work, though rents are high.",
+              "estimated": true,
+              "decidedBy": "jev",
+              "identified": false,
+              "planTask": null
+            },
+            {
+              "key": "money",
+              "status": "strong",
+              "why": "€40k is tight against a typical €45–60k takeover, with little cushion.",
+              "estimated": true,
+              "decidedBy": "rule",
+              "identified": false,
+              "planTask": null
+            },
+            {
+              "key": "experience",
+              "status": "strong",
+              "why": "The owner has run a kitchen for years.",
+              "estimated": false,
+              "decidedBy": "rule",
+              "identified": false,
+              "planTask": null
+            },
+            {
+              "key": "competition",
+              "status": "watch",
+              "why": "Several tapas bars are nearby.",
+              "estimated": true,
+              "decidedBy": "jev",
+              "identified": false,
+              "planTask": null
+            }
+          ],
+          "risks": [
+            "The offer may not stand out.",
+            "High rent in this area.",
+            "Little cushion for the first months."
+          ],
+          "split": {
+            "mando": [],
+            "you": [],
+            "outsource": []
+          }
+        },
+        "clarity": {
+          "version": 3,
+          "concept": {
+            "level": "medium",
+            "score": 61,
+            "missing": [
+              "How it makes money",
+              "How it reaches customers",
+              "What sets it apart"
+            ],
+            "essentialMissing": true
+          },
+          "person": {
+            "level": "medium",
+            "score": 63,
+            "missing": [
+              "Handling other people's money",
+              "Fixed deadline",
+              "Existing assets"
+            ],
+            "essentialMissing": false
+          },
+          "readiness": "yellow"
+        },
+        "improveAnswers": {
+          "imp_concept_difference": "I don't know yet",
+          "imp_money_cushion": "Yes, 3+ months of costs"
+        }
+      }
+    }
   },
   "software": {
     "input": {
@@ -3605,35 +4299,45 @@
             "status": "strong",
             "why": "Bars already take bookings by phone and by message, so the need is clear.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "reach",
             "status": "watch",
             "why": "Bars can be reached online, but each one has to be found and shown the product.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "money",
             "status": "strong",
             "why": "The budget covers a first version and its first customers.",
             "estimated": true,
-            "decidedBy": "rule"
+            "decidedBy": "rule",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "experience",
             "status": "watch",
             "why": "The owner builds software, but has not sold to bars yet.",
             "estimated": false,
-            "decidedBy": "rule"
+            "decidedBy": "rule",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "competition",
             "status": "risk",
             "why": "Several booking tools already serve bars, with the same offer.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           }
         ],
         "risks": [
@@ -3651,7 +4355,7 @@
           ]
         }
       },
-      "reportId": "4c08ce2c-d96b-48b1-8fb9-7ae4b8df26df"
+      "reportId": "993dcde3-2718-40ac-b1e3-6c12218ec2c4"
     },
     "report": {
       "input": {
@@ -3907,35 +4611,45 @@
             "status": "strong",
             "why": "Bars already take bookings by phone and by message, so the need is clear.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "reach",
             "status": "watch",
             "why": "Bars can be reached online, but each one has to be found and shown the product.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "money",
             "status": "strong",
             "why": "The budget covers a first version and its first customers.",
             "estimated": true,
-            "decidedBy": "rule"
+            "decidedBy": "rule",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "experience",
             "status": "watch",
             "why": "The owner builds software, but has not sold to bars yet.",
             "estimated": false,
-            "decidedBy": "rule"
+            "decidedBy": "rule",
+            "identified": false,
+            "planTask": null
           },
           {
             "key": "competition",
             "status": "risk",
             "why": "Several booking tools already serve bars, with the same offer.",
             "estimated": true,
-            "decidedBy": "jev"
+            "decidedBy": "jev",
+            "identified": false,
+            "planTask": null
           }
         ],
         "risks": [

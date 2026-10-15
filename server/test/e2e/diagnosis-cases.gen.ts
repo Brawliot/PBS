@@ -28,6 +28,8 @@ interface Case {
   budget: { min: number | null; max: number | null };
   execution: unknown[];
   diagnosisText: unknown;
+  /** Answers of "Improve my report" for a second run of the case (the update), with their question texts */
+  improveAnswers?: { topic: string; question: string; answer: string }[];
   detect: { location: string | null; budget: number | null; start_mode: string | null; premises: string | null };
 }
 
@@ -146,6 +148,12 @@ const CASES: Case[] = [
       risks: ["The offer may not stand out.", "High rent in this area.", "Little cushion for the first months."],
     },
     detect: { location: "Malasaña, Madrid", budget: 40_000, start_mode: "takeover", premises: "looking" },
+    // "I don't know yet" on what makes it different, and a cushion of 3+ months: concept goes to watch (identified),
+    // money to strong (the rule counts the cushion)
+    improveAnswers: [
+      { topic: "imp_concept_difference", question: "What will make you different?", answer: "I don't know yet" },
+      { topic: "imp_money_cushion", question: "Do you have a cushion apart from your budget?", answer: "Yes, 3+ months of costs" },
+    ],
   },
   {
     name: "software",
@@ -262,7 +270,21 @@ for (const caseSpec of CASES) {
   const final = (await runPlanner(input, [], true, claims, options, first.glance as never)) as { reportId: string };
   const stored = await reports.get(final.reportId, USER);
   const improve = selectImproveQuestions(stored?.report.diagnosis, [], sectorOf(stored?.report), MAX_ANSWERS);
-  out[caseSpec.name] = { input: caseSpec.input, detect: caseSpec.detect, firstRound: first, final, report: stored?.report, improve };
+  // The update: the same case with the answers of "Improve my report" (the planner's final request, as the browser sends it)
+  const improved = caseSpec.improveAnswers
+    ? ((await runPlanner(input, caseSpec.improveAnswers, true, claims, options, first.glance as never)) as { reportId: string })
+    : undefined;
+  const improvedReport = improved ? await reports.get(improved.reportId, USER) : undefined;
+  out[caseSpec.name] = {
+    input: caseSpec.input,
+    detect: caseSpec.detect,
+    firstRound: first,
+    final,
+    report: stored?.report,
+    improve,
+    ...(improved && { improved: { ...improved, report: improvedReport?.report } }),
+  };
+  if (improvedReport) console.log(`${caseSpec.name} updated: ${improvedReport.report.diagnosis?.checks.map((c) => `${c.key}=${c.status}${c.identified ? "(identified)" : ""}`).join(" ")}`);
   console.log(`${caseSpec.name}: checks ${(stored?.report.diagnosis?.checks ?? []).map((c) => `${c.key}=${c.status}/${c.decidedBy}`).join(" ")}`);
 }
 
