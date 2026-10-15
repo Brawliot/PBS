@@ -78,9 +78,9 @@ async function mockApi(page, { result, results = [result], plan, prefill = { bod
   });
   await page.route("**/api/plan/**", (route) => route.fulfill(json(404, { error: "Plan not found", code: "not_found" })));
   // Registered last, so it is matched before the job route above. A delay makes the description arrive late.
-  await page.route("**/api/planner/prefill", async (route) => {
+  await page.route("**/api/planner/detect", async (route) => {
     if (prefill.delayMs) await new Promise((resolve) => setTimeout(resolve, prefill.delayMs));
-    return route.fulfill(json(200, prefill.body));
+    return route.fulfill(json(200, { detected: prefill.body, jevToken: null }));
   });
   return planRequests;
 }

@@ -217,9 +217,13 @@ Response `202` (the job has started; the analysis is not ready yet):
 
 Returns the catalog of starter templates the report offers: `{ "templates": [{ "id", "title", "purpose", "body" }] }`. It needs a signed-in session (`401` without one) and reads no table. The response is never cached (`Cache-Control: no-store`). The catalog is the same for everyone; the planner picks from its ids and never writes their text.
 
-### `POST /api/planner/prefill`
+### `POST /api/planner/detect`
 
-Reads the business description for the fixed questions: `{ "idea": "..." }` in, `{ "location", "budget", "start_mode", "premises" }` out, each value or `null`. The model copies only what the text states (`server/planner/prefill.ts`); the server keeps a place only when the text contains it (any case, any accents), an amount only when the text contains it, and the choices only from their closed values. A failure or a 10 s timeout gives all nulls, and the browser shows nothing it cannot confirm. It needs a signed-in session (`401` without one), and it is checked like `POST /api/planner` for the origin and the body size.
+Detects the fixed answers from the business description: `{ "idea": "..." }` in, `{ "detected": { "location", "budget", "start_mode", "premises" }, "jevToken" }` out. One call to Jev (`server/planner/detect.ts`) answers the planner's three questions and the fixed ones it can read from the text. Each value is checked: `budget` must fall in a band the text has an amount for, `start_mode` and `premises` must be one of their closed values, and `location` comes from the list of places (`server/planner/places.ts`, `server/data/es-places.ts`), or is `"online"` for an online or global scope. The Jev result is kept in memory for 15 minutes, bound to the user and to the idea (`server/planner/detect-cache.ts`), and `jevToken` names it. The first `POST /api/planner` sends that token in `jevToken` and reuses the result instead of asking Jev again. A failure, or more than 10 s, gives all nulls and no token. It needs a signed-in session (`401` without one), and it is checked like `POST /api/planner` for the origin and the body size.
+
+**The place list is empty for now.** The INE list of municipalities could not be downloaded where this was built (`www.ine.es` is not an allowed domain), and the neighbourhoods are not written from memory. Until `server/data/es-places.ts` is filled, `location` is found only for online or global businesses.
+
+**Timing.** The detection's time with the real Jev and the previous prefill's time have not been measured here: the environment has no Jev key.
 
 ### `GET /api/planner/:id`
 

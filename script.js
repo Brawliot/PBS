@@ -598,6 +598,7 @@
   let firstGlance = null; // the glance the server built in the first round: sent back as it is with the final request
   let reportId = null; // id of the report the server kept for this analysis (see POST /api/plan)
   let prefillResult = null; // what the description already says for the fixed questions (null until it arrives)
+  let detectToken = null;   // names the Jev result of that detection, sent with the first request
   const CLAIM_KEYS = ['subsector', 'location', 'target_customer', 'value_proposition', 'revenue_model', 'stage', 'competition'];
   // The facts the top of the report shows, from the first round's analysis. The server checks them and keeps them
   // only if they pass, so this is sent as it is: the same fields, in the same shape.
@@ -654,14 +655,14 @@
   // The description is read in parallel with the first questions; it never fails (any problem is no prefill)
   const requestPrefill = async (text) => {
     try {
-      const res = await fetch('/api/planner/prefill', {
+      const res = await fetch('/api/planner/detect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idea: text }),
         cache: 'no-store',
         signal: AbortSignal.timeout(PREFILL_TIMEOUT_MS),
       });
-      return res.ok ? await res.json() : null;
+      return res.ok ? await res.json() : null; // { detected, jevToken }
     } catch {
       return null;
     }
@@ -681,7 +682,11 @@
     // so a model call that takes a few seconds still fills it in
     const started = Date.now();
     prefillResult = null;
-    const prefilled = requestPrefill(idea.value.trim()).then((result) => { prefillResult = result; });
+    detectToken = null;
+    const prefilled = requestPrefill(idea.value.trim()).then((result) => {
+      prefillResult = result?.detected ?? null;
+      detectToken = result?.jevToken ?? null;
+    });
     await wait(EXIT_MS);
     await Promise.race([prefilled, wait(Math.max(0, PREFILL_WAIT_MS - (Date.now() - started)))]);
     if (run !== flowRun || !sending) return;
@@ -707,6 +712,8 @@
       analysis: Object.fromEntries(CLAIM_KEYS.map((key) => [key, analysis?.[key]?.value])),
       // The same first round also gives the top of the report (the server keeps it only if it passes)
       ...(final && { glance: firstGlance ?? glanceFrom(analysis) }),
+      // The detection's Jev result, when it arrived: the first request reuses it instead of asking Jev again
+      ...(!final && detectToken && { jevToken: detectToken }),
     };
     let failed = false;
     let profile = null;
