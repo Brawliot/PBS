@@ -696,17 +696,18 @@ body:has(> .hero) { overflow-y: auto; }
 .giant {
   flex: 1; min-height: 0; margin-top: 2vh;
   display: flex; flex-direction: column;
-  font-size: 20vw; font-weight: 800;
+  font-size: 24vw; font-weight: 800;
   letter-spacing: -0.07em; white-space: nowrap; overflow: hidden;
 }
 .giant__row { line-height: .74; }
 .giant__row--flipped { transform: scaleY(-1); }
-.giant__row--flipped .giant__track { animation-direction: reverse; }
 .giant__track { display: flex; width: max-content; }
 .giant__track.is-looping {
   animation: giant-scroll 70s linear infinite;
   will-change: transform; backface-visibility: hidden;
 }
+/* After the shorthand above, which would reset it */
+.giant__row--flipped .giant__track.is-looping { animation-direction: reverse; }
 .giant__group { display: flex; flex-shrink: 0; }
 .giant__letter { color: var(--black); filter: blur(2px); }
 .giant__letter--gray { color: var(--gray); }
@@ -874,7 +875,7 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
 
   /* Giant wordmark: reduce size for small screens */
   .giant {
-    font-size: 15vw;
+    font-size: 18vw;
     margin-top: 1.5vh;
   }
 }
@@ -1021,7 +1022,7 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
 
   /* Giant wordmark: smaller, less intrusive */
   .giant {
-    font-size: 12.5vw;
+    font-size: 15vw;
     margin-top: 1vh;
   }
 
