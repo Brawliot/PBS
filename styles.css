@@ -675,12 +675,14 @@ body:has(> .hero) { overflow-y: auto; }
   display: flex; flex-direction: column;
   font-size: 24vw; font-weight: 800;
   letter-spacing: -0.07em; white-space: nowrap; overflow: hidden;
+  /* Decoration only: it cannot be selected or grabbed, and it takes no clicks */
+  user-select: none; -webkit-user-select: none; pointer-events: none;
 }
 .giant__row { line-height: .74; }
 .giant__row--flipped { transform: scaleY(-1); }
 .giant__track { display: flex; width: max-content; }
 .giant__track.is-looping {
-  animation: giant-scroll 70s linear infinite;
+  animation: giant-scroll 105s linear infinite;
   will-change: transform; backface-visibility: hidden;
 }
 /* After the shorthand above, which would reset it */
@@ -690,7 +692,7 @@ body:has(> .hero) { overflow-y: auto; }
 .giant__letter--gray { color: var(--gray); }
 
 @keyframes giant-scroll {
-  from { transform: translate3d(-50%, 0, 0); }
+  from { transform: translate3d(-33.333%, 0, 0); }
   to { transform: translate3d(0, 0, 0); }
 }
 @media (prefers-reduced-motion: reduce) {
