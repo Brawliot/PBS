@@ -573,6 +573,94 @@ async function scenarioReviewEditAnswer(browser) {
   return "review, edit a server answer: no repeat, the answers are sent in the same order";
 }
 
+const PROGRESS_TEXT = {
+  reading: "Reading your business…",
+  costs: "Estimating costs and what it needs…",
+  explaining: "Checking risks and next steps…",
+  saving: "Putting your report together…",
+  generic: "Preparing your report…",
+};
+
+/** Sets up the card path to the final request, whose polls the scenario scripts; the first request is answered at once */
+async function finalRequestPolls(page, polls) {
+  const detected = { location: "Malasaña, Madrid", budget: 50_000, start_mode: "scratch", premises: "have" };
+  const { posts } = await mockApi(page, { results: [FIRST_ROUND, withReport], plan: json(201, { id: PLAN_ID }), prefill: { body: detected } });
+  let index = 0;
+  await page.route("**/api/planner/*", (route) => {
+    // The detection is answered by mockApi's route, not as a job
+    if (route.request().url().endsWith("/detect")) return route.fulfill(json(200, { detected, jevToken: null }));
+    const number = Number(route.request().url().slice(-1));
+    if (number === 1) return route.fulfill(json(200, { status: "done", result: FIRST_ROUND }));
+    const step = polls[Math.min(index++, polls.length - 1)];
+    return route.fulfill(json(200, step));
+  });
+  return posts;
+}
+
+/** The loader's text follows the steps the server reports, in order; a step back, or an unknown one, changes nothing */
+async function scenarioProgressSteps(browser) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const page = await context.newPage();
+  await watch(page, scenarioLabel());
+  const posts = await finalRequestPolls(page, [
+    { status: "pending" },
+    { status: "pending", stage: "reading" },
+    { status: "pending", stage: "costs" },
+    { status: "pending", stage: "costs" },
+    { status: "pending", stage: "reading" },
+    { status: "pending", stage: "explaining" },
+    { status: "pending", stage: "saving" },
+    { status: "pending", stage: "a made-up step" },
+    { status: "done", result: withReport },
+  ]);
+  await page.goto(`${BASE}/`);
+  await page.evaluate(() => {
+    window.seen = [];
+    new MutationObserver(() => {
+      const text = document.getElementById("status").textContent;
+      if (text && window.seen.at(-1) !== text) window.seen.push(text);
+    }).observe(document.getElementById("status"), { childList: true, characterData: true, subtree: true });
+  });
+  await page.fill(".search__input", "A tapas bar in Malasaña, Madrid");
+  await page.click(".search__submit");
+  await page.waitForSelector("#review:not([hidden])", { timeout: 20_000 });
+  await page.click("#review-generate");
+  await page.waitForSelector("#result:not([hidden])", { timeout: 40_000 });
+  const seen = await page.evaluate(() => window.seen.filter((text) => Object.values({
+    reading: "Reading your business…", costs: "Estimating costs and what it needs…", explaining: "Checking risks and next steps…",
+    saving: "Putting your report together…", generic: "Preparing your report…",
+  }).includes(text)));
+  assert.deepEqual(seen, [PROGRESS_TEXT.generic, PROGRESS_TEXT.reading, PROGRESS_TEXT.costs, PROGRESS_TEXT.explaining, PROGRESS_TEXT.saving]);
+  assert.equal(await page.isHidden("#progress-note"), true, "no slow note when the steps move on");
+  assert.equal(posts.length, 2, "one first request and one final request");
+  await context.close();
+  return "progress: the steps appear in order, a step back and an unknown one change nothing";
+}
+
+/** A step that lasts too long shows the note under the loader; Cancel stays available */
+async function scenarioProgressSlow(browser) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const page = await context.newPage();
+  await watch(page, scenarioLabel());
+  await finalRequestPolls(page, [{ status: "pending", stage: "costs" }]);
+  await page.goto(`${BASE}/`);
+  await page.fill(".search__input", "A tapas bar in Malasaña, Madrid");
+  await page.click(".search__submit");
+  await page.waitForSelector("#review:not([hidden])", { timeout: 20_000 });
+  await page.click("#review-generate");
+  await page.waitForFunction(() => document.getElementById("status").textContent === "Estimating costs and what it needs…", null, { timeout: 20_000 });
+  assert.equal(await page.isHidden("#progress-note"), true, "not yet: the step has just begun");
+  await page.waitForSelector("#progress-note:not([hidden])", { timeout: 30_000 });
+  assert.equal(await page.textContent("#progress-note"), "This is taking longer than usual.");
+  assert.equal(await page.isVisible("#wait-cancel"), true, "Cancel is still there");
+  await page.click("#wait-cancel");
+  await page.waitForFunction(() => document.getElementById("status").textContent === "Analysis cancelled. Your idea is still there.", null, { timeout: 10_000 });
+  // The poll loop notices the cancel within one poll interval, and clears the note then
+  await page.waitForSelector("#progress-note", { state: "hidden", timeout: 5_000 });
+  await context.close();
+  return "progress: a long step shows the taking-longer note, and Cancel still stops the wait";
+}
+
 let currentScenario = "";
 const scenarioLabel = () => currentScenario;
 
@@ -583,7 +671,7 @@ const browser = await chromium.launch({
 });
 let failed = 0;
 try {
-  for (const scenario of [scenarioFullFlow, scenarioError, scenarioNoReport, scenarioQuestions, scenarioQuestionsFlow, scenarioReport, scenarioCancelWait, scenarioStartLayout, scenarioPrefill, scenarioPrefillPartial, scenarioPrefillSlow, scenarioReviewCard, scenarioReviewEditFixed, scenarioReviewEditAnswer]) {
+  for (const scenario of [scenarioFullFlow, scenarioError, scenarioNoReport, scenarioQuestions, scenarioQuestionsFlow, scenarioReport, scenarioCancelWait, scenarioStartLayout, scenarioPrefill, scenarioPrefillPartial, scenarioPrefillSlow, scenarioReviewCard, scenarioReviewEditFixed, scenarioReviewEditAnswer, scenarioProgressSteps, scenarioProgressSlow]) {
     currentScenario = scenario.name;
     try {
       console.log("ok -", await scenario(browser));
