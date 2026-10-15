@@ -63,7 +63,7 @@ const firstRound = {
     stage: section("Idea only", "stated"),
     competition: section("Local bakeries", "stated"),
     constraints: { budget: { min: 5_000, max: 9_000, currency: "EUR", fits: "" }, exclusions: [], risks: [], assumptions: [] },
-    questions: [{ topic: "validation", question: "Have you tested it with customers?", options: ["Yes", "No"] }],
+    questions: [{ topic: "existing_customers", question: "Do you already have customers?", options: ["Yes", "No"] }],
   },
   questionTotal: 1,
 };
@@ -167,15 +167,15 @@ async function scenarioYellowToGreen(browser) {
   });
 
   await page.click("#result-improve-open");
-  // The person comes first while the business is not Low: own skills, then how it makes money, then money handling
+  // The person comes first while the business is not Low: trade experience, then how it makes money, then how customers find it
   const legends = await page.$$eval("#result-quiz legend", (items) => items.map((item) => item.textContent));
   assert.deepEqual(legends, [
-    "What parts of the business can you do yourself?",
+    "Have you worked in this trade or sector before?",
     "How will it make money?",
-    "Will you hold or move other people’s money?",
+    "How will customers find you?",
   ]);
   const items = page.locator("#result-quiz .quiz__item");
-  await items.nth(0).locator("input").fill("I bake and sell");
+  await items.nth(0).locator('button:has-text("Yes, for years")').click();
   await items.nth(1).locator('button:has-text("Subscription")').click();
   await items.nth(2).locator("button.is-unsure").click();
   await page.click("#result-quiz-send");
@@ -184,7 +184,7 @@ async function scenarioYellowToGreen(browser) {
   assert.equal(await page.textContent("#toast-text"), "Report updated: 2 answers added · your business high.", "the update says what changed");
   const sent = posts.at(-1);
   assert.equal(sent.final, true, "the round sends the final request again");
-  assert.deepEqual(sent.answers.map(({ topic }) => topic), ["validation", "own_skills", "revenue"], "the new answers are added; an I don't know is not sent");
+  assert.deepEqual(sent.answers.map(({ topic }) => topic), ["existing_customers", "trade_experience", "revenue"], "the new answers are added; an I don't know is not sent");
   assert.equal(sent.answers[2].answer, "Subscription");
   assert.deepEqual(sent.glance, posts[1].glance, "the same glance as the first final request");
   assert.equal(sent.budget, 200_000);
