@@ -59,6 +59,19 @@ export const DEFAULT_WHY: Record<CheckKey, Record<DiagnosisCheckStatus, string>>
   },
 };
 
+/**
+ * The reason of a check the person does not know yet ("Improve my report"): it says so, and that the plan works on it.
+ * It never presents the check as settled.
+ */
+export const IDENTIFIED_WHY: Record<CheckKey, string> = {
+  concept: "You don't know yet what sets you apart; your plan will work on it.",
+  location: "You have not chosen a specific place yet; your plan will work on it.",
+  reach: "You do not know yet how customers will find you online; your plan will work on it.",
+  money: "You do not know yet how the money will be covered; your plan will work on it.",
+  experience: "You do not know yet who will run it day to day; your plan will work on it.",
+  competition: "You do not know yet how you stand against the others; your plan will work on it.",
+};
+
 /** The risk each check names when it is not strong. The report shows up to three of them. */
 export const DEFAULT_RISK: Record<CheckKey, string> = {
   concept: "The idea may not match what customers actually want.",
@@ -91,9 +104,14 @@ const cut = (value: string, max: number): string => Array.from(value.replaceAll(
 /** A reason fits its status when it uses none of the words that contradict it */
 export const fitsStatus = (why: string, status: DiagnosisCheckStatus): boolean => !CONTRADICTS[status].test(why);
 
-/** The default reason of a check, for its status */
-const defaultWhy = (key: CheckKey, status: DiagnosisCheckStatus): string => DEFAULT_WHY[key][status];
+/** An identified check is not presented as settled: these words would say so */
+const SETTLED = /\b(solid|strong|settled|resolved|proven|sorted|figured out|no problem|well covered)\b/i;
 
+/** The reason a check gets when the model's own does not pass: the identified text for an identified check */
+export const reasonFor = (check: { key: CheckKey; status: DiagnosisCheckStatus; identified?: boolean }): string =>
+  check.identified ? IDENTIFIED_WHY[check.key] : DEFAULT_WHY[check.key][check.status];
+
+/** The default reason of a check, for its status */
 /** The risks when there is no model text: the risks of the checks that are not strong, risk first, at most three */
 export function defaultRisks(checks: Diagnosis["checks"]): string[] {
   const ordered = [...checks.filter(({ status }) => status === "risk"), ...checks.filter(({ status }) => status === "watch")];
@@ -127,7 +145,7 @@ export function splitOf(execution: Execution | undefined): Diagnosis["split"] {
 export function baseDiagnosis(idea: string, checks: Diagnosis["checks"], execution: Execution | undefined): Diagnosis {
   return {
     idea: cut(idea, MAX_DIAGNOSIS_IDEA) || "Business idea",
-    checks: checks.map((check) => ({ ...check, why: defaultWhy(check.key, check.status) })) as Diagnosis["checks"],
+    checks: checks.map((check) => ({ ...check, why: reasonFor(check) })) as Diagnosis["checks"],
     risks: defaultRisks(checks),
     split: splitOf(execution),
   };
@@ -155,8 +173,8 @@ export function applyDiagnosisText(base: Diagnosis, reply: unknown): Diagnosis {
     idea: idea.success ? idea.data : base.idea,
     checks: base.checks.map((check) => {
       const entry = checks.success ? checks.data.find(({ key }) => key === check.key) : undefined;
-      const why = entry && fitsStatus(entry.why, check.status) ? entry.why : defaultWhy(check.key, check.status);
-      return { ...check, why };
+      const fits = !!entry && fitsStatus(entry.why, check.status) && (!check.identified || !SETTLED.test(entry.why));
+      return { ...check, why: fits ? entry.why : reasonFor(check) };
     }) as Diagnosis["checks"],
     risks: risks.success ? risks.data.slice(0, MAX_DIAGNOSIS_RISKS) : base.risks,
   };

@@ -25,6 +25,7 @@ import {
   MAX_CURRENCY,
   MAX_DIAGNOSIS_IDEA,
   MAX_IMPROVE_ANSWER,
+  MAX_PLAN_TASK,
   MAX_DIAGNOSIS_RISK,
   MAX_DIAGNOSIS_RISKS,
   MAX_DIAGNOSIS_SPLIT_ITEM,
@@ -254,6 +255,10 @@ const DiagnosisCheckSchema = <K extends string>(key: z.ZodType<K>) =>
     why: text(MAX_DIAGNOSIS_WHY),
     estimated: z.boolean(),
     decidedBy: z.enum(DIAGNOSIS_DECIDED_BY),
+    /** The person does not know this yet ("Improve my report"): the plan will work on it. Optional: older checks have none. */
+    identified: z.boolean().optional(),
+    /** The plan task for an identified check, or null. Kept for the plan, which does not read it yet. */
+    planTask: z.string().trim().min(1).max(MAX_PLAN_TASK).refine(noNul, "NUL is not allowed").nullable().optional(),
   });
 
 /** Exactly five checks, in this order, each with its own key: a repeated or missing key is refused by its position */

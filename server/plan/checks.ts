@@ -7,6 +7,7 @@
  */
 
 import type { JevAnswer } from "../planner/planner-handler.js";
+import { IMPROVE_BANK, PLAN_TASK, effectOfAnswer, type ImproveEffect } from "./improve-questions.js";
 import { HEAVY_REGULATION } from "./plan-skeleton.js";
 import type { Diagnosis } from "./report.js";
 import { DIAGNOSIS_CHECK_STATUS, type DiagnosisCheckStatus, type DiagnosisDecidedBy } from "./diagnosis-enums.js";
@@ -15,6 +16,11 @@ export const CHECK_RULES = {
   money: {
     /** A budget at or above this share of the minimum the idea needs is watch; below it, risk */
     watchShare: 0.75,
+    /**
+     * A confirmed cushion or financing (Improve my report) counts as this share of the minimum, added to the budget,
+     * and the money rule decides again. A proposal, not measured.
+     */
+    cushionShare: 0.25,
   },
 } as const;
 
@@ -118,3 +124,67 @@ export function buildChecks(inputs: CheckInputs): Diagnosis["checks"] {
     { key: "competition", ...jevCheck(inputs.jev.competition) },
   ] as Diagnosis["checks"];
 }
+
+// ---- Improve my report: the answers move the states (applyImprove)
+
+const STATUS_RANK = { risk: 0, watch: 1, strong: 2 } as const;
+const EFFECT_RANK: Record<ImproveEffect, number> = { none: 0, gap: 1, partial: 2, good: 3 };
+/** One level up: risk to watch, watch to strong, strong stays */
+const oneUp = (status: DiagnosisCheckStatus): DiagnosisCheckStatus => (status === "risk" ? "watch" : status === "watch" ? "strong" : status);
+const higher = (a: DiagnosisCheckStatus, b: DiagnosisCheckStatus) => (STATUS_RANK[a] >= STATUS_RANK[b] ? a : b);
+
+/** What the answers of one category say: the best effect, whether a gap was named, its plan task, a cushion */
+interface CategoryAnswers {
+  effect: ImproveEffect;
+  identified: boolean;
+  planTask: string | null;
+  cushion: boolean;
+}
+
+/**
+ * The answers of "Improve my report" move the states, once each check (never lower than before):
+ * - good: one level up. Money from a cushion or financing is decided again by the money rule, with the cushion
+ *   counted as CHECK_RULES.money.cushionShare of the minimum (the rule decides, not a step).
+ * - partial: a risk becomes a watch; a watch stays.
+ * - gap ("I don't know yet", "Not decided yet", "No", "Not yet"): a risk becomes a watch, and the check is
+ *   identified. It never becomes strong, and an identified check that is strong is not marked.
+ * - none, or no answer: no change.
+ * Several answers in one category count as the best one. A check is never lowered.
+ */
+export function applyImprove(
+  checks: Diagnosis["checks"],
+  answers: Record<string, string>,
+  options: { sector?: string; money: { budget: number; range: BudgetRange | undefined } },
+): Diagnosis["checks"] {
+  const groups = new Map<string, CategoryAnswers>();
+  for (const [key, label] of Object.entries(answers)) {
+    const question = IMPROVE_BANK.find((item) => item.key === key);
+    const effect = question && effectOfAnswer(key, label, options.sector);
+    if (!question || !effect || effect === "none") continue;
+    const group = groups.get(question.category) ?? { effect: "none" as ImproveEffect, identified: false, planTask: null, cushion: false };
+    if (EFFECT_RANK[effect] > EFFECT_RANK[group.effect]) group.effect = effect;
+    if (effect === "gap") {
+      group.identified = true;
+      group.planTask ??= PLAN_TASK[key] ?? null;
+    }
+    if (effect === "good" && (key === "imp_money_cushion" || key === "imp_money_financing")) group.cushion = true;
+    groups.set(question.category, group);
+  }
+
+  return checks.map((check) => {
+    const group = groups.get(check.key);
+    let status = check.status;
+    if (group) {
+      const min = options.money.range?.min;
+      if (check.key === "money" && group.effect === "good" && group.cushion && min !== undefined && min !== null) {
+        const counted = moneyCheck(options.money.budget + CHECK_RULES.money.cushionShare * min, options.money.range).status;
+        status = higher(status, counted);
+      } else {
+        status = higher(status, group.effect === "good" ? oneUp(status) : status === "risk" ? "watch" : status);
+      }
+    }
+    const identified = !!group?.identified && status !== "strong";
+    return { ...check, status, identified, planTask: identified ? group?.planTask ?? null : null };
+  }) as Diagnosis["checks"];
+}
+

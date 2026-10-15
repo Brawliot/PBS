@@ -41,6 +41,8 @@ export const MAX_COST_LABEL = 24;
 export const TEMPLATE_PICKS = 3;
 /** Largest money amount of the glance (the budget range): above it, the figure is not a small business's budget */
 export const MAX_GLANCE_MONEY = 1_000_000_000;
+/** The plan task of an identified check: a short line, as the plan will show it */
+export const MAX_PLAN_TASK = 80;
 /** One answer of "Improve my report": an option of its question, at most this many characters */
 export const MAX_IMPROVE_ANSWER = 60;
 /** Diagnosis of the report: the one-sentence idea, the why of each check, the risks, and each item of the split */

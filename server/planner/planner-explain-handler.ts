@@ -318,6 +318,8 @@ The status of every check is already decided. You do not change it: you explain 
 - Strong: say what is in place. Never describe it as a problem.
 - Watch: say what must be checked or done before opening. Never call it settled or excellent.
 - Risk: say what could go wrong for this business. Never call it good.
+- A check marked "identified" is one the person does not know yet. Say so, and that the plan will work on it. Never
+  present an identified check as settled, solid or resolved.
 
 Be concrete for this case, not generic. Examples of the style (not of these businesses):
 - a neighbourhood tapas bar for locals and after-work crowds
@@ -382,7 +384,7 @@ LOCATION:
 ${location ? `<location>${escapeTags(location)}</location>` : "(not given)"}
 
 CHECKS, WITH THEIR DECIDED STATUS (key: status):
-${checks.map(({ key, status }) => `- ${key}: ${status}`).join("\n")}
+${checks.map(({ key, status, identified }) => `- ${key}: ${status}${identified ? " (identified: the person does not know this yet)" : ""}`).join("\n")}
 
 Write the idea, one reason for each check above under its key, and the risks.`;
 }

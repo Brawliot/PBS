@@ -15,7 +15,7 @@ import type { FieldAnalysis, Phase2Response } from "./planner-phase2-handler.js"
 import type { ReportRepository } from "../plan/report-repository.js";
 import type { Diagnosis, Explanations, Report } from "../plan/report.js";
 import { parseGlance, type Glance } from "../plan/glance.js";
-import { buildChecks } from "../plan/checks.js";
+import { applyImprove, buildChecks } from "../plan/checks.js";
 import { improveAnswersOf } from "../plan/improve-questions.js";
 import { applyDiagnosisText, baseDiagnosis } from "../plan/diagnosis-text.js";
 import { computeClarity, type Clarity } from "../plan/clarity.js";
@@ -199,14 +199,27 @@ function withImprove<T extends object>(report: T, answers: PlannerAnswer[], jev:
  * default words of each (plan/diagnosis-text.ts). The money range is the glance's, the only range a final request
  * has, and the split comes from the glance's execution. The model's words are added by applyDiagnosisText.
  */
-export function diagnosisOf(input: PlannerInput, jev: JevResponse, built: Awaited<ReturnType<typeof buildReport>>, glance?: Glance): Diagnosis {
-  const checks = buildChecks({
-    budget: input.budget,
-    founderProfile: built.profile.values.founder_profile,
-    range: glance && { min: glance.budget.min },
-    regulatoryLoad: built.profile.values.regulatory_load,
-    jev: jev.answers,
-  });
+export function diagnosisOf(
+  input: PlannerInput,
+  jev: JevResponse,
+  built: Awaited<ReturnType<typeof buildReport>>,
+  glance?: Glance,
+  answers: PlannerAnswer[] = [],
+): Diagnosis {
+  const sector = jev.answers.sector?.type === "choice" ? jev.answers.sector.choice : undefined;
+  const range = glance && { min: glance.budget.min };
+  // The answers of "Improve my report" move the states after the rules and Jev have given theirs (applyImprove)
+  const checks = applyImprove(
+    buildChecks({
+      budget: input.budget,
+      founderProfile: built.profile.values.founder_profile,
+      range,
+      regulatoryLoad: built.profile.values.regulatory_load,
+      jev: jev.answers,
+    }),
+    improveAnswersOf(answers, sector),
+    { sector, money: { budget: input.budget, range } },
+  );
   return baseDiagnosis(input.idea, checks, glance?.execution);
 }
 
@@ -272,7 +285,7 @@ export async function runPlanner(
     const glance = glanceFor(input, sentGlance);
     options.report?.("costs");
     const built = await buildReport(input, jev, answers, claims);
-    const base = diagnosisOf(input, jev, built, glance);
+    const base = diagnosisOf(input, jev, built, glance, answers);
     const diagnosis = applyDiagnosisText(base, await explainDiagnosis({ input, answers, checks: base.checks, glance }, options.signal));
     const clarity = clarityOf(input, answers, built.profile, glance);
     options.report?.("explaining");

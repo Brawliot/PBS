@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { explainDiagnosis } from "../../planner/planner-explain-handler.js";
 import { runPlanner } from "../../planner/planner-run.js";
 import { InMemoryReportRepository } from "../../plan/report-repository-memory.js";
-import { DEFAULT_WHY, DEFAULT_RISK } from "../../plan/diagnosis-text.js";
+import { DEFAULT_WHY, DEFAULT_RISK, IDENTIFIED_WHY } from "../../plan/diagnosis-text.js";
 import { REASONLESS_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, silenceConsoleError } from "./helpers.js";
 import "./helpers.js";
 
@@ -117,5 +117,25 @@ describe("runPlanner: the diagnosis of a final request carries the model's words
     const stored = (await reports.get(result.reportId, USER))?.report.diagnosis;
     assert.ok(stored);
     assert.equal(stored.checks[0].why, DEFAULT_WHY.concept.strong);
+  });
+});
+
+describe("runPlanner: an identified check keeps the identified text", () => {
+  test("a gap answer makes concept identified; the model's 'solid' reason is not stored", async () => {
+    const jevRisk = { ...jevReply, answers: { ...jevReply.answers, concept: { type: "choice", choice: "Risk" } } };
+    mockFetch((request) => {
+      if (request.url.includes("typesafe.ai")) return jsonResponse(200, jevRisk);
+      if (isDiagnosisCall(request)) return chatReply({ ...diagnosisText, checks: [{ key: "concept", why: "The offer is solid and proven." }] });
+      if (isExplanationCall(request)) return chatReply(REASONLESS_EXPLANATIONS);
+      return chatReply(phase2Stub);
+    });
+    const reports = new InMemoryReportRepository();
+    const answers = [{ topic: "imp_concept_difference", question: "What will make you different?", answer: "I don't know yet" }];
+    const result = (await runPlanner(input, answers, true, claims, { reports, owner: USER })) as Record<string, any>;
+    const concept = (await reports.get(result.reportId, USER))?.report.diagnosis?.checks.find((c: { key: string }) => c.key === "concept");
+    assert.equal(concept?.identified, true);
+    assert.equal(concept?.status, "watch");
+    assert.equal(concept?.why, IDENTIFIED_WHY.concept);
+    assert.equal(concept?.planTask, "Define what makes you different before opening");
   });
 });

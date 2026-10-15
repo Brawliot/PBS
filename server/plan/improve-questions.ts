@@ -285,3 +285,36 @@ export function improveAnswersOf(answers: readonly { topic: string; answer: stri
   }
   return out;
 }
+
+/** The effect of an answer: the option of its question with this label, for the sector given (see optionsOf) */
+export function effectOfAnswer(key: string, label: string, sector?: string): ImproveEffect | undefined {
+  const question = IMPROVE_BANK.find((item) => item.key === key);
+  if (!question) return undefined;
+  const lists = key === "imp_concept_customer" && !sector
+    ? [CUSTOMERS_DEFAULT, ...Object.values(question.options as Record<string, ImproveOption[]>)]
+    : [optionsOf(question, sector)];
+  for (const options of lists) {
+    const option = options.find((item) => item.label === label);
+    if (option) return option.effect;
+  }
+  return undefined;
+}
+
+/**
+ * The plan task of a gap: what the plan works on when the person does not know yet (or has not decided). Written
+ * here, by question. The plan turns it into tasks later; the diagnosis only keeps the text.
+ */
+export const PLAN_TASK: Readonly<Record<string, string>> = {
+  imp_concept_difference: "Define what makes you different before opening",
+  imp_concept_customer: "Define exactly who the business is for",
+  imp_location_premises: "Look for a specific premises",
+  imp_location_footfall: "Count how many people pass by or live nearby",
+  imp_reach_channel: "Choose how customers will find you online",
+  imp_reach_audience: "Find where your customers spend time online",
+  imp_money_cushion: "Build a cash cushion or find financing",
+  imp_money_financing: "Build a cash cushion or find financing",
+  imp_experience_operator: "Decide who runs it day to day",
+  imp_experience_training: "Get the training the trade needs",
+  imp_competition_known: "Study the competition in your area",
+  imp_competition_unserved: "Find what the competition does not serve well",
+};

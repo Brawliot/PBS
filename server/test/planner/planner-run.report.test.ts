@@ -69,11 +69,11 @@ describe("runPlanner keeps the report of the runs that end with one", () => {
         // Jev's reply has no answer for the four checks, so they are watch; money has no range (no glance): watch.
         // The model's text is not usable here (its reply is the phase 2 one), so every part keeps its default.
         checks: [
-          { key: "concept", status: "watch", why: DEFAULT_WHY.concept.watch, estimated: true, decidedBy: "jev" },
-          { key: "location", status: "watch", why: DEFAULT_WHY.location.watch, estimated: true, decidedBy: "jev" },
-          { key: "money", status: "watch", why: DEFAULT_WHY.money.watch, estimated: true, decidedBy: "rule" },
-          { key: "experience", status: "watch", why: DEFAULT_WHY.experience.watch, estimated: true, decidedBy: "jev" },
-          { key: "competition", status: "watch", why: DEFAULT_WHY.competition.watch, estimated: true, decidedBy: "jev" },
+          { key: "concept", status: "watch", why: DEFAULT_WHY.concept.watch, estimated: true, decidedBy: "jev" , identified: false, planTask: null },
+          { key: "location", status: "watch", why: DEFAULT_WHY.location.watch, estimated: true, decidedBy: "jev" , identified: false, planTask: null },
+          { key: "money", status: "watch", why: DEFAULT_WHY.money.watch, estimated: true, decidedBy: "rule" , identified: false, planTask: null },
+          { key: "experience", status: "watch", why: DEFAULT_WHY.experience.watch, estimated: true, decidedBy: "jev" , identified: false, planTask: null },
+          { key: "competition", status: "watch", why: DEFAULT_WHY.competition.watch, estimated: true, decidedBy: "jev" , identified: false, planTask: null },
         ],
         risks: [DEFAULT_RISK.concept, DEFAULT_RISK.location, DEFAULT_RISK.money],
         split: { mando: [], you: [], outsource: [] },
