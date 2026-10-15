@@ -187,7 +187,7 @@ async function scenarioYellowToGreen(browser) {
   assert.deepEqual(sent.answers.map(({ topic }) => topic), ["validation", "own_skills", "revenue"], "the new answers are added; an I don't know is not sent");
   assert.equal(sent.answers[2].answer, "Subscription");
   assert.deepEqual(sent.glance, posts[1].glance, "the same glance as the first final request");
-  assert.equal(sent.budget, 10_000);
+  assert.equal(sent.budget, 200_000);
 
   assert.deepEqual(await readiness(page), {
     state: "green",
@@ -283,8 +283,8 @@ async function scenarioExecution(browser) {
 
   const cells = await page.$$eval("#result-needs > div", (items) => items.map((cell) => cell.innerText.replace(/\s+/g, " ").trim()));
   assert.deepEqual(cells.slice(0, 2), [
-    "Money €2,600 – €3,900 You have €10,000: covers it Mando covers Online store, CRM: saves ~€4,000 – €8,000",
-    "Your time ~36 h a week You put in: full time",
+    "Money €2,600 – €3,900 You have €200,000: covers it Mando covers Online store, CRM: saves ~€4,000 – €8,000",
+    "Your time ~36 h a week For your own parts",
   ]);
   await page.click("#result-detail-open");
   const groups = await page.$$eval("#detail-execution .execution__group", (items) => items.map((group) => group.innerText.replace(/\s+/g, " ").trim()));
