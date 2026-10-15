@@ -14,6 +14,8 @@ import type { FieldAnalysis, Phase2Response } from "./planner-phase2-handler.js"
 import type { ReportRepository } from "../plan/report-repository.js";
 import type { Explanations, Report } from "../plan/report.js";
 import { parseGlance, type Glance } from "../plan/glance.js";
+import { computeClarity, type Clarity } from "../plan/clarity.js";
+import type { Profile } from "./planner-profile-handler.js";
 import {
   MAX_CURRENCY,
   MAX_PHASE2_LIST,
@@ -24,7 +26,7 @@ import {
   MAX_SCORE,
 } from "../plan/report.js";
 import type { JevResponse, PlannerInput } from "./planner-handler.js";
-import { analyzeWithJev } from "./planner-handler.js";
+import { analyzeWithJev, isUnknown } from "./planner-handler.js";
 import { analyzePhase2, type PlannerAnswer } from "./planner-phase2-handler.js";
 import { explainReport } from "./planner-explain-handler.js";
 import { analyzeProfile } from "./planner-profile-handler.js";
@@ -113,6 +115,37 @@ export function glanceOf(phase2: Phase2Response): Glance | undefined {
     subsectorSource: fitted.subsector.source,
     location: { value: fitted.location.value, source: fitted.location.source },
     budget: fitted.constraints.budget,
+    sources: {
+      target_customer: fitted.target_customer.source,
+      value_proposition: fitted.value_proposition.source,
+      revenue_model: fitted.revenue_model.source,
+      stage: fitted.stage.source,
+      competition: fitted.competition.source,
+    },
+  });
+}
+
+/**
+ * The glance as the run uses it: with an "I don't know" for the budget there is nothing to fit, so the
+ * sentence on how the budget fits is emptied (the range the idea needs stays).
+ */
+export function glanceFor(input: PlannerInput, glance: Glance | undefined): Glance | undefined {
+  if (!glance || !isUnknown(input, "budget") || glance.budget.fits === "") return glance;
+  return { ...glance, budget: { ...glance.budget, fits: "" } };
+}
+
+/**
+ * The clarity of a run, from its glance (the sources of phase 2), its profile, the fixed questions and the
+ * topics answered. Without a glance that carries the sources there is no clarity: the report goes without it.
+ * The first round and the final request read the same fields, so the same data gives the same clarity.
+ */
+export function clarityOf(input: PlannerInput, answers: PlannerAnswer[], profile: Profile, glance?: Glance): Clarity | undefined {
+  if (!glance?.sources) return undefined;
+  return computeClarity({
+    phase2: { subsector: glance.subsectorSource, location: glance.location.source, ...glance.sources },
+    profile: profile.values,
+    unknownInputs: input.unknown ?? [],
+    topics: answers.map(({ topic }) => topic),
   });
 }
 
@@ -129,6 +162,7 @@ export function reportOf(
   phase2?: Phase2Response,
   explanations?: Explanations,
   glance?: Glance,
+  clarity?: Clarity,
 ) {
   return {
     input,
@@ -138,6 +172,7 @@ export function reportOf(
     ...built,
     ...(explanations && { explanations }),
     ...(glance && { glance }),
+    ...(clarity && { clarity }),
   };
 }
 
@@ -189,13 +224,15 @@ export async function runPlanner(
   final: boolean,
   claims: Claims,
   options: PlannerRunOptions,
-  glance?: Glance,
+  sentGlance?: Glance,
 ) {
   const jev = await analyzeWithJev(input, options.signal);
 
   // Final request: the questions are answered, so only the profile is left (no phase 2 in this report)
   if (final) {
+    const glance = glanceFor(input, sentGlance);
     const built = await buildReport(input, jev, answers, claims);
+    const clarity = clarityOf(input, answers, built.profile, glance);
     const explanations = await explainReport(
       { input, answers, validation: built.validation, glance, timeToRevenue: built.profile.values.time_to_revenue },
       options.signal,
@@ -205,7 +242,8 @@ export async function runPlanner(
       ...built,
       ...(explanations && { explanations }),
       ...(glance && { glance }),
-      ...(await keepReport(options, reportOf(input, answers, jev, built, undefined, explanations, glance))),
+      ...(clarity && { clarity }),
+      ...(await keepReport(options, reportOf(input, answers, jev, built, undefined, explanations, glance, clarity))),
     };
   }
 
@@ -218,7 +256,8 @@ export async function runPlanner(
   if (questions.length === 0) {
     const built = await buildReport(input, jev, answers, claimsFromPhase2(phase2), phase2);
     const withPhase2 = { ...phase2, questions };
-    const glance = glanceOf(withPhase2);
+    const glance = glanceFor(input, glanceOf(withPhase2));
+    const clarity = clarityOf(input, answers, built.profile, glance);
     const explanations = await explainReport(
       { input, answers, validation: built.validation, phase2, glance, timeToRevenue: built.profile.values.time_to_revenue },
       options.signal,
@@ -229,7 +268,8 @@ export async function runPlanner(
       ...built,
       ...(explanations && { explanations }),
       ...(glance && { glance }),
-      ...(await keepReport(options, reportOf(input, answers, jev, built, withPhase2, explanations, glance))),
+      ...(clarity && { clarity }),
+      ...(await keepReport(options, reportOf(input, answers, jev, built, withPhase2, explanations, glance, clarity))),
     };
   }
   return {

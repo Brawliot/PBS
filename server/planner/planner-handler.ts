@@ -51,6 +51,9 @@ const JevResponseSchema = z.object({
 
 const JEV_UNEXPECTED_MESSAGE = "The analysis service returned an unexpected response";
 
+/** The four fixed questions (PROFILE_QUESTIONS in script.js) */
+export type InputKey = "budget" | "experience" | "team" | "hours";
+
 /** Payload sent by the index page (see submitIdea in script.js) */
 export interface PlannerInput {
   idea: string;
@@ -58,7 +61,15 @@ export interface PlannerInput {
   experience: number;
   team: number;
   hours: number;
+  /**
+   * The fixed questions answered "I don't know". Each one is no signal: its number is only a placeholder (the
+   * lowest of its range) and every reader must check this list first (see isUnknown). Absent when none is.
+   */
+  unknown?: InputKey[];
 }
+
+/** True when the person answered "I don't know" to this fixed question */
+export const isUnknown = (input: PlannerInput, key: InputKey): boolean => input.unknown?.includes(key) ?? false;
 
 const JEV_TIMEOUT_MS = 30_000;
 
@@ -133,10 +144,10 @@ export const JEV_QUESTIONS: Record<string, JevQuestion> = {
 export function buildState(input: PlannerInput): string {
   return JSON.stringify({
     idea: input.idea,
-    budget_eur: input.budget,
-    experience_years: input.experience,
-    team_size: TEAM_LABELS[input.team] ?? String(input.team),
-    weekly_hours: HOURS_LABELS[input.hours] ?? String(input.hours),
+    budget_eur: isUnknown(input, "budget") ? "unknown" : input.budget,
+    experience_years: isUnknown(input, "experience") ? "unknown" : input.experience,
+    team_size: isUnknown(input, "team") ? "unknown" : (TEAM_LABELS[input.team] ?? String(input.team)),
+    weekly_hours: isUnknown(input, "hours") ? "unknown" : (HOURS_LABELS[input.hours] ?? String(input.hours)),
   });
 }
 

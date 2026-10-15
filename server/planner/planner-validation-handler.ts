@@ -7,7 +7,9 @@
 import {
   buildState,
   callJev,
+  isUnknown,
   type JevQuestion,
+  type InputKey,
   type JevResponse,
   type PlannerInput,
 } from "./planner-handler.js";
@@ -49,6 +51,18 @@ export const CHECKS = {
 export type CheckKey = keyof typeof CHECKS;
 /** The coherence checks, as a list (for the plan, see plan/plan-skeleton.ts) */
 export const CHECK_KEYS = Object.keys(CHECKS) as CheckKey[];
+
+/** The checks that need a fixed answer: an "I don't know" to any of these skips the check (no warning, no task) */
+const CHECK_NEEDS: Partial<Record<CheckKey, InputKey[]>> = {
+  budget_fit: ["budget"],
+  team_fit: ["team", "hours"],
+  experience_fit: ["experience"],
+};
+
+/** The checks asked for this input */
+export function checksFor(input: PlannerInput): CheckKey[] {
+  return CHECK_KEYS.filter((key) => !(CHECK_NEEDS[key] ?? []).some((need) => isUnknown(input, need)));
+}
 
 /** Two levels: small businesses see the groups, larger ones the departments */
 export const GROUPS: { group: string; departments: [name: string, definition: string][] }[] = [
@@ -149,6 +163,8 @@ export function departmentLevel(profile: Profile, input: PlannerInput): 1 | 2 {
   const needed = profile.values.team_requirement;
   if (/large|specialized/i.test(needed)) return 2;
   if (/solo|small/i.test(needed)) return 1;
+  // An "I don't know" for the team is no signal: the groups, as for a small team
+  if (isUnknown(input, "team")) return 1;
   return input.team >= 2 ? 2 : 1;
 }
 
@@ -183,8 +199,8 @@ ${given}
       instructions: `The user's description and answers back up that ${CLAIM_LABELS[key as ClaimKey]} is: "${value}".`,
     };
   }
-  for (const [key, statement] of Object.entries(CHECKS)) {
-    questions[`check_${key}`] = { type: "noul", instructions: statement };
+  for (const key of checksFor(input)) {
+    questions[`check_${key}`] = { type: "noul", instructions: CHECKS[key] };
   }
   for (const { departments } of GROUPS) {
     for (const [name, definition] of departments) {
@@ -202,7 +218,7 @@ ${given}
     const value = score(`claim_${key}`);
     return value !== undefined && value < SUPPORT_MIN;
   });
-  const warnings = (Object.keys(CHECKS) as CheckKey[]).filter((key) => {
+  const warnings = checksFor(input).filter((key) => {
     const value = score(`check_${key}`);
     return value !== undefined && value < CHECK_MIN;
   });

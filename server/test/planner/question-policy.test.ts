@@ -223,3 +223,19 @@ describe("selectQuestions", () => {
     }
   });
 });
+
+describe('questionLimit: an "I don\'t know" is no signal', () => {
+  test("a flagged high budget or full time does not raise the limit", () => {
+    const high = withInput({ budget: 500_000, hours: 3 });
+    assert.equal(questionLimit("developing", high), POLICY.baseByMaturity.developing + 1);
+    assert.equal(questionLimit("developing", { ...high, unknown: ["budget"] }), POLICY.baseByMaturity.developing);
+  });
+
+  test("a flagged budget or hours (their placeholder is 0) never counts as low commitment", () => {
+    const low = withInput({ budget: 0, experience: 0, hours: 0 });
+    assert.equal(questionLimit("developing", low), POLICY.baseByMaturity.developing - 1);
+    assert.equal(questionLimit("developing", { ...low, unknown: ["budget"] }), POLICY.baseByMaturity.developing);
+    assert.equal(questionLimit("developing", { ...low, unknown: ["hours"] }), POLICY.baseByMaturity.developing);
+    assert.equal(questionLimit("developing", { ...low, unknown: ["budget", "experience", "team", "hours"] }), POLICY.baseByMaturity.developing);
+  });
+});

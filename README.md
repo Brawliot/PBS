@@ -148,6 +148,23 @@ Where each piece comes from:
 
 Known limit: a final request takes the glance fields from the browser, so they are the ones of the first round, not checked against the answers. The server only checks their shape and limits. Because the final report keeps no phase 2, a report made through questions shows no Business row after a reload (the row is shown on the live result only).
 
+### Clarity of the report
+
+Under the glance chips the report shows two levels, **Business concept** and **About you**, each Low, Medium or High, with up to three things that are missing. Clarity is not viability: it only measures how well the business and the person are understood. The page says so.
+
+The levels are computed by code (`server/plan/clarity.ts`), never by a model, from what the run already has: where each phase 2 field came from (`stated`, `inferred`, `unknown`), the 15 profile dimensions, the four fixed questions and the topics of the answers. No extra AI call.
+
+- **Weights**: Essential 3, Important 2, Secondary 1. **Source value**: stated 1, inferred 0.5, unknown 0. A pair (a phase 2 field and its profile dimension) takes the best source. A profile dimension has no source: when known it counts as inferred. An answer on the matching topic counts as stated.
+- **Business concept**: what it offers (subsector + `offering_type`), value proposition, target customer (+ `customer_segment`), how it makes money (+ `revenue_model`), where it operates (location) are Essential; how it reaches customers (`acquisition_channel`), what sets it apart (`differentiator`, topic `differentiator`), stage (+ `validation_stage`, topics `validation`/`progress`) are Important; competition is Secondary. `capital_intensity`, `time_to_revenue`, `regulatory_load` and `third_party_dependency` are not counted: they are the model's judgement, not something the person can tell.
+- **About you**: budget, weekly hours, team (fixed questions) and what they can do themselves (`founder_profile`, topic `own_skills`) are Essential; experience and handling other people's money (`money_handling`, topic `money_handling`) are Important; fixed deadline (`deadline_rigidity`, topic `deadline`) and existing assets (topic `existing_assets`) are Secondary. A fixed question answered counts as stated; "I don't know" as unknown.
+- **Thresholds** (initial, to calibrate with real reports): concept Low < 40 %, Medium 40–69 %, High ≥ 70 %; person Low < 60 %, Medium 60–84 %, High ≥ 85 % (the four fixed answers alone give about 61 %). An unknown Essential keeps the level below High.
+
+Weights, source values and thresholds are the constants of `CLARITY` in `server/plan/clarity.ts`; change `CLARITY_VERSION` with them. The report keeps the result as the optional `clarity` field (version, and per metric level, score and missing). A final request has no phase 2 on the server, so the browser sends the sources back inside the glance (`glance.sources`); a glance without them (or one that fails its schema) gives a report without clarity, and the page shows no block. Reports kept before this have none.
+
+### "I don't know" in the four fixed questions
+
+Each fixed question offers "I don't know" (clicked or typed); it counts as answered and Back can change it. The request then carries `unknown` (a list of `budget`, `experience`, `team`, `hours`) and needs no number for those keys; a number sent for a flagged key is ignored and the lowest of its range is kept as a placeholder. Every reader checks the flag (`isUnknown` in `server/planner/planner-handler.ts`): the models see `unknown`, the question limit takes no signal from it, the coherence checks that need it are not asked (`budget_fit`, `team_fit` with team or hours, `experience_fit`), so no warning or plan task comes from them, `departmentLevel` falls back to the groups, the "fits" sentence of the budget is emptied, and the page shows no budget mark and no "You offer" line. With nothing flagged everything works as before.
+
 ## Accounts and sessions
 
 Sign-up, sign-in and sign-out are real. There is no email verification and no password recovery yet, and the "Forgot password?" link and the Google buttons do nothing (see the limitations). Each route takes a JSON body with exactly the fields listed, and every error is `{ "error": "...", "code": "..." }` with a fixed text.
@@ -185,6 +202,7 @@ Request body (JSON):
 | `hours` | number | 0 to 3 (Under 10 h, 10-20 h, 30+ h, Full time). |
 | `answers` | array | Optional. Up to 12 items. Each item has `topic`, `question` and `answer`, all non-empty strings of at most 1000 characters. |
 | `final` | boolean | Optional. `true` returns the profile and validation. |
+| `unknown` | array | Optional. Distinct keys among `budget`, `experience`, `team`, `hours` answered "I don't know". Those numbers are then not required, and ignored if sent. |
 | `analysis` | object | Optional. Phase 2 claims (`subsector`, `location`, `target_customer`, `value_proposition`, `revenue_model`, `stage`, `competition`). Text is trimmed and cut to 300 characters; `unknown` and empty values are dropped. |
 
 The request body is limited to about 100,000 characters.

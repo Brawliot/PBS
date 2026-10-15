@@ -44,6 +44,7 @@ const serverGlance: Glance = {
   subsectorSource: "stated",
   location: { value: "Madrid", source: "inferred" },
   budget,
+  sources: { target_customer: "inferred", value_proposition: "stated", revenue_model: "unknown", stage: "stated", competition: "stated" },
 };
 
 /** Mocks every outside call: Jev, the explanations, and phase 2 with the given budget */

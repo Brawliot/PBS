@@ -236,3 +236,46 @@ describe("readBody", () => {
     await assert.rejects(pending, { message: "connection reset" });
   });
 });
+
+describe('parsePlannerRequest: "I don\'t know" in the fixed questions', () => {
+  test("no list: every number is required and kept, and the input has no unknown key", () => {
+    const { input } = parse({ budget: 25_000 });
+    assert.equal(input.budget, 25_000);
+    assert.equal("unknown" in input, false);
+    assertHttpError(() => parse({ budget: undefined }), 400, "budget must be a number between 0 and 1000000");
+  });
+
+  test("a flagged input needs no number: the lowest of its range stands in", () => {
+    const body = { idea: "A bakery", experience: 2, hours: 1, unknown: ["team", "budget"] };
+    const { input } = parsePlannerRequest(JSON.stringify(body));
+    assert.deepEqual(input, { idea: "A bakery", budget: 0, experience: 2, team: 0, hours: 1, unknown: ["budget", "team"] });
+  });
+
+  test("a number sent for a flagged input is ignored, even out of range", () => {
+    const { input } = parse({ budget: 50_000, hours: 99, unknown: ["budget", "hours"] });
+    assert.equal(input.budget, RANGES.budget[0]);
+    assert.equal(input.hours, RANGES.hours[0]);
+  });
+
+  test("an empty list is the same as none", () => {
+    assert.equal("unknown" in parse({ unknown: [] }).input, false);
+  });
+
+  test("the inputs that are not flagged keep their checks", () => {
+    assertHttpError(() => parse({ unknown: ["budget"], hours: 4 }), 400, "hours must be a number between 0 and 3");
+  });
+
+  const invalid: [string, unknown][] = [
+    ["a string", "budget"],
+    ["an unknown key", ["budget", "money"]],
+    ["a repeated key", ["team", "team"]],
+    ["a non-string item", [1]],
+    ["an object", { budget: true }],
+    ["null", null],
+  ];
+  for (const [name, value] of invalid) {
+    test(`${name} is refused with 400`, () => {
+      assertHttpError(() => parse({ unknown: value }), 400, "unknown must be a list of distinct keys among budget, experience, team, hours");
+    });
+  }
+});

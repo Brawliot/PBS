@@ -9,6 +9,8 @@ import {
   analyzeValidation,
   cleanClaims,
   departmentLevel,
+  checksFor,
+  CHECK_KEYS,
   type Claims,
 } from "../../planner/planner-validation-handler.js";
 import type { JevResponse, PlannerInput } from "../../planner/planner-handler.js";
@@ -82,6 +84,22 @@ describe("cleanClaims", () => {
 });
 
 describe("departmentLevel", () => {
+  test('an "I don\'t know" for the team falls back to the groups, whatever its placeholder', () => {
+    const fallback = profileNeeding("Not specified");
+    assert.equal(departmentLevel(fallback, { ...input, team: 3, unknown: ["team"] }), 1);
+    assert.equal(departmentLevel(profileNeeding("Large team"), { ...input, unknown: ["team"] }), 2);
+  });
+
+  test("checksFor skips the checks whose fixed answer is unknown, and keeps all of them otherwise", () => {
+    assert.deepEqual(checksFor(input), CHECK_KEYS);
+    assert.deepEqual(checksFor({ ...input, unknown: ["budget"] }), CHECK_KEYS.filter((key) => key !== "budget_fit"));
+    assert.deepEqual(checksFor({ ...input, unknown: ["hours"] }), CHECK_KEYS.filter((key) => key !== "team_fit"));
+    assert.deepEqual(
+      checksFor({ ...input, unknown: ["experience", "team"] }),
+      CHECK_KEYS.filter((key) => key !== "experience_fit" && key !== "team_fit"),
+    );
+  });
+
   test("large or specialized teams need level 2", () => {
     assert.equal(departmentLevel(profileNeeding("Large team"), input), 2);
     assert.equal(departmentLevel(profileNeeding("Specialized profiles required"), input), 2);

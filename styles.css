@@ -409,6 +409,8 @@ body.is-loading .search {
 /* Footer: the message (or the counter), then Back and Cancel */
 .question__foot { display: flex; align-items: center; gap: 16px; min-height: 22px; font-size: 14px; color: var(--gray-text); }
 .question__note { flex: 1; color: var(--danger); }
+/* The same place, for a note that is not an error (an "I don't know" that can be changed) */
+.question__note.is-hint { color: var(--gray-text); }
 .question__note:empty, .question__note[hidden] { display: none; }
 .question__count { margin-left: auto; font-variant-numeric: tabular-nums; }
 .question__link {
@@ -553,6 +555,20 @@ body.has-result .hero { display: none; }
 .needs__grid dt { font-size: 12px; color: var(--gray-text); }
 .needs__grid dd { margin: 2px 0 0; font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
 .needs__grid small { display: block; margin-top: 1px; font-size: 12px; font-weight: 400; color: var(--gray-text); letter-spacing: 0; }
+
+/* Clarity: how well the business and the person are understood (a level and what is missing), never viability.
+   Computed by the server's rules (server/plan/clarity.ts); drawn only when the report has it (script.js showClarity). */
+.clarity { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border: 1px solid var(--border-strong); border-radius: 10px; }
+.clarity__rows { display: flex; flex-direction: column; gap: 10px; margin: 0; }
+.clarity__row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 16px; }
+.clarity__row dd { margin: 0; text-align: right; min-width: 0; }
+.clarity__level { font-weight: 800; letter-spacing: -0.01em; }
+.clarity__row small { display: block; margin-top: 2px; font-size: 12px; color: var(--gray-text); overflow-wrap: anywhere; }
+.clarity__note { font-size: 14px; color: var(--gray-text); }
+@media (max-width: 480px) {
+  .clarity__row { flex-direction: column; gap: 2px; }
+  .clarity__row dd { text-align: left; }
+}
 
 /* The line under the report: what it is based on, and what comes next */
 .glance__next { font-size: 14px; color: var(--gray-text); }

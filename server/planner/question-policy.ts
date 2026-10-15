@@ -3,7 +3,7 @@
  * All the numbers live in POLICY so they are easy to tune once there is real data.
  */
 
-import type { PlannerInput } from "./planner-handler.js";
+import { isUnknown, type PlannerInput } from "./planner-handler.js";
 import type { PlannerAnswer, Phase2Response, Question } from "./planner-phase2-handler.js";
 
 export const POLICY = {
@@ -32,14 +32,15 @@ const TOPIC_PRIORITY = [
   "existing_assets",
 ];
 
-/** Maximum number of questions for the whole session */
+/** Maximum number of questions for the whole session. An "I don't know" is no signal, high or low. */
 export function questionLimit(maturity: Phase2Response["maturity"], input: PlannerInput): number {
+  const known = (key: "budget" | "experience" | "hours") => !isUnknown(input, key);
   const signals =
-    Number(input.hours >= POLICY.fullTimeHours) +
-    Number(input.budget >= POLICY.highBudget) +
-    Number(input.experience >= POLICY.highExperience);
+    Number(known("hours") && input.hours >= POLICY.fullTimeHours) +
+    Number(known("budget") && input.budget >= POLICY.highBudget) +
+    Number(known("experience") && input.experience >= POLICY.highExperience);
   const lowCommitment =
-    signals === 0 && input.hours <= POLICY.lowHours && input.budget < POLICY.lowBudget;
+    signals === 0 && known("hours") && input.hours <= POLICY.lowHours && known("budget") && input.budget < POLICY.lowBudget;
   const adjustment = signals >= 2 ? 1 : lowCommitment ? -1 : 0;
 
   // An unknown maturity falls back to "developing" instead of producing NaN

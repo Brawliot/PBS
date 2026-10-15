@@ -7,7 +7,7 @@
 import { z } from "zod";
 import { summarizeIssues } from "../schema-summary.js";
 import { logProviderFailure } from "../log.js";
-import { buildState, type JevResponse, type PlannerInput } from "./planner-handler.js";
+import { buildState, isUnknown, type JevResponse, type PlannerInput } from "./planner-handler.js";
 
 type Source = "stated" | "inferred" | "unknown";
 type Maturity = "vague" | "developing" | "advanced";
@@ -277,7 +277,9 @@ ${given}
 
 Rate the maturity, fill the sections (take the answers into account) and write the
 questions that are still worth asking. For constraints, "budget" is the range the idea
-needs (null when it cannot be estimated) and "fits" compares it to the budget given.`;
+needs (null when it cannot be estimated) and "fits" compares it to the budget given.${
+    isUnknown(input, "budget") ? `\nThe person does not know their budget yet: leave "fits" empty.` : ""
+  }`;
 }
 
 export async function analyzePhase2(

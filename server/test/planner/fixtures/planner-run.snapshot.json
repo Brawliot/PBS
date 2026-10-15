@@ -203,8 +203,8 @@
       "level": 1
     },
     "explanations": {
-      "areaReasons": [],
       "warningReasons": [],
+      "areaReasons": [],
       "timeToOpen": {
         "min": 3,
         "max": 5,
@@ -239,6 +239,34 @@
         "max": null,
         "currency": "EUR",
         "fits": "Enough for a first version"
+      },
+      "sources": {
+        "target_customer": "inferred",
+        "value_proposition": "stated",
+        "revenue_model": "unknown",
+        "stage": "stated",
+        "competition": "stated"
+      }
+    },
+    "clarity": {
+      "version": 1,
+      "concept": {
+        "level": "medium",
+        "score": 61,
+        "missing": [
+          "How it makes money",
+          "How it reaches customers",
+          "What sets it apart"
+        ]
+      },
+      "person": {
+        "level": "medium",
+        "score": 61,
+        "missing": [
+          "What you can do yourself",
+          "Handling other people's money",
+          "Fixed deadline"
+        ]
       }
     }
   },

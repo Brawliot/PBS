@@ -102,7 +102,15 @@ const storedReport = (posts, result, glance) => {
   const body = posts.at(-1);
   const { reportId, glance: _ignored, ...parts } = result;
   return {
-    input: { idea: body.idea, budget: body.budget, experience: body.experience, team: body.team, hours: body.hours },
+    // As the server keeps it: an "I don't know" has the lowest number of its range as a placeholder
+    input: {
+      idea: body.idea,
+      budget: body.budget ?? 0,
+      experience: body.experience ?? 0,
+      team: body.team ?? 0,
+      hours: body.hours ?? 0,
+      ...(body.unknown && { unknown: body.unknown }),
+    },
     answers: body.answers,
     ...parts,
     ...(glance && { glance }),
@@ -114,7 +122,14 @@ const glanceOf = (budget, location = { value: "Madrid", source: "stated" }) => (
   subsectorSource: "stated",
   location,
   budget,
+  sources: { target_customer: "inferred", value_proposition: "stated", revenue_model: "unknown", stage: "stated", competition: "stated" },
 });
+/** The clarity the server computes (server/plan/clarity.ts); the page only draws it */
+const CLARITY = {
+  version: 1,
+  concept: { level: "medium", score: 61, missing: ["How it makes money", "How it reaches customers", "What sets it apart"] },
+  person: { level: "medium", score: 61, missing: ["What you can do yourself", "Handling other people's money", "Fixed deadline"] },
+};
 
 /**
  * Answers the planner and the saved report. `results` answers each job in order: a function gets the job's body
@@ -190,6 +205,9 @@ async function topOfReport(page) {
             small: [...cell.querySelectorAll("small")].map((small) => small.textContent),
           }))
         : null,
+      clarity: shown("result-clarity")
+        ? [...document.querySelectorAll("#result-clarity .clarity__row")].map((row) => row.innerText.replace(/\s+/g, " ").trim())
+        : null,
       next: text("result-next"),
     };
   });
@@ -205,9 +223,9 @@ async function scenarioFinalRequest(browser) {
     results: [
       firstRound(eur),
       // The final request: the server keeps the glance it was sent (the mock echoes it, as the server does)
-      (body) => ({ ...withProfile(snapshot.final), reportId: REPORT_ID, glance: body.glance }),
+      (body) => ({ ...withProfile(snapshot.final), reportId: REPORT_ID, glance: body.glance, clarity: CLARITY }),
     ],
-    report: () => storedReport(posts, withProfile(snapshot.final), posts.at(-1).glance),
+    report: () => ({ ...storedReport(posts, withProfile(snapshot.final), posts.at(-1).glance), clarity: CLARITY }),
   });
   await fillAndSend(page);
   await page.waitForSelector("#question.is-open", { timeout: 20_000 });
@@ -228,6 +246,14 @@ async function scenarioFinalRequest(browser) {
   assert.equal(live.next, "From your idea and 1 answer. Next: phases, departments, tasks, calendar.");
   // The fixed questions were answered with their largest values: team 3 is "Large (10+)"
   assert.deepEqual(live.needs, NEEDS_FOR_TEAM_LARGE, "the four needs, and what the person offers under Team");
+  assert.deepEqual(live.clarity, [
+    "Business concept Medium Missing: How it makes money, How it reaches customers, What sets it apart",
+    "About you Medium Missing: What you can do yourself, Handling other people's money, Fixed deadline",
+  ]);
+  assert.equal(
+    await page.textContent(".clarity__note"),
+    "Clarity is not viability: it only measures how well we understand the business and you.",
+  );
 
   await page.reload();
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
@@ -274,7 +300,9 @@ async function scenarioNoRange(browser) {
   const page = await context.newPage();
   await watch(page, "no range");
   const glance = glanceOf({ min: null, max: null, currency: "", fits: "Not enough information to compare" }, { value: "", source: "unknown" });
-  await mockApi(page, { results: [{ ...withProfile(snapshot.noQuestions), reportId: REPORT_ID, glance }] });
+  // A report kept before the clarity existed: the block is not drawn
+  const { clarity: _old, ...older } = snapshot.noQuestions;
+  await mockApi(page, { results: [{ ...withProfile(older), reportId: REPORT_ID, glance }] });
   await fillAndSend(page);
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
   const live = await topOfReport(page);
@@ -283,6 +311,7 @@ async function scenarioNoRange(browser) {
   assert.equal(live.budget.bar, null, "no range, no bar");
   assert.equal(live.budget.fits, "Not enough information to compare");
   assert.deepEqual(live.chips, ["Idea: In development", "Stage: Idea only"], "the location has no value, so it has no chip");
+  assert.equal(live.clarity, null, "a report without clarity shows no clarity block");
   assertNoProblems();
   await context.close();
   return "no range: only the fit text shows, and the location chip is left out";
@@ -296,7 +325,90 @@ const NEEDS_FOR_TEAM_LARGE = [
   { term: "Regulation", value: "Heavy", small: ["health, finance, food"] },
 ];
 
-const scenarios = [scenarioFinalRequest, scenarioNoQuestions, scenarioNoRange];
+/**
+ * "I don't know" in the fixed questions, at phone width: the option counts as answered, Back says it can be changed,
+ * the request carries the unknown list and no number for it, and the result shows no budget mark and no team offer.
+ */
+async function scenarioDontKnow(browser) {
+  const context = await browser.newContext({ viewport: { width: 390, height: 844 }, colorScheme: SCHEME });
+  const page = await context.newPage();
+  await watch(page, "I don't know");
+  const glance = { ...glanceOf(eur), budget: { ...eur, fits: "" } };
+  const clarity = {
+    version: 1,
+    concept: CLARITY.concept,
+    person: { level: "low", score: 44, missing: ["Budget", "Team", "What you can do yourself"] },
+  };
+  const posts = await mockApi(page, {
+    results: [{ ...withProfile(snapshot.noQuestions), reportId: REPORT_ID, glance, clarity }],
+    report: () => ({ ...storedReport(posts, withProfile(snapshot.noQuestions), glance), clarity }),
+  });
+  await page.goto(`${BASE}/`);
+  await page.fill(".search__input", "Bakery delivery");
+  await page.click(".search__submit");
+  const at = (number) =>
+    page.waitForFunction(
+      (n) => document.getElementById("question").classList.contains("is-open")
+        && document.getElementById("question-progress").textContent.startsWith(`Question ${n} of`),
+      number,
+      { timeout: 20_000 },
+    );
+
+  // Budget: the "I don't know" option, sent with the arrow
+  await at(1);
+  const options = await page.$$eval(".question__option", (buttons) => buttons.map((b) => b.textContent));
+  assert.equal(options.at(-1), "I don't know", "every fixed question offers I don't know");
+  await page.click('.question__option:has-text("I don\'t know")');
+  await page.click(".question__submit");
+  // Back to it: the answer is in the field, marked, with a note that it can be changed
+  await at(2);
+  await page.click("#question-back");
+  await at(1);
+  assert.equal(await page.inputValue(".question__input"), "I don't know");
+  assert.match(await page.textContent("#question-note"), /You can change it/);
+  assert.equal(await page.getAttribute(".question__input", "aria-invalid"), null, "the note is not an error");
+  await shoot(page, "dont-know-back");
+  await page.press(".question__input", "Enter");
+  await at(2);
+  await page.fill(".question__input", "3");
+  await page.press(".question__input", "Enter");
+  // Team: typed, not clicked
+  await at(3);
+  await page.fill(".question__input", "i dont know");
+  await page.press(".question__input", "Enter");
+  await at(4);
+  await page.fill(".question__input", "Full time");
+  await page.press(".question__input", "Enter");
+  await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
+
+  const body = posts[0];
+  assert.deepEqual(body.unknown, ["budget", "team"]);
+  assert.equal("budget" in body, false, "no number for an unknown budget");
+  assert.equal("team" in body, false, "no number for an unknown team");
+  assert.equal(body.experience, 3);
+  assert.equal(body.hours, 3);
+
+  const live = await topOfReport(page);
+  await shoot(page, "dont-know-result");
+  assert.equal(live.budget.bar.you, null, "no mark for a budget the person does not know");
+  assert.equal(live.budget.fits, null, "no sentence on how an unknown budget fits");
+  assert.deepEqual(live.needs.find(({ term }) => term === "Team").small, [], "no team offer when the team is unknown");
+  assert.deepEqual(live.clarity, [
+    "Business concept Medium Missing: How it makes money, How it reaches customers, What sets it apart",
+    "About you Low Missing: Budget, Team, What you can do yourself",
+  ]);
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  assert.ok(overflow <= 0, `no horizontal scroll at phone width (${overflow}px)`);
+
+  await page.reload();
+  await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
+  assert.deepEqual(await topOfReport(page), live, "after a reload the same, with the placeholders of the saved report not shown");
+  assertNoProblems();
+  await context.close();
+  return "I don't know: counts as answered, Back can change it, the request flags it, and the result leaves it out";
+}
+
+const scenarios = [scenarioFinalRequest, scenarioNoQuestions, scenarioNoRange, scenarioDontKnow];
 for (const scenario of scenarios) {
   try {
     console.log(`ok - ${await scenario(browser)}`);

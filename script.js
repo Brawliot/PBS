@@ -328,12 +328,23 @@
       error: 'Write a number of hours, for example 15.',
     },
   ];
-  // The answers to the fixed questions, as the numbers the server takes ({ budget, experience, team, hours })
+  // "I don't know" is offered on each fixed question and counts as answered: the server gets the key in `unknown`
+  // and no number for it (see parsePlannerRequest). Typed or clicked, the same words mean the same.
+  const DONT_KNOW = "I don't know";
+  const isDontKnow = (text) => /^(i\s*don[’']?t\s*know|not sure|no s[eé])\.?$/i.test(text.trim());
+  // The answers to the fixed questions, as the numbers the server takes ({ budget, experience, team, hours });
+  // null for an "I don't know"
   let profileInput = {};
   // The fixed questions answered so far, with the text typed, in order (for Back)
   let profileAsked = [];
   const MODEL_QUESTIONS = 4; // most the server asks after them (MAX_QUESTIONS in planner-phase2-handler.ts)
-  const profileComplete = () => PROFILE_QUESTIONS.every(({ key }) => typeof profileInput[key] === 'number');
+  const profileComplete = () => PROFILE_QUESTIONS.every(({ key }) => Object.hasOwn(profileInput, key));
+  // The fixed answers as the request takes them: the numbers known, and the keys answered "I don't know"
+  const profilePayload = () => {
+    const unknown = PROFILE_QUESTIONS.map(({ key }) => key).filter((key) => profileInput[key] === null);
+    const numbers = Object.fromEntries(Object.entries(profileInput).filter(([, value]) => value !== null));
+    return { ...numbers, ...(unknown.length && { unknown }) };
+  };
 
   // Example ideas: a click fills the idea field, as if the person had typed it
   document.querySelectorAll('.hints__chip').forEach((chip) => {
@@ -567,6 +578,9 @@
       currency: phase2.constraints?.budget?.currency,
       fits: phase2.constraints?.budget?.fits,
     },
+    // Where the other fields came from, for the clarity of the report
+    sources: Object.fromEntries(['target_customer', 'value_proposition', 'revenue_model', 'stage', 'competition']
+      .map((key) => [key, phase2[key]?.source])),
   };
 
   const resetFlow = () => {
@@ -612,7 +626,7 @@
   const submitIdea = async () => {
     const input = {
       idea: idea.value.trim(),
-      ...profileInput,
+      ...profilePayload(),
     };
     const final = answers.length > 0;
     const payload = {
@@ -629,6 +643,7 @@
     let validation = null;
     let explanations = null;
     let glance = null;
+    let clarity = null;
     let error = null;
 
     hideSubmitError();
@@ -647,6 +662,7 @@
       validation = result.validation ?? null;
       explanations = result.explanations ?? null;
       glance = result.glance ?? null;
+      clarity = result.clarity ?? null;
       if (profile) reportId = result.reportId ?? null;
       // The browser keeps only the report's id, in this history entry: going back shows the report again
       if (profile && reportId) history.replaceState({ reportId }, '');
@@ -679,6 +695,7 @@
     } else {
       await revealResult(analysis, profile, validation, explanations, {
         glance,
+        clarity,
         answers: answers.length,
         budget: input.budget,
         team: input.team,
@@ -787,6 +804,20 @@
     if (stage && stage !== NOT_DEFINED) addChip('Stage', stage);
     if (glance?.location.value) addChip('Location', glance.location.value, glance.location.source);
     chips.hidden = !chips.children.length;
+  };
+
+  // Clarity: two levels with what is missing (at most three each, from the server). Nothing without it (old reports).
+  const CLARITY_LEVELS = { low: 'Low', medium: 'Medium', high: 'High' };
+  const showClarity = (clarity) => {
+    const box = document.getElementById('result-clarity');
+    box.hidden = !clarity;
+    if (!clarity) return;
+    [['concept', clarity.concept], ['person', clarity.person]].forEach(([name, metric]) => {
+      document.getElementById(`result-clarity-${name}`).textContent = CLARITY_LEVELS[metric.level] ?? '';
+      const missing = document.getElementById(`result-clarity-${name}-missing`);
+      missing.textContent = metric.missing.length ? `Missing: ${metric.missing.slice(0, 3).join(', ')}` : '';
+      missing.hidden = !metric.missing.length;
+    });
   };
 
   // The bar is drawn only with both ends of the range; the mark of the person's budget only for dollars
@@ -1063,6 +1094,7 @@
     // The top of the report: the chips, the budget and what the business asks, then the line about the basis
     const glance = view.glance ?? null;
     showChips(profile, glance);
+    showClarity(view.clarity ?? null);
     showBudget(glance, view.budget);
     showCosts(explanations);
     showNeeds(profile, view.team);
@@ -1222,9 +1254,17 @@
 
   // The note under the field: one message at a time (empty answer, limit reached)
   const showNote = (message) => {
+    questionNote.classList.remove('is-hint');
     questionNote.textContent = message;
     questionNote.hidden = !message;
     answer.toggleAttribute('aria-invalid', !!message);
+  };
+
+  // A quiet note in the same place, that is not an error (the field stays valid)
+  const showHint = (message) => {
+    showNote(message);
+    answer.removeAttribute('aria-invalid');
+    questionNote.classList.add('is-hint');
   };
 
   // Keeps the counter, the Back button and the option marks in step with the field
@@ -1244,8 +1284,10 @@
     questionProgress.textContent = progress;
 
     optionsContainer.replaceChildren();
+    // The fixed questions also take "I don't know": it counts as answered, and Back can change it
+    if (current?.fixed) options = [...options.slice(0, 4), DONT_KNOW];
     if (options.length > 0) {
-      options.slice(0, 4).forEach((option) => {
+      options.slice(0, current?.fixed ? 5 : 4).forEach((option) => {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'question__option';
@@ -1301,14 +1343,15 @@
       return;
     }
     if (current.fixed) {
-      const value = current.parse(text);
-      if (value === null) {
+      const unsure = isDontKnow(text);
+      const value = unsure ? null : current.parse(text);
+      if (value === null && !unsure) {
         showNote(current.error);
         answer.focus();
         return;
       }
-      profileInput[current.key] = value;
-      profileAsked.push({ question: current, text });
+      profileInput[current.key] = value; // null for "I don't know"
+      profileAsked.push({ question: current, text: unsure ? DONT_KNOW : text });
       current = null;
       answer.value = '';
       if (nextQuestion()) return;
@@ -1337,6 +1380,8 @@
       nextQuestion();
       answer.value = previous.text;
       refreshQuestionFoot();
+      // An "I don't know" is not final: say so where the answer can be changed
+      if (previous.text === DONT_KNOW) showHint('You said you don\u2019t know. You can change it now, or keep it.');
       return;
     }
     if (!answers.length) return;
@@ -1422,9 +1467,11 @@
       // The same view as the reveal: the glance, the answers given, and the budget and team of the form
       showResult(report.phase2, report.profile, report.validation, report.explanations, {
         glance: report.glance,
+        clarity: report.clarity,
         answers: report.answers.length,
-        budget: report.input.budget,
-        team: report.input.team,
+        // An "I don't know" has only a placeholder number: it is not shown as the person's budget or team
+        budget: report.input.unknown?.includes('budget') ? undefined : report.input.budget,
+        team: report.input.unknown?.includes('team') ? undefined : report.input.team,
       });
     } catch {
       history.replaceState(null, '');

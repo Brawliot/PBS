@@ -11,12 +11,13 @@
  */
 
 import { z } from "zod";
-import { RANGES, MAX_ANSWERS, MAX_IDEA, MAX_TEXT } from "../request.js";
+import { RANGES, INPUT_KEYS, MAX_ANSWERS, MAX_IDEA, MAX_TEXT } from "../request.js";
 import { CLAIM_KEYS } from "../planner/planner-validation-handler.js";
 import { CHECK_KEYS, GROUPS } from "../planner/planner-validation-handler.js";
 import { REPORT_TEMPLATES } from "../planner/report-templates.js";
 import { DIMENSION_KEYS, DIMENSION_OPTIONS } from "../planner/planner-profile-handler.js";
 import { GlanceSchema } from "./glance.js";
+import { ClaritySchema } from "./clarity.js";
 import {
   MAX_CURRENCY,
   MAX_EXPLAINED_AREAS,
@@ -62,6 +63,12 @@ const InputSchema = z.strictObject({
   experience: num(RANGES.experience[0], RANGES.experience[1]),
   team: num(RANGES.team[0], RANGES.team[1]),
   hours: num(RANGES.hours[0], RANGES.hours[1]),
+  /** The fixed questions answered "I don't know" (their number is a placeholder). Optional: older reports have none. */
+  unknown: z
+    .array(z.enum(INPUT_KEYS as [string, ...string[]]))
+    .max(INPUT_KEYS.length)
+    .refine((keys) => new Set(keys).size === keys.length, "keys repeat")
+    .optional(),
 });
 
 // Same limits as the request (request.ts parseAnswers): a valid answer is always a valid report answer
@@ -219,6 +226,8 @@ export const ReportSchema = z.strictObject({
   explanations: ExplanationsSchema.optional(),
   /** The glance at the top of the report (glance.ts). Optional: reports kept before it have none. */
   glance: GlanceSchema.optional(),
+  /** The two clarity metrics (clarity.ts). Optional: reports kept before them, or without a glance, have none. */
+  clarity: ClaritySchema.optional(),
 });
 
 export type Report = z.infer<typeof ReportSchema>;

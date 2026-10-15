@@ -19,7 +19,7 @@ import {
 import { MAX_COST_ITEMS, MAX_COST_LABEL, MAX_EXPLAINED_AREAS, MAX_EXPLAINED_WARNINGS, MAX_EXPLANATION_REASON, TEMPLATE_PICKS } from "../plan/report-limits.js";
 import type { Glance } from "../plan/glance.js";
 import { REPORT_TEMPLATES } from "./report-templates.js";
-import { buildState, type PlannerInput } from "./planner-handler.js";
+import { buildState, isUnknown, type PlannerInput } from "./planner-handler.js";
 import { ChatCompletionSchema, escapeTags, type Phase2Response, type PlannerAnswer } from "./planner-phase2-handler.js";
 import { CHECKS, type CheckKey, type Validation } from "./planner-validation-handler.js";
 
@@ -154,7 +154,7 @@ function buildPrompt({ input, answers, phase2, glance, timeToRevenue }: ExplainI
     ? `
 ANALYSIS OF THE IDEA:
 <analysis>
-Budget: ${escapeTags(phase2.constraints.budget.fits)}
+Budget: ${isUnknown(input, "budget") ? "not given by the person" : escapeTags(phase2.constraints.budget.fits)}
 Risks: ${escapeTags(phase2.constraints.risks.join("; ") || "none listed")}
 Assumptions: ${escapeTags(phase2.constraints.assumptions.join("; ") || "none listed")}
 </analysis>

@@ -75,3 +75,23 @@ describe("parsePlannerRequest: the glance", () => {
     });
   }
 });
+
+describe("parsePlannerRequest: the sources of the glance", () => {
+  const sources = { target_customer: "inferred", value_proposition: "stated", revenue_model: "unknown", stage: "stated", competition: "unknown" };
+
+  test("a glance with valid sources keeps them", () => {
+    assert.deepEqual(withGlance({ ...glance, sources }).glance, { ...glance, sources });
+  });
+
+  const invalid: [string, unknown][] = [
+    ["an unknown source", { ...sources, stage: "guessed" }],
+    ["a missing field", { ...sources, competition: undefined }],
+    ["an extra field", { ...sources, location: "stated" }],
+    ["a list", ["stated"]],
+  ];
+  for (const [name, value] of invalid) {
+    test(`sources with ${name} drop the whole glance`, () => {
+      assert.equal("glance" in withGlance({ ...glance, sources: value }), false);
+    });
+  }
+});
