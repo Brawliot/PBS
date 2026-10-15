@@ -3,7 +3,7 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { runPlanner } from "../../planner/planner-run.js";
 import { InMemoryReportRepository } from "../../plan/report-repository-memory.js";
-import { DEFAULT_WHY } from "../../plan/checks.js";
+import { DEFAULT_RISK, DEFAULT_WHY } from "../../plan/diagnosis-text.js";
 import { ReportStoreError, type ReportRepository } from "../../plan/report-repository.js";
 import { REASONLESS_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, reportWithoutQuestions, silenceConsoleError } from "./helpers.js";
 import "./helpers.js";
@@ -66,15 +66,16 @@ describe("runPlanner keeps the report of the runs that end with one", () => {
       explanations: REASONLESS_EXPLANATIONS,
       diagnosis: {
         idea: input.idea,
-        // Jev's reply has no answer for the four checks, so they are watch; money has no range (no glance): watch
+        // Jev's reply has no answer for the four checks, so they are watch; money has no range (no glance): watch.
+        // The model's text is not usable here (its reply is the phase 2 one), so every part keeps its default.
         checks: [
-          { key: "concept", status: "watch", why: DEFAULT_WHY.watch, estimated: true, decidedBy: "jev" },
-          { key: "location", status: "watch", why: DEFAULT_WHY.watch, estimated: true, decidedBy: "jev" },
-          { key: "money", status: "watch", why: DEFAULT_WHY.watch, estimated: true, decidedBy: "rule" },
-          { key: "experience", status: "watch", why: DEFAULT_WHY.watch, estimated: true, decidedBy: "jev" },
-          { key: "competition", status: "watch", why: DEFAULT_WHY.watch, estimated: true, decidedBy: "jev" },
+          { key: "concept", status: "watch", why: DEFAULT_WHY.concept.watch, estimated: true, decidedBy: "jev" },
+          { key: "location", status: "watch", why: DEFAULT_WHY.location.watch, estimated: true, decidedBy: "jev" },
+          { key: "money", status: "watch", why: DEFAULT_WHY.money.watch, estimated: true, decidedBy: "rule" },
+          { key: "experience", status: "watch", why: DEFAULT_WHY.experience.watch, estimated: true, decidedBy: "jev" },
+          { key: "competition", status: "watch", why: DEFAULT_WHY.competition.watch, estimated: true, decidedBy: "jev" },
         ],
-        risks: ["Risks are not analysed yet."],
+        risks: [DEFAULT_RISK.concept, DEFAULT_RISK.location, DEFAULT_RISK.money],
         split: { mando: [], you: [], outsource: [] },
       },
     });

@@ -16,12 +16,12 @@ import type { ReportRepository } from "../plan/report-repository.js";
 import type { Diagnosis, Explanations, Report } from "../plan/report.js";
 import { parseGlance, type Glance } from "../plan/glance.js";
 import { buildChecks } from "../plan/checks.js";
+import { applyDiagnosisText, baseDiagnosis } from "../plan/diagnosis-text.js";
 import { computeClarity, type Clarity } from "../plan/clarity.js";
 import { buildExecution } from "../plan/execution.js";
 import type { Profile } from "./planner-profile-handler.js";
 import {
   MAX_CURRENCY,
-  MAX_DIAGNOSIS_IDEA,
   MAX_PHASE2_LIST,
   MAX_PHASE2_OPTIONS,
   MAX_PHASE2_QUESTIONS,
@@ -32,7 +32,7 @@ import {
 import type { JevResponse, PlannerInput } from "./planner-handler.js";
 import { analyzeWithJev, isUnknown } from "./planner-handler.js";
 import { analyzePhase2, type PlannerAnswer } from "./planner-phase2-handler.js";
-import { explainReport } from "./planner-explain-handler.js";
+import { explainDiagnosis, explainReport } from "./planner-explain-handler.js";
 import { analyzeProfile } from "./planner-profile-handler.js";
 import { selectQuestions } from "./question-policy.js";
 import {
@@ -187,26 +187,20 @@ export function reportOf(
   };
 }
 
-/** Until the risks and the split are worked out, the diagnosis says so in its one risk and keeps its lists empty */
-const PROVISIONAL_RISK = "Risks are not analysed yet.";
-
 /**
- * The diagnosis of a final run: the five checks from the run's values (plan/checks.ts), and the idea cut to its
- * limit. The money range is the glance's, the only range a final request has. Its risks and split are provisional.
+ * The diagnosis of a final run before its text: the five checks from the run's values (plan/checks.ts), and the
+ * default words of each (plan/diagnosis-text.ts). The money range is the glance's, the only range a final request
+ * has, and the split comes from the glance's execution. The model's words are added by applyDiagnosisText.
  */
 export function diagnosisOf(input: PlannerInput, jev: JevResponse, built: Awaited<ReturnType<typeof buildReport>>, glance?: Glance): Diagnosis {
-  return {
-    idea: fitText(input.idea, MAX_DIAGNOSIS_IDEA),
-    checks: buildChecks({
-      budget: input.budget,
-      founderProfile: built.profile.values.founder_profile,
-      range: glance && { min: glance.budget.min },
-      regulatoryLoad: built.profile.values.regulatory_load,
-      jev: jev.answers,
-    }),
-    risks: [PROVISIONAL_RISK],
-    split: { mando: [], you: [], outsource: [] },
-  };
+  const checks = buildChecks({
+    budget: input.budget,
+    founderProfile: built.profile.values.founder_profile,
+    range: glance && { min: glance.budget.min },
+    regulatoryLoad: built.profile.values.regulatory_load,
+    jev: jev.answers,
+  });
+  return baseDiagnosis(input.idea, checks, glance?.execution);
 }
 
 /** Last step: classify the profile and validate the analysis, both at once */
@@ -271,7 +265,8 @@ export async function runPlanner(
     const glance = glanceFor(input, sentGlance);
     options.report?.("costs");
     const built = await buildReport(input, jev, answers, claims);
-    const diagnosis = diagnosisOf(input, jev, built, glance);
+    const base = diagnosisOf(input, jev, built, glance);
+    const diagnosis = applyDiagnosisText(base, await explainDiagnosis({ input, answers, checks: base.checks, glance }, options.signal));
     const clarity = clarityOf(input, answers, built.profile, glance);
     options.report?.("explaining");
     const explanations = await explainReport(

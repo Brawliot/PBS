@@ -60,9 +60,17 @@ async function runJob(payload: unknown): Promise<unknown> {
 }
 
 /** The outside calls in order: Jev, then phase 2 (first round only), then Jev again for the profile and the validation */
-const hostOf = (call: CapturedRequest) => (call.url.includes("typesafe.ai") ? "jev" : isExplanationCall(call) ? "explain" : "phase2");
+const hostOf = (call: CapturedRequest) =>
+  call.url.includes("typesafe.ai")
+    ? "jev"
+    : isExplanationCall(call)
+      ? "explain"
+      : call.body?.response_format?.json_schema?.name === "diagnosis_text"
+        ? "diagnosis"
+        : "phase2";
 const FIRST_ROUND_CALLS = ["jev", "phase2"];
-const FINAL_CALLS = ["jev", "jev", "jev", "explain"];
+// The final request also asks for the text of the diagnosis, before the explanations (plan/diagnosis-text.ts)
+const FINAL_CALLS = ["jev", "jev", "jev", "diagnosis", "explain"];
 
 const input = { idea: "Bakery delivery", budget: 10_000, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const};
 
