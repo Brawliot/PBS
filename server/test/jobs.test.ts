@@ -269,3 +269,69 @@ describe("JobStore.cancel", () => {
     assert.doesNotThrow(() => store.start(USER, () => new Promise(() => {})));
   });
 });
+
+describe("jobs: the step a run is in", () => {
+  test("a pending job keeps the step it reported, and returns it to its owner", () => {
+    const { store } = makeStore();
+    let report!: (stage: "reading" | "costs") => void;
+    const id = store.start(USER, (_signal, reporter) => {
+      report = reporter;
+      return new Promise(() => {});
+    });
+    assert.deepEqual(store.get(id, USER), { status: "pending", createdAt: 0 });
+    report("reading");
+    report("costs");
+    assert.deepEqual(store.get(id, USER), { status: "pending", createdAt: 0, stage: "costs" });
+  });
+
+  test("a step never goes back to an earlier one, nor repeats", () => {
+    const { store } = makeStore();
+    let report!: (stage: "reading" | "costs" | "explaining") => void;
+    const id = store.start(USER, (_signal, reporter) => {
+      report = reporter;
+      return new Promise(() => {});
+    });
+    report("costs");
+    report("reading");
+    report("costs");
+    assert.equal((store.get(id, USER) as { stage?: string }).stage, "costs");
+    report("explaining");
+    assert.equal((store.get(id, USER) as { stage?: string }).stage, "explaining");
+  });
+
+  test("a step that is not one of the closed names is ignored", () => {
+    const { store } = makeStore();
+    let report!: (stage: never) => void;
+    const id = store.start(USER, (_signal, reporter) => {
+      report = reporter as (stage: never) => void;
+      return new Promise(() => {});
+    });
+    report("SECRET-model-text" as never);
+    assert.equal("stage" in (store.get(id, USER) ?? {}), false);
+  });
+
+  test("a step is never shown to another user", () => {
+    const { store } = makeStore();
+    let report!: (stage: "saving") => void;
+    const id = store.start(USER, (_signal, reporter) => {
+      report = reporter;
+      return new Promise(() => {});
+    });
+    report("saving");
+    assert.equal(store.get(id, OTHER_USER), undefined);
+  });
+
+  test("a step reported after the job finished changes nothing", async () => {
+    const { store } = makeStore();
+    const done = deferred<unknown>();
+    let report!: (stage: "saving") => void;
+    const id = store.start(USER, (_signal, reporter) => {
+      report = reporter;
+      return done.promise;
+    });
+    done.resolve("report");
+    await flush();
+    report("saving");
+    assert.deepEqual(store.get(id, USER), { status: "done", result: "report", finishedAt: 0 });
+  });
+});

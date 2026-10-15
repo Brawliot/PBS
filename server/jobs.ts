@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { HttpError } from "./request.js";
 import { logFailure } from "./log.js";
+import { stageRank, type PlannerStage } from "./planner/stages.js";
 
 /** In-memory jobs: the planner runs in the background and the client polls for the result */
 
 export type JobState =
-  | { status: "pending"; createdAt: number }
+  | { status: "pending"; createdAt: number; stage?: PlannerStage }
   | { status: "done"; result: unknown; finishedAt: number }
   | { status: "error"; message: string; finishedAt: number };
 
@@ -39,8 +40,11 @@ export class JobStore {
     return this.jobs.size;
   }
 
-  /** Starts `run` in the background for `owner` and returns the id to poll. `run` gets a signal that is aborted on cancel. */
-  start(owner: string, run: (signal: AbortSignal) => Promise<unknown>): string {
+  /**
+   * Starts `run` in the background for `owner` and returns the id to poll. `run` gets a signal that is aborted on
+   * cancel, and `report`, which says the step the run is in (a later step only; an earlier one is ignored).
+   */
+  start(owner: string, run: (signal: AbortSignal, report: (stage: PlannerStage) => void) => Promise<unknown>): string {
     this.sweep();
     if (this.jobs.size >= this.maxJobs) {
       throw new HttpError(503, "Server busy, try again shortly");
@@ -51,7 +55,8 @@ export class JobStore {
     this.jobs.set(id, { owner, state: { status: "pending", createdAt: this.now() }, abort });
 
     // The promise constructor calls run() and turns a synchronous throw into a rejection
-    new Promise<unknown>((resolve) => resolve(run(abort.signal))).then(
+    const report = (stage: PlannerStage) => this.advance(id, stage);
+    new Promise<unknown>((resolve) => resolve(run(abort.signal, report))).then(
       (result) => {
         this.finish(id, owner, { status: "done", result, finishedAt: this.now() });
       },
@@ -75,6 +80,14 @@ export class JobStore {
     this.jobs.delete(id);
     entry.abort.abort();
     return true;
+  }
+
+  /** Moves a pending job to a later step. Unknown, finished or cancelled jobs, and earlier steps, change nothing. */
+  private advance(id: string, stage: PlannerStage): void {
+    const entry = this.jobs.get(id);
+    if (!entry || entry.state.status !== "pending") return;
+    if (stageRank(stage) <= stageRank(entry.state.stage)) return;
+    this.jobs.set(id, { ...entry, state: { ...entry.state, stage } });
   }
 
   /** Stores the outcome of a job. A job cancelled meanwhile has no entry, so its late outcome is dropped. */

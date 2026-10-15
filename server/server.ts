@@ -243,7 +243,8 @@ export const server = createServer(async (req, res) => {
     // Another user's job is not found, the same as a job that does not exist
     const job = UUID.test(id) ? jobs.get(id, owner) : undefined;
     if (!job) return sendJson(res, 404, { error: "Job not found" }, NO_STORE);
-    if (job.status === "pending") return sendJson(res, 200, { status: "pending" }, NO_STORE);
+    // The step the run is in, once it has reported one: a closed name, never text from the model
+    if (job.status === "pending") return sendJson(res, 200, { status: "pending", ...(job.stage && { stage: job.stage }) }, NO_STORE);
     if (job.status === "done") {
       return sendJson(res, 200, { status: "done", result: job.result }, NO_STORE);
     }
@@ -272,8 +273,8 @@ export const server = createServer(async (req, res) => {
       if (!owner) return sendJson(res, 401, UNAUTHENTICATED, NO_STORE);
       const jev = jevToken ? detectCache.take(owner, jevToken, input.idea) : undefined;
       // Planner errors can carry internal details: only HttpError messages reach the client
-      const jobId = jobs.start(owner, (signal) =>
-        runPlanner(input, answers, final, claims, { reports: reportRepository, owner, signal, jev }, glance).catch((e) => {
+      const jobId = jobs.start(owner, (signal, report) =>
+        runPlanner(input, answers, final, claims, { reports: reportRepository, owner, signal, jev, report }, glance).catch((e) => {
           if (e instanceof HttpError) throw e;
           throw new Error("Internal server error", { cause: e });
         }),

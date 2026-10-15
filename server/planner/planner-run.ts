@@ -10,6 +10,7 @@
  * kept does not fail the run: only its code is logged.
  */
 
+import type { PlannerStage } from "./stages.js";
 import type { FieldAnalysis, Phase2Response } from "./planner-phase2-handler.js";
 import type { ReportRepository } from "../plan/report-repository.js";
 import type { Explanations, Report } from "../plan/report.js";
@@ -206,6 +207,8 @@ export interface PlannerRunOptions {
   signal?: AbortSignal;
   /** A Jev result made from the same idea by the detection: reused instead of asking Jev again */
   jev?: JevResponse;
+  /** Told each step of the run as it starts, for the browser to show while it waits */
+  report?: (stage: PlannerStage) => void;
 }
 
 /** Keeps a report and returns its id; on failure, logs the code only and returns no id */
@@ -234,17 +237,21 @@ export async function runPlanner(
   options: PlannerRunOptions,
   sentGlance?: Glance,
 ) {
+  options.report?.("reading");
   const jev = options.jev ?? (await analyzeWithJev(input, options.signal));
 
   // Final request: the questions are answered, so only the profile is left (no phase 2 in this report)
   if (final) {
     const glance = glanceFor(input, sentGlance);
+    options.report?.("costs");
     const built = await buildReport(input, jev, answers, claims);
     const clarity = clarityOf(input, answers, built.profile, glance);
+    options.report?.("explaining");
     const explanations = await explainReport(
       { input, answers, validation: built.validation, glance, timeToRevenue: built.profile.values.time_to_revenue },
       options.signal,
     );
+    options.report?.("saving");
     return {
       jev,
       ...built,
