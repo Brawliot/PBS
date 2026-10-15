@@ -31,7 +31,7 @@ import { analyzeWithJev, isUnknown } from "./planner-handler.js";
 import { analyzePhase2, type PlannerAnswer } from "./planner-phase2-handler.js";
 import { explainReport } from "./planner-explain-handler.js";
 import { analyzeProfile } from "./planner-profile-handler.js";
-import { questionLimit, selectQuestions } from "./question-policy.js";
+import { selectQuestions } from "./question-policy.js";
 import {
   analyzeValidation,
   claimsFromPhase2,
@@ -254,11 +254,7 @@ export async function runPlanner(
   }
 
   const phase2 = await analyzePhase2(input, jev, answers, options.signal);
-  const questions = selectQuestions(
-    phase2.questions,
-    answers,
-    questionLimit(phase2.maturity, input),
-  );
+  const questions = selectQuestions(phase2.questions, answers);
   if (questions.length === 0) {
     const built = await buildReport(input, jev, answers, claimsFromPhase2(phase2), phase2);
     const withPhase2 = { ...phase2, questions };
