@@ -43,7 +43,7 @@ function run(final: boolean, options: { jev?: unknown } = {}) {
   const reports = new InMemoryReportRepository();
   return {
     steps,
-    result: runPlanner(input as never, [], final, {} as never, { reports, owner: USER, report: (stage) => steps.push(stage), ...options } as never, undefined),
+    result: runPlanner(input as never, [], final, {} as never, { reports, owner: USER, report: (stage: PlannerStage) => steps.push(stage), ...options } as never, undefined),
   };
 }
 
@@ -68,7 +68,7 @@ describe("runPlanner: the steps it reports", () => {
     });
     const steps: PlannerStage[] = [];
     const jev = { answers: { sector: { type: "choice" as const, choice: "Other" } } };
-    await runPlanner(input as never, [], false, {} as never, { owner: USER, jev, report: (stage) => steps.push(stage) } as never, undefined)
+    await runPlanner(input as never, [], false, {} as never, { owner: USER, jev, report: (stage: PlannerStage) => steps.push(stage) } as never, undefined)
       .catch(() => undefined);
     assert.deepEqual(steps, ["reading"]);
     assert.equal(calls.filter(isJev).length, 0);
