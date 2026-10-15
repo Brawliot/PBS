@@ -162,11 +162,20 @@ Hoy el proyecto funciona en local y sin usuarios reales (todo pertenece al usuar
 - **Cuentas y sesiones** (fase 4): registro, inicio y cierre de sesión; cookie de sesión `HttpOnly`, `SameSite=Lax` y `Secure` en producción, válida 30 días; solo el hash del token en la base de datos; contraseñas con scrypt y comparación en tiempo constante; validación de nombre, email y contraseña en el servidor; cuerpos estrictos (campos de más dan 400); `403` a un POST de otro origen; `401` sin sesión en el planner y los planes; respuesta idéntica para email desconocido y contraseña mala; límite de intentos por email en memoria. Probado con PostgreSQL real y con el servidor, incluidos los logs sin secretos.
 - **Una URL mal formada no tumba el servidor**: una petición con un destino que no se puede interpretar recibe `400` con las cabeceras de seguridad y sin contenido, y el servidor sigue atendiendo.
 
+- **Diagnóstico del informe** (cinco comprobaciones, riesgos y quién hace qué): los estados los deciden reglas en código (`server/plan/checks.ts`, con los umbrales en `CHECK_RULES`) y las respuestas cerradas de Jev; el modelo de texto no decide ningún estado. Cada texto del modelo pasa por dos filtros: un motivo con una palabra que contradice su estado se sustituye por una frase por defecto de esa clave y estado, y lo que no cumple sus límites se sustituye igual (`server/plan/diagnosis-text.ts`). Si la llamada falla, el informe se guarda con las frases por defecto. Las líneas de quién hace qué salen del catálogo de Mando, nunca del modelo. Probado con cuatro casos de extremo a extremo en Chromium (`server/test/e2e/diagnosis-cases.e2e.mjs`) y con pruebas de cada regla en sus límites.
+
 **Pendiente de la infraestructura** (no es código de la aplicación):
 
 - **HSTS y TLS** los pone el proxy delante del servidor: certificado válido, redirección a HTTPS y `Strict-Transport-Security`.
 - **Un rol de base de datos sin privilegios de administrador**: la aplicación debe conectarse con un rol que solo pueda leer y escribir sus tablas (no crear ni borrar esquemas, ni cambiar los disparadores de `plan_log` y `plan_events`).
 - **Control de abuso**: sigue en la sección "Control de abuso y de coste" de arriba.
+
+### El diagnóstico: titulación y calibración
+
+- **Titulación y registro profesional**: hoy no se preguntan. Una profesión regulada es riesgo en experiencia siempre (`experienceCheck`), tenga o no una persona titulada. Hace falta una pregunta sobre la titulación (tema `credentials`) y que la regla la lea. Sin ella, una clínica con fisioterapeutas titulados sale en riesgo.
+- **Calibrar los umbrales** con informes reales: el 75 % del dinero (`CHECK_RULES.money.watchShare`) y los textos por defecto (`DEFAULT_WHY`, `DEFAULT_RISK`) son propuestas, no medidas.
+- **Coste**: cada informe final hace una llamada más al modelo (los textos del diagnóstico), además de las que ya hacía. Medir el coste antes de subir el límite de peticiones.
+- **Fixtures de los e2e**: `server/test/e2e/fixtures/diagnosis-cases.json` se genera con `npx tsx test/e2e/diagnosis-cases.gen.ts` desde `server/`. Hay que regenerarlo al cambiar una regla, y revisar el diff.
 
 ## Pendiente de la fase 2 (decisiones y propuestas)
 

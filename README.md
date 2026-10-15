@@ -110,7 +110,8 @@ HSTS and TLS are not in the server: they belong to the proxy in front of it (see
 2. **OpenAI, phase 2** (`server/planner/planner-phase2-handler.ts`): rates the maturity of the idea (`vague`, `developing`, `advanced`, kept for the report's top and not for the number of questions), fills the analysis sections (subsector, location, target customer, value proposition, revenue model, stage, competition, constraints) and proposes up to two follow-up questions from a closed catalog of topics for physical businesses (`credentials`, `trade_experience`, `who_operates`, `opening_deadline`, `partners`, `existing_customers`, `tech_builder`), with a strict JSON schema.
 3. **Question policy** (`server/planner/question-policy.ts`): the model proposes, the server decides. At most two questions are asked for the whole session, answered ones included, and none is fine. It removes topics already answered and keeps the most valuable first.
 4. **Final request** (`server/planner/planner-profile-handler.ts`, `server/planner/planner-validation-handler.ts`): once all questions are answered, the server asks Jev for a 15-dimension business profile and validates the analysis. Claims are checked against the description, seven coherence checks are run, and 10 departments are scored. Departments are shown as groups or as individual departments depending on team size and the profile's team requirement (`departmentLevel`).
-5. **Explanations** (`server/planner/planner-explain-handler.ts`): when a report is built, one more OpenAI call writes a short reason for each warning and each key area the report shows (the first three warnings, the first four areas that are not light), and also returns the time to open, the split of the upfront cost and three starter templates (see below). The reply is checked, never corrected, and each part on its own: a part that is not asked for, repeated, out of its limits or not plain text is left out, and the other parts are kept. A failed call leaves the report without explanations and logs only its code. The call is not made while questions are still open.
+5. **Diagnosis** (`server/plan/checks.ts`, `server/plan/diagnosis-text.ts`): five checks decided by rules and by Jev's answers, with the words written by one more model call that cannot change a status. See "The diagnosis: five checks, risks and who does what" below.
+6. **Explanations** (`server/planner/planner-explain-handler.ts`): when a report is built, one more OpenAI call writes a short reason for each warning and each key area the report shows (the first three warnings, the first four areas that are not light), and also returns the time to open, the split of the upfront cost and three starter templates (see below). The reply is checked, never corrected, and each part on its own: a part that is not asked for, repeated, out of its limits or not plain text is left out, and the other parts are kept. A failed call leaves the report without explanations and logs only its code. The call is not made while questions are still open.
 
 Each request runs as a background job, kept in memory by `server/jobs.ts`: `POST /api/planner` returns a job id at once and the front end polls `GET /api/planner/:id` until the result is ready. The front end (`script.js`) sends the phase 2 claims back in the final request (`analysis`), so the validation can check them.
 
@@ -160,6 +161,40 @@ The levels are computed by code (`server/plan/clarity.ts`), never by a model, fr
 - **Thresholds** (initial, to calibrate with real reports): concept Low < 40 %, Medium 40–69 %, High ≥ 70 %; person Low < 60 %, Medium 60–84 %, High ≥ 85 % (the four fixed answers alone give about 61 %). An unknown Essential keeps the level below High.
 
 Weights, source values and thresholds are the constants of `CLARITY` in `server/plan/clarity.ts`; change `CLARITY_VERSION` with them. The report keeps the result as the optional `clarity` field (version, and per metric level, score and missing). A final request has no phase 2 on the server, so the browser sends the sources back inside the glance (`glance.sources`); a glance without them (or one that fails its schema) gives a report without clarity, and the page shows no block. Reports kept before this have none.
+
+### The diagnosis: five checks, risks and who does what
+
+The report opens with five checks. Each one has a status (Strong, Watch or Risk, always with a symbol and a word), a reason of up to 240 characters, a mark "estimated" when the figure behind it is an estimate, and who decided it (`rule` or `jev`). The statuses are decided by code and by Jev's answers, never by the text model. The data is in the optional `diagnosis` field of the report (`server/plan/report.ts`, limits in `report-limits.ts`); a report kept before it shows the previous view.
+
+Who decides each check:
+
+| Check | Decided by | Rule |
+| --- | --- | --- |
+| Concept | Jev | Question `concept`: Strong, Watch or Risk |
+| Location (Reach for an online business) | Jev | Question `location`. Reach when the scope is `Online` or `Global` |
+| Money | Rule | Budget against the minimum the idea needs (`CHECK_RULES.money`): at or above it is Strong; at 75 % of it or more, Watch; below, Risk. No range or no minimum is Watch |
+| Experience | Rule, then Jev | A regulated profession (`HEAVY_REGULATION`) is Risk, since its credentials are not captured. Otherwise the founder profile decides: "Sector expert" is Strong; "Technical", "Commercial", "Management" and "Several areas" are Watch; "No relevant background" is Risk. "Not specified" goes to Jev (question `experience`) |
+| Competition | Jev | Question `competition`: Strong, Watch or Risk |
+
+Jev's four questions are in `CHECK_QUESTIONS` (`server/planner/planner-handler.ts`), asked only by the planner's own call, not by the detection of the idea. A missing answer, or one that is not Strong, Watch or Risk, is Watch with the default reason of that check. The money range comes from phase 2 on the first round, and from the glance on the final request, the only place a final request has it.
+
+The words are written by one more model call, the diagnosis text (`server/planner/planner-explain-handler.ts`, `explainDiagnosis`): the idea in one plain sentence, one reason for each check, and three risks, under a closed schema whose check keys are this business's. The text never changes a status. Each part is checked on its own (`server/plan/diagnosis-text.ts`):
+
+- A reason that uses a word that contradicts its status is replaced by the default reason of that check and status. A Risk is never described as good, a Strong never as a problem, a Watch never as settled. The word lists are in `CONTRADICTS`, and they are a plain list, not a judgement.
+- A reason over its limit is replaced, not cut. The risks are cut to the first three. An idea over its limit is replaced by the person's own idea, cut to its limit.
+- A failed call, or a reply that is not usable, keeps the defaults: the report is never kept without its words.
+
+The "who does what" lines come from the execution the phase 2 analysis proposes, checked by the server (`server/plan/execution.ts`), never from the model. A part called Mando's is one of `MANDO_BUILDS` (`server/planner/mando-capabilities.ts`) or it is the person's, or hired out when it costs money. The lines are "Mando builds" (the catalog labels only), "You handle" and "Hire out", at most four each. An empty line is not shown.
+
+Known limits:
+
+1. Credentials and professional registration are not captured, so every regulated business is Risk on experience until a credentials question exists. The experience check reads the founder profile, not years of practice.
+2. The diagnosis is kept with the final request only. A first round with no questions shows no diagnosis, and a report made through questions has it after the final request.
+3. The thresholds (75 % for Watch on money) and the default texts are not calibrated with real reports.
+4. The words are in English, like the rest of the report.
+5. An item the person sells can land under "Hire out" when its cost is known and Mando does not build it. That is what the rule says; it is not a judgement about the product.
+
+The end-to-end tests run the report in Chromium with the planner's answers simulated. `test/e2e/diagnosis-cases.e2e.mjs` uses the answers of four cases (a tapas bar, a physio clinic, a hair salon and a booking software), written by `test/e2e/diagnosis-cases.gen.ts` from the server's own `runPlanner`: the rules are the real ones, and only the model's answers are fixed in that file. Regenerate the fixture after changing a rule (`npx tsx test/e2e/diagnosis-cases.gen.ts`, from `server/`).
 
 ### "I don't know" in the four fixed questions
 
