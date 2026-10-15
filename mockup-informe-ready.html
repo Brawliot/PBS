@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MANDO - Report mockup (readiness)</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="theme.js"></script>
+  <style>
+    /* Mockup only: the few pieces the first glance adds on top of the existing .result card.
+       Everything else reuses styles.css (tokens, .result*, .tier, .btn).
+       Only data that already exists is shown: stage, location, budget range and fit,
+       warnings with their reasons, key areas, said/inferred, the person's own answers. */
+    .glance__chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; list-style: none; }
+    .glance__chips li { padding: 4px 12px; font-size: 13px; border: 1px solid var(--border-strong); border-radius: 62px; color: var(--gray-text); }
+    .glance__chips b { font-weight: 800; color: var(--dark); }
+
+    .glance__idea { font-size: 17px; line-height: 1.35; padding: 12px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .src { margin-left: 6px; font-size: 12px; color: var(--gray-text); border: 1px solid var(--border); border-radius: 62px; padding: 1px 8px; white-space: nowrap; vertical-align: 1px; }
+
+    .budget { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border: 1px solid var(--border-strong); border-radius: 10px; }
+    .budget__row { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 16px; }
+    .budget__range { font-weight: 800; letter-spacing: -0.01em; }
+    .budget__scale { position: relative; height: 22px; }
+    .budget__track { position: absolute; left: 0; right: 0; top: 8px; height: 6px; border-radius: 3px; background: var(--gray-light); }
+    .budget__zone { position: absolute; top: 8px; height: 6px; border-radius: 3px; background: var(--dark); }
+    .budget__you { position: absolute; top: 2px; width: 2px; height: 18px; background: var(--danger); }
+    .budget__labels { position: relative; height: 16px; font-size: 12px; color: var(--gray-text); }
+    .budget__labels span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+    .budget__why { font-size: 14px; color: var(--gray-text); }
+
+    .result__warnings li strong { display: block; font-weight: 800; }
+    .result__warnings li span { display: block; margin-top: 2px; font-size: 14px; color: var(--gray-text); }
+
+    .result__areas .why { display: block; font-size: 13px; color: var(--gray-text); }
+    .result__areas li { padding: 7px 0; }
+    .result__areas li > div { min-width: 0; }
+    .result__pending li { display: inline-flex; align-items: center; gap: 8px; padding: 4px 6px 4px 14px; }
+    .result__block { gap: 8px; }
+
+    .glance__next { font-size: 14px; color: var(--gray-text); }
+    .glance__note { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); font-size: 12px; color: var(--gray-text); }
+    .result { gap: 14px; }
+    .glance__idea p + p { margin-top: 4px; }
+    .glance__alt { font-size: 14px; color: var(--gray-text); }
+    .needs { display: flex; flex-direction: column; gap: 8px; }
+    .needs__grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .needs__grid > div { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
+    .needs__grid dt { font-size: 12px; color: var(--gray-text); }
+    .needs__grid dd { margin-top: 2px; font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
+    .needs__grid small { display: block; margin-top: 1px; font-size: 12px; font-weight: 400; color: var(--gray-text); letter-spacing: 0; }
+    .result { gap: 14px; }
+    .areas2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; list-style: none; }
+    .areas2 li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 12px; font-size: 15px; border: 1px solid var(--border); border-radius: 10px; }
+    .areas2 .why { display: block; font-size: 12px; color: var(--gray-text); }
+
+    /* Readiness mockup: summary "what I understood", one readiness light, improve-in-3 loop, gated plan button */
+    .understood { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border: 1px solid var(--border-strong); border-radius: 10px; }
+    .understood p { font-size: 17px; line-height: 1.4; }
+    .understood__fix { align-self: flex-start; font-size: 13px; color: var(--gray-text); background: none; border: 0; padding: 0; text-decoration: underline; cursor: pointer; }
+    .ready { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: 10px; border: 1px solid var(--border-strong); }
+    .ready__top { display: flex; align-items: center; gap: 10px; }
+    .ready__dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+    .ready[data-state="red"] .ready__dot { background: var(--danger); }
+    .ready[data-state="yellow"] .ready__dot { background: #e0a800; }
+    .ready[data-state="green"] .ready__dot { background: #2e9d5b; }
+    .ready__title { font-weight: 800; font-size: 16px; }
+    .ready__sub { font-size: 14px; color: var(--gray-text); }
+    .ready__metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .ready__metrics > div { padding: 8px 12px; border: 1px solid var(--border); border-radius: 10px; font-size: 13px; color: var(--gray-text); }
+    .ready__metrics b { display: block; font-size: 15px; color: var(--dark); }
+    .ready__metrics .up { color: #2e9d5b; font-weight: 800; }
+    .improve { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+    .improve span { font-size: 14px; color: var(--gray-text); }
+    .quiz { display: none; flex-direction: column; gap: 14px; padding-top: 6px; border-top: 1px solid var(--border); }
+    .quiz.is-open { display: flex; }
+    .quiz__q p { font-weight: 800; font-size: 15px; margin-bottom: 6px; }
+    .quiz__opts { display: flex; flex-wrap: wrap; gap: 6px; }
+    .quiz__opts button { padding: 5px 12px; font-size: 13px; border: 1px solid var(--border-strong); border-radius: 62px; background: var(--white); color: var(--dark); cursor: pointer; }
+    .quiz__opts button.is-on { background: var(--dark); color: var(--white); }
+    .quiz__opts button.idk { color: var(--gray-text); border-style: dashed; }
+    .quiz__foot { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--gray-text); }
+    details.more summary { cursor: pointer; font-size: 14px; color: var(--gray-text); }
+    .gate { font-size: 13px; color: var(--gray-text); text-align: right; }
+    .demo { position: fixed; top: 12px; right: 12px; display: flex; gap: 4px; font-size: 12px; }
+    .demo button { padding: 4px 10px; border: 1px solid var(--border-strong); border-radius: 62px; background: var(--white); color: var(--dark); cursor: pointer; }
+    @media (max-width: 600px) { .needs__grid, .areas2, .ready__metrics { grid-template-columns: 1fr 1fr; } .areas2 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body class="has-result">
+  <div class="demo" aria-label="Mockup state"><button data-go="red">Red</button><button data-go="yellow">Yellow</button><button data-go="green">Green</button></div>
+  <section class="result" id="result" aria-labelledby="result-title" tabindex="-1">
+    <header class="result__head">
+      <p class="result__eyebrow">Business analysis</p>
+      <h2 class="result__title" id="result-title">Here is what I understood</h2>
+    </header>
+
+    <!-- 1. Did it understand me? -->
+    <section class="understood" aria-label="Summary">
+      <p>A <b>mobile specialty coffee cart</b> <small class="src">said</small> for <b>commuters at train stations</b> <small class="src">said</small> in <b>Manchester</b>, earning <b>per cup</b> <small class="src">inferred</small>. You are <b>solo</b>, with <b>£4,000</b> and <b>15 h a week</b>.</p>
+      <button class="understood__fix" type="button">Something is off? Correct it</button>
+    </section>
+
+    <!-- 2. Can I build the plan? One light, two metrics, what is missing -->
+    <section class="ready" id="ready" data-state="yellow" aria-live="polite">
+      <div class="ready__top"><span class="ready__dot"></span><div><p class="ready__title" id="ready-title"></p><p class="ready__sub" id="ready-sub"></p></div></div>
+      <div class="ready__metrics">
+        <div>Your business<b id="m-concept"></b><span id="m-concept-miss"></span></div>
+        <div>You<b id="m-person"></b><span id="m-person-miss"></span></div>
+      </div>
+      <div class="improve" id="improve">
+        <span id="improve-text">3 quick questions · about 1 min</span>
+        <button class="btn btn--outline" type="button" id="improve-open">Improve my report</button>
+      </div>
+      <div class="quiz" id="quiz">
+        <div class="quiz__q"><p>How will people find your cart?</p><div class="quiz__opts"><button>Walk-by traffic</button><button>Social media</button><button>Station partnership</button><button class="idk">I don't know</button></div></div>
+        <div class="quiz__q"><p>Have you tested the idea with real customers?</p><div class="quiz__opts"><button>Not yet</button><button>Talked to a few</button><button>Sold a test batch</button><button class="idk">I don't know</button></div></div>
+        <div class="quiz__q"><p>What can you do yourself?</p><div class="quiz__opts"><button>Barista</button><button>Sales</button><button>Numbers</button><button>Social media</button><button class="idk">I don't know</button></div></div>
+        <div class="quiz__foot"><span>"I don't know" is fine: it becomes something to verify in your plan.</span><button class="btn btn--dark" type="button" id="quiz-done">Update report</button></div>
+      </div>
+    </section>
+
+    <!-- 3. The value: the business against your resources -->
+    <section class="needs" aria-label="What this business asks of you">
+      <h3 class="result__label">What it asks vs. what you have</h3>
+      <dl class="needs__grid">
+        <div><dt>Money · you: £4,000</dt><dd>£5,000 – £9,000</dd><small style="color:var(--danger)">Short by ~£1,000</small></div>
+        <div><dt>Hours · you: 15 h</dt><dd>25+ h / week</dd><small style="color:var(--danger)">Tight</small></div>
+        <div><dt>Team · you: solo</dt><dd>Feasible solo</dd><small>OK</small></div>
+        <div><dt>First revenue</dt><dd>0–3 months</dd><small>Regulation: moderate</small></div>
+      </dl>
+    </section>
+
+    <section class="result__block">
+      <h3 class="result__label">Worth checking</h3>
+      <ul class="result__warnings">
+        <li><strong>Your budget may fall short</strong><span>Equipment and licences take most of the lower range.</span></li>
+        <li><strong>Per-cup margins need volume</strong><span>Sales depend on peak commuter hours.</span></li>
+        <li><strong>Your weekly hours may fall short</strong><span>Early service plus sourcing needs more than 15 h.</span></li>
+      </ul>
+    </section>
+
+    <section class="result__block">
+      <h3 class="result__label">Key areas</h3>
+      <ul class="areas2">
+        <li><div>Legal &amp; Compliance<span class="why">Street trading, food hygiene</span></div><span class="tier tier--core">Essential</span></li>
+        <li><div>Finance<span class="why">Your budget is the tightest limit</span></div><span class="tier tier--core">Essential</span></li>
+        <li><div>Marketing<span class="why">Foot traffic decides sales</span></div><span class="tier tier--important">Recommended</span></li>
+        <li><div>Operations<span class="why">Supply and opening hours</span></div><span class="tier tier--important">Recommended</span></li>
+      </ul>
+    </section>
+
+    <!-- 4. Everything else, folded -->
+    <details class="more"><summary>See full detail: 15 topics, cost breakdown, templates</summary></details>
+
+    <div class="result__actions">
+      <button class="result__restart" type="button">Start over</button>
+      <button class="btn btn--outline" type="button" id="plan-anyway">Build anyway</button>
+      <button class="btn btn--dark" type="button" id="plan">Build my plan</button>
+    </div>
+    <p class="gate" id="gate"></p>
+  </section>
+  <p class="glance__note">Guidance, not professional advice.</p>
+  <script>
+    // Mockup only: the three states of the readiness light and the "improve" round
+    const STATES = {
+      red:    { title: 'I need more to build your plan', sub: 'What you offer and how it makes money are still unclear.', concept: 'Low', person: 'Medium',
+                cm: 'Missing: how it makes money, target customer', pm: 'Missing: what you can do', plan: 'disabled', anyway: false, gate: 'Answer 3 questions or correct the summary to continue.' },
+      yellow: { title: 'I can build a plan, but a generic one', sub: '3 answers would fit it to you.', concept: 'Medium', person: 'Medium',
+                cm: 'Missing: how it reaches customers, validation', pm: 'Missing: what you can do', plan: 'secondary', anyway: true, gate: 'Building now: marketing and your own tasks will be generic.' },
+      green:  { title: 'Ready for a plan made for you', sub: 'Anything still open goes into the plan as something to verify.', concept: 'High', person: 'High',
+                cm: 'Nothing essential missing', pm: 'Nothing essential missing', plan: 'primary', anyway: false, gate: '' },
+    };
+    const $ = (id) => document.getElementById(id);
+    let rounds = 0;
+    function show(name, before) {
+      const s = STATES[name];
+      $('ready').dataset.state = name;
+      $('ready-title').textContent = s.title;
+      $('ready-sub').textContent = s.sub;
+      $('m-concept').innerHTML = before && before.concept !== s.concept ? `${before.concept} → <span class="up">${s.concept}</span>` : s.concept;
+      $('m-person').innerHTML = before && before.person !== s.person ? `${before.person} → <span class="up">${s.person}</span>` : s.person;
+      $('m-concept-miss').textContent = s.cm;
+      $('m-person-miss').textContent = s.pm;
+      $('plan').disabled = s.plan === 'disabled';
+      $('plan').className = s.plan === 'primary' ? 'btn btn--dark' : 'btn btn--outline';
+      $('plan-anyway').hidden = !s.anyway;
+      $('plan').hidden = s.anyway; // yellow: "Build anyway" replaces it, the main action is improving
+      $('improve-open').className = name === 'green' ? 'btn btn--outline' : 'btn btn--dark';
+      $('improve').hidden = name === 'green' || rounds >= 2;
+      $('improve-text').textContent = rounds ? `${2 - rounds} more round left · 3 questions` : '3 quick questions · about 1 min';
+      $('gate').textContent = s.gate;
+      $('quiz').classList.remove('is-open');
+    }
+    document.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => { rounds = 0; show(b.dataset.go); });
+    $('improve-open').onclick = () => { $('quiz').classList.add('is-open'); $('improve').hidden = true; };
+    document.querySelectorAll('.quiz__opts').forEach((group) => group.onclick = (e) => {
+      if (e.target.tagName !== 'BUTTON') return;
+      group.querySelectorAll('button').forEach((x) => x.classList.toggle('is-on', x === e.target));
+    });
+    $('quiz-done').onclick = () => {
+      const now = $('ready').dataset.state;
+      rounds++;
+      show(now === 'red' ? 'yellow' : 'green', STATES[now]);
+      document.querySelectorAll('.quiz__opts button').forEach((x) => x.classList.remove('is-on'));
+    };
+    show('yellow');
+  </script>
+</body>
+</html>
