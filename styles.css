@@ -390,6 +390,11 @@ body.is-loading .search {
 .question__note.is-hint { color: var(--gray-text); }
 .question__note:empty, .question__note[hidden] { display: none; }
 .question__count { margin-left: auto; font-variant-numeric: tabular-nums; }
+/* The value the description gave, shown in the field until the person confirms it or changes it */
+.question__from { margin: 6px 0 0; font-size: 14px; color: var(--gray-text); }
+.question__from[hidden] { display: none; }
+.question__confirm { font-size: 15px; font-weight: 600; margin-right: 8px; align-self: center; }
+.question__confirm[hidden] { display: none; }
 .question__link {
   border: 0; background: transparent; color: var(--dark); font-size: 14px;
   text-decoration: underline; padding: 0;

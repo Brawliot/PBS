@@ -420,6 +420,8 @@
   });
 
   // --- Sending: title leaves, loader runs while the request is pending -------
+  const PREFILL_TIMEOUT_MS = 10_000; // the server's own limit for the description call
+  const PREFILL_WAIT_MS = 1_500;     // most the first fixed question waits for the description
   const EXIT_MS = 850;        // subtitle exit + title-to-loader travel to the centre (keep in sync with CSS)
   const FIRST_QUESTION_MS = 600; // entrance of the first question (keep in sync with .question.is-entering in CSS)
   const MIN_LOADER_MS = 1500; // visible time of the loader, so it never flashes
@@ -595,6 +597,7 @@
   let analysis = null; // phase 2 analysis from the first response
   let firstGlance = null; // the glance the server built in the first round: sent back as it is with the final request
   let reportId = null; // id of the report the server kept for this analysis (see POST /api/plan)
+  let prefillResult = null; // what the description already says for the fixed questions (null until it arrives)
   const CLAIM_KEYS = ['subsector', 'location', 'target_customer', 'value_proposition', 'revenue_model', 'stage', 'competition'];
   // The facts the top of the report shows, from the first round's analysis. The server checks them and keeps them
   // only if they pass, so this is sent as it is: the same fields, in the same shape.
@@ -625,13 +628,43 @@
     reportId = null;
   };
 
+  // The fixed answer the description already gives, as the text the field starts with: null when there is none
+  const prefillFor = (key) => {
+    const value = prefillResult?.[key];
+    if (value === null || value === undefined) return null;
+    if (key === 'location') return { text: value };
+    if (key === 'budget') return { text: `${value.toLocaleString('en-US')} \u20ac` };
+    if (key === 'start_mode') return { text: START_LABEL[value] };
+    return { text: PREMISES_LABEL[value] };
+  };
+
   const nextQuestion = () => {
     current = queue.shift() ?? null;
     if (!current) return false;
+    // Only what has arrived by now: a later question picks it up, a question already on screen does not change
+    if (current.fixed) current.prefill = prefillFor(current.key);
     const done = profileAsked.length + answers.length;
     showQuestion(current.question, `Question ${done + 1} of ${total}`, current.options ?? []);
+    answer.value = current.prefill?.text ?? '';
+    refreshQuestionFoot();
     status.textContent = current.question;
     return true;
+  };
+
+  // The description is read in parallel with the first questions; it never fails (any problem is no prefill)
+  const requestPrefill = async (text) => {
+    try {
+      const res = await fetch('/api/planner/prefill', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idea: text }),
+        cache: 'no-store',
+        signal: AbortSignal.timeout(PREFILL_TIMEOUT_MS),
+      });
+      return res.ok ? await res.json() : null;
+    } catch {
+      return null;
+    }
   };
 
   // Starts a session: the loader, then the fixed questions over it. The last answer sends the idea.
@@ -644,7 +677,12 @@
     startLoading();
     status.textContent = 'A few questions about your situation.';
     const run = ++flowRun;
+    // The description is read from the idea as it is sent; the first question waits for it at most PREFILL_WAIT_MS
+    const started = Date.now();
+    prefillResult = null;
+    const prefilled = requestPrefill(idea.value.trim()).then((result) => { prefillResult = result; });
     await wait(EXIT_MS);
+    await Promise.race([prefilled, wait(Math.max(0, PREFILL_WAIT_MS - (Date.now() - started)))]);
     if (run !== flowRun || !sending) return;
     queue = PROFILE_QUESTIONS.map((q) => ({ ...q, fixed: true }));
     total = PROFILE_QUESTIONS.length + MODEL_QUESTIONS; // corrected when the server says how many it asks
@@ -1638,6 +1676,9 @@
   const answer = question.elements.answer;
 
   const questionProgress = document.getElementById('question-progress');
+  const questionFrom = document.getElementById('question-from');
+  const questionConfirm = document.getElementById('question-confirm');
+  const questionSubmit = question.querySelector('.question__submit');
 
   const questionNote = document.getElementById('question-note');
   const questionCount = document.getElementById('question-count');
@@ -1666,6 +1707,12 @@
     const length = answer.value.length;
     questionCount.textContent = `${length} / ${ANSWER_MAX}`;
     questionCount.hidden = length < COUNT_FROM;
+    // A value from the description stays marked until it is changed; then the send button says Confirm
+    const fromDescription = !!current?.prefill && answer.value === current.prefill.text;
+    questionFrom.hidden = !fromDescription;
+    questionConfirm.hidden = !fromDescription;
+    questionSubmit.setAttribute('aria-label', fromDescription ? 'Confirm' : 'Send answer');
+    answer.setAttribute('aria-describedby', fromDescription ? 'question-from question-note' : 'question-note');
     // Back stays within its part: the server's questions were made from the fixed answers, so they cannot be changed then
     questionBack.hidden = current?.fixed ? profileAsked.length === 0 : answers.length === 0;
     optionsContainer.querySelectorAll('.question__option').forEach((button) => {
