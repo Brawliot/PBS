@@ -141,15 +141,25 @@
     form.querySelector('button[type="submit"]').disabled = busy;
   };
 
-  // The signed-in user, or null. Null until the first answer, so the header does not flash the wrong state.
-  let currentUser = null;
-  const renderHeader = (ready = true) => {
+  // The signed-in user, or null. The server writes it into <body data-user> with the header already in its state
+  // (server.ts, auth/home-page.ts), so the first paint is right; the session check below only confirms it.
+  const initialUser = (() => {
+    try {
+      const parsed = JSON.parse(document.body.dataset.user ?? 'null');
+      return typeof parsed?.name === 'string' ? parsed : null;
+    } catch {
+      return null;
+    }
+  })();
+  let currentUser = initialUser;
+  const renderHeader = () => {
     const guest = document.getElementById('nav-guest');
     const user = document.getElementById('nav-user');
-    guest.hidden = !ready || currentUser !== null;
-    user.hidden = !ready || currentUser === null;
-    document.getElementById('avatar').textContent = (currentUser?.name.trim()[0] ?? '?').toUpperCase();
+    guest.hidden = currentUser !== null;
+    user.hidden = currentUser === null;
+    document.getElementById('avatar').textContent = (Array.from(currentUser?.name.trim() ?? '')[0] ?? '?').toUpperCase();
   };
+  renderHeader();
 
   const submitAuth = async (form) => {
     const register = form.dataset.form === 'register';
@@ -356,12 +366,17 @@
   });
 
   // The header shows one of two states: Log In / Register, or the profile circle with "View my projects" on its right.
-  // Both stay hidden until the server has said who is signed in (GET /api/auth/session never fails with 401).
+  // The server has already drawn the state it found; this check confirms it and re-renders only when it differs.
+  // If the check cannot be made, the state the server drew stays.
   const sessionReady = fetch('/api/auth/session', { cache: 'no-store' })
     .then((res) => res.json())
-    .then((data) => { currentUser = data.user ?? null; })
-    .catch(() => { currentUser = null; })
-    .then(() => renderHeader());
+    .then((data) => {
+      const verified = data.user ?? null;
+      if ((verified?.name ?? null) === (currentUser?.name ?? null)) return;
+      currentUser = verified;
+      renderHeader();
+    })
+    .catch(() => {});
 
   // The profile circle opens a small menu with "Log out"
   const avatar = document.getElementById('avatar');

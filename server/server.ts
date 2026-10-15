@@ -23,6 +23,7 @@ import { handlePlanRequest, isPlanPath } from "./plan-routes.js";
 import { agentsFromEnv } from "./plan/agents/configured-agents.js";
 import { handleAuthRequest, userIdFromCookie, type AuthStores } from "./auth/auth-routes.js";
 import { LoginLimiter } from "./auth/login-limit.js";
+import { renderHome, type HomeUser } from "./auth/home-page.js";
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 const PORT = Number(process.env.PORT) || 3000;
@@ -89,6 +90,47 @@ function sendJson(
 ) {
   res.writeHead(status, { "Content-Type": "application/json", ...securityHeaders(), ...headers });
   res.end(JSON.stringify(body));
+}
+
+/**
+ * The signed-in person for the home page, or undefined for a guest. A session that cannot be read (the database is
+ * down, say) is a guest here: the page still loads, and its own check (GET /api/auth/session) decides the rest.
+ */
+async function homeUser(cookieHeader: string | undefined): Promise<HomeUser | undefined> {
+  if (!authStores) return undefined;
+  try {
+    const userId = await userIdFromCookie(authStores.sessions, cookieHeader, new Date());
+    const user = userId ? await authStores.users.findById(userId) : undefined;
+    return user ? { name: user.name } : undefined;
+  } catch (e) {
+    logFailure("home page session", e);
+    return undefined;
+  }
+}
+
+/** The home page, written for the visitor: it depends on the cookie, so it is never cached and varies by Cookie */
+async function homePage(req: IncomingMessage, res: ServerResponse) {
+  let html: string;
+  try {
+    html = await readFile(ROOT + "index.html", "utf8");
+  } catch {
+    return sendJson(res, 404, { error: "Not found" });
+  }
+  const user = await homeUser(req.headers.cookie);
+  let page = html;
+  try {
+    page = renderHome(html, user);
+  } catch (e) {
+    // The page's markup no longer matches auth/home-page.ts: the static page still loads, and script.js sets the header
+    logFailure("home page render", e);
+  }
+  res.writeHead(200, {
+    "Content-Type": MIME[".html"],
+    ...securityHeaders(),
+    "Cache-Control": "no-store",
+    Vary: "Cookie",
+  });
+  res.end(page);
 }
 
 async function sendFile(res: ServerResponse, file: string) {
@@ -177,7 +219,7 @@ export const server = createServer(async (req, res) => {
   if (isPlanPath(path)) return planRoute(req, res, path);
 
   if (req.method === "GET") {
-    if (path === "/") return sendFile(res, "index.html");
+    if (path === "/") return homePage(req, res);
     if (path === "/plan") return sendFile(res, "plan.html");
     if (path === "/projects") return sendFile(res, "projects.html");
     if (isPublic(path)) return sendFile(res, path.slice(1));
