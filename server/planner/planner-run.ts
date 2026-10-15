@@ -280,6 +280,7 @@ export async function runPlanner(
       ...(explanations && { explanations }),
       ...(glance && { glance }),
       ...(clarity && { clarity }),
+      diagnosis,
       ...(await keepReport(options, reportOf(input, answers, jev, built, undefined, explanations, glance, diagnosis, clarity))),
     };
   }

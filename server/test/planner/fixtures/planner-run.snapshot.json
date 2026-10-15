@@ -281,6 +281,56 @@
         "customer-interviews",
         "price-test"
       ]
+    },
+    "diagnosis": {
+      "checks": [
+        {
+          "decidedBy": "jev",
+          "estimated": true,
+          "key": "concept",
+          "status": "watch",
+          "why": "The idea is clear, but it is not yet shown that customers want it."
+        },
+        {
+          "decidedBy": "jev",
+          "estimated": true,
+          "key": "location",
+          "status": "watch",
+          "why": "The place works, but it will take effort to bring customers in."
+        },
+        {
+          "decidedBy": "rule",
+          "estimated": true,
+          "key": "money",
+          "status": "watch",
+          "why": "The budget is close to what the idea needs, with little room."
+        },
+        {
+          "decidedBy": "jev",
+          "estimated": true,
+          "key": "experience",
+          "status": "watch",
+          "why": "The owner has some skills, but not yet this trade."
+        },
+        {
+          "decidedBy": "jev",
+          "estimated": true,
+          "key": "competition",
+          "status": "watch",
+          "why": "Similar businesses exist, and the difference from them is not yet clear."
+        }
+      ],
+      "idea": "Bakery delivery",
+      "risks": [
+        "The idea may not match what customers actually want.",
+        "Customers may not pass by or find the place.",
+        "The budget may not cover the first months of costs."
+      ],
+      "split": {
+        "mando": [],
+        "outsource": [],
+        "you": []
+      }
     }
   },
   "noQuestions": {
