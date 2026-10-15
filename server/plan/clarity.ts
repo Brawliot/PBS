@@ -9,13 +9,16 @@
  *
  * Version 2: every variable the person can tell us also counts a follow-up answer on its topic (the questions of
  * "Improve my report" use these topics), and the clarity says how ready it is to build a plan (readiness).
+ *
+ * Version 3: the topics follow the catalog for physical businesses (planner-phase2-handler.ts): customers, trade
+ * experience and the opening date. "What sets it apart" and "Handling other people's money" count only from the profile.
  */
 
 import { z } from "zod";
 import type { DimensionKey } from "../planner/planner-profile-handler.js";
 import type { InputKey } from "../planner/planner-handler.js";
 
-export const CLARITY_VERSION = 2;
+export const CLARITY_VERSION = 3;
 
 type Source = "stated" | "inferred" | "unknown";
 export type ClarityLevel = "low" | "medium" | "high";
@@ -78,21 +81,21 @@ const CONCEPT: Variable[] = [
   { label: "Value proposition", weight: "essential", source: (i) => best(i.phase2.value_proposition, topic(i, "value_proposition")) },
   { label: "Target customer", weight: "essential", source: (i) => best(i.phase2.target_customer, dimension(i, "customer_segment"), topic(i, "customer")) },
   { label: "How it makes money", weight: "essential", source: (i) => best(i.phase2.revenue_model, dimension(i, "revenue_model"), topic(i, "revenue")) },
-  { label: "Where it operates", weight: "essential", source: (i) => best(i.phase2.location, fixed(i, "location"), topic(i, "location", "scope")) },
+  { label: "Where it operates", weight: "essential", source: (i) => best(i.phase2.location, fixed(i, "location"), topic(i, "location")) },
   { label: "How it reaches customers", weight: "important", source: (i) => best(dimension(i, "acquisition_channel"), topic(i, "acquisition")) },
-  { label: "What sets it apart", weight: "important", source: (i) => best(dimension(i, "differentiator"), topic(i, "differentiator")) },
-  { label: "Stage and validation", weight: "important", source: (i) => best(i.phase2.stage, dimension(i, "validation_stage"), topic(i, "validation", "progress")) },
+  { label: "What sets it apart", weight: "important", source: (i) => dimension(i, "differentiator") },
+  { label: "Stage and validation", weight: "important", source: (i) => best(i.phase2.stage, dimension(i, "validation_stage"), topic(i, "existing_customers")) },
   { label: "Known competition", weight: "secondary", source: (i) => best(i.phase2.competition, dimension(i, "competition"), topic(i, "competition")) },
 ];
 
 const PERSON: Variable[] = [
   { label: "Budget", weight: "essential", source: (i) => fixed(i, "budget") },
   { label: "How you start", weight: "essential", source: (i) => fixed(i, "start_mode") },
-  { label: "What you can do yourself", weight: "essential", source: (i) => best(dimension(i, "founder_profile"), topic(i, "own_skills")) },
+  { label: "What you can do yourself", weight: "essential", source: (i) => best(dimension(i, "founder_profile"), topic(i, "trade_experience", "credentials")) },
   { label: "Premises", weight: "important", source: (i) => fixed(i, "premises") },
-  { label: "Handling other people's money", weight: "important", source: (i) => best(dimension(i, "money_handling"), topic(i, "money_handling")) },
-  { label: "Fixed deadline", weight: "secondary", source: (i) => best(dimension(i, "deadline_rigidity"), topic(i, "deadline")) },
-  { label: "Existing assets", weight: "secondary", source: (i) => topic(i, "existing_assets") },
+  { label: "Handling other people's money", weight: "important", source: (i) => dimension(i, "money_handling") },
+  { label: "Fixed deadline", weight: "secondary", source: (i) => best(dimension(i, "deadline_rigidity"), topic(i, "opening_deadline")) },
+  { label: "Existing assets", weight: "secondary", source: (i) => topic(i, "existing_customers") },
 ];
 
 /** Every label a metric can list as missing (the report's schema takes only these) */

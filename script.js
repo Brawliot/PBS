@@ -876,13 +876,10 @@
     'How it makes money': { topic: 'revenue', question: 'How will it make money?', options: ['One-off sales', 'Subscription', 'Commission', 'Advertising'] },
     'Where it operates': { topic: 'location', question: 'Where will it operate?', options: ['Online only', 'My city', 'My country', 'Several countries'] },
     'How it reaches customers': { topic: 'acquisition', question: 'How will customers find you?', options: ['Word of mouth', 'Social media', 'Online ads', 'Direct sales'] },
-    'What sets it apart': { topic: 'differentiator', question: 'Why would someone choose you over the alternatives?', options: [] },
-    'Stage and validation': { topic: 'validation', question: 'How far have you tested the idea?', options: ['Just an idea', 'Talked to customers', 'First sales', 'Already running'] },
+    'Stage and validation': { topic: 'existing_customers', question: 'Do you already have customers, a portfolio or followers?', options: ['Not yet', 'A few', 'Many', 'Not sure yet'] },
     'Known competition': { topic: 'competition', question: 'Who else offers something similar?', options: ['No one I know of', 'A few local ones', 'Big known brands'] },
-    'What you can do yourself': { topic: 'own_skills', question: 'What parts of the business can you do yourself?', options: ['Make the product', 'Sell', 'Handle the numbers', 'Marketing'] },
-    "Handling other people's money": { topic: 'money_handling', question: 'Will you hold or move other people\u2019s money?', options: ['No', 'I only take payments', 'I hold deposits or funds'] },
-    'Fixed deadline': { topic: 'deadline', question: 'Do you have a fixed date to launch?', options: ['No fixed date', 'In a few months', 'A firm date'] },
-    'Existing assets': { topic: 'existing_assets', question: 'Do you already have something to start from?', options: ['Nothing yet', 'A website or social accounts', 'Customers or a list', 'Equipment or premises'] },
+    'What you can do yourself': { topic: 'trade_experience', question: 'Have you worked in this trade or sector before?', options: ['Yes, for years', 'A little', 'No, I will hire it'] },
+    'Fixed deadline': { topic: 'opening_deadline', question: 'Is there a fixed date to open?', options: ['No fixed date', 'In a few months', 'A firm date (lease, season)'] },
   };
   const FIXED_BY_LABEL = { Budget: 'budget', 'How you start': 'start_mode', Premises: 'premises' };
 

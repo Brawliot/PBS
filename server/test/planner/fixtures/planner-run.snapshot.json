@@ -250,7 +250,7 @@
       }
     },
     "clarity": {
-      "version": 2,
+      "version": 3,
       "concept": {
         "level": "medium",
         "score": 61,

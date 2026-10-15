@@ -39,7 +39,7 @@ describe("computeClarity: business concept", () => {
     assert.deepEqual(result.concept.missing, ["How it makes money", "Where it operates", "How it reaches customers"]);
   });
 
-  test("a detailed idea (almost all said, the place inferred): High (~89 %)", () => {
+  test("a detailed idea (almost all said, the place inferred): High (~84 %)", () => {
     const result = clarity({
       phase2: {
         subsector: "stated",
@@ -51,10 +51,11 @@ describe("computeClarity: business concept", () => {
         competition: "stated",
       },
       profile: { ...NONE, acquisition_channel: "Online self-service", differentiator: "Price" },
-      topics: ["differentiator"],
+      topics: [],
     });
     assert.equal(result.concept.level, "high");
-    assert.equal(result.concept.score, 89);
+    // "What sets it apart" is only the profile now (inferred), so 84 instead of 89
+    assert.equal(result.concept.score, 84);
     assert.deepEqual(result.concept.missing, []);
   });
 
@@ -90,7 +91,7 @@ describe("computeClarity: the cap rule", () => {
     stage: "stated",
     competition: "stated",
   };
-  const full = { profile: { ...NONE, acquisition_channel: "Direct sales", differentiator: "Price" }, topics: ["differentiator"] };
+  const full = { profile: { ...NONE, acquisition_channel: "Direct sales", differentiator: "Price" }, topics: [] };
 
   test("every essential known: High", () => {
     assert.equal(clarity({ phase2: allStated, ...full }).concept.level, "high");
@@ -107,12 +108,12 @@ describe("computeClarity: the cap rule", () => {
   test("the person is never High with one fixed question unknown", () => {
     const complete = {
       profile: { ...NONE, founder_profile: "Technical", money_handling: "No third-party money", deadline_rigidity: "Flexible" },
-      topics: ["own_skills", "money_handling", "deadline", "existing_assets"],
+      topics: ["trade_experience", "opening_deadline", "existing_customers"],
     };
     assert.equal(clarity(complete).person.level, "high");
     const withoutStart = clarity({ ...complete, unknownInputs: ["start_mode"] });
-    // With these weights the one essential that is unknown keeps the score below High (80 %)
-    assert.equal(withoutStart.person.score, 80);
+    // With these weights the one essential that is unknown keeps the score below High (85 %)
+    assert.equal(withoutStart.person.score, 73);
     assert.equal(withoutStart.person.level, "medium");
     assert.deepEqual(withoutStart.person.missing, ["How you start"]);
   });
@@ -126,8 +127,8 @@ describe("computeClarity: the person", () => {
     assert.deepEqual(result.person.missing, ["Budget", "How you start", "What you can do yourself"]);
   });
 
-  test("an answer on own skills counts as said", () => {
-    assert.equal(clarity({ topics: ["own_skills"] }).person.score, 73);
+  test("an answer on trade experience counts as said", () => {
+    assert.equal(clarity({ topics: ["trade_experience"] }).person.score, 73);
   });
 });
 
