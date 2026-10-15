@@ -1319,3 +1319,21 @@ body.has-review .hero { display: none; }
   .review__list dt { padding-bottom: 0; border-top: 0; }
   .review__list dd { padding-top: 4px; border-top: 0; border-bottom: 1px solid var(--border); }
 }
+
+/* ==========================================================================
+   While the planner works: the step is shown under the loader, in the element that announces it (#status)
+   ========================================================================== */
+#status.is-progress {
+  position: fixed; left: 16px; right: 16px; bottom: 92px; z-index: 8; margin: 0; text-align: center;
+  width: auto; height: auto; overflow: visible; clip: auto; clip-path: none; white-space: normal;
+  font-size: 16px; color: var(--dark); transition: opacity 200ms ease;
+}
+#status.is-progress.is-fading { opacity: 0; }
+.progress-note {
+  position: fixed; left: 16px; right: 16px; bottom: 66px; z-index: 8; margin: 0; text-align: center;
+  font-size: 13px; color: var(--gray-text);
+}
+.progress-note[hidden] { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  #status.is-progress { transition: none; }
+}

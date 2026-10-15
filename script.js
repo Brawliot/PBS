@@ -429,6 +429,19 @@
   const FINISH_MS = 350;      // loader fades out in place before the result (keep in sync with CSS)
   const START_TIMEOUT_MS = 15_000; // the POST only starts the job, so it answers fast
   const POLL_MS = 1500;            // wait between status checks
+  // What the browser says while the server works, by the step the server reports (PLANNER_STAGES in server/planner/stages.ts)
+  const STAGE_TEXT = {
+    reading: 'Reading your business\u2026',
+    costs: 'Estimating costs and what it needs\u2026',
+    explaining: 'Checking risks and next steps\u2026',
+    saving: 'Putting your report together\u2026',
+  };
+  const STAGES = Object.keys(STAGE_TEXT);
+  const GENERIC_STAGE_TEXT = 'Preparing your report\u2026';
+  const SLOW_NOTE_MS = 20_000;     // a step longer than this shows the "taking longer" note
+  const STEP_FADE_MS = 200;        // the step text fades out, then the next one fades in
+  const progressNote = document.getElementById('progress-note');
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
   const POLL_TIMEOUT_MS = 15_000;  // one status check
   const JOB_TIMEOUT_MS = 180_000;  // total time before giving up on the analysis
   const MAX_NETWORK_ERRORS = 3;    // failed status checks in a row before giving up
@@ -508,6 +521,51 @@
     return userError(message, res.status >= 500);
   };
 
+  // The step shown while a job is pending. It only moves forward (an unknown or earlier step changes nothing), and
+  // it fades to the new text unless reduced motion is on. A step that lasts too long shows the note under it.
+  const makeProgress = () => {
+    let shown = -1;      // index in STAGES of the step on screen; -1 before the first one
+    let generic = false; // the generic text is on screen
+    let fade = null;
+    let slow = null;
+    const say = (text) => {
+      clearTimeout(fade);
+      clearTimeout(slow);
+      progressNote.hidden = true;
+      slow = setTimeout(() => { progressNote.hidden = false; }, SLOW_NOTE_MS);
+      status.classList.add('is-progress');
+      if (status.textContent === text) return;
+      if (reduceMotion.matches) {
+        status.textContent = text;
+        return;
+      }
+      status.classList.add('is-fading');
+      fade = setTimeout(() => {
+        status.textContent = text;
+        status.classList.remove('is-fading');
+      }, STEP_FADE_MS);
+    };
+    return {
+      show(stage) {
+        const rank = STAGES.indexOf(stage);
+        if (rank === -1) {
+          if (shown === -1 && !generic) { generic = true; say(GENERIC_STAGE_TEXT); }
+          return;
+        }
+        if (rank <= shown) return;
+        shown = rank;
+        generic = false;
+        say(STAGE_TEXT[stage]);
+      },
+      stop() {
+        clearTimeout(fade);
+        clearTimeout(slow);
+        progressNote.hidden = true;
+        status.classList.remove('is-progress', 'is-fading');
+      },
+    };
+  };
+
   // Starts the planner job, then polls it until the result is ready. Cancel (cancelWait) stops both.
   const sendIdea = async (payload) => {
     const job = { id: null, cancelled: false };
@@ -529,36 +587,42 @@
       throw cancelledError();
     }
 
-    const deadline = Date.now() + JOB_TIMEOUT_MS;
-    let networkErrors = 0;
-    while (Date.now() < deadline) {
-      await wait(POLL_MS);
-      if (job.cancelled) throw cancelledError();
-      let poll;
-      try {
-        poll = await requestJson(`/api/planner/${job.id}`, {}, POLL_TIMEOUT_MS);
-      } catch {
+    const progress = makeProgress();
+    try {
+      const deadline = Date.now() + JOB_TIMEOUT_MS;
+      let networkErrors = 0;
+      while (Date.now() < deadline) {
+        await wait(POLL_MS);
         if (job.cancelled) throw cancelledError();
-        if (++networkErrors >= MAX_NETWORK_ERRORS) {
-          throw userError('Could not reach the server. Check your connection.', true);
+        let poll;
+        try {
+          poll = await requestJson(`/api/planner/${job.id}`, {}, POLL_TIMEOUT_MS);
+        } catch {
+          if (job.cancelled) throw cancelledError();
+          if (++networkErrors >= MAX_NETWORK_ERRORS) {
+            throw userError('Could not reach the server. Check your connection.', true);
+          }
+          continue;
         }
-        continue;
-      }
-      if (job.cancelled) throw cancelledError();
-      networkErrors = 0;
+        if (job.cancelled) throw cancelledError();
+        networkErrors = 0;
 
-      // 404: the server restarted or the job expired, so it cannot be recovered
-      if (poll.res.status === 401) throw signedOutError();
-      if (poll.res.status === 404) {
-        throw userError('The analysis was lost, usually because the server restarted. Your idea is still there. Please try again.', true);
+        // 404: the server restarted or the job expired, so it cannot be recovered
+        if (poll.res.status === 401) throw signedOutError();
+        if (poll.res.status === 404) {
+          throw userError('The analysis was lost, usually because the server restarted. Your idea is still there. Please try again.', true);
+        }
+        if (!poll.res.ok) throw httpError(poll.res, poll.data);
+        if (poll.data.status === 'done') return poll.data.result;
+        if (poll.data.status === 'error') {
+          throw userError(poll.data.message || 'Something went wrong. Please try again.', true);
+        }
+        if (poll.data.status === 'pending') progress.show(poll.data.stage);
       }
-      if (!poll.res.ok) throw httpError(poll.res, poll.data);
-      if (poll.data.status === 'done') return poll.data.result;
-      if (poll.data.status === 'error') {
-        throw userError(poll.data.message || 'Something went wrong. Please try again.', true);
-      }
+      throw userError('The request took too long. Please try again.', true);
+    } finally {
+      progress.stop();
     }
-    throw userError('The request took too long. Please try again.', true);
   };
 
   const startLoading = () => {
