@@ -23,7 +23,7 @@ describe("buildState", () => {
     );
     assert.deepEqual(state, {
       idea: "Bakery",
-      budget_usd: 5_000,
+      budget_eur: 5_000,
       experience_years: 2,
       team_size: "Medium (4-10)",
       weekly_hours: "Full time",

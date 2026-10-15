@@ -24,7 +24,7 @@
   --white: #f6f7f8;
   --gray: #a9abb0;            /* decorative (giant letters) */
   --gray-text: #55575c;       /* text, AA on the page and on the tint */
-  --gray-light: #e3e5e8;      /* slider track */
+  --gray-light: #e3e5e8;
   --border: #dfe1e4;
   --border-strong: #8a8c91;   /* form controls, 3:1 against the page */
   --border-control: #7c7e83;  /* idea bar, filter panel, examples: 3:1 against the tinted page */
@@ -32,7 +32,7 @@
   --tint: rgba(246, 247, 248, 0.5);
   --shadow: 0 18px 40px rgba(11, 12, 15, 0.14);
   --shadow-soft: 0 6px 14px rgba(11, 12, 15, 0.14);   /* button lift on hover */
-  --ring: 0 0 0 6px rgba(11, 12, 15, 0.12);           /* halo of the slider thumb while pressed */
+  --ring: 0 0 0 6px rgba(11, 12, 15, 0.12);           /* pressed halo (unused since the index sliders went) */
   --surface-hover: #eceef0;                           /* outline button on hover */
   --danger-bg: #fdecf2;                               /* danger button on hover */
   --glow: 0 0 0 4px rgba(198, 243, 107, 0.55), 0 0 32px 8px rgba(198, 243, 107, 0.45);  /* focus glow of the idea bar, in the accent */
@@ -284,7 +284,7 @@ body.is-finishing .hero__loader { opacity: 0; transition: opacity 0.35s ease; }
 .submit-error__close:hover { background: var(--gray-light); color: var(--black); }
 
 /* ==========================================================================
-   Filters panel (tucked behind the search bar up to its mid-height)
+   Examples panel (tucked behind the search bar up to its mid-height)
    ========================================================================== */
 .filters {
   display: grid; grid-template-columns: 1fr 1fr; gap: 3vh 90px;
@@ -294,21 +294,11 @@ body.is-finishing .hero__loader { opacity: 0; transition: opacity 0.35s ease; }
   box-shadow: var(--shadow);
   text-align: left;
 }
-.filter__head { display: flex; justify-content: space-between; font-size: 22px; }
-.filter__head output { font-size: 18px; }
-.filter__head output.is-example { color: var(--gray-text); font-style: italic; }
-.filter__head output:not(.is-example) { font-weight: 800; color: var(--black); }
-.filter__ticks { display: flex; justify-content: space-between; margin-top: 8px; font-size: 13px; color: var(--gray-text); }
-
-/* Title and help line at the top of the panel */
-.filters__title { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 4px; }
-.filters__heading { font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray-text); }
-.filters__help { font-size: 15px; color: var(--gray-text); }
 
 /* Example ideas and short notes under the panel */
 .hints { margin-top: 18px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .hints__examples { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; font-size: 15px; color: var(--gray-text); }
-/* Inside the filter panel: first row, both columns, left-aligned like the title under it */
+/* Inside the panel: both columns, left-aligned */
 .filters .hints__examples { grid-column: 1 / -1; justify-content: flex-start; }
 .hints__chip {
   padding: 6px 16px; font-size: 15px; background: var(--white);
@@ -317,30 +307,6 @@ body.is-finishing .hero__loader { opacity: 0; transition: opacity 0.35s ease; }
 }
 .hints__chip:hover { border-color: var(--dark); }
 .hints__note { font-size: 13px; color: var(--gray-text); }
-.filters .field-error { margin-top: 8px; }
-
-.range {
-  -webkit-appearance: none; appearance: none; width: 100%; height: 12px;
-  margin-top: 10px; border-radius: 6px;
-  background: linear-gradient(to right, var(--accent) var(--fill, 0%), var(--gray-light) var(--fill, 0%));
-}
-.range::-webkit-slider-thumb {
-  -webkit-appearance: none; width: 24px; height: 24px; border-radius: 50%;
-  background: var(--accent); cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.2s ease;
-}
-.range::-moz-range-thumb {
-  width: 24px; height: 24px; border: 0; border-radius: 50%;
-  background: var(--accent); cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.2s ease;
-}
-.range:hover::-webkit-slider-thumb { transform: scale(1.12); }
-.range:hover::-moz-range-thumb { transform: scale(1.12); }
-.range:active::-webkit-slider-thumb { transform: scale(1.25); box-shadow: var(--ring); }
-.range:active::-moz-range-thumb { transform: scale(1.25); box-shadow: var(--ring); }
-.range:not(.is-set)::-webkit-slider-thumb { background: var(--white); border: 3px solid var(--accent); }
-.range:not(.is-set)::-moz-range-thumb { background: var(--white); border: 3px solid var(--accent); }
-.range[aria-invalid="true"] { outline: 2px solid var(--danger); outline-offset: 4px; }
 
 /* ==========================================================================
    Search block exit (while sending): "blueprint dissolve"
@@ -359,7 +325,7 @@ body.is-finishing .hero__loader { opacity: 0; transition: opacity 0.35s ease; }
 }
 .filters::after { border-top: 0; border-radius: 0 0 14px 14px; } /* its top edge hides behind the bar */
 
-.search__input, .search__submit, .filter, .filters__title, .hints__examples {
+.search__input, .search__submit, .hints__examples {
   transition: opacity 0.3s ease 0.3s, transform 0.3s ease 0.3s, filter 0.3s ease 0.3s;
 }
 .search {
@@ -371,15 +337,11 @@ body.is-loading .search__bar { background: transparent; border-color: transparen
 body.is-loading .filters { background: transparent; border-color: transparent; box-shadow: none; }
 body.is-loading .search__bar::after, body.is-loading .filters::after { opacity: 1; transition-delay: 0.05s; }
 
-body.is-loading .search__input, body.is-loading .search__submit,
-body.is-loading .filter, body.is-loading .filters__title, body.is-loading .hints__examples {
+body.is-loading .search__input, body.is-loading .search__submit, body.is-loading .hints__examples {
   opacity: 0; transform: translateY(-8px); filter: blur(4px);
 }
 body.is-loading .search__input, body.is-loading .search__submit { transition-delay: 0.1s; }
-/* the title is the panel's first child, so the four filters are children 2 to 5 */
-/* the examples row is child 1 of the panel, the title child 2, the four filters children 3 to 6 */
-body.is-loading .hints__examples, body.is-loading .filters__title, body.is-loading .filter:nth-child(-n + 4) { transition-delay: 0.16s; }
-body.is-loading .filter:nth-child(n + 5) { transition-delay: 0.22s; }
+body.is-loading .hints__examples { transition-delay: 0.16s; }
 
 body.is-loading .search {
   transform: scale(0.9); opacity: 0;
@@ -756,7 +718,7 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
   .btn:hover, .btn:active, .modal__close:hover, .modal__close:active,
   .arrow-btn:hover svg, .arrow-btn:active svg,
   body.is-loading .hero__subtitle, body.is-loading .search,
-  body.is-loading .search__input, body.is-loading .search__submit, body.is-loading .filter, body.is-loading .filters__title, body.is-loading .hints__examples { transform: none; filter: none; }
+  body.is-loading .search__input, body.is-loading .search__submit, body.is-loading .hints__examples { transform: none; filter: none; }
 }
 
 /* ==========================================================================
@@ -800,18 +762,12 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
   .search__input { font-size: 18px; }
   .search__submit.arrow-btn { width: 44px; height: 44px; }
 
-  /* Convert filters to single column */
+  /* Examples panel: single column */
   .filters {
     grid-template-columns: 1fr;
     gap: 2.5vh 0;
     padding: calc(var(--bar-h) / 2 + 1.5vh) 16px 2.5vh;
   }
-
-  .filter__head { font-size: 18px; }
-  .filter__head output { font-size: 16px; }
-
-  /* Adjust sliders */
-  .range { min-width: 200px; }
 
   /* Adjust question popup */
   .question {
@@ -885,7 +841,7 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
   .search__input { font-size: 16px; }
   .search__submit svg { width: 24px; height: 24px; }
 
-  /* Filters: full width, single column */
+  /* Examples panel: full width, single column */
   .filters {
     grid-template-columns: 1fr;
     gap: 2vh 0;
@@ -893,20 +849,6 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
     margin: calc(var(--bar-h) / -2) 0 0;
     border-radius: 12px;
   }
-
-  .filter__head { font-size: 16px; }
-  .filter__head output { font-size: 14px; }
-  .filter { margin: 0; }
-
-  /* Ensure sliders are usable */
-  .range {
-    min-width: 100%;
-    height: 14px;
-    margin-top: 8px;
-  }
-
-  /* Adjust field error */
-  .filters .field-error { font-size: 13px; margin-top: 6px; }
 
   /* Submit error: full width */
   .submit-error {

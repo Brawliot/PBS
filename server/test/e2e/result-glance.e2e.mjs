@@ -108,7 +108,7 @@ const storedReport = (posts, result, glance) => {
     ...(glance && { glance }),
   };
 };
-const usd = { min: 5_000, max: 9_000, currency: "USD", fits: "Enough for a first version" };
+const eur = { min: 5_000, max: 9_000, currency: "EUR", fits: "Enough for a first version" };
 const glanceOf = (budget, location = { value: "Madrid", source: "stated" }) => ({
   maturity: "developing",
   subsectorSource: "stated",
@@ -140,17 +140,26 @@ async function mockApi(page, { results, report }) {
   return posts;
 }
 
-/** Fills the form like a user (every slider at its top) and submits it */
+/** Fills the form like a user (every fixed question at its largest value) and submits it */
+/** Answers the four fixed questions (budget, experience, team, hours) with the largest values */
+async function answerSituation(page) {
+  for (const [index, value] of ["1,000,000 €", "20", "Large (10+)", "Full time"].entries()) {
+    await page.waitForFunction(
+      (number) => document.getElementById("question").classList.contains("is-open")
+        && document.getElementById("question-progress").textContent.startsWith(`Question ${number} of`),
+      index + 1,
+      { timeout: 20_000 },
+    );
+    await page.fill(".question__input", value);
+    await page.press(".question__input", "Enter");
+  }
+}
+
 async function fillAndSend(page) {
   await page.goto(`${BASE}/`);
   await page.fill(".search__input", "Bakery delivery");
-  for (const id of ["budget", "experience", "team", "hours"]) {
-    await page.locator(`#${id}`).evaluate((el) => {
-      el.value = el.max;
-      el.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-  }
   await page.click(".search__submit");
+  await answerSituation(page);
 }
 
 /** What the top of the report shows, read from the page: the text of each part, and the bar's positions */
@@ -191,10 +200,10 @@ async function scenarioFinalRequest(browser) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: SCHEME });
   const page = await context.newPage();
   await watch(page, "final request");
-  const expected = glanceOf(usd);
+  const expected = glanceOf(eur);
   const posts = await mockApi(page, {
     results: [
-      firstRound(usd),
+      firstRound(eur),
       // The final request: the server keeps the glance it was sent (the mock echoes it, as the server does)
       (body) => ({ ...withProfile(snapshot.final), reportId: REPORT_ID, glance: body.glance }),
     ],
@@ -211,13 +220,13 @@ async function scenarioFinalRequest(browser) {
   const live = await topOfReport(page);
   await shoot(page, "glance-complete");
   assert.deepEqual(live.chips, ["Idea: In development", "Stage: Idea only", "Location: Madrid you said"]);
-  assert.equal(live.budget.row, "Budget $5,000 – $9,000 estimated");
-  assert.equal(live.budget.note, "Estimated budget: $5,000 – $9,000. Your budget: $1,000,000.");
+  assert.equal(live.budget.row, "Budget €5,000 – €9,000 estimated");
+  assert.equal(live.budget.note, "Estimated budget: €5,000 – €9,000. Your budget: €1,000,000.");
   assert.equal(live.budget.fits, "Enough for a first version", "the fit text is shown under the range");
   assert.match(live.budget.bar.zoneLeft, /^0\.5/);
   assert.equal(live.budget.bar.you, "100%", "the person's budget is the top of the scale");
   assert.equal(live.next, "From your idea and 1 answer. Next: phases, departments, tasks, calendar.");
-  // The form was sent with every slider at its top: team 3 is "Large (10+)"
+  // The fixed questions were answered with their largest values: team 3 is "Large (10+)"
   assert.deepEqual(live.needs, NEEDS_FOR_TEAM_LARGE, "the four needs, and what the person offers under Team");
 
   await page.reload();
@@ -245,9 +254,9 @@ async function scenarioNoQuestions(browser) {
   const live = await topOfReport(page);
   await shoot(page, "glance-no-questions");
   assert.deepEqual(live.chips, ["Idea: In development", "Stage: Idea only", "Location: Manchester, UK inferred"]);
-  // Not dollars: no mark of the person's budget, and the range keeps its currency code
+  // Not euros: no mark of the person's budget, and the range keeps its currency code
   assert.equal(live.budget.row, "Budget GBP 5,000 – GBP 9,000 estimated");
-  assert.equal(live.budget.bar.you, null, "no mark of the person's budget for a currency other than dollars");
+  assert.equal(live.budget.bar.you, null, "no mark of the person's budget for a currency other than euros");
   assert.equal(live.budget.note, "Estimated budget: GBP 5,000 – GBP 9,000.");
   assert.equal(live.next, "From your idea. Next: phases, departments, tasks, calendar.");
 
@@ -256,7 +265,7 @@ async function scenarioNoQuestions(browser) {
   assert.deepEqual(await topOfReport(page), live, "after a reload the top of the report is the same");
   assertNoProblems();
   await context.close();
-  return "no questions: a currency other than dollars has no mark, and the same after a reload";
+  return "no questions: a currency other than euros has no mark, and the same after a reload";
 }
 
 /** A report without a range: only the fit text is shown, and the report without a glance shows as before */

@@ -62,7 +62,7 @@ export interface PlannerInput {
 
 const JEV_TIMEOUT_MS = 30_000;
 
-// Same labels as the sliders in index.html
+// Same labels as the team and hours questions in script.js (PROFILE_QUESTIONS)
 const TEAM_LABELS = ["Solo", "Small (2-3)", "Medium (4-10)", "Large (10+)"];
 const HOURS_LABELS = ["Under 10 h", "10-20 h", "30+ h", "Full time"];
 
@@ -133,7 +133,7 @@ export const JEV_QUESTIONS: Record<string, JevQuestion> = {
 export function buildState(input: PlannerInput): string {
   return JSON.stringify({
     idea: input.idea,
-    budget_usd: input.budget,
+    budget_eur: input.budget,
     experience_years: input.experience,
     team_size: TEAM_LABELS[input.team] ?? String(input.team),
     weekly_hours: HOURS_LABELS[input.hours] ?? String(input.hours),

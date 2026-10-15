@@ -79,16 +79,25 @@ async function mockApi(page, { result, results = [result], plan }) {
 }
 
 /** Fills the form like a user and submits it */
+/** Answers the four fixed questions (budget, experience, team, hours) with the largest values */
+async function answerSituation(page) {
+  for (const [index, value] of ["1,000,000 €", "20", "Large (10+)", "Full time"].entries()) {
+    await page.waitForFunction(
+      (number) => document.getElementById("question").classList.contains("is-open")
+        && document.getElementById("question-progress").textContent.startsWith(`Question ${number} of`),
+      index + 1,
+      { timeout: 20_000 },
+    );
+    await page.fill(".question__input", value);
+    await page.press(".question__input", "Enter");
+  }
+}
+
 async function fillAndSend(page) {
   await page.goto(`${BASE}/`);
   await page.fill(".search__input", "Bakery delivery");
-  for (const id of ["budget", "experience", "team", "hours"]) {
-    await page.locator(`#${id}`).evaluate((el) => {
-      el.value = el.max;
-      el.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-  }
   await page.click(".search__submit");
+  await answerSituation(page);
 }
 
 /** Fills the form, submits it and waits until the result is on screen */
@@ -174,7 +183,7 @@ async function scenarioQuestions(browser) {
   const { posts } = await mockApi(page, { results: [questionsResult, withReport], plan: json(201, { id: PLAN_ID }) });
   await fillAndSend(page);
   await page.waitForSelector("#question.is-open", { timeout: 20_000 });
-  assert.equal(await page.textContent("#question-progress"), "Question 1 of 3");
+  assert.equal(await page.textContent("#question-progress"), "Question 5 of 7");
 
   // An empty answer says what to do and sends nothing
   await page.press(".question__input", "Enter");
@@ -202,12 +211,12 @@ async function scenarioQuestions(browser) {
   await page.fill(".question__input", "Yes");
 
   // Enter sends it, the next question comes, and Back returns to the first one with its answer
-  assert.equal(await page.isVisible("#question-back"), false, "no Back on the first question");
+  assert.equal(await page.isVisible("#question-back"), false, "no Back from the first server question to the fixed ones");
   await page.press(".question__input", "Enter");
-  await progress(page, "Question 2 of 3");
+  await progress(page, "Question 6 of 7");
   assert.equal(await page.isVisible("#question-back"), true);
   await page.click("#question-back");
-  await progress(page, "Question 1 of 3");
+  await progress(page, "Question 5 of 7");
   assert.equal(await page.inputValue(".question__input"), "Yes", "the answer is back in the field");
 
   // Escape cancels: the loader goes, the idea is still there and has the focus, nothing more is sent
@@ -230,10 +239,10 @@ async function scenarioQuestionsFlow(browser) {
   await page.waitForSelector("#question.is-open", { timeout: 20_000 });
   await page.click(".question__option >> text=No");
   await page.press(".question__input", "Enter");
-  await progress(page, "Question 2 of 3");
+  await progress(page, "Question 6 of 7");
   await page.fill(".question__input", "Savings");
   await page.press(".question__input", "Enter");
-  await progress(page, "Question 3 of 3");
+  await progress(page, "Question 7 of 7");
   await page.fill(".question__input", "Me and a friend");
   await page.press(".question__input", "Enter");
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
@@ -357,14 +366,11 @@ async function scenarioStartLayout(browser) {
   await mockApi(page, {});
   await page.goto(`${BASE}/`);
   await page.waitForSelector(".search__input");
-  // The four sliders sit in two rows of two (a rule of the plan pages once turned them into one wrapping line)
-  const tops = await page.evaluate(() => [...document.querySelectorAll(".filters .filter")].map((box) => Math.round(box.getBoundingClientRect().top)));
-  assert.equal(tops.length, 4, "four sliders");
-  assert.equal(new Set(tops).size, 2, `two rows of sliders, got tops ${tops}`);
-  const title = await page.evaluate(() => document.querySelector(".filters__title").getBoundingClientRect().top - document.querySelector(".hints__examples").getBoundingClientRect().top);
-  assert.ok(title > 4, "the heading sits below the examples, not beside them");
+  // No sliders: the situation is asked after the idea, and the panel keeps only the examples
+  assert.equal(await page.locator(".range").count(), 0, "no sliders");
+  assert.equal(await page.isVisible(".filters .hints__examples"), true, "the examples are still there");
   await context.close();
-  return "start page: the situation panel keeps its two rows of sliders";
+  return "start page: no sliders, only the idea and its examples";
 }
 
 let currentScenario = "";

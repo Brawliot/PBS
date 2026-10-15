@@ -5,7 +5,7 @@ import { cleanClaims, type Claims } from "./planner/planner-validation-handler.j
 import { parseGlance, type Glance } from "./plan/glance.js";
 
 /** Request parsing and limits for the planner API: everything that turns the body into trusted input */
-// Slider ranges, same as index.html
+// Ranges of the four fixed questions (PROFILE_QUESTIONS in script.js)
 export const RANGES = {
   budget: [0, 1_000_000],
   experience: [0, 20],

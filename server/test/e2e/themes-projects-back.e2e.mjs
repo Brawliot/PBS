@@ -72,16 +72,25 @@ async function mockSignedIn(page, { reportStatus = 200 } = {}) {
   );
 }
 
+/** Answers the four fixed questions (budget, experience, team, hours) with the largest values */
+async function answerSituation(page) {
+  for (const [index, value] of ["1,000,000 €", "20", "Large (10+)", "Full time"].entries()) {
+    await page.waitForFunction(
+      (number) => document.getElementById("question").classList.contains("is-open")
+        && document.getElementById("question-progress").textContent.startsWith(`Question ${number} of`),
+      index + 1,
+      { timeout: 20_000 },
+    );
+    await page.fill(".question__input", value);
+    await page.press(".question__input", "Enter");
+  }
+}
+
 async function analyse(page) {
   await page.goto(`${BASE}/`);
   await page.fill(".search__input", "Bakery delivery");
-  for (const id of ["budget", "experience", "team", "hours"]) {
-    await page.locator(`#${id}`).evaluate((el) => {
-      el.value = el.max;
-      el.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-  }
   await page.click(".search__submit");
+  await answerSituation(page);
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
 }
 

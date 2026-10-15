@@ -155,10 +155,6 @@ try {
     await page.waitForLoadState("networkidle");
     await page.locator("#nav-guest").waitFor({ state: "visible" });
     await page.fill(".search__input", "A bakery that delivers bread");
-    await page.$$eval(".range", (ranges) => ranges.forEach((range) => {
-      range.classList.add("is-set");
-      range.dispatchEvent(new Event("input", { bubbles: true }));
-    }));
     await page.click('.search button[type="submit"]');
     await page.locator("#gate-modal[open]").waitFor({ state: "visible" });
     assert.equal(await page.inputValue(".search__input"), "A bakery that delivers bread");

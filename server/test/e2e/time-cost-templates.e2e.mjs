@@ -150,17 +150,26 @@ async function mockApi(page, { results, report, catalog = () => json(200, { temp
   return posts;
 }
 
-/** Fills the form like a user (every slider at its top) and submits it */
+/** Fills the form like a user (every fixed question at its largest value) and submits it */
+/** Answers the four fixed questions (budget, experience, team, hours) with the largest values */
+async function answerSituation(page) {
+  for (const [index, value] of ["1,000,000 €", "20", "Large (10+)", "Full time"].entries()) {
+    await page.waitForFunction(
+      (number) => document.getElementById("question").classList.contains("is-open")
+        && document.getElementById("question-progress").textContent.startsWith(`Question ${number} of`),
+      index + 1,
+      { timeout: 20_000 },
+    );
+    await page.fill(".question__input", value);
+    await page.press(".question__input", "Enter");
+  }
+}
+
 async function fillAndSend(page) {
   await page.goto(`${BASE}/`);
   await page.fill(".search__input", "Bakery delivery");
-  for (const id of ["budget", "experience", "team", "hours"]) {
-    await page.locator(`#${id}`).evaluate((el) => {
-      el.value = el.max;
-      el.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-  }
   await page.click(".search__submit");
+  await answerSituation(page);
 }
 
 /** Runs the analysis to its result: the first round asks one question, then the final request is sent */

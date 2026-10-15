@@ -743,11 +743,13 @@
     ['regulatory_load', 'Regulation'],
   ];
 
-  // The form is in dollars, so only dollar amounts are placed against the person's budget
+  // The budget question is in euros, so only euro amounts are placed against the person's budget
+  const isEuros = (currency) => ['EUR', '€'].includes(String(currency).trim().toUpperCase());
   const isDollars = (currency) => ['USD', '$'].includes(String(currency).trim().toUpperCase());
-  // Dollars as the form shows them ($5,000); a code gets a space (GBP 5,000), a symbol none (£5,000)
+  // Euros and dollars with their symbol (€5,000, $5,000); another code gets a space (GBP 5,000), a symbol none (£5,000)
   const money = (value, currency) => {
     const number = value.toLocaleString('en-US');
+    if (isEuros(currency)) return `€${number}`;
     if (isDollars(currency)) return `$${number}`;
     if (!currency) return number;
     return /^[A-Za-z]+$/.test(currency) ? `${currency} ${number}` : `${currency}${number}`;
@@ -789,7 +791,7 @@
     document.getElementById('result-budget-row').hidden = !hasRange;
     if (hasRange) document.getElementById('result-budget-range').textContent = rangeText(budget);
     const bothEnds = budget.min !== null && budget.max !== null;
-    const mine = isDollars(budget.currency) && typeof yours === 'number' ? yours : null;
+    const mine = isEuros(budget.currency) && typeof yours === 'number' ? yours : null;
     document.getElementById('result-budget-scale').hidden = !bothEnds;
     document.getElementById('result-budget-you').hidden = !bothEnds || mine === null;
     if (bothEnds) {
@@ -803,7 +805,7 @@
     // The bar is decorative: the same figures are said in words for a screen reader
     const spoken = [];
     if (hasRange) spoken.push(`Estimated budget: ${rangeText(budget)}.`);
-    if (mine !== null) spoken.push(`Your budget: ${money(mine, '$')}.`);
+    if (mine !== null) spoken.push(`Your budget: ${money(mine, '€')}.`);
     document.getElementById('result-budget-note').textContent = spoken.join(' ');
 
     const fits = document.getElementById('result-budget-fits');

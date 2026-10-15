@@ -13,7 +13,7 @@ export const POLICY = {
   // Commitment signals: each one that applies counts once
   highBudget: 100_000,
   highExperience: 5, // years
-  fullTimeHours: 3, // slider position of "Full time"
+  fullTimeHours: 3, // answer index of "Full time"
   // Low commitment: under 10 h a week and a small budget, with no signal above
   lowHours: 0,
   lowBudget: 20_000,
