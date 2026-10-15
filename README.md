@@ -217,6 +217,10 @@ Response `202` (the job has started; the analysis is not ready yet):
 
 Returns the catalog of starter templates the report offers: `{ "templates": [{ "id", "title", "purpose", "body" }] }`. It needs a signed-in session (`401` without one) and reads no table. The response is never cached (`Cache-Control: no-store`). The catalog is the same for everyone; the planner picks from its ids and never writes their text.
 
+### `POST /api/planner/prefill`
+
+Reads the business description for the fixed questions: `{ "idea": "..." }` in, `{ "location", "budget", "start_mode", "premises" }` out, each value or `null`. The model copies only what the text states (`server/planner/prefill.ts`); the server keeps a place only when the text contains it (any case, any accents), an amount only when the text contains it, and the choices only from their closed values. A failure or a 10 s timeout gives all nulls, and the browser shows nothing it cannot confirm. It needs a signed-in session (`401` without one), and it is checked like `POST /api/planner` for the origin and the body size.
+
 ### `GET /api/planner/:id`
 
 Returns the state of a job. These responses are never cached (`Cache-Control: no-store`). Poll until `status` is `done` or `error`.
