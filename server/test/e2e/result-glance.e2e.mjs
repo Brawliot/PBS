@@ -77,7 +77,7 @@ function firstRound(budget, location = section("Madrid", "stated")) {
       stage: section("Idea only", "stated"),
       competition: section("Local bakeries", "stated"),
       constraints: { budget, exclusions: [], risks: [], assumptions: [] },
-      questions: [{ topic: "validation", question: "Have you tested it with customers?", options: ["Yes", "No"] }],
+      questions: [{ topic: "existing_customers", question: "Do you already have customers?", options: ["Yes", "No"] }],
     },
     questionTotal: 1,
   };

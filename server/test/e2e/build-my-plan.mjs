@@ -170,12 +170,11 @@ const questionsResult = {
   phase2: {
     ...snapshot.withQuestions.phase2,
     questions: [
-      { topic: "validation", question: "Have you tested it with customers?", options: ["Yes", "No"] },
-      { topic: "funding", question: "How will you fund the first year?", options: [] },
-      { topic: "team", question: "Who will do the work?", options: [] },
+      { topic: "existing_customers", question: "Do you already have customers?", options: ["Yes", "No"] },
+      { topic: "partners", question: "Will you run it with partners?", options: [] },
     ],
   },
-  questionTotal: 3,
+  questionTotal: 2,
 };
 
 const progress = (page, text) =>
@@ -188,7 +187,7 @@ async function scenarioQuestions(browser) {
   const { posts } = await mockApi(page, { results: [questionsResult, withReport], plan: json(201, { id: PLAN_ID }) });
   await fillAndSend(page);
   await page.waitForSelector("#question.is-open", { timeout: 20_000 });
-  assert.equal(await page.textContent("#question-progress"), "Question 5 of 7");
+  assert.equal(await page.textContent("#question-progress"), "Question 5 of 6");
 
   // An empty answer says what to do and sends nothing
   await page.press(".question__input", "Enter");
@@ -218,10 +217,10 @@ async function scenarioQuestions(browser) {
   // Enter sends it, the next question comes, and Back returns to the first one with its answer
   assert.equal(await page.isVisible("#question-back"), false, "no Back from the first server question to the fixed ones");
   await page.press(".question__input", "Enter");
-  await progress(page, "Question 6 of 7");
+  await progress(page, "Question 6 of 6");
   assert.equal(await page.isVisible("#question-back"), true);
   await page.click("#question-back");
-  await progress(page, "Question 5 of 7");
+  await progress(page, "Question 5 of 6");
   assert.equal(await page.inputValue(".question__input"), "Yes", "the answer is back in the field");
 
   // Escape cancels: the loader goes, the idea is still there and has the focus, nothing more is sent
@@ -244,19 +243,16 @@ async function scenarioQuestionsFlow(browser) {
   await page.waitForSelector("#question.is-open", { timeout: 20_000 });
   await page.click(".question__option >> text=No");
   await page.press(".question__input", "Enter");
-  await progress(page, "Question 6 of 7");
+  await progress(page, "Question 6 of 6");
   await page.fill(".question__input", "Savings");
-  await page.press(".question__input", "Enter");
-  await progress(page, "Question 7 of 7");
-  await page.fill(".question__input", "Me and a friend");
   await page.press(".question__input", "Enter");
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
   assert.equal(posts.length, 2, "one first request and one final request");
   assert.equal(posts[1].final, true);
-  assert.deepEqual(posts[1].answers.map((entry) => entry.answer), ["No", "Savings", "Me and a friend"]);
+  assert.deepEqual(posts[1].answers.map((entry) => entry.answer), ["No", "Savings"]);
   assert.equal(await page.isDisabled("#result-plan"), false, "with a saved report the button is on");
   await context.close();
-  return "questions flow: three answers, the final request carries them, the report opens";
+  return "questions flow: two answers, the final request carries them, the report opens";
 }
 
 // The first area of the level in use is core, so it is always on screen: it gets a reason, with the first warning
