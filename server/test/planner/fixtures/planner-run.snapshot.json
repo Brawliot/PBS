@@ -249,7 +249,7 @@
       }
     },
     "clarity": {
-      "version": 1,
+      "version": 2,
       "concept": {
         "level": "medium",
         "score": 61,
@@ -257,7 +257,8 @@
           "How it makes money",
           "How it reaches customers",
           "What sets it apart"
-        ]
+        ],
+        "essentialMissing": true
       },
       "person": {
         "level": "medium",
@@ -266,8 +267,10 @@
           "What you can do yourself",
           "Handling other people's money",
           "Fixed deadline"
-        ]
-      }
+        ],
+        "essentialMissing": true
+      },
+      "readiness": "yellow"
     }
   },
   "withQuestions": {

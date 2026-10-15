@@ -565,6 +565,30 @@ body.has-result .hero { display: none; }
 .clarity__level { font-weight: 800; letter-spacing: -0.01em; }
 .clarity__row small { display: block; margin-top: 2px; font-size: 12px; color: var(--gray-text); overflow-wrap: anywhere; }
 .clarity__note { font-size: 14px; color: var(--gray-text); }
+/* Readiness to build a plan (clarity.readiness) and the "Improve my report" round, inside the clarity box */
+.ready { display: flex; align-items: flex-start; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.ready__dot { flex: none; width: 12px; height: 12px; margin-top: 5px; border-radius: 50%; background: var(--gray-text); }
+.ready[data-state="red"] .ready__dot { background: var(--danger); }
+.ready[data-state="yellow"] .ready__dot { background: #e0a800; }
+.ready[data-state="green"] .ready__dot { background: #2e9d5b; }
+.ready__title { font-size: 16px; font-weight: 800; }
+.ready__sub { font-size: 14px; color: var(--gray-text); }
+.clarity__up { color: #2e9d5b; }
+.improve { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding-top: 10px; border-top: 1px solid var(--border); }
+.improve span { font-size: 14px; color: var(--gray-text); }
+.quiz { display: flex; flex-direction: column; gap: 16px; padding-top: 12px; border-top: 1px solid var(--border); }
+.quiz[hidden] { display: none; }
+.quiz__list { display: flex; flex-direction: column; gap: 16px; }
+.quiz__item { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.quiz__item legend { padding: 0; font-size: 15px; font-weight: 800; }
+.quiz__opts { display: flex; flex-wrap: wrap; gap: 6px; }
+.quiz__opts button { padding: 5px 12px; font: inherit; font-size: 13px; border: 1px solid var(--border-strong); border-radius: 62px; background: var(--white); color: var(--dark); cursor: pointer; }
+.quiz__opts button[aria-pressed="true"] { background: var(--dark); color: var(--white); border-color: var(--dark); }
+.quiz__opts button.is-unsure { color: var(--gray-text); border-style: dashed; }
+.quiz__item input { width: 100%; padding: 8px 12px; font: inherit; font-size: 14px; color: var(--dark); background: var(--white); border: 1px solid var(--border-strong); border-radius: 10px; }
+.quiz__error { font-size: 13px; color: var(--danger); }
+.quiz__foot { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-size: 13px; color: var(--gray-text); }
+.quiz__buttons { display: flex; align-items: center; gap: 12px; }
 @media (max-width: 480px) {
   .clarity__row { flex-direction: column; gap: 2px; }
   .clarity__row dd { text-align: left; }

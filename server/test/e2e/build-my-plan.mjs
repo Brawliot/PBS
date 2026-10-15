@@ -106,7 +106,12 @@ async function analyse(page) {
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
 }
 
-const withReport = { ...snapshot.noQuestions, reportId: REPORT_ID };
+// Ready for a plan (green): a yellow or red report gates the button (improve-report.e2e.mjs checks that)
+const withReport = {
+  ...snapshot.noQuestions,
+  reportId: REPORT_ID,
+  clarity: { ...snapshot.noQuestions.clarity, readiness: "green" },
+};
 
 async function scenarioFullFlow(browser) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });

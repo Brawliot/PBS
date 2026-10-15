@@ -96,6 +96,10 @@
       <ul class="glance__chips" id="result-glance" aria-label="Where your idea stands" hidden></ul>
     </header>
     <section class="clarity" id="result-clarity" aria-labelledby="result-clarity-label" hidden>
+      <div class="ready" id="result-ready" aria-live="polite" hidden>
+        <span class="ready__dot" aria-hidden="true"></span>
+        <div><p class="ready__title" id="result-ready-title"></p><p class="ready__sub" id="result-ready-sub"></p></div>
+      </div>
       <h3 class="result__label" id="result-clarity-label">How clearly we understand it</h3>
       <dl class="clarity__rows">
         <div class="clarity__row">
@@ -108,6 +112,20 @@
         </div>
       </dl>
       <p class="clarity__note">Clarity is not viability: it only measures how well we understand the business and you.</p>
+      <div class="improve" id="result-improve" hidden>
+        <span id="result-improve-text"></span>
+        <button class="btn btn--outline" type="button" id="result-improve-open">Improve my report</button>
+      </div>
+      <form class="quiz" id="result-quiz" aria-label="Improve my report" novalidate hidden>
+        <div class="quiz__list" id="result-quiz-list"></div>
+        <div class="quiz__foot">
+          <span>&ldquo;I don&rsquo;t know&rdquo; is fine: it stays as something to verify in your plan.</span>
+          <span class="quiz__buttons">
+            <button class="link" type="button" id="result-quiz-cancel">Cancel</button>
+            <button class="btn btn--dark" type="submit" id="result-quiz-send">Update report</button>
+          </span>
+        </div>
+      </form>
     </section>
     <dl class="result__list" id="result-summary"></dl>
     <section class="budget" id="result-budget" aria-labelledby="result-budget-label" hidden>
@@ -163,9 +181,11 @@
     <p class="glance__next" id="result-next"></p>
     <div class="result__actions">
       <p class="result__hint result__hint--row" id="result-plan-note" hidden>This analysis could not be saved, so a plan cannot be built from it. Start over to try again.</p>
+      <p class="result__hint result__hint--row" id="result-gate" hidden></p>
       <button class="result__restart" type="button" id="result-restart">Start over</button>
       <button class="link" type="button" id="result-templates-open" hidden>Starter templates (3)</button>
       <button class="btn btn--outline" type="button" id="result-detail-open">See full detail</button>
+      <button class="btn btn--outline" type="button" id="result-plan-anyway" hidden>Build anyway</button>
       <button class="btn btn--dark" type="button" id="result-plan">Build my plan</button>
     </div>
   </section>

@@ -6,16 +6,21 @@
  *
  * Pure: no I/O and no model. The weights, the source values and the thresholds all live in CLARITY below, and
  * CLARITY_VERSION changes whenever one of them does, so a stored report says which rules made it.
+ *
+ * Version 2: every variable the person can tell us also counts a follow-up answer on its topic (the questions of
+ * "Improve my report" use these topics), and the clarity says how ready it is to build a plan (readiness).
  */
 
 import { z } from "zod";
 import type { DimensionKey } from "../planner/planner-profile-handler.js";
 import type { InputKey } from "../planner/planner-handler.js";
 
-export const CLARITY_VERSION = 1;
+export const CLARITY_VERSION = 2;
 
 type Source = "stated" | "inferred" | "unknown";
 export type ClarityLevel = "low" | "medium" | "high";
+/** red: too little to build a plan; yellow: a plan, but a generic one; green: ready for a plan fitted to the person */
+export type Readiness = "red" | "yellow" | "green";
 
 export const CLARITY = {
   weight: { essential: 3, important: 2, secondary: 1 },
@@ -65,15 +70,15 @@ const fixed = (input: ClarityInput, key: InputKey): Source => (input.unknownInpu
  * out on purpose: they are the model's judgement of the business type, not something the person can tell us.
  */
 const CONCEPT: Variable[] = [
-  { label: "What you offer", weight: "essential", source: (i) => best(i.phase2.subsector, dimension(i, "offering_type")) },
-  { label: "Value proposition", weight: "essential", source: (i) => i.phase2.value_proposition },
-  { label: "Target customer", weight: "essential", source: (i) => best(i.phase2.target_customer, dimension(i, "customer_segment")) },
-  { label: "How it makes money", weight: "essential", source: (i) => best(i.phase2.revenue_model, dimension(i, "revenue_model")) },
-  { label: "Where it operates", weight: "essential", source: (i) => i.phase2.location },
-  { label: "How it reaches customers", weight: "important", source: (i) => dimension(i, "acquisition_channel") },
+  { label: "What you offer", weight: "essential", source: (i) => best(i.phase2.subsector, dimension(i, "offering_type"), topic(i, "offering")) },
+  { label: "Value proposition", weight: "essential", source: (i) => best(i.phase2.value_proposition, topic(i, "value_proposition")) },
+  { label: "Target customer", weight: "essential", source: (i) => best(i.phase2.target_customer, dimension(i, "customer_segment"), topic(i, "customer")) },
+  { label: "How it makes money", weight: "essential", source: (i) => best(i.phase2.revenue_model, dimension(i, "revenue_model"), topic(i, "revenue")) },
+  { label: "Where it operates", weight: "essential", source: (i) => best(i.phase2.location, topic(i, "location", "scope")) },
+  { label: "How it reaches customers", weight: "important", source: (i) => best(dimension(i, "acquisition_channel"), topic(i, "acquisition")) },
   { label: "What sets it apart", weight: "important", source: (i) => best(dimension(i, "differentiator"), topic(i, "differentiator")) },
   { label: "Stage and validation", weight: "important", source: (i) => best(i.phase2.stage, dimension(i, "validation_stage"), topic(i, "validation", "progress")) },
-  { label: "Known competition", weight: "secondary", source: (i) => best(i.phase2.competition, dimension(i, "competition")) },
+  { label: "Known competition", weight: "secondary", source: (i) => best(i.phase2.competition, dimension(i, "competition"), topic(i, "competition")) },
 ];
 
 const PERSON: Variable[] = [
@@ -96,12 +101,25 @@ export interface ClarityMetric {
   score: number;
   /** The unknown variables, heaviest first, at most CLARITY.maxMissing */
   missing: string[];
+  /** Whether an essential variable is unknown (it may be beyond the missing shown) */
+  essentialMissing: boolean;
 }
 
 export interface Clarity {
   version: number;
   concept: ClarityMetric;
   person: ClarityMetric;
+  readiness: Readiness;
+}
+
+/**
+ * How ready the run is to build a plan: red when the business itself is unclear (concept Low), green when both
+ * metrics are at least Medium and no essential of either is unknown, yellow in between.
+ */
+export function readinessOf(concept: Pick<ClarityMetric, "level" | "essentialMissing">, person: Pick<ClarityMetric, "level" | "essentialMissing">): Readiness {
+  if (concept.level === "low") return "red";
+  const enough = person.level !== "low" && !concept.essentialMissing && !person.essentialMissing;
+  return enough ? "green" : "yellow";
 }
 
 function metric(variables: Variable[], input: ClarityInput, thresholds: { medium: number; high: number }): ClarityMetric {
@@ -118,21 +136,21 @@ function metric(variables: Variable[], input: ClarityInput, thresholds: { medium
     .sort((a, b) => CLARITY.weight[b.weight] - CLARITY.weight[a.weight]) // stable: same weight keeps the table order
     .slice(0, CLARITY.maxMissing)
     .map(({ label }) => label);
-  return { level, score: Math.round(percent), missing };
+  return { level, score: Math.round(percent), missing, essentialMissing };
 }
 
 export function computeClarity(input: ClarityInput): Clarity {
-  return {
-    version: CLARITY_VERSION,
-    concept: metric(CONCEPT, input, CLARITY.concept),
-    person: metric(PERSON, input, CLARITY.person),
-  };
+  const concept = metric(CONCEPT, input, CLARITY.concept);
+  const person = metric(PERSON, input, CLARITY.person);
+  return { version: CLARITY_VERSION, concept, person, readiness: readinessOf(concept, person) };
 }
 
 const MetricSchema = z.strictObject({
   level: z.enum(["low", "medium", "high"]),
   score: z.number().int().min(0).max(100),
   missing: z.array(z.enum(CLARITY_LABELS as [string, ...string[]])).max(CLARITY.maxMissing),
+  // Optional: reports of version 1 have neither
+  essentialMissing: z.boolean().optional(),
 });
 
 /** The clarity as the report keeps it. Optional in the report: reports kept before it have none. */
@@ -140,4 +158,5 @@ export const ClaritySchema = z.strictObject({
   version: z.number().int().min(1),
   concept: MetricSchema,
   person: MetricSchema,
+  readiness: z.enum(["red", "yellow", "green"]).optional(),
 });

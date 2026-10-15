@@ -1,6 +1,6 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { CLARITY, CLARITY_VERSION, computeClarity, type ClarityInput, type Phase2Sources } from "../../plan/clarity.js";
+import { CLARITY, CLARITY_VERSION, computeClarity, readinessOf, type ClarityInput, type Phase2Sources } from "../../plan/clarity.js";
 import { DIMENSION_KEYS, type DimensionKey } from "../../planner/planner-profile-handler.js";
 
 // The clarity is computed by fixed rules: these cases pin the weights, the source values, the thresholds and
@@ -23,7 +23,7 @@ describe("computeClarity: business concept", () => {
   test('"an app", only the four answers: concept Low (~7 %), person Medium', () => {
     const result = clarity({ phase2: { ...UNKNOWN, subsector: "inferred" } });
     assert.equal(result.version, CLARITY_VERSION);
-    assert.deepEqual(result.concept, { level: "low", score: 7, missing: ["Value proposition", "Target customer", "How it makes money"] });
+    assert.deepEqual(result.concept, { level: "low", score: 7, missing: ["Value proposition", "Target customer", "How it makes money"], essentialMissing: true });
     assert.equal(result.person.level, "medium");
     assert.equal(result.person.score, 61);
     assert.deepEqual(result.person.missing, ["What you can do yourself", "Handling other people's money", "Fixed deadline"]);
@@ -127,5 +127,43 @@ describe("computeClarity: the person", () => {
 
   test("an answer on own skills counts as said", () => {
     assert.equal(clarity({ topics: ["own_skills"] }).person.score, 78);
+  });
+});
+
+describe("computeClarity: the answers of Improve my report", () => {
+  // Each question of the round has a topic; an answer on it counts as said, like any follow-up answer
+  const cases: [string, string, "concept" | "person"][] = [
+    ["offering", "What you offer", "concept"],
+    ["value_proposition", "Value proposition", "concept"],
+    ["customer", "Target customer", "concept"],
+    ["revenue", "How it makes money", "concept"],
+    ["location", "Where it operates", "concept"],
+    ["acquisition", "How it reaches customers", "concept"],
+    ["competition", "Known competition", "concept"],
+  ];
+  for (const [topic, label, metric] of cases) {
+    test(`an answer on "${topic}" fills "${label}"`, () => {
+      const before = clarity({});
+      const after = clarity({ topics: [topic] });
+      assert.ok(after[metric].score > before[metric].score);
+      assert.ok(!after[metric].missing.includes(label));
+    });
+  }
+});
+
+describe("readiness", () => {
+  test("red while the business is Low, whatever the person", () => {
+    assert.equal(readinessOf({ level: "low", essentialMissing: true }, { level: "high", essentialMissing: false }), "red");
+  });
+  test("yellow with an essential unknown, or the person Low", () => {
+    assert.equal(readinessOf({ level: "medium", essentialMissing: true }, { level: "high", essentialMissing: false }), "yellow");
+    assert.equal(readinessOf({ level: "high", essentialMissing: false }, { level: "medium", essentialMissing: true }), "yellow");
+    assert.equal(readinessOf({ level: "high", essentialMissing: false }, { level: "low", essentialMissing: false }), "yellow");
+  });
+  test("green with both at least Medium and no essential unknown", () => {
+    assert.equal(readinessOf({ level: "medium", essentialMissing: false }, { level: "medium", essentialMissing: false }), "green");
+  });
+  test("computeClarity carries it: only the four answers is red", () => {
+    assert.equal(clarity({}).readiness, "red");
   });
 });

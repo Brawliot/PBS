@@ -6,7 +6,7 @@
     "dev": "tsx watch --env-file=.env server.ts",
     "test": "tsx scripts/run-tests.ts",
     "test:db": "tsx scripts/run-tests.ts db",
-    "test:e2e": "node test/e2e/build-my-plan.mjs && tsx test/e2e/plan-decisions.e2e.ts && node test/e2e/loader.e2e.mjs && node test/e2e/auth-dialogs.e2e.mjs && node test/e2e/themes-projects-back.e2e.mjs && node test/e2e/result-glance.e2e.mjs && node test/e2e/time-cost-templates.e2e.mjs",
+    "test:e2e": "node test/e2e/build-my-plan.mjs && tsx test/e2e/plan-decisions.e2e.ts && node test/e2e/loader.e2e.mjs && node test/e2e/auth-dialogs.e2e.mjs && node test/e2e/themes-projects-back.e2e.mjs && node test/e2e/result-glance.e2e.mjs && node test/e2e/improve-report.e2e.mjs && node test/e2e/time-cost-templates.e2e.mjs",
     "start": "tsx --env-file=.env server.ts",
     "typecheck": "tsc",
     "migrate": "tsx --env-file=.env db/migrate-cli.ts",

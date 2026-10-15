@@ -1,7 +1,6 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { parseReport } from "../../plan/report.js";
-import type { Clarity } from "../../plan/clarity.js";
 import { reportWith } from "./report-fixtures.js";
 
 // The clarity and the "I don't know" list are optional in the report: a report kept before them still reads, and
@@ -24,10 +23,11 @@ const oldShape = () => {
     },
   };
 };
-const clarity: Clarity = {
+/** A clarity of version 1, as kept before the readiness: it must still read */
+const clarity = {
   version: 1,
   concept: { level: "medium", score: 43, missing: ["How it makes money", "Where it operates"] },
-  person: { level: "high", score: 89, missing: [] },
+  person: { level: "high", score: 89, missing: [] as string[] },
 };
 const read = (report: unknown) => parseReport(JSON.stringify(report));
 
@@ -48,6 +48,20 @@ describe("the report schema: clarity and unknown inputs", () => {
     assert.deepEqual(result.ok && result.report.clarity, clarity);
     assert.deepEqual(result.ok && result.report.input.unknown, ["budget", "hours"]);
     assert.deepEqual(result.ok && result.report.glance?.sources, sources);
+  });
+
+  test("a clarity of version 2, with the readiness and the essential flags, reads and is kept", () => {
+    const base = oldShape();
+    const v2 = {
+      version: 2,
+      concept: { ...clarity.concept, essentialMissing: true },
+      person: { ...clarity.person, essentialMissing: false },
+      readiness: "yellow",
+    };
+    const result = read({ ...base, clarity: v2 });
+    assert.equal(result.ok, true);
+    assert.deepEqual(result.ok && result.report.clarity, v2);
+    assert.equal(read({ ...base, clarity: { ...v2, readiness: "blue" } }).ok, false);
   });
 
   const invalidClarity: [string, unknown][] = [

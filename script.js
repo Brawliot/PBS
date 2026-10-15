@@ -664,8 +664,18 @@
       glance = result.glance ?? null;
       clarity = result.clarity ?? null;
       if (profile) reportId = result.reportId ?? null;
-      // The browser keeps only the report's id, in this history entry: going back shows the report again
-      if (profile && reportId) history.replaceState({ reportId }, '');
+      if (profile) {
+        improveSession = {
+          idea: input.idea,
+          profileInput: { ...profileInput },
+          answers: [...answers],
+          analysis,
+          rounds: 0,
+          asked: [],
+        };
+      }
+      // The browser keeps the report's id (and what a new round needs) in this history entry: going back shows it again
+      if (profile && reportId) saveHistory();
       if (!profile) {
         queue = result.phase2?.questions ?? [];
         total = PROFILE_QUESTIONS.length + (result.questionTotal ?? queue.length);
@@ -807,18 +817,289 @@
   };
 
   // Clarity: two levels with what is missing (at most three each, from the server). Nothing without it (old reports).
+  // After an "Improve my report" round, a level that changed shows where it came from (Medium → High).
   const CLARITY_LEVELS = { low: 'Low', medium: 'Medium', high: 'High' };
-  const showClarity = (clarity) => {
+  const showClarity = (clarity, previous) => {
     const box = document.getElementById('result-clarity');
     box.hidden = !clarity;
     if (!clarity) return;
     [['concept', clarity.concept], ['person', clarity.person]].forEach(([name, metric]) => {
-      document.getElementById(`result-clarity-${name}`).textContent = CLARITY_LEVELS[metric.level] ?? '';
+      const level = document.getElementById(`result-clarity-${name}`);
+      const before = previous?.[name]?.level;
+      level.replaceChildren();
+      if (before && before !== metric.level && CLARITY_LEVELS[before]) {
+        const now = document.createElement('span');
+        now.className = 'clarity__up';
+        now.textContent = CLARITY_LEVELS[metric.level] ?? '';
+        level.append(`${CLARITY_LEVELS[before]} \u2192 `, now);
+      } else {
+        level.textContent = CLARITY_LEVELS[metric.level] ?? '';
+      }
       const missing = document.getElementById(`result-clarity-${name}-missing`);
       missing.textContent = metric.missing.length ? `Missing: ${metric.missing.slice(0, 3).join(', ')}` : '';
       missing.hidden = !metric.missing.length;
     });
   };
+
+  // --- Readiness and "Improve my report" ---------------------------------------------------------------------
+  // The server says how ready the report is to build a plan (clarity.readiness, clarity.ts). A report kept before
+  // it existed gets the same rule from its levels alone. The round asks up to three questions about what is missing,
+  // then sends the final request again with the new answers: a new report, with its clarity computed again.
+  const IMPROVE = { perRound: 3, rounds: 2, maxAnswers: 12 }; // maxAnswers: MAX_ANSWERS in server/request.ts
+  const readinessOf = (clarity) => {
+    if (!clarity) return null;
+    if (clarity.readiness) return clarity.readiness;
+    if (clarity.concept.level === 'low') return 'red';
+    return clarity.concept.level === 'high' && clarity.person.level === 'high' ? 'green' : 'yellow';
+  };
+  const READINESS = {
+    red: ['I need more to build your plan', 'The business itself is still unclear.'],
+    yellow: ['I can build a plan, but a generic one', 'A few answers would fit it to you.'],
+    green: ['Ready for a plan made for you', 'Anything still open goes into the plan as something to verify.'],
+  };
+  // One question for each clarity label the person can answer. The topics are the ones clarity.ts counts;
+  // the four fixed questions are asked again with their own parsing.
+  const IMPROVE_QUESTIONS = {
+    'What you offer': { topic: 'offering', question: 'What exactly will you sell?', options: [] },
+    'Value proposition': { topic: 'value_proposition', question: 'What problem do you solve for your customers?', options: [] },
+    'Target customer': { topic: 'customer', question: 'Who is your main customer?', options: ['Consumers', 'Small businesses', 'Large companies', 'Public sector'] },
+    'How it makes money': { topic: 'revenue', question: 'How will it make money?', options: ['One-off sales', 'Subscription', 'Commission', 'Advertising'] },
+    'Where it operates': { topic: 'location', question: 'Where will it operate?', options: ['Online only', 'My city', 'My country', 'Several countries'] },
+    'How it reaches customers': { topic: 'acquisition', question: 'How will customers find you?', options: ['Word of mouth', 'Social media', 'Online ads', 'Direct sales'] },
+    'What sets it apart': { topic: 'differentiator', question: 'Why would someone choose you over the alternatives?', options: [] },
+    'Stage and validation': { topic: 'validation', question: 'How far have you tested the idea?', options: ['Just an idea', 'Talked to customers', 'First sales', 'Already running'] },
+    'Known competition': { topic: 'competition', question: 'Who else offers something similar?', options: ['No one I know of', 'A few local ones', 'Big known brands'] },
+    'What you can do yourself': { topic: 'own_skills', question: 'What parts of the business can you do yourself?', options: ['Make the product', 'Sell', 'Handle the numbers', 'Marketing'] },
+    "Handling other people's money": { topic: 'money_handling', question: 'Will you hold or move other people\u2019s money?', options: ['No', 'I only take payments', 'I hold deposits or funds'] },
+    'Fixed deadline': { topic: 'deadline', question: 'Do you have a fixed date to launch?', options: ['No fixed date', 'In a few months', 'A firm date'] },
+    'Existing assets': { topic: 'existing_assets', question: 'Do you already have something to start from?', options: ['Nothing yet', 'A website or social accounts', 'Customers or a list', 'Equipment or premises'] },
+  };
+  const FIXED_BY_LABEL = { Budget: 'budget', 'Weekly hours': 'hours', Team: 'team', Experience: 'experience' };
+
+  // What a new round needs from this session: the idea, the fixed answers, the answers, the first analysis.
+  // Kept in the history entry with the report's id, so a reload can still improve the report.
+  let improveSession = null; // { idea, profileInput, answers, analysis, rounds, asked }
+  let currentClarity = null;
+  let improving = false;
+  const saveHistory = () => history.replaceState({ reportId, ...(improveSession && { session: improveSession }) }, '');
+
+  // The questions of the next round: what is missing, alternating business and person, never asked before
+  const improveQuestions = (clarity) => {
+    if (!improveSession || !clarity) return [];
+    const asked = new Set(improveSession.asked);
+    const room = IMPROVE.maxAnswers - improveSession.answers.length;
+    const concept = clarity.concept.missing;
+    const person = clarity.person.missing;
+    // The business goes first while it is the blocker
+    const order = [];
+    const first = clarity.concept.level === 'low' ? [concept, person] : [person, concept];
+    for (let i = 0; i < 3; i++) first.forEach((list) => list[i] && order.push(list[i]));
+    return order
+      .filter((label) => !asked.has(label) && (FIXED_BY_LABEL[label] || IMPROVE_QUESTIONS[label]))
+      .slice(0, Math.min(IMPROVE.perRound, Math.max(0, room)))
+      .map((label) => (FIXED_BY_LABEL[label]
+        ? { label, fixed: PROFILE_QUESTIONS.find(({ key }) => key === FIXED_BY_LABEL[label]) }
+        : { label, ...IMPROVE_QUESTIONS[label] }));
+  };
+  const canImprove = (clarity) => !!improveSession && improveSession.rounds < IMPROVE.rounds && improveQuestions(clarity).length > 0;
+
+  const quiz = document.getElementById('result-quiz');
+  const quizList = document.getElementById('result-quiz-list');
+  const improveBox = document.getElementById('result-improve');
+  const planButton = document.getElementById('result-plan');
+  const planAnyway = document.getElementById('result-plan-anyway');
+
+  // The light, the improve offer and the plan buttons, from the readiness. A red report that cannot be improved
+  // any more is not a dead end: it can still be built, like a yellow one.
+  const showReadiness = (clarity) => {
+    const state = readinessOf(clarity);
+    const box = document.getElementById('result-ready');
+    box.hidden = !state;
+    const improvable = canImprove(clarity);
+    let gate = '';
+    planButton.hidden = false;
+    planAnyway.hidden = true;
+    planButton.className = 'btn btn--dark';
+    if (state) {
+      const [title, sub] = READINESS[state];
+      box.dataset.state = state;
+      document.getElementById('result-ready-title').textContent = title;
+      document.getElementById('result-ready-sub').textContent = state === 'yellow' && !improvable ? 'The plan will mark what is still open as something to verify.' : sub;
+      if (state === 'red' && improvable) {
+        planButton.disabled = true;
+        gate = 'Answer a few questions to build your plan.';
+      } else if (state !== 'green' && improvable) {
+        planButton.hidden = true;
+        planAnyway.hidden = false;
+        planAnyway.disabled = !reportId;
+        gate = 'Building now gives a more generic plan.';
+      }
+    }
+    const questions = improvable ? improveQuestions(clarity).length : 0;
+    improveBox.hidden = !improvable || state === 'green' || !quiz.hidden;
+    document.getElementById('result-improve-open').className = state === 'green' ? 'btn btn--outline' : 'btn btn--dark';
+    if (improvable) {
+      const left = IMPROVE.rounds - improveSession.rounds;
+      document.getElementById('result-improve-text').textContent =
+        `${questions === 1 ? '1 quick question' : `${questions} quick questions`} \u00b7 ${left === 1 ? 'last round' : 'about 1 min'}`;
+    }
+    const gateNote = document.getElementById('result-gate');
+    gateNote.textContent = gate;
+    gateNote.hidden = !gate || !reportId;
+  };
+
+  const closeQuiz = () => {
+    quiz.hidden = true;
+    quizList.replaceChildren();
+    showReadiness(currentClarity);
+  };
+
+  const openQuiz = () => {
+    const questions = improveQuestions(currentClarity);
+    if (!questions.length) return;
+    quizList.replaceChildren();
+    questions.forEach((item, index) => {
+      const set = document.createElement('fieldset');
+      set.className = 'quiz__item';
+      set.dataset.label = item.label;
+      const legend = document.createElement('legend');
+      legend.textContent = item.fixed ? item.fixed.question : item.question;
+      const field = document.createElement('input');
+      field.type = 'text';
+      field.maxLength = ANSWER_MAX;
+      field.placeholder = 'Or write your answer';
+      field.setAttribute('aria-label', legend.textContent);
+      field.id = `result-quiz-${index}`;
+      const error = document.createElement('p');
+      error.className = 'quiz__error';
+      error.hidden = true;
+      const options = document.createElement('div');
+      options.className = 'quiz__opts';
+      const choices = [...(item.fixed ? item.fixed.options : item.options).slice(0, 4), DONT_KNOW];
+      const mark = () => options.querySelectorAll('button').forEach((button) => button.setAttribute('aria-pressed', String(button.textContent === field.value)));
+      choices.forEach((choice) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = choice;
+        if (choice === DONT_KNOW) button.className = 'is-unsure';
+        button.addEventListener('click', () => {
+          field.value = choice;
+          error.hidden = true;
+          mark();
+        });
+        options.append(button);
+      });
+      field.addEventListener('input', () => {
+        error.hidden = true;
+        mark();
+      });
+      mark();
+      set.append(legend, options, field, error);
+      quizList.append(set);
+    });
+    improveBox.hidden = true;
+    quiz.hidden = false;
+    quizList.querySelector('button')?.focus();
+  };
+  document.getElementById('result-improve-open').addEventListener('click', openQuiz);
+  document.getElementById('result-quiz-cancel').addEventListener('click', closeQuiz);
+
+  // Update report: the answers are added, an "I don't know" only marks the question as asked, and the final
+  // request runs again from the same first analysis. The new report replaces the one on screen.
+  quiz.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (improving || !improveSession) return;
+    const items = [...quizList.querySelectorAll('.quiz__item')];
+    const questions = improveQuestions(currentClarity);
+    const newAnswers = [];
+    const newInput = { ...improveSession.profileInput };
+    let invalid = null;
+    items.forEach((set) => {
+      const item = questions.find(({ label }) => label === set.dataset.label);
+      const field = set.querySelector('input');
+      const error = set.querySelector('.quiz__error');
+      const text = field.value.trim();
+      if (!item || !text || isDontKnow(text)) return; // left empty or "I don't know": nothing to send
+      if (item.fixed) {
+        const value = item.fixed.parse(text);
+        if (value === null) {
+          error.textContent = item.fixed.error;
+          error.hidden = false;
+          invalid ??= field;
+          return;
+        }
+        newInput[item.fixed.key] = value;
+        return;
+      }
+      newAnswers.push({ topic: item.topic, question: item.question, answer: text });
+    });
+    if (invalid) {
+      invalid.focus();
+      return;
+    }
+
+    improving = true;
+    const send = document.getElementById('result-quiz-send');
+    send.disabled = true;
+    send.textContent = 'Updating\u2026';
+    quiz.inert = true;
+    resultSection.setAttribute('aria-busy', 'true');
+    status.textContent = 'Updating your report\u2026';
+    const session = improveSession;
+    const answersNow = [...session.answers, ...newAnswers];
+    const unknown = PROFILE_QUESTIONS.map(({ key }) => key).filter((key) => newInput[key] === null);
+    const numbers = Object.fromEntries(Object.entries(newInput).filter(([, value]) => value !== null));
+    try {
+      const result = await sendIdea({
+        idea: session.idea,
+        ...numbers,
+        ...(unknown.length && { unknown }),
+        answers: answersNow,
+        final: true,
+        analysis: Object.fromEntries(CLAIM_KEYS.map((key) => [key, session.analysis?.[key]?.value])),
+        glance: glanceFrom(session.analysis),
+      });
+      if (!result?.profile) throw new Error('No profile');
+      const previous = currentClarity;
+      improveSession = {
+        ...session,
+        profileInput: newInput,
+        answers: answersNow,
+        rounds: session.rounds + 1,
+        asked: [...session.asked, ...items.map((set) => set.dataset.label)],
+      };
+      reportId = result.reportId ?? null;
+      if (reportId) saveHistory();
+      quiz.hidden = true;
+      quizList.replaceChildren();
+      showResult(session.analysis, result.profile, result.validation ?? null, result.explanations ?? null, {
+        glance: result.glance ?? null,
+        clarity: result.clarity ?? null,
+        previous,
+        answers: answersNow.length,
+        budget: numbers.budget,
+        team: numbers.team,
+      });
+      // The change of level is the answer to the round: it is brought into view
+      document.getElementById('result-clarity').scrollIntoView({ block: 'start', behavior: 'smooth' });
+    } catch (err) {
+      if (err?.signedOut) {
+        currentUser = null;
+        renderHeader();
+        gate.showModal();
+        syncModalState();
+      } else {
+        showToast(err?.userMessage || 'We could not update the report. Try again.');
+      }
+    } finally {
+      activeJob = null;
+      improving = false;
+      send.disabled = false;
+      send.textContent = 'Update report';
+      quiz.inert = false;
+      resultSection.removeAttribute('aria-busy');
+    }
+  });
 
   // The bar is drawn only with both ends of the range; the mark of the person's budget only for dollars
   const showBudget = (glance, yours) => {
@@ -1094,7 +1375,8 @@
     // The top of the report: the chips, the budget and what the business asks, then the line about the basis
     const glance = view.glance ?? null;
     showChips(profile, glance);
-    showClarity(view.clarity ?? null);
+    currentClarity = view.clarity ?? null;
+    showClarity(currentClarity, view.previous ?? null);
     showBudget(glance, view.budget);
     showCosts(explanations);
     showNeeds(profile, view.team);
@@ -1109,6 +1391,7 @@
     // A plan is built from the saved report only; without one the button says why it cannot be used
     document.getElementById('result-plan').disabled = !reportId;
     document.getElementById('result-plan-note').hidden = !!reportId;
+    showReadiness(currentClarity);
     // The header stays usable (profile menu, projects, theme); the report takes the focus when it opens
     document.getElementById('result-bar').style.width = '0';
     document.body.classList.add('has-result');
@@ -1206,6 +1489,8 @@
       showToast(PLAN_ERROR);
     }
   });
+
+  planAnyway.addEventListener('click', () => planButton.click());
 
   // Coming back with the browser's back button must not show a stale loader
   window.addEventListener('pageshow', (e) => {
@@ -1464,6 +1749,9 @@
       if (!response.ok) throw new Error('report not found');
       const { id, report } = await response.json();
       reportId = id;
+      // The round needs the first analysis, which only the history entry has; without it the report cannot be improved
+      const session = history.state?.session;
+      improveSession = session && typeof session.idea === 'string' && Array.isArray(session.answers) && session.analysis ? session : null;
       // The same view as the reveal: the glance, the answers given, and the budget and team of the form
       showResult(report.phase2, report.profile, report.validation, report.explanations, {
         glance: report.glance,

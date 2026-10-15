@@ -57,13 +57,14 @@ describe("runPlanner: the clarity", () => {
     const reports = new InMemoryReportRepository();
     const result = (await runPlanner(input, answers, false, {}, { reports, owner: USER })) as Record<string, any>;
 
-    assert.equal(result.clarity.version, 1);
+    assert.equal(result.clarity.version, 2);
     // Offer, value, stage and competition said; customer and place inferred; money unknown
     assert.equal(result.clarity.concept.level, "medium");
     assert.deepEqual(result.clarity.person, {
       level: "medium",
       score: 78,
       missing: ["Handling other people's money", "Fixed deadline", "Existing assets"],
+      essentialMissing: false,
     });
     const stored = await reports.get(result.reportId, USER);
     assert.deepEqual(stored?.report.clarity, result.clarity);
