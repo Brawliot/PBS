@@ -356,10 +356,10 @@
     return { ...numbers, ...(unknown.length && { unknown }) };
   };
 
-  // Example ideas: a click fills the idea field, as if the person had typed it
+  // Example ideas: a click fills the idea field with the full idea (data-idea), as if the person had typed it
   document.querySelectorAll('.hints__chip').forEach((chip) => {
     chip.addEventListener('click', () => {
-      idea.value = chip.textContent;
+      idea.value = chip.dataset.idea;
       idea.dispatchEvent(new Event('input', { bubbles: true }));
       idea.focus();
     });

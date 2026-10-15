@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="MANDO helps you plan and execute your business: describe your idea and answer a few short questions about your budget, experience, team and time.">
+  <meta name="description" content="Open and run your business with MANDO: describe what you want to open, answer a few short questions about budget, experience, team and time, and get a plan you can act on.">
   <meta name="theme-color" content="#f6f7f8">
   <title>MANDO - Plan &amp; Execute your Business</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23272727'/%3E%3Ctext x='16' y='23' font-size='20' font-weight='800' text-anchor='middle' fill='%23fff' font-family='Arial'%3EM%3C/text%3E%3C/svg%3E">
@@ -44,7 +44,7 @@
 
     <form class="search" action="#" novalidate>
       <div class="search__bar">
-        <input class="search__input" type="text" name="idea" placeholder="e.g. An app to book hairdressers in Madrid" aria-label="Describe your business" aria-describedby="search-error" maxlength="2000">
+        <input class="search__input" type="text" name="idea" placeholder="e.g. A tapas bar in Malasaña, Madrid" aria-label="Describe your business" aria-describedby="search-error" maxlength="2000">
         <p class="field-error" id="search-error" role="alert" hidden>Describe your business to continue.</p>
         <button class="arrow-btn search__submit" type="submit" aria-label="Submit">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
@@ -54,9 +54,9 @@
       <div class="filters">
         <div class="hints__examples">
           <span>Try:</span>
-          <button type="button" class="hints__chip">Japanese restaurant</button>
-          <button type="button" class="hints__chip">Fitness app</button>
-          <button type="button" class="hints__chip">Online store</button>
+          <button type="button" class="hints__chip" data-idea="A tapas bar in Malasaña, Madrid, for locals and after-work crowds">Tapas bar</button>
+          <button type="button" class="hints__chip" data-idea="A physiotherapy clinic in Valencia for sports injuries">Physio clinic</button>
+          <button type="button" class="hints__chip" data-idea="A hair salon in Seville with a small beauty corner">Hair salon</button>
         </div>
       </div>
       <div class="submit-error" id="submit-error" role="alert">
