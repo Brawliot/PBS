@@ -88,7 +88,7 @@ async function mockApi(page, { result, results = [result], plan, prefill = { bod
 /** Fills the form like a user and submits it */
 /** Answers the four fixed questions (location, budget, how they start, premises) with the largest values */
 async function answerSituation(page) {
-  for (const [index, value] of ["Madrid", "Over 150,000 €", "From scratch", "I have them"].entries()) {
+  for (const [index, value] of ["I have them", "From scratch", "Over 150,000 €", "Madrid"].entries()) {
     await page.waitForFunction(
       (number) => document.getElementById("question").classList.contains("is-open")
         && document.getElementById("question-progress").textContent.startsWith(`Question ${number} of`),
@@ -380,63 +380,60 @@ async function scenarioStartLayout(browser) {
   return "start page: no sliders, only the idea and its examples";
 }
 
-/** The first question shows what the description says, to confirm; a changed value is sent as typed */
+/** What the description states is not asked: all four found, nothing is asked and the first request goes at once */
 async function scenarioPrefill(browser) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   const page = await context.newPage();
   await watch(page, scenarioLabel());
-  const prefill = { body: { location: "Malasaña, Madrid", budget: 40_000, start_mode: "scratch", premises: null } };
-  const { posts } = await mockApi(page, { results: [questionsResult, withReport], plan: json(201, { id: PLAN_ID }), prefill });
+  const detected = { location: "Malasaña, Madrid", budget: 50_000, start_mode: "scratch", premises: "have" };
+  const { posts } = await mockApi(page, { results: [questionsResult, withReport], plan: json(201, { id: PLAN_ID }), prefill: { body: detected } });
   await page.goto(`${BASE}/`);
   await page.fill(".search__input", "A tapas bar in Malasaña, Madrid");
   await page.click(".search__submit");
-  await page.waitForSelector("#question.is-open", { timeout: 20_000 });
-
-  // The location is already in the field: marked, labelled, read with the question, and sent as Confirm
-  assert.equal(await page.textContent("#question-text"), "Where will the business be?");
-  assert.equal(await page.inputValue(".question__input"), "Malasaña, Madrid");
-  assert.equal(await page.isVisible("#question-from"), true, "From your description shows");
-  assert.equal(await page.textContent("#question-from"), "From your description");
-  assert.equal(await page.isVisible("#question-confirm"), true);
-  assert.equal(await page.getAttribute(".question__submit", "aria-label"), "Confirm");
-  assert.match(await page.getAttribute(".question__input", "aria-describedby"), /question-from/);
-  await page.press(".question__input", "Enter");
-
-  // The budget comes in as an amount: "40,000 €" in the field, marked too
-  await progress(page, "Question 2 of 8");
-  assert.equal(await page.inputValue(".question__input"), "40,000 €");
-  assert.equal(await page.isVisible("#question-from"), true);
-  // Changing it removes the mark and the Confirm label, and the new value is what is sent
-  await page.fill(".question__input", "25,000 €");
-  assert.equal(await page.isVisible("#question-from"), false, "the mark goes when the value changes");
-  assert.equal(await page.getAttribute(".question__submit", "aria-label"), "Send answer");
-  await page.press(".question__input", "Enter");
-
-  // The start is a choice: its option is marked as the one from the description
-  await progress(page, "Question 3 of 8");
-  assert.equal(await page.inputValue(".question__input"), "From scratch");
-  assert.equal(await page.getAttribute('.question__option >> text=From scratch', "aria-pressed"), "true");
-  await page.press(".question__input", "Enter");
-
-  // Nothing said about premises: the field starts empty, with no mark
-  await progress(page, "Question 4 of 8");
-  assert.equal(await page.inputValue(".question__input"), "");
-  assert.equal(await page.isVisible("#question-from"), false);
-  await page.fill(".question__input", "I have them");
-  await page.press(".question__input", "Enter");
-
-  // The server's questions follow; the first request carries the confirmed and changed values
-  await progress(page, "Question 5 of 6");
-  assert.equal(posts.length, 1, "one first request");
-  assert.equal(posts[0].location, "Malasaña, Madrid");
-  assert.equal(posts[0].budget, 25_000, "the changed budget is sent, not the description's");
-  assert.equal(posts[0].start_mode, "scratch");
-  assert.equal(posts[0].premises, "have");
+  // The first question the person sees is the server's, numbered from one
+  await progress(page, "Question 1 of 2");
+  assert.equal(await page.textContent("#question-text") === "Where will the business be?", false, "the place is not asked");
+  assert.equal(posts.length, 1, "the first request goes at once");
+  assert.deepEqual(
+    { location: posts[0].location, budget: posts[0].budget, start_mode: posts[0].start_mode, premises: posts[0].premises },
+    { location: "Malasaña, Madrid", budget: 50_000, start_mode: "scratch", premises: "have" },
+  );
   await context.close();
-  return "prefill: the place and amount are marked and confirmed, a change is sent, premises start empty";
+  return "prefill: all four stated in the description, none asked, the first request goes at once";
 }
 
-/** The description arrives after its own limit: the first question is asked empty and the flow goes on */
+/** Some stated: the ones not stated are asked in order, the others are skipped and the numbers follow */
+async function scenarioPrefillPartial(browser) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const page = await context.newPage();
+  await watch(page, scenarioLabel());
+  const detected = { location: "Malasaña, Madrid", budget: 50_000, start_mode: null, premises: null };
+  const { posts } = await mockApi(page, { results: [questionsResult, withReport], plan: json(201, { id: PLAN_ID }), prefill: { body: detected } });
+  await page.goto(`${BASE}/`);
+  await page.fill(".search__input", "A tapas bar in Malasaña, Madrid");
+  await page.click(".search__submit");
+  // Premises and start are asked; budget and place are skipped, so the server's questions come as 3 and 4 of 4
+  await page.waitForSelector("#question.is-open", { timeout: 20_000 });
+  assert.equal(await page.textContent("#question-text"), "Do you have premises?");
+  assert.equal(await page.inputValue(".question__input"), "", "a question not stated starts empty");
+  await page.fill(".question__input", "I have them");
+  await page.press(".question__input", "Enter");
+  // Start is the second one asked; the total still counts the two that are skipped
+  await progress(page, "Question 2 of 8");
+  assert.equal(await page.textContent("#question-text"), "How are you starting?");
+  await page.fill(".question__input", "From scratch");
+  await page.press(".question__input", "Enter");
+  await progress(page, "Question 3 of 4");
+  assert.equal(posts.length, 1, "one first request");
+  assert.deepEqual(
+    { budget: posts[0].budget, location: posts[0].location, start_mode: posts[0].start_mode, premises: posts[0].premises },
+    { budget: 50_000, location: "Malasaña, Madrid", start_mode: "scratch", premises: "have" },
+  );
+  await context.close();
+  return "prefill partial: stated answers are skipped, the rest asked, the counter follows";
+}
+
+/** The detection is slow: nothing waits for it, the first question is asked at once, a late value changes nothing */
 async function scenarioPrefillSlow(browser) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   const page = await context.newPage();
@@ -446,25 +443,25 @@ async function scenarioPrefillSlow(browser) {
   await page.goto(`${BASE}/`);
   await page.fill(".search__input", "Bakery delivery");
   await page.click(".search__submit");
-  await page.waitForSelector("#question.is-open", { timeout: 20_000 });
-
-  assert.equal(await page.inputValue(".question__input"), "", "the first question is asked empty");
-  assert.equal(await page.isVisible("#question-from"), false);
-  await page.fill(".question__input", "Madrid");
-  await page.press(".question__input", "Enter");
-  await progress(page, "Question 2 of 8");
-  await page.fill(".question__input", "Over 150,000 €");
-  await page.press(".question__input", "Enter");
-  await progress(page, "Question 3 of 8");
-  await page.fill(".question__input", "From scratch");
-  await page.press(".question__input", "Enter");
-  await progress(page, "Question 4 of 8");
+  const asked = Date.now();
+  await page.waitForSelector("#question.is-open", { timeout: 5_000 });
+  assert.ok(Date.now() - asked < 5_000, "the first question does not wait for the detection");
+  assert.equal(await page.textContent("#question-text"), "Do you have premises?");
   await page.fill(".question__input", "I have them");
   await page.press(".question__input", "Enter");
+  await progress(page, "Question 2 of 8");
+  await page.fill(".question__input", "From scratch");
+  await page.press(".question__input", "Enter");
+  await progress(page, "Question 3 of 8");
+  await page.fill(".question__input", "Over 150,000 €");
+  await page.press(".question__input", "Enter");
+  await progress(page, "Question 4 of 8");
+  await page.fill(".question__input", "Madrid");
+  await page.press(".question__input", "Enter");
   await progress(page, "Question 5 of 6");
-  assert.equal(posts[0].location, "Madrid", "the typed place is sent; a late description changes nothing");
+  assert.equal(posts[0].location, "Madrid", "the typed place is sent; a late detection changes nothing");
   await context.close();
-  return "prefill slow: the first question is asked empty and the flow goes on";
+  return "prefill slow: nothing waits for the detection, a late value changes no answer";
 }
 
 let currentScenario = "";
@@ -477,7 +474,7 @@ const browser = await chromium.launch({
 });
 let failed = 0;
 try {
-  for (const scenario of [scenarioFullFlow, scenarioError, scenarioNoReport, scenarioQuestions, scenarioQuestionsFlow, scenarioReport, scenarioCancelWait, scenarioStartLayout, scenarioPrefill, scenarioPrefillSlow]) {
+  for (const scenario of [scenarioFullFlow, scenarioError, scenarioNoReport, scenarioQuestions, scenarioQuestionsFlow, scenarioReport, scenarioCancelWait, scenarioStartLayout, scenarioPrefill, scenarioPrefillPartial, scenarioPrefillSlow]) {
     currentScenario = scenario.name;
     try {
       console.log("ok -", await scenario(browser));

@@ -158,7 +158,7 @@ async function mockApi(page, { results, report }) {
 /** Fills the form like a user (every fixed question at its largest value) and submits it */
 /** Answers the four fixed questions (location, budget, how they start, premises) with the largest values */
 async function answerSituation(page) {
-  for (const [index, value] of ["Madrid", "Over 150,000 €", "From scratch", "I have them"].entries()) {
+  for (const [index, value] of ["I have them", "From scratch", "Over 150,000 €", "Madrid"].entries()) {
     await page.waitForFunction(
       (number) => document.getElementById("question").classList.contains("is-open")
         && document.getElementById("question-progress").textContent.startsWith(`Question ${number} of`),
@@ -348,13 +348,12 @@ async function scenarioDontKnow(browser) {
       { timeout: 20_000 },
     );
 
-  // Location: the "I don't know" option, sent with the arrow
+  // Premises first now: the "I don't know" option, sent with the arrow, then Back to it
   await at(1);
   const options = await page.$$eval(".question__option", (buttons) => buttons.map((b) => b.textContent));
   assert.equal(options.at(-1), "I don't know", "every fixed question offers I don't know");
   await page.click('.question__option:has-text("I don\'t know")');
   await page.click(".question__submit");
-  // Back to it: the answer is in the field, marked, with a note that it can be changed
   await at(2);
   await page.click("#question-back");
   await at(1);
@@ -362,23 +361,25 @@ async function scenarioDontKnow(browser) {
   assert.match(await page.textContent("#question-note"), /You can change it/);
   assert.equal(await page.getAttribute(".question__input", "aria-invalid"), null, "the note is not an error");
   await shoot(page, "dont-know-back");
-  await page.press(".question__input", "Enter");
-  // Budget: typed
-  await at(2);
-  await page.fill(".question__input", "25,000");
-  await page.press(".question__input", "Enter");
-  // How they start: typed "I don't know"
-  await at(3);
-  await page.fill(".question__input", "i dont know");
-  await page.press(".question__input", "Enter");
-  // Premises: typed, the choice's words
-  await at(4);
+  // Typed over it: "not sure" is an answer for premises, sent as it is
   await page.fill(".question__input", "Not sure if I need one");
   await page.press(".question__input", "Enter");
+  // How they start: typed "I don't know"
+  await at(2);
+  await page.fill(".question__input", "i dont know");
+  await page.press(".question__input", "Enter");
+  // Budget: typed
+  await at(3);
+  await page.fill(".question__input", "25,000");
+  await page.press(".question__input", "Enter");
+  // Location last: "I don't know", sent with the arrow
+  await at(4);
+  await page.click('.question__option:has-text("I don\'t know")');
+  await page.click(".question__submit");
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
 
   const body = posts[0];
-  assert.deepEqual(body.unknown, ["location", "start_mode"]);
+  assert.deepEqual(body.unknown, ["start_mode", "location"], "in the order the questions are asked");
   assert.equal("location" in body, false, "no value for an unknown location");
   assert.equal("start_mode" in body, false, "no value for an unknown start");
   assert.equal(body.budget, 25_000);

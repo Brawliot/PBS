@@ -148,7 +148,7 @@ async function mockApi(page, { results, report, catalog = () => json(200, { temp
 /** Fills the form like a user (every fixed question at its largest value) and submits it */
 /** Answers the four fixed questions (location, budget, how they start, premises) with the largest values */
 async function answerSituation(page) {
-  for (const [index, value] of ["Madrid", "Over 150,000 €", "From scratch", "I have them"].entries()) {
+  for (const [index, value] of ["I have them", "From scratch", "Over 150,000 €", "Madrid"].entries()) {
     await page.waitForFunction(
       (number) => document.getElementById("question").classList.contains("is-open")
         && document.getElementById("question-progress").textContent.startsWith(`Question ${number} of`),

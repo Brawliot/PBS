@@ -307,19 +307,21 @@
     return choices.find(({ words }) => words?.test(typed));
   };
 
+  // The order they are asked in: the ones a description rarely states come first, the place last
   const PROFILE_QUESTIONS = [
     {
-      key: 'location',
-      question: 'Where will the business be?',
-      placeholder: 'City, and neighbourhood if you know it',
-      options: [ONLINE_LABEL],
-      parse: (text) => {
-        if (/^online\b|^no fixed place/i.test(text.trim())) return 'online';
-        // A city is enough; the server keeps up to 200 characters
-        const place = text.trim().slice(0, 200);
-        return place || null;
-      },
-      error: 'Write a city, for example Madrid.',
+      key: 'premises',
+      question: 'Do you have premises?',
+      options: PREMISES_CHOICES.map(({ label }) => label),
+      parse: (text) => choiceOf(PREMISES_CHOICES, text)?.value ?? null,
+      error: 'Choose one of the options, or write whether you have premises.',
+    },
+    {
+      key: 'start_mode',
+      question: 'How are you starting?',
+      options: START_CHOICES.map(({ label }) => label),
+      parse: (text) => choiceOf(START_CHOICES, text)?.value ?? null,
+      error: 'Choose one of the options, or write how you are starting.',
     },
     {
       key: 'budget',
@@ -335,18 +337,17 @@
       error: 'Write an amount, for example 25,000 \u20ac.',
     },
     {
-      key: 'start_mode',
-      question: 'How are you starting?',
-      options: START_CHOICES.map(({ label }) => label),
-      parse: (text) => choiceOf(START_CHOICES, text)?.value ?? null,
-      error: 'Choose one of the options, or write how you are starting.',
-    },
-    {
-      key: 'premises',
-      question: 'Do you have premises?',
-      options: PREMISES_CHOICES.map(({ label }) => label),
-      parse: (text) => choiceOf(PREMISES_CHOICES, text)?.value ?? null,
-      error: 'Choose one of the options, or write whether you have premises.',
+      key: 'location',
+      question: 'Where will the business be?',
+      placeholder: 'City, and neighbourhood if you know it',
+      options: [ONLINE_LABEL],
+      parse: (text) => {
+        if (/^online\b|^no fixed place/i.test(text.trim())) return 'online';
+        // A city is enough; the server keeps up to 200 characters
+        const place = text.trim().slice(0, 200);
+        return place || null;
+      },
+      error: 'Write a city, for example Madrid.',
     },
   ];
   // The labels of the chosen values, for the report's screen
@@ -421,7 +422,6 @@
 
   // --- Sending: title leaves, loader runs while the request is pending -------
   const PREFILL_TIMEOUT_MS = 10_000; // the server's own limit for the description call
-  const PREFILL_WAIT_MS = 10_000;    // most the first fixed question waits for the description (behind the loader)
   const EXIT_MS = 850;        // subtitle exit + title-to-loader travel to the centre (keep in sync with CSS)
   const FIRST_QUESTION_MS = 600; // entrance of the first question (keep in sync with .question.is-entering in CSS)
   const MIN_LOADER_MS = 1500; // visible time of the loader, so it never flashes
@@ -629,24 +629,46 @@
     reportId = null;
   };
 
-  // The fixed answer the description already gives, as the text the field starts with: null when there is none
-  const prefillFor = (key) => {
+  // The value the description gives for a fixed question, with the text the question takes for it; undefined
+  // when nothing is detected (yet). A value that arrives later only counts for the questions not yet reached.
+  const detectedFor = (key) => {
     const value = prefillResult?.[key];
-    if (value === null || value === undefined) return null;
-    if (key === 'location') return { text: value };
-    if (key === 'budget') return { text: `${value.toLocaleString('en-US')} \u20ac` };
-    if (key === 'start_mode') return { text: START_LABEL[value] };
-    return { text: PREMISES_LABEL[value] };
+    if (value === null || value === undefined) return undefined;
+    if (key === 'location') return { value, text: value === 'online' ? ONLINE_LABEL : value };
+    if (key === 'budget') {
+      const choice = BUDGET_CHOICES.find((band) => band.value === value);
+      return { value, text: choice ? choice.label : `${value.toLocaleString('en-US')} \u20ac` };
+    }
+    if (key === 'start_mode') return { value, text: START_LABEL[value] };
+    return { value, text: PREMISES_LABEL[value] };
+  };
+
+  // The fixed questions answered (not counting the ones the description answered): the numbers the progress shows
+  const shownFixed = () => profileAsked.filter((item) => !item.detected).length;
+
+  // A fixed question the description answered is not asked: its value is kept, marked as from the description.
+  // A question Back brought back (reopened) is always asked, so its value can be changed.
+  const skipDetected = () => {
+    while (queue[0]?.fixed && !queue[0].reopened) {
+      const detected = detectedFor(queue[0].key);
+      if (!detected) break;
+      const question = queue.shift();
+      profileInput[question.key] = detected.value;
+      profileAsked.push({ question, text: detected.text, detected: true });
+    }
   };
 
   const nextQuestion = () => {
+    skipDetected();
     current = queue.shift() ?? null;
     if (!current) return false;
-    // Only what has arrived by now: a later question picks it up, a question already on screen does not change
-    if (current.fixed) current.prefill = prefillFor(current.key);
-    const done = profileAsked.length + answers.length;
-    showQuestion(current.question, `Question ${done + 1} of ${total}`, current.options ?? []);
-    answer.value = current.prefill?.text ?? '';
+    // Fixed questions the description answered are not counted in the total, so the numbers stay in step
+    const skipped = profileAsked.length - shownFixed();
+    const progress = current.fixed
+      ? `Question ${shownFixed() + 1} of ${PROFILE_QUESTIONS.length - skipped + MODEL_QUESTIONS}`
+      : `Question ${shownFixed() + answers.length + 1} of ${total}`;
+    showQuestion(current.question, progress, current.options ?? []);
+    answer.value = '';
     refreshQuestionFoot();
     status.textContent = current.question;
     return true;
@@ -678,23 +700,25 @@
     startLoading();
     status.textContent = 'A few questions about your situation.';
     const run = ++flowRun;
-    // The description is read from the idea as it is sent; the first question waits for it at most PREFILL_WAIT_MS,
-    // so a model call that takes a few seconds still fills it in
-    const started = Date.now();
+    // The description is read from the idea as it is sent, in parallel with the first questions
     prefillResult = null;
     detectToken = null;
-    const prefilled = requestPrefill(idea.value.trim()).then((result) => {
+    requestPrefill(idea.value.trim()).then((result) => {
       prefillResult = result?.detected ?? null;
       detectToken = result?.jevToken ?? null;
     });
     await wait(EXIT_MS);
-    await Promise.race([prefilled, wait(Math.max(0, PREFILL_WAIT_MS - (Date.now() - started)))]);
     if (run !== flowRun || !sending) return;
     queue = PROFILE_QUESTIONS.map((q) => ({ ...q, fixed: true }));
     total = PROFILE_QUESTIONS.length + MODEL_QUESTIONS; // corrected when the server says how many it asks
     question.classList.add('is-entering');
     void question.offsetWidth; // the lower start position applies before the popup opens
-    nextQuestion();
+    if (!nextQuestion()) {
+      // The description answered them all: nothing is asked, the first request goes now
+      question.classList.remove('is-entering');
+      submitIdea();
+      return;
+    }
     setTimeout(() => question.classList.remove('is-entering'), FIRST_QUESTION_MS);
   };
 
@@ -757,7 +781,7 @@
       if (profile && reportId) saveHistory();
       if (!profile) {
         queue = result.phase2?.questions ?? [];
-        total = PROFILE_QUESTIONS.length + (result.questionTotal ?? queue.length);
+        total = shownFixed() + (result.questionTotal ?? queue.length);
         if (nextQuestion()) return; // the loader stays under the popup
         throw new Error('No questions and no profile');
       }
@@ -1684,9 +1708,6 @@
   const answer = question.elements.answer;
 
   const questionProgress = document.getElementById('question-progress');
-  const questionFrom = document.getElementById('question-from');
-  const questionConfirm = document.getElementById('question-confirm');
-  const questionSubmit = question.querySelector('.question__submit');
 
   const questionNote = document.getElementById('question-note');
   const questionCount = document.getElementById('question-count');
@@ -1715,12 +1736,6 @@
     const length = answer.value.length;
     questionCount.textContent = `${length} / ${ANSWER_MAX}`;
     questionCount.hidden = length < COUNT_FROM;
-    // A value from the description stays marked until it is changed; then the send button says Confirm
-    const fromDescription = !!current?.prefill && answer.value === current.prefill.text;
-    questionFrom.hidden = !fromDescription;
-    questionConfirm.hidden = !fromDescription;
-    questionSubmit.setAttribute('aria-label', fromDescription ? 'Confirm' : 'Send answer');
-    answer.setAttribute('aria-describedby', fromDescription ? 'question-from question-note' : 'question-note');
     // Back stays within its part: the server's questions were made from the fixed answers, so they cannot be changed then
     questionBack.hidden = current?.fixed ? profileAsked.length === 0 : answers.length === 0;
     optionsContainer.querySelectorAll('.question__option').forEach((button) => {
@@ -1825,6 +1840,7 @@
       if (!profileAsked.length) return;
       const previous = profileAsked.pop();
       delete profileInput[previous.question.key];
+      previous.question.reopened = true;
       queue.unshift(previous.question, current);
       current = null;
       nextQuestion();
