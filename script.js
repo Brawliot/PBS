@@ -246,7 +246,7 @@
   });
 
   // ---------------------------------------------------------------------------
-  // Search form: the idea text. The person's situation is asked after it, as four fixed questions.
+  // Search form: the idea text. The person's situation is asked after it, as fixed questions.
   // ---------------------------------------------------------------------------
   const search = document.querySelector('.search');
   const idea = search.querySelector('.search__input');
@@ -258,7 +258,7 @@
     resetFlow();
   });
 
-  // --- The four fixed questions: free text, with buttons as suggested answers ----------------
+  // --- The fixed questions: free text, with buttons as suggested answers ----------------
   // The server takes numbers (see RANGES in server/request.ts), so each answer is read into one.
   // parse returns null when the text cannot be read, and the question is asked again.
   const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
@@ -276,84 +276,98 @@
   };
   const NONE = /\b(none|nothing|zero|cero|nada|ninguno|ninguna)\b/i;
 
-  const TEAM_LABELS = ['Solo', 'Small (2-3)', 'Medium (4-10)', 'Large (10+)'];
-  const HOURS_LABELS = ['Under 10 h', '10-20 h', '30+ h', 'Full time'];
+  // The fixed questions, in the order they are asked. Each choice is a button, and a typed answer is read to the same
+  // value: the values are the ones the server takes (server/planner/fixed-answers.ts).
+  const BUDGET_CHOICES = [
+    { label: 'Under 10,000 \u20ac', value: 5000 },
+    { label: '10,000-30,000 \u20ac', value: 20000 },
+    { label: '30,000-75,000 \u20ac', value: 50000 },
+    { label: '75,000-150,000 \u20ac', value: 110000 },
+    { label: 'Over 150,000 \u20ac', value: 200000 },
+  ];
+  const START_CHOICES = [
+    { label: 'From scratch', value: 'scratch', words: /scratch|from zero|nuevo|desde cero/i },
+    { label: 'Taking over an existing business', value: 'takeover', words: /take ?over|traspaso|buy an? (existing|business)/i },
+    { label: 'Franchise', value: 'franchise', words: /franchis|franquicia/i },
+    { label: 'Already open', value: 'already_open', words: /already open|ya (estoy )?abierto|open already/i },
+    { label: 'Not decided yet', value: 'undecided', words: /not decided|undecided|no lo he decidido|todav[ií]a no/i },
+  ];
+  const PREMISES_CHOICES = [
+    { label: 'I have them', value: 'have', words: /\bi have|tengo/i },
+    { label: 'Looking for them', value: 'looking', words: /looking|buscando|busco/i },
+    { label: 'Not needed', value: 'not_needed', words: /not needed|no (lo )?necesito/i },
+    { label: 'Not sure if I need one', value: 'unsure', words: /not sure|unsure|no estoy seguro/i },
+  ];
+  const ONLINE_LABEL = 'Online / no fixed place';
+  // The choice a typed text means: the same label (any case), or one of its words; undefined when none
+  const choiceOf = (choices, text) => {
+    const typed = text.trim().toLowerCase();
+    const exact = choices.find(({ label }) => label.toLowerCase() === typed);
+    if (exact) return exact;
+    return choices.find(({ words }) => words?.test(typed));
+  };
 
   const PROFILE_QUESTIONS = [
     {
-      key: 'budget',
-      question: 'How much money can you invest in this business?',
-      options: ['0 €', '10,000 €', '50,000 €', '200,000 €'],
+      key: 'location',
+      question: 'Where will the business be?',
+      placeholder: 'City, and neighbourhood if you know it',
+      options: [ONLINE_LABEL],
       parse: (text) => {
+        if (/^online\b|^no fixed place/i.test(text.trim())) return 'online';
+        // A city is enough; the server keeps up to 200 characters
+        const place = text.trim().slice(0, 200);
+        return place || null;
+      },
+      error: 'Write a city, for example Madrid.',
+    },
+    {
+      key: 'budget',
+      question: 'How much can you invest?',
+      options: BUDGET_CHOICES.map(({ label }) => label),
+      parse: (text) => {
+        const choice = choiceOf(BUDGET_CHOICES, text);
+        if (choice) return choice.value;
         const n = readAmount(text);
         if (n !== null) return clamp(Math.round(n), 0, 1_000_000);
         return NONE.test(text) ? 0 : null;
       },
-      error: 'Write an amount, for example 25,000 €.',
+      error: 'Write an amount, for example 25,000 \u20ac.',
     },
     {
-      key: 'experience',
-      question: 'How many years of experience do you have in this industry?',
-      options: ['None', '1-2 years', '3-5 years', 'More than 5 years'],
-      parse: (text) => {
-        const n = readAmount(text);
-        if (n !== null) return clamp(Math.round(n), 0, 20);
-        return NONE.test(text) ? 0 : null;
-      },
-      error: 'Write a number of years, for example 3.',
+      key: 'start_mode',
+      question: 'How are you starting?',
+      options: START_CHOICES.map(({ label }) => label),
+      parse: (text) => choiceOf(START_CHOICES, text)?.value ?? null,
+      error: 'Choose one of the options, or write how you are starting.',
     },
     {
-      key: 'team',
-      question: 'How many people will work on it, counting you?',
-      options: TEAM_LABELS,
-      parse: (text) => {
-        const known = TEAM_LABELS.findIndex((label) => label.toLowerCase() === text.trim().toLowerCase());
-        if (known !== -1) return known;
-        if (/\b(solo|alone|just me|only me|yo solo|sol[oa])\b/i.test(text)) return 0;
-        if (/\b(large|big|grande)\b/i.test(text)) return 3;
-        if (/\b(medium|mediano)\b/i.test(text)) return 2;
-        if (/\b(small|pequeño)\b/i.test(text)) return 1;
-        const n = readAmount(text);
-        if (n === null) return null;
-        if (n <= 1) return 0;
-        if (n <= 3) return 1;
-        return n <= 10 ? 2 : 3;
-      },
-      error: 'Write how many people, for example 2.',
-    },
-    {
-      key: 'hours',
-      question: 'How many hours a week can you put into it?',
-      options: HOURS_LABELS,
-      parse: (text) => {
-        const known = HOURS_LABELS.findIndex((label) => label.toLowerCase() === text.trim().toLowerCase());
-        if (known !== -1) return known;
-        if (/\b(full[- ]?time|tiempo completo|jornada completa)\b/i.test(text)) return 3;
-        const n = readAmount(text);
-        if (n === null) return null;
-        if (n < 10) return 0;
-        if (n < 30) return 1;
-        return n < 40 ? 2 : 3;
-      },
-      error: 'Write a number of hours, for example 15.',
+      key: 'premises',
+      question: 'Do you have premises?',
+      options: PREMISES_CHOICES.map(({ label }) => label),
+      parse: (text) => choiceOf(PREMISES_CHOICES, text)?.value ?? null,
+      error: 'Choose one of the options, or write whether you have premises.',
     },
   ];
+  // The labels of the chosen values, for the report's screen
+  const START_LABEL = Object.fromEntries(START_CHOICES.map(({ label, value }) => [value, label]));
+  const PREMISES_LABEL = Object.fromEntries(PREMISES_CHOICES.map(({ label, value }) => [value, label]));
   // "I don't know" is offered on each fixed question and counts as answered: the server gets the key in `unknown`
   // and no number for it (see parsePlannerRequest). Typed or clicked, the same words mean the same.
   const DONT_KNOW = "I don't know";
   const isDontKnow = (text) => /^(i\s*don[’']?t\s*know|not sure|no s[eé])\.?$/i.test(text.trim());
-  // The answers to the fixed questions, as the numbers the server takes ({ budget, experience, team, hours });
+  // The answers to the fixed questions, as the server takes them ({ location, budget, start_mode, premises });
   // null for an "I don't know"
   let profileInput = {};
   // The fixed questions answered so far, with the text typed, in order (for Back)
   let profileAsked = [];
   const MODEL_QUESTIONS = 4; // most the server asks after them (MAX_QUESTIONS in planner-phase2-handler.ts)
   const profileComplete = () => PROFILE_QUESTIONS.every(({ key }) => Object.hasOwn(profileInput, key));
-  // The fixed answers as the request takes them: the numbers known, and the keys answered "I don't know"
+  // The fixed answers as the request takes them: the values known, and the keys answered "I don't know"
   const profilePayload = () => {
     const unknown = PROFILE_QUESTIONS.map(({ key }) => key).filter((key) => profileInput[key] === null);
-    const numbers = Object.fromEntries(Object.entries(profileInput).filter(([, value]) => value !== null));
-    return { ...numbers, ...(unknown.length && { unknown }) };
+    const values = Object.fromEntries(Object.entries(profileInput).filter(([, value]) => value !== null));
+    return { ...values, ...(unknown.length && { unknown }) };
   };
 
   // Example ideas: a click fills the idea field with the full idea (data-idea), as if the person had typed it
@@ -570,7 +584,7 @@
     syncWaitCancel();
   };
 
-  // Question flow: first the four fixed questions (PROFILE_QUESTIONS), asked here without the server.
+  // Question flow: first the fixed questions (PROFILE_QUESTIONS), asked here without the server.
   // Then the first request sends the idea and those answers and carries the server's questions, asked
   // one by one. Once they are all answered, one final request sends the answers and returns the profile.
   let answers = [];   // { topic, question, answer } given so far
@@ -727,8 +741,8 @@
         clarity,
         answers: answers.length,
         budget: input.budget,
-        team: input.team,
-        hours: input.hours,
+        startMode: input.start_mode,
+        premises: input.premises,
       });
     }
   };
@@ -854,7 +868,7 @@
     green: ['Ready for a plan made for you', 'Anything still open goes into the plan as something to verify.'],
   };
   // One question for each clarity label the person can answer. The topics are the ones clarity.ts counts;
-  // the four fixed questions are asked again with their own parsing.
+  // the fixed questions are asked again with their own parsing.
   const IMPROVE_QUESTIONS = {
     'What you offer': { topic: 'offering', question: 'What exactly will you sell?', options: [] },
     'Value proposition': { topic: 'value_proposition', question: 'What problem do you solve for your customers?', options: [] },
@@ -870,7 +884,7 @@
     'Fixed deadline': { topic: 'deadline', question: 'Do you have a fixed date to launch?', options: ['No fixed date', 'In a few months', 'A firm date'] },
     'Existing assets': { topic: 'existing_assets', question: 'Do you already have something to start from?', options: ['Nothing yet', 'A website or social accounts', 'Customers or a list', 'Equipment or premises'] },
   };
-  const FIXED_BY_LABEL = { Budget: 'budget', 'Weekly hours': 'hours', Team: 'team', Experience: 'experience' };
+  const FIXED_BY_LABEL = { Budget: 'budget', 'How you start': 'start_mode', Premises: 'premises' };
 
   // What a new round needs from this session: the idea, the fixed answers, the answers, the first analysis.
   // Kept in the history entry with the report's id, so a reload can still improve the report.
@@ -957,7 +971,7 @@
       const field = document.createElement('input');
       field.type = 'text';
       field.maxLength = ANSWER_MAX;
-      field.placeholder = 'Or write your answer';
+      field.placeholder = item.fixed?.placeholder ?? 'Or write your answer';
       field.setAttribute('aria-label', legend.textContent);
       field.id = `result-quiz-${index}`;
       const error = document.createElement('p');
@@ -965,7 +979,7 @@
       error.hidden = true;
       const options = document.createElement('div');
       options.className = 'quiz__opts';
-      const choices = [...(item.fixed ? item.fixed.options : item.options).slice(0, 4), DONT_KNOW];
+      const choices = [...(item.fixed ? item.fixed.options : item.options.slice(0, 4)), DONT_KNOW];
       const mark = () => options.querySelectorAll('button').forEach((button) => button.setAttribute('aria-pressed', String(button.textContent === field.value)));
       choices.forEach((choice) => {
         const button = document.createElement('button');
@@ -1040,11 +1054,11 @@
     const session = improveSession;
     const answersNow = [...session.answers, ...newAnswers];
     const unknown = PROFILE_QUESTIONS.map(({ key }) => key).filter((key) => newInput[key] === null);
-    const numbers = Object.fromEntries(Object.entries(newInput).filter(([, value]) => value !== null));
+    const values = Object.fromEntries(Object.entries(newInput).filter(([, value]) => value !== null));
     try {
       const result = await sendIdea({
         idea: session.idea,
-        ...numbers,
+        ...values,
         ...(unknown.length && { unknown }),
         answers: answersNow,
         final: true,
@@ -1069,9 +1083,9 @@
         clarity: result.clarity ?? null,
         previous,
         answers: answersNow.length,
-        budget: numbers.budget,
-        team: numbers.team,
-        hours: numbers.hours,
+        budget: values.budget,
+        startMode: values.start_mode,
+        premises: values.premises,
       });
       // The change is the answer to the round: it is said, and brought into view
       const now = result.clarity ?? null;
@@ -1240,13 +1254,8 @@
   };
   templatesOpen.addEventListener('click', openTemplates);
 
-  // What the business asks against what the person has: money (the estimated range against the budget, euros only, as
-  // the budget question is in euros), the person's time, the team and the time to first revenue. Capital and regulation
-  // are in the full detail.
-  // "Full time" is said as it is; the other answers are hours a week
-  // The most hours a week each answer means (Under 10 h, 10-20 h, 30+ h, full time), to compare with what is asked
-  const HOURS_CAP = [10, 20, 40, 50];
-  const hoursText = (index) => (HOURS_LABELS[index] === 'Full time' ? 'full time' : `${HOURS_LABELS[index]} a week`);
+  // What the business asks against what the person has: the money (the estimated range against the budget, euros only,
+  // as the budget question is in euros) and the time to first revenue. Capital and regulation are in the full detail.
   const showNeeds = (profile, glance, view) => {
     const grid = document.getElementById('result-needs');
     grid.replaceChildren();
@@ -1294,17 +1303,9 @@
       : null;
     addCell('Money', hasRange ? rangeText(budget) : UNKNOWN, [fit, saving]);
 
-    // The person's time: what their own parts ask, against what they can put in
-    const hours = view.hours !== undefined ? hoursText(view.hours) : null;
-    if (execution?.hours) {
-      const cap = HOURS_CAP[view.hours];
-      const tone = cap === undefined ? null : execution.hours <= cap ? 'ok' : 'short';
-      addCell('Your time', `~${execution.hours} h a week`, [{ text: hours ? `You put in: ${hours}` : 'Your hours: not given', tone }]);
-    } else {
-      addCell('Your time', hours ? hours.charAt(0).toUpperCase() + hours.slice(1) : UNKNOWN, [{ text: 'What you can put in' }]);
-    }
-
-    addCell('Team', head('team_requirement') ?? UNKNOWN, [view.team !== undefined ? { text: `You offer: ${TEAM_LABELS[view.team]}` } : { text: 'Your team: not given' }]);
+    // The time the person's own parts ask, and the team the business needs: estimates from the parts and the idea
+    addCell('Your time', execution?.hours ? `~${execution.hours} h a week` : UNKNOWN, [{ text: 'For your own parts' }]);
+    addCell('Team', head('team_requirement') ?? UNKNOWN, [{ text: 'Estimate' }]);
 
     addCell('First revenue', head('time_to_revenue') ?? UNKNOWN, [{ text: 'Estimate' }]);
     grid.querySelectorAll('dd').forEach((dd) => dd.classList.toggle('is-unknown', dd.firstChild?.textContent === UNKNOWN));
@@ -1357,8 +1358,8 @@
     });
   };
 
-  // What I understood, in two lines: the business (what, for whom, where, how it earns) and the person (team, money,
-  // hours). Only values that are known are said; a value the description does not back up is left out.
+  // What I understood, in two lines: the business (what, for whom, where, how it earns) and the person (money, how they
+  // start, premises). Only values that are known are said; a value the description does not back up is left out.
   const showUnderstood = (phase2, profile, validation, view) => {
     const unsupported = validation?.unsupported ?? [];
     const value = (key) => (profile.values[key] && profile.values[key] !== NOT_DEFINED && !isBlank(profile.values[key]) ? profile.values[key] : null);
@@ -1373,9 +1374,9 @@
       value('revenue_model') && { prefix: 'earns by ', text: value('revenue_model') },
     ].filter(Boolean);
     const you = [
-      view.team !== undefined && { text: TEAM_LABELS[view.team] },
       typeof view.budget === 'number' && { text: `${money(view.budget, '€')} to invest` },
-      view.hours !== undefined && { text: hoursText(view.hours) },
+      view.startMode && START_LABEL[view.startMode] && { text: START_LABEL[view.startMode] },
+      view.premises && PREMISES_LABEL[view.premises] && { text: PREMISES_LABEL[view.premises] },
     ].filter(Boolean);
     const draw = (line, parts, lead) => {
       line.replaceChildren();
@@ -1678,12 +1679,13 @@
   const showQuestion = (text, progress = '', options = []) => {
     if (text) questionText.textContent = text;
     questionProgress.textContent = progress;
+    answer.placeholder = current?.placeholder ?? 'Type your answer';
 
     optionsContainer.replaceChildren();
     // The fixed questions also take "I don't know": it counts as answered, and Back can change it
-    if (current?.fixed) options = [...options.slice(0, 4), DONT_KNOW];
+    if (current?.fixed) options = [...options, DONT_KNOW];
     if (options.length > 0) {
-      options.slice(0, current?.fixed ? 5 : 4).forEach((option) => {
+      (current?.fixed ? options : options.slice(0, 4)).forEach((option) => {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'question__option';
@@ -1752,7 +1754,7 @@
       answer.value = '';
       if (nextQuestion()) return;
       hideQuestion();
-      submitIdea(); // the four are answered: the first request sends them with the idea
+      submitIdea(); // all are answered: the first request sends them with the idea
       return;
     }
     asked.push(current);
@@ -1869,10 +1871,10 @@
         glance: report.glance,
         clarity: report.clarity,
         answers: report.answers.length,
-        // An "I don't know" has only a placeholder number: it is not shown as the person's budget or team
+        // An "I don't know" has only a placeholder value: it is not shown as the person's budget, start or premises
         budget: report.input.unknown?.includes('budget') ? undefined : report.input.budget,
-        team: report.input.unknown?.includes('team') ? undefined : report.input.team,
-        hours: report.input.unknown?.includes('hours') ? undefined : report.input.hours,
+        startMode: report.input.unknown?.includes('start_mode') ? undefined : report.input.start_mode,
+        premises: report.input.unknown?.includes('premises') ? undefined : report.input.premises,
       });
     } catch {
       history.replaceState(null, '');
