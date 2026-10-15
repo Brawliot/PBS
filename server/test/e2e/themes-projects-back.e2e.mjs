@@ -31,6 +31,8 @@ const report = {
   input: { idea: "Bakery delivery", budget: 10_000, experience: 1, team: 1, hours: 1 },
   answers: [],
   ...snapshot.noQuestions,
+  // Ready for a plan (green): a yellow or red report gates the button (improve-report.e2e.mjs checks that)
+  clarity: { ...snapshot.noQuestions.clarity, readiness: "green" },
 };
 
 const json = (status, body) => ({ status, contentType: "application/json", body: JSON.stringify(body) });
