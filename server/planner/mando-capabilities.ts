@@ -40,6 +40,14 @@ export const NEVER_COVERED = [
   "Paid advertising",
 ];
 
+/**
+ * The short version, for the prompts that classify and check (profile, validation, explanations): what Mando
+ * covers, so software, those tools and planning are never counted as a cost, a team need or a delay.
+ */
+export function mandoNote(): string {
+  return `Execution context: the person runs this business with Mando, which builds and covers at no extra cost: ${MANDO_BUILDS.map(({ label }) => label).join("; ")}. Do not count developing that software, paying for those tools or planning the business as a cost, a team need, a skill gap or a delay. Mando does not cover: ${NEVER_COVERED.join("; ")}; nor what must be hired out: ${ALWAYS_OUTSOURCE.join("; ")}.`;
+}
+
 /** The block every estimating prompt carries: who can do each part of the business, and when to hire out */
 export function mandoContext(): string {
   const list = (items: readonly string[]) => items.map((item) => `  - ${item}`).join("\n");

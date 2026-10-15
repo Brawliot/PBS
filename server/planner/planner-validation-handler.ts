@@ -3,6 +3,7 @@
  * that the plan is coherent and realistic, and how likely each department is needed.
  * Every question is a "noul" statement: Jev answers with a confidence from 0 to 1.
  */
+import { mandoNote } from "./mando-capabilities.js";
 
 import {
   buildState,
@@ -181,7 +182,9 @@ export async function analyzeValidation(
   const given = answers.length
     ? answers.map((a) => `- [${a.topic}] ${a.question} -> ${a.answer}`).join("\n")
     : "(none)";
-  const state = `Business idea and form data: ${buildState(input)}
+  const state = `${mandoNote()}
+
+Business idea and form data: ${buildState(input)}
 
 Key context:
 - Sector: ${choice("sector")}
