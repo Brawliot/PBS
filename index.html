@@ -95,9 +95,49 @@
     </div>
   </section>
   <section class="result" id="result" aria-labelledby="result-title" tabindex="-1" hidden>
-    <header class="result__head">
+    <header class="result__head" id="result-head">
       <h2 class="result__title" id="result-title">Here is what I understood</h2>
     </header>
+    <!-- The five checks of a report with a diagnosis (diagnosis.checks). A report kept before it shows the old view. -->
+    <section class="diagnosis" id="diagnosis" aria-labelledby="diagnosis-title" hidden>
+      <header class="diagnosis__head">
+        <p class="result__eyebrow" id="diagnosis-eyebrow"></p>
+        <h2 class="result__title" id="diagnosis-title" tabindex="-1">Five checks on your idea</h2>
+      </header>
+      <p class="diagnosis__idea"><span class="result__label">Your idea</span><span id="diagnosis-idea"></span></p>
+      <div class="legend" aria-label="Key">
+        <span><span class="mark mark--strong mark--sm" aria-hidden="true">✓</span>Strong</span>
+        <span><span class="mark mark--watch mark--sm" aria-hidden="true">!</span>Watch</span>
+        <span><span class="mark mark--risk mark--sm" aria-hidden="true">✕</span>Risk</span>
+      </div>
+      <ol class="lights" id="diagnosis-checks" aria-label="Five checks on your idea" aria-live="polite"></ol>
+    </section>
+    <div class="improve-zone" id="improve-zone">
+      <div class="improve" id="result-improve" hidden>
+        <span id="result-improve-text"></span>
+        <button class="btn btn--outline" type="button" id="result-improve-open">Improve my report</button>
+      </div>
+      <form class="quiz" id="result-quiz" aria-label="Improve my report" novalidate hidden>
+        <div class="quiz__list" id="result-quiz-list"></div>
+        <div class="quiz__foot">
+          <span>&ldquo;I don&rsquo;t know&rdquo; is fine: it stays as something to verify in your plan.</span>
+          <span class="quiz__buttons">
+            <button class="link" type="button" id="result-quiz-cancel">Cancel</button>
+            <button class="btn btn--dark" type="submit" id="result-quiz-send">Update report</button>
+          </span>
+        </div>
+      </form>
+    </div>
+    <div class="diagnosis-rest" id="diagnosis-rest" hidden>
+      <section class="block" id="diagnosis-risks-block" aria-labelledby="diagnosis-risks-label">
+        <h3 class="result__label" id="diagnosis-risks-label">Main risks</h3>
+        <ul class="bullets" id="diagnosis-risks"></ul>
+      </section>
+      <section class="next-step block" id="diagnosis-plan-block" aria-labelledby="diagnosis-plan-label" hidden>
+        <h3 class="result__label" id="diagnosis-plan-label">What the plan does for you</h3>
+        <ul class="bullets" id="diagnosis-split"></ul>
+      </section>
+    </div>
     <section class="understood" id="result-understood" aria-label="What I understood">
       <p class="understood__line" id="result-understood-business"></p>
       <p class="understood__line" id="result-understood-you" hidden></p>
@@ -118,20 +158,6 @@
           <dd><span class="clarity__level" id="result-clarity-person"></span><small id="result-clarity-person-missing" hidden></small></dd>
         </div>
       </dl>
-      <div class="improve" id="result-improve" hidden>
-        <span id="result-improve-text"></span>
-        <button class="btn btn--outline" type="button" id="result-improve-open">Improve my report</button>
-      </div>
-      <form class="quiz" id="result-quiz" aria-label="Improve my report" novalidate hidden>
-        <div class="quiz__list" id="result-quiz-list"></div>
-        <div class="quiz__foot">
-          <span>&ldquo;I don&rsquo;t know&rdquo; is fine: it stays as something to verify in your plan.</span>
-          <span class="quiz__buttons">
-            <button class="link" type="button" id="result-quiz-cancel">Cancel</button>
-            <button class="btn btn--dark" type="submit" id="result-quiz-send">Update report</button>
-          </span>
-        </div>
-      </form>
     </section>
     <section class="needs" id="result-needs-block" aria-labelledby="result-needs-label" hidden>
       <h3 class="result__label" id="result-needs-label">What it asks vs. what you have</h3>

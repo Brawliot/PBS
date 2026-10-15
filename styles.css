@@ -29,6 +29,8 @@
   --border-strong: #8a8c91;   /* form controls, 3:1 against the page */
   --border-control: #7c7e83;  /* idea bar, filter panel, examples: 3:1 against the tinted page */
   --danger: #c2185b;
+  --ok: #1d6b3f; --ok-on: #ffffff; --warn: #8a5300;   /* the diagnosis states: each one also has a symbol and a word */
+  --risk: var(--danger);
   --tint: rgba(246, 247, 248, 0.5);
   --shadow: 0 18px 40px rgba(11, 12, 15, 0.14);
   --shadow-soft: 0 6px 14px rgba(11, 12, 15, 0.14);   /* button lift on hover */
@@ -48,7 +50,7 @@
    switches to the dark set. Every set defines every token.
    ========================================================================== */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --black: #f2f3f5; --dark: #f2f3f5; --dark-hover: #d5d6da; --white: #0b0c0f; --gray: #3f4044;
     --gray-text: #acadaf; --gray-light: #24272e; --border: #232426; --border-strong: #656565; --border-control: #747577;
     --danger: #ff8fb1; --tint: rgba(11, 12, 15, 0.5); --shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
@@ -57,7 +59,20 @@
     --danger-strong: #ffc4d6; color-scheme: dark;
     --accent: #c6f36b; --accent-hover: #d7f88f; --on-accent: #0b0c0f;
     --segment-1: #c6f36b; --segment-2: #8a9cf6; --segment-3: #acadaf; --segment-4: #3f4044; --segment-5: #ff8fb1;
+    --ok: #5fd092; --ok-on: #121214; --warn: #f2b45c;
   }
+}
+
+:root[data-theme="dark"] {
+  --black: #f2f3f5; --dark: #f2f3f5; --dark-hover: #d5d6da; --white: #0b0c0f; --gray: #3f4044;
+  --gray-text: #acadaf; --gray-light: #24272e; --border: #232426; --border-strong: #656565; --border-control: #747577;
+  --danger: #ff8fb1; --tint: rgba(11, 12, 15, 0.5); --shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
+  --shadow-soft: 0 6px 14px rgba(0, 0, 0, 0.45); --ring: 0 0 0 6px rgba(198, 243, 107, 0.18);
+  --surface-hover: #131519; --danger-bg: #2a1620; --glow: 0 0 0 4px rgba(198, 243, 107, 0.30), 0 0 32px 8px rgba(198, 243, 107, 0.22);
+  --danger-strong: #ffc4d6; color-scheme: dark;
+  --accent: #c6f36b; --accent-hover: #d7f88f; --on-accent: #0b0c0f;
+  --segment-1: #c6f36b; --segment-2: #8a9cf6; --segment-3: #acadaf; --segment-4: #3f4044; --segment-5: #ff8fb1;
+  --ok: #5fd092; --ok-on: #121214; --warn: #f2b45c;
 }
 
 /* ==========================================================================
@@ -1337,3 +1352,56 @@ body.has-review .hero { display: none; }
 @media (prefers-reduced-motion: reduce) {
   #status.is-progress { transition: none; }
 }
+
+/* ==========================================================================
+   Diagnosis: the five checks of the report (index.html #diagnosis). Each state has a symbol and a word; the
+   colour only repeats them. No inline styles: the content security policy blocks them.
+   ========================================================================== */
+.diagnosis { display: flex; flex-direction: column; gap: 16px; }
+.diagnosis__head { display: flex; flex-direction: column; gap: 6px; }
+.diagnosis__idea { font-size: 17px; line-height: 1.35; padding: 12px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+.diagnosis__idea .result__label { display: block; margin-bottom: 4px; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 14px; color: var(--gray-text); }
+.legend > span { display: inline-flex; align-items: center; gap: 6px; }
+
+.mark {
+  flex: none; width: 30px; height: 30px; border-radius: 50%; border: 2px solid;
+  display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 800; line-height: 1;
+}
+.mark--sm { width: 22px; height: 22px; font-size: 12px; }
+.mark--strong { background: var(--ok); border-color: var(--ok); color: var(--ok-on); }
+.mark--watch { background: transparent; border-color: var(--warn); color: var(--warn); }
+.mark--risk { background: transparent; border-color: var(--risk); color: var(--risk); }
+
+/* One row per check: symbol, name, status word, and the reason under them */
+.lights { display: flex; flex-direction: column; list-style: none; border-top: 1px solid var(--border); }
+.lights li { display: grid; grid-template-columns: 30px 1fr; gap: 2px 14px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.lights .mark { grid-row: span 2; }
+.lights .head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.lights .name { font-size: 16px; font-weight: 800; letter-spacing: -0.01em; }
+.lights .state { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray-text); }
+.lights .why { font-size: 15px; color: var(--gray-text); }
+.lights .tier { display: inline-block; margin: 0 2px; font-size: 12px; line-height: 1.4; vertical-align: 1px; }
+
+.diagnosis .block, .diagnosis-rest .block { display: flex; flex-direction: column; gap: 10px; }
+.bullets { display: flex; flex-direction: column; gap: 8px; list-style: none; font-size: 15px; }
+.bullets li { padding-left: 12px; border-left: 3px solid var(--dark); }
+.diagnosis-rest { display: flex; flex-direction: column; gap: 24px; }
+.diagnosis-rest .next-step p { font-size: 15px; color: var(--gray-text); }
+
+@media (max-width: 560px) {
+  .lights .why { font-size: 14px; }
+}
+
+
+/* A report with a diagnosis shows the five checks instead of the previous view (script.js showDiagnosis) */
+.result.is-diagnosis #result-head,
+.result.is-diagnosis #result-understood,
+.result.is-diagnosis #result-clarity,
+.result.is-diagnosis #result-needs-block,
+.result.is-diagnosis #result-warnings-block,
+.result.is-diagnosis #result-departments-block,
+.result.is-diagnosis #result-detail-open,
+.result.is-diagnosis #result-templates-open { display: none !important; }
+.improve-zone { display: flex; flex-direction: column; gap: 12px; }

@@ -820,6 +820,7 @@
     let explanations = null;
     let glance = null;
     let clarity = null;
+    let diagnosis = null;
     let error = null;
 
     hideSubmitError();
@@ -840,6 +841,7 @@
       glance = result.glance ?? null;
       if (!profile && glance) firstGlance = glance;
       clarity = result.clarity ?? null;
+      diagnosis = result.diagnosis ?? null;
       if (profile) reportId = result.reportId ?? null;
       if (profile) {
         improveSession = {
@@ -892,6 +894,7 @@
       await revealResult(analysis, profile, validation, explanations, {
         glance,
         clarity,
+        diagnosis,
         answers: answers.length,
         budget: input.budget,
         startMode: input.start_mode,
@@ -1231,6 +1234,7 @@
       showResult(session.analysis, result.profile, result.validation ?? null, result.explanations ?? null, {
         glance: result.glance ?? null,
         clarity: result.clarity ?? null,
+        diagnosis: result.diagnosis ?? null,
         previous,
         answers: answersNow.length,
         budget: values.budget,
@@ -1557,6 +1561,73 @@
   };
 
 
+  // The diagnosis: the eyebrow, the idea, the five checks (symbol, name, status word, reason), then the risks and
+  // who does what. Old reports (no diagnosis) keep the previous view: the blocks below are shown only for them.
+  const CHECK_NAMES = { concept: 'Concept', location: 'Location', reach: 'Reach', money: 'Money', experience: 'Experience', competition: 'Competition' };
+  const CHECK_STATES = { strong: ['Strong', '\u2713'], watch: ['Watch', '!'], risk: ['Risk', '\u2715'] };
+  const SPLIT_LABELS = { mando: 'Mando builds: ', you: 'You handle: ', outsource: 'Hire out: ' };
+  const showDiagnosis = (diagnosis, glance) => {
+    // The older blocks are hidden by the class in the stylesheet, so their own logic stays as it was
+    const legacy = !diagnosis;
+    resultSection.classList.toggle('is-diagnosis', !legacy);
+    document.getElementById('diagnosis').hidden = legacy;
+    document.getElementById('diagnosis-rest').hidden = legacy;
+    if (legacy) return;
+
+    const location = glance && glance.location.source !== 'unknown' && glance.location.value.trim() !== '' ? glance.location.value : null;
+    document.getElementById('diagnosis-eyebrow').textContent = location ? `Business analysis \u00b7 ${location}` : 'Business analysis';
+    document.getElementById('diagnosis-idea').textContent = diagnosis.idea;
+
+    const checks = document.getElementById('diagnosis-checks');
+    checks.replaceChildren();
+    diagnosis.checks.forEach(({ key, status, why, estimated }) => {
+      const [word, symbol] = CHECK_STATES[status];
+      const item = document.createElement('li');
+      const mark = document.createElement('span');
+      mark.className = `mark mark--${status}`;
+      mark.setAttribute('aria-hidden', 'true');
+      mark.textContent = symbol;
+      const head = document.createElement('div');
+      head.className = 'head';
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = CHECK_NAMES[key];
+      const state = document.createElement('span');
+      state.className = 'state';
+      state.textContent = word;
+      head.append(name, state);
+      const text = document.createElement('p');
+      text.className = 'why';
+      text.textContent = why;
+      if (estimated) {
+        const chip = document.createElement('span');
+        chip.className = 'tier tier--light';
+        chip.textContent = 'estimated';
+        text.append(' ', chip);
+      }
+      item.append(mark, head, text);
+      checks.append(item);
+    });
+
+    const risks = document.getElementById('diagnosis-risks');
+    risks.replaceChildren(...diagnosis.risks.map((risk) => {
+      const item = document.createElement('li');
+      item.textContent = risk;
+      return item;
+    }));
+
+    // Only the lines with something in them: an empty group is not shown
+    const split = document.getElementById('diagnosis-split');
+    split.replaceChildren(...Object.entries(SPLIT_LABELS).flatMap(([who, label]) => {
+      const names = diagnosis.split[who];
+      if (!names.length) return [];
+      const item = document.createElement('li');
+      item.textContent = `${label}${names.join(', ')}`;
+      return [item];
+    }));
+    document.getElementById('diagnosis-plan-block').hidden = !split.children.length;
+  };
+
   const showResult = (phase2, profile, validation, explanations, view = {}) => {
     const detail = document.getElementById('result-detail');
     const warnings = document.getElementById('result-warnings');
@@ -1654,11 +1725,13 @@
     document.getElementById('result-plan').disabled = !reportId;
     document.getElementById('result-plan-note').hidden = !!reportId;
     showReadiness(currentClarity);
-    // The header stays usable (profile menu, projects, theme); the report takes the focus when it opens
+    showDiagnosis(view.diagnosis ?? null, glance);
+    // The header stays usable (profile menu, projects, theme); the report takes the focus when it opens: its
+    // title when it is the diagnosis, the section otherwise
     document.body.classList.add('has-result');
     resultSection.hidden = false;
     status.textContent = 'Your analysis is ready.';
-    resultSection.focus({ preventScroll: true });
+    (view.diagnosis ? document.getElementById('diagnosis-title') : resultSection).focus({ preventScroll: true });
   };
 
   // Loader -> result without going back to the initial page: the loader fades out where it is,
@@ -2147,6 +2220,7 @@
       showResult(report.phase2 ?? improveSession?.analysis ?? null, report.profile, report.validation, report.explanations, {
         glance: report.glance,
         clarity: report.clarity,
+        diagnosis: report.diagnosis ?? null,
         answers: report.answers.length,
         // An "I don't know" has only a placeholder value: it is not shown as the person's budget, start or premises
         budget: report.input.unknown?.includes('budget') ? undefined : report.input.budget,
