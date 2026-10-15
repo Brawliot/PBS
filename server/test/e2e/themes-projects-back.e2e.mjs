@@ -57,6 +57,12 @@ function startServer() {
 }
 
 /** Signed in, with the planner answering a finished analysis; the report route answers `reportStatus` */
+/** When what was understood is on screen, it is confirmed with Generate report; then the result is on screen */
+async function confirmReview(page) {
+  await page.waitForSelector("#review:not([hidden]), #result:not([hidden])", { timeout: 20_000 });
+  if (await page.isVisible("#review")) await page.click("#review-generate");
+}
+
 async function mockSignedIn(page, { reportStatus = 200 } = {}) {
   await page.route("**/api/auth/session", (route) => route.fulfill(json(200, { user: { name: "Ana" } })));
   let jobs = 0;
@@ -93,6 +99,7 @@ async function analyse(page) {
   await page.fill(".search__input", "Bakery delivery");
   await page.click(".search__submit");
   await answerSituation(page);
+  await confirmReview(page);
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
 }
 
@@ -163,6 +170,7 @@ async function scenarioBackToReport(browser) {
   await page.click("#result-plan");
   await page.waitForURL(`${BASE}/plan?id=${PLAN_ID}`, { timeout: 15_000 });
   await page.goBack();
+  await confirmReview(page);
   await page.waitForSelector("#result:not([hidden])", { timeout: 15_000 });
   assert.equal(await page.evaluate(() => sessionStorage.getItem("mando.report")), null, "the report content is not kept in the browser");
   assert.equal(await page.evaluate(() => history.state?.reportId), REPORT_ID, "only the id is in the history entry");

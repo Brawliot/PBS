@@ -108,7 +108,7 @@ function mockOutside(questions: unknown[]): CapturedRequest[] {
 describe("runPlanner: characterization of the three paths", () => {
   test("first round without questions: no report, the questions come back empty, with the glance for the browser", async () => {
     const calls = mockOutside([]);
-    const result = await runJob({ ...input, answers: [] });
+    const result = (await runJob({ ...input, answers: [] })) as Record<string, any>;
     assert.deepEqual(calls.map(hostOf), FIRST_ROUND_CALLS);
     assert.equal("reportId" in result, false);
     assert.deepEqual(result.phase2.questions, []);

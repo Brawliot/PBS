@@ -88,6 +88,12 @@ const RED = {
 };
 
 /** The planner answers each job in order with `results`; each report id is served back with its clarity */
+/** When what was understood is on screen, it is confirmed with Generate report; then the result is on screen */
+async function confirmReview(page) {
+  await page.waitForSelector("#review:not([hidden]), #result:not([hidden])", { timeout: 20_000 });
+  if (await page.isVisible("#review")) await page.click("#review-generate");
+}
+
 async function mockApi(page, results) {
   const posts = [];
   await page.route("**/api/auth/session", (route) => route.fulfill(json(200, { user: { name: "Ana" } })));
@@ -134,6 +140,7 @@ async function reachReport(page) {
   await page.waitForSelector("#question.is-open", { timeout: 20_000 });
   await page.click('.question__option:has-text("Yes")');
   await page.click(".question__submit");
+  await confirmReview(page);
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
 }
 
@@ -200,6 +207,7 @@ async function scenarioYellowToGreen(browser) {
   assert.equal(await page.evaluate(() => history.state.reportId), REPORT_IDS[1], "the new report replaces the old one");
 
   await page.reload();
+  await confirmReview(page);
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
   const after = await readiness(page);
   assert.equal(after.state, "green");

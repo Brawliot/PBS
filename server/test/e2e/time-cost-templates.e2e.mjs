@@ -126,6 +126,12 @@ const ALL_PARTS = {
  * Answers the planner and the saved report. `results` answers each job in order; a function gets the job's body
  * (the final request echoes its glance, as the server does). `catalog` answers GET /api/report-templates.
  */
+/** When what was understood is on screen, it is confirmed with Generate report; then the result is on screen */
+async function confirmReview(page) {
+  await page.waitForSelector("#review:not([hidden]), #result:not([hidden])", { timeout: 20_000 });
+  if (await page.isVisible("#review")) await page.click("#review-generate");
+}
+
 async function mockApi(page, { results, report, catalog = () => json(200, { templates: CATALOG }) }) {
   const posts = [];
   await page.route("**/api/auth/session", (route) => route.fulfill(json(200, { user: { name: "Ana" } })));
@@ -173,6 +179,7 @@ async function reachResult(page) {
   await page.waitForSelector("#question.is-open", { timeout: 20_000 });
   await page.click('.question__option:has-text("Yes")');
   await page.click(".question__submit");
+  await confirmReview(page);
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
 }
 
@@ -253,6 +260,7 @@ async function scenarioAllParts(browser) {
   assert.equal(await page.evaluate(() => document.getElementById("templates-modal").open), false, "Escape closes the dialog");
 
   await page.reload();
+  await confirmReview(page);
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
   assert.deepEqual(await timeAndCost(page), live, "after a reload the block and the button are the same");
 
@@ -280,6 +288,7 @@ async function scenarioSomeParts(browser) {
   assert.deepEqual(live, { block: true, time: { value: "3–5 months", note: "medium confidence · estimate" }, cost: null, button: false });
 
   await page.reload();
+  await confirmReview(page);
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
   assert.deepEqual(await timeAndCost(page), live, "after a reload it is the same");
   assertNoProblems();
@@ -299,6 +308,7 @@ async function scenarioNoParts(browser) {
     report: () => storedReport(posts, before, glanceOf()),
   });
   await fillAndSend(page);
+  await confirmReview(page);
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
   const live = await timeAndCost(page);
   await shoot(page, "time-cost-missing");

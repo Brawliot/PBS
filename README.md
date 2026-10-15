@@ -130,7 +130,7 @@ Known limits:
 
 ### From the report to a plan
 
-When a run ends with a report (the final request, or the first round with no questions left), the server builds the report from its own values (`server/planner/planner-run.ts`: the input and answers it received, the Jev result, the phase 2 analysis when there is one, the profile and the validation) and keeps it in the `reports` table. The job result then carries a `reportId`. The browser never sends the report back: it keeps only that id.
+When a run ends with a report (the final request, which the browser sends after the person has confirmed what was understood), the server builds the report from its own values (`server/planner/planner-run.ts`: the input and answers it received, the Jev result, the phase 2 analysis when there is one, the profile and the validation) and keeps it in the `reports` table. The job result then carries a `reportId`. The browser never sends the report back: it keeps only that id.
 
 "Build my plan" sends the id to `POST /api/plan`, and the server builds the plan from the stored report with the fixed rules (`server/plan/plan-skeleton.ts`). A report has at most one plan: a second request returns the same plan, and two requests at the same time leave one plan in the database. Each report belongs to the user who asked for it. When the report cannot be kept (a report that does not pass `parseReport`), the planner still answers, the result has no `reportId`, and "Build my plan" shows a notice instead.
 
@@ -246,7 +246,7 @@ The `result` of a done job has one of these shapes:
   }
   ```
 
-- **Final** (`final: true`), or not final with no questions left: the Jev result and the report. The non-final variant also includes `phase2` with `questions: []`. When the model gave usable parts, the result also has `explanations`, with only the parts that passed: `warningReasons` (`[{ "key", "reason" }]`), `areaReasons` (`[{ "name", "reason" }]`), `timeToOpen` (`{ "min", "max", "unit": "weeks" | "months", "confidence": "low" | "medium" | "high" }`), `costBreakdown` (`[{ "label", "percent" }]`) and `templates` (three catalog ids). Without any of them the key is absent.
+- **Final** (`final: true`): the Jev result and the report. **Not final** (the first request): the Jev result, `phase2` with the questions (possibly `questions: []`), `questionTotal` and the glance, and no report: the browser then shows what was understood, and the final request builds the report. When the model gave usable parts, the result also has `explanations`, with only the parts that passed: `warningReasons` (`[{ "key", "reason" }]`), `areaReasons` (`[{ "name", "reason" }]`), `timeToOpen` (`{ "min", "max", "unit": "weeks" | "months", "confidence": "low" | "medium" | "high" }`), `costBreakdown` (`[{ "label", "percent" }]`) and `templates` (three catalog ids). Without any of them the key is absent.
 
   ```json
   {
@@ -474,7 +474,7 @@ server/
 ## Known limitations
 
 - **Sign-in is partial.** Sign-up, sign-in, sign-out and the session work (see Accounts and sessions). Still missing: password recovery, email verification, sign-in with Google (the buttons and the "Forgot password?" link are shown but do nothing), and a failed-sign-in limit shared between servers (today it is in memory). See `PRODUCTION.md`.
-- **No rate limiting and no cost protection.** Every planner request calls paid APIs: a request that asks for questions makes one Jev and one OpenAI call; a final request (or one with no questions left) makes three Jev calls. Add rate limits and spending controls before deploying.
+- **No rate limiting and no cost protection.** Every planner request calls paid APIs: a first request makes one Jev call (none when the detection's result is reused) and one OpenAI call; the final request makes three Jev calls. Add rate limits and spending controls before deploying.
 - **Placeholders in the UI.** "View my projects" only shows a notice.
 - **The levels of the agents are connected one by one, by hand.** The plan level (`agents/structure`), the department level (`agents/departments`), the steps of one task (`agents/tasks/:taskId/steps`) and the run of an AI step (`agents/steps/:stepId/run`) call a model, each only when the person presses its button. The views "Today", a side panel and a dependency diagram are not built: their design is not decided. The document of a step is kept only in its latest output (see above); the document goes to its own table later (see `FUTURE.md`).
 - **Each suggestion costs money and waits.** A structure suggestion calls OpenAI and Jev up to three times each, and it is only made when the person presses "Suggest plan structure" (never when the page opens). Its worst wait is about three times (60 s for OpenAI plus 30 s for Jev), that is about 270 s, close to the 300 s request timeout Node uses by default. It is synchronous for now; a background job would be the fix if the waits grow. Only one structure can wait at a time.

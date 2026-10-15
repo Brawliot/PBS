@@ -136,6 +136,12 @@ const CLARITY = {
  * (the final request echoes its glance, as the server does); `report` answers GET /api/reports/:id.
  * Returns the bodies of the planner POSTs.
  */
+/** When what was understood is on screen, it is confirmed with Generate report; then the result is on screen */
+async function confirmReview(page) {
+  await page.waitForSelector("#review:not([hidden]), #result:not([hidden])", { timeout: 20_000 });
+  if (await page.isVisible("#review")) await page.click("#review-generate");
+}
+
 async function mockApi(page, { results, report }) {
   const posts = [];
   await page.route("**/api/auth/session", (route) => route.fulfill(json(200, { user: { name: "Ana" } })));
@@ -231,6 +237,7 @@ async function scenarioFinalRequest(browser) {
   // An option fills the answer; the arrow sends it
   await page.click('.question__option:has-text("Yes")');
   await page.click(".question__submit");
+  await confirmReview(page);
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
 
   assert.deepEqual(posts.at(-1).glance, expected, "the final request sends the first round's glance, built from its analysis");
@@ -251,6 +258,7 @@ async function scenarioFinalRequest(browser) {
   ], "two short items at most on the card");
 
   await page.reload();
+  await confirmReview(page);
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
   assert.deepEqual(await topOfReport(page), live, "after a reload the top of the report is the same");
 
@@ -270,6 +278,7 @@ async function scenarioNoQuestions(browser) {
     report: () => storedReport(posts, withProfile(snapshot.noQuestions), glance),
   });
   await fillAndSend(page);
+  await confirmReview(page);
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
 
   const live = await topOfReport(page);
@@ -281,6 +290,7 @@ async function scenarioNoQuestions(browser) {
   assert.equal(live.budget.note, "Estimated budget: GBP 5,000 – GBP 9,000.");
 
   await page.reload();
+  await confirmReview(page);
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
   assert.deepEqual(await topOfReport(page), live, "after a reload the top of the report is the same");
   assertNoProblems();
@@ -298,6 +308,7 @@ async function scenarioNoRange(browser) {
   const { clarity: _old, ...older } = snapshot.noQuestions;
   await mockApi(page, { results: [{ ...withProfile(older), reportId: REPORT_ID, glance }] });
   await fillAndSend(page);
+  await confirmReview(page);
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
   const live = await topOfReport(page);
   await shoot(page, "glance-missing");
@@ -376,6 +387,7 @@ async function scenarioDontKnow(browser) {
   await at(4);
   await page.click('.question__option:has-text("I don\'t know")');
   await page.click(".question__submit");
+  await confirmReview(page);
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
 
   const body = posts[0];
@@ -396,6 +408,7 @@ async function scenarioDontKnow(browser) {
   assert.ok(overflow <= 0, `no horizontal scroll at phone width (${overflow}px)`);
 
   await page.reload();
+  await confirmReview(page);
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
   assert.deepEqual(await topOfReport(page), live, "after a reload the same, with the placeholders of the saved report not shown");
   assertNoProblems();

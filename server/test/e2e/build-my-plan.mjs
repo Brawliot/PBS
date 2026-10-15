@@ -55,7 +55,10 @@ function startServer() {
  * Answers the planner and the plan API. `options.result` is the planner's job result; `options.plan` answers
  * POST /api/plan. Returns the list of the requests made to the plan API.
  */
-async function mockApi(page, { result, results = [result], plan, prefill = { body: NO_PREFILL } }) {
+// The first request of a run with no questions: what was understood, and no report (the final request builds it)
+const FIRST_ROUND = { phase2: { ...snapshot.noQuestions.phase2, questions: [] }, questionTotal: 0, glance: snapshot.noQuestions.glance, jev: snapshot.noQuestions.jev };
+
+async function mockApi(page, { result, results = [FIRST_ROUND, result], plan, prefill = { body: NO_PREFILL } }) {
   const planRequests = [];
   // The bodies of the POSTs to /api/planner, in order: planRequests.posts
   const posts = [];
@@ -107,9 +110,16 @@ async function fillAndSend(page) {
   await answerSituation(page);
 }
 
+/** When what was understood is on screen, it is confirmed with Generate report; then the result is on screen */
+async function confirmReview(page) {
+  await page.waitForSelector("#review:not([hidden]), #result:not([hidden])", { timeout: 20_000 });
+  if (await page.isVisible("#review")) await page.click("#review-generate");
+}
+
 /** Fills the form, submits it and waits until the result is on screen */
 async function analyse(page) {
   await fillAndSend(page);
+  await confirmReview(page);
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
 }
 
@@ -253,6 +263,7 @@ async function scenarioQuestionsFlow(browser) {
   await progress(page, "Question 6 of 6");
   await page.fill(".question__input", "Savings");
   await page.press(".question__input", "Enter");
+  await confirmReview(page);
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
   assert.equal(posts.length, 2, "one first request and one final request");
   assert.equal(posts[1].final, true);
@@ -464,6 +475,104 @@ async function scenarioPrefillSlow(browser) {
   return "prefill slow: nothing waits for the detection, a late value changes no answer";
 }
 
+/** What was understood: the values are marked as from the description, the focus goes to the title, Start over asks first */
+async function scenarioReviewCard(browser) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const page = await context.newPage();
+  await watch(page, scenarioLabel());
+  const detected = { location: "Malasaña, Madrid", budget: 50_000, start_mode: "scratch", premises: "have" };
+  const { posts } = await mockApi(page, { results: [FIRST_ROUND, withReport], plan: json(201, { id: PLAN_ID }), prefill: { body: detected } });
+  await page.goto(`${BASE}/`);
+  await page.fill(".search__input", "A tapas bar in Malasaña, Madrid");
+  await page.click(".search__submit");
+  await page.waitForSelector("#review:not([hidden])", { timeout: 20_000 });
+  assert.equal(await page.evaluate(() => document.activeElement?.id), "review-title", "the title takes the focus");
+  assert.deepEqual(await page.$$eval("#review-list dt", (items) => items.map((item) => item.textContent)), ["Premises", "Starting", "Budget", "Location"]);
+  assert.equal(await page.locator(".review__from").count(), 4, "each value is marked as from the description");
+  assert.equal(await page.textContent("#review-idea"), "A tapas bar in Malasaña, Madrid");
+  assert.equal(posts.length, 1, "nothing is sent until Generate");
+
+  await page.click("#review-restart");
+  assert.equal(await page.evaluate(() => document.getElementById("restart-modal").open), true, "Start over asks first");
+  await page.click("#restart-cancel");
+  assert.equal(await page.isVisible("#review"), true, "cancelling it keeps what was understood");
+
+  await page.click("#review-generate");
+  await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
+  assert.equal(posts.length, 2, "one first request and one final request");
+  assert.equal(posts[1].final, true);
+  assert.equal(posts[1].location, "Malasaña, Madrid");
+  await context.close();
+  return "review: the card with its marks and focus, Start over asks first, Generate sends the final request";
+}
+
+/** Editing a fixed value repeats the first request before the report; the new value is what is sent */
+async function scenarioReviewEditFixed(browser) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const page = await context.newPage();
+  await watch(page, scenarioLabel());
+  const detected = { location: "Malasaña, Madrid", budget: 50_000, start_mode: "scratch", premises: "have" };
+  const { posts } = await mockApi(page, { results: [FIRST_ROUND, FIRST_ROUND, withReport], plan: json(201, { id: PLAN_ID }), prefill: { body: detected } });
+  await page.goto(`${BASE}/`);
+  await page.fill(".search__input", "A tapas bar in Malasaña, Madrid");
+  await page.click(".search__submit");
+  await page.waitForSelector("#review:not([hidden])", { timeout: 20_000 });
+
+  await page.click('button[aria-label="Edit: Budget"]');
+  await page.waitForSelector("#question.is-open", { timeout: 10_000 });
+  assert.equal(await page.textContent("#question-text"), "How much can you invest?");
+  assert.equal(await page.inputValue(".question__input"), "30,000-75,000 \u20ac", "the value comes back in the field");
+  await page.fill(".question__input", "Over 150,000 €");
+  await page.press(".question__input", "Enter");
+  await page.waitForSelector("#review:not([hidden])", { timeout: 10_000 });
+  assert.equal(posts.length, 1, "editing sends nothing by itself");
+  assert.match(await page.textContent("#review-list"), /Over 150,000/);
+
+  await page.click("#review-generate");
+  await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
+  assert.equal(posts.length, 3, "the first request is repeated, then the final one");
+  assert.equal(posts[1].final, false, "the repeated request asks no final report");
+  assert.equal(posts[2].final, true);
+  assert.equal(posts[2].budget, 200_000, "the new value is sent");
+  await context.close();
+  return "review, edit a fixed value: the first request is repeated with the new value, then the final one";
+}
+
+/** Editing a server answer does not repeat the first request: the answers are sent as they are */
+async function scenarioReviewEditAnswer(browser) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const page = await context.newPage();
+  await watch(page, scenarioLabel());
+  const { posts } = await mockApi(page, { results: [questionsResult, withReport], plan: json(201, { id: PLAN_ID }) });
+  await page.goto(`${BASE}/`);
+  await page.fill(".search__input", "Bakery delivery");
+  await page.click(".search__submit");
+  await answerSituation(page);
+  await progress(page, "Question 5 of 6");
+  await page.click(".question__option >> text=No");
+  await page.press(".question__input", "Enter");
+  await progress(page, "Question 6 of 6");
+  await page.fill(".question__input", "Me and a friend");
+  await page.press(".question__input", "Enter");
+
+  await page.waitForSelector("#review:not([hidden])", { timeout: 20_000 });
+  assert.equal(posts.length, 1, "the first request went once; the card follows the server's questions");
+  await page.click('button[aria-label="Edit: Do you already have customers?"]');
+  await progress(page, "Question 5 of 6");
+  assert.equal(await page.inputValue(".question__input"), "No", "the answer comes back in the field");
+  await page.fill(".question__input", "Yes, ten people");
+  await page.press(".question__input", "Enter");
+  await page.waitForSelector("#review:not([hidden])", { timeout: 10_000 });
+
+  await page.click("#review-generate");
+  await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
+  assert.equal(posts.length, 2, "no repeat of the first request: the final one only");
+  assert.equal(posts[1].final, true);
+  assert.deepEqual(posts[1].answers.map((entry) => entry.answer), ["Yes, ten people", "Me and a friend"], "the answers keep their order");
+  await context.close();
+  return "review, edit a server answer: no repeat, the answers are sent in the same order";
+}
+
 let currentScenario = "";
 const scenarioLabel = () => currentScenario;
 
@@ -474,7 +583,7 @@ const browser = await chromium.launch({
 });
 let failed = 0;
 try {
-  for (const scenario of [scenarioFullFlow, scenarioError, scenarioNoReport, scenarioQuestions, scenarioQuestionsFlow, scenarioReport, scenarioCancelWait, scenarioStartLayout, scenarioPrefill, scenarioPrefillPartial, scenarioPrefillSlow]) {
+  for (const scenario of [scenarioFullFlow, scenarioError, scenarioNoReport, scenarioQuestions, scenarioQuestionsFlow, scenarioReport, scenarioCancelWait, scenarioStartLayout, scenarioPrefill, scenarioPrefillPartial, scenarioPrefillSlow, scenarioReviewCard, scenarioReviewEditFixed, scenarioReviewEditAnswer]) {
     currentScenario = scenario.name;
     try {
       console.log("ok -", await scenario(browser));
