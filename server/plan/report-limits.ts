@@ -32,3 +32,10 @@ export const MAX_EXPLAINED_AREAS = 4;
 export const MAX_EXPLANATION_REASON = 140;
 /** Largest money amount of the glance (the budget range): above it, the figure is not a small business's budget */
 export const MAX_GLANCE_MONEY = 1_000_000_000;
+/** Diagnosis of the report: the one-sentence idea, the why of each check, the risks, and each item of the split */
+export const MAX_DIAGNOSIS_IDEA = 200;
+export const MAX_DIAGNOSIS_WHY = 240;
+export const MAX_DIAGNOSIS_RISKS = 3;
+export const MAX_DIAGNOSIS_RISK = 160;
+export const MAX_DIAGNOSIS_SPLIT_ITEMS = 4;
+export const MAX_DIAGNOSIS_SPLIT_ITEM = 60;

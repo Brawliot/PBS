@@ -16,8 +16,15 @@ import { CLAIM_KEYS } from "../planner/planner-validation-handler.js";
 import { CHECK_KEYS, GROUPS } from "../planner/planner-validation-handler.js";
 import { DIMENSION_KEYS, DIMENSION_OPTIONS } from "../planner/planner-profile-handler.js";
 import { GlanceSchema } from "./glance.js";
+import { DIAGNOSIS_CHECK_STATUS, DIAGNOSIS_DECIDED_BY, DIAGNOSIS_REACH_KEY, DIAGNOSIS_SPLIT_LISTS } from "./diagnosis-enums.js";
 import {
   MAX_CURRENCY,
+  MAX_DIAGNOSIS_IDEA,
+  MAX_DIAGNOSIS_RISK,
+  MAX_DIAGNOSIS_RISKS,
+  MAX_DIAGNOSIS_SPLIT_ITEM,
+  MAX_DIAGNOSIS_SPLIT_ITEMS,
+  MAX_DIAGNOSIS_WHY,
   MAX_EXPLAINED_AREAS,
   MAX_EXPLAINED_WARNINGS,
   MAX_EXPLANATION_REASON,
@@ -162,6 +169,40 @@ export const ExplanationsSchema = z.strictObject({
     .max(MAX_EXPLAINED_AREAS),
 });
 
+/** One check of the diagnosis: its status, why, whether the figures behind it are estimated, and who decided it */
+const DiagnosisCheckSchema = <K extends string>(key: z.ZodType<K>) =>
+  z.strictObject({
+    key,
+    status: z.enum(DIAGNOSIS_CHECK_STATUS),
+    why: text(MAX_DIAGNOSIS_WHY),
+    estimated: z.boolean(),
+    decidedBy: z.enum(DIAGNOSIS_DECIDED_BY),
+  });
+
+/** Exactly five checks, in this order, each with its own key: a repeated or missing key is refused by its position */
+const DiagnosisChecksSchema = z.tuple([
+  DiagnosisCheckSchema(z.literal("concept")),
+  DiagnosisCheckSchema(z.enum(["location", DIAGNOSIS_REACH_KEY])),
+  DiagnosisCheckSchema(z.literal("money")),
+  DiagnosisCheckSchema(z.literal("experience")),
+  DiagnosisCheckSchema(z.literal("competition")),
+]);
+
+const SplitListSchema = z.array(text(MAX_DIAGNOSIS_SPLIT_ITEM)).max(MAX_DIAGNOSIS_SPLIT_ITEMS);
+
+/** "Who does what": what Mando does, what the person does, what is outsourced. Each list has at most four items. */
+export const DiagnosisSchema = z.strictObject({
+  idea: text(MAX_DIAGNOSIS_IDEA),
+  checks: DiagnosisChecksSchema,
+  risks: z.array(text(MAX_DIAGNOSIS_RISK)).min(1).max(MAX_DIAGNOSIS_RISKS),
+  split: z.strictObject(
+    Object.fromEntries(DIAGNOSIS_SPLIT_LISTS.map((list) => [list, SplitListSchema])) as Record<
+      (typeof DIAGNOSIS_SPLIT_LISTS)[number],
+      typeof SplitListSchema
+    >,
+  ),
+});
+
 export const ReportSchema = z.strictObject({
   input: InputSchema,
   answers: z.array(AnswerSchema).max(MAX_ANSWERS),
@@ -172,9 +213,12 @@ export const ReportSchema = z.strictObject({
   explanations: ExplanationsSchema.optional(),
   /** The glance at the top of the report (glance.ts). Optional: reports kept before it have none. */
   glance: GlanceSchema.optional(),
+  /** The diagnosis of the report (above). Optional: reports kept before it have none, and the screen shows them the old view. */
+  diagnosis: DiagnosisSchema.optional(),
 });
 
 export type Report = z.infer<typeof ReportSchema>;
+export type Diagnosis = z.infer<typeof DiagnosisSchema>;
 export type Explanations = z.infer<typeof ExplanationsSchema>;
 export type ReportCode = "too_large" | "invalid_json" | "invalid_report";
 export type ParseReportResult = { ok: true; report: Report } | { ok: false; code: ReportCode };
