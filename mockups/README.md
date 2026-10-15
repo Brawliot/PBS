@@ -2,7 +2,7 @@
 
 Static design mockups of the pre-plan report (the card shown before "Build my plan").
 They use the app's `styles.css` tokens, fonts and components, so light and dark mode follow the device as in the app.
-No JavaScript, except none at all: the blocks in A use `<details>`.
+No JavaScript: the folded blocks in A use `<details>`, and the route choice in C uses native radios.
 
 Example case, the same in all three: "Bar de tapas en Malasaña, Madrid", €40,000 budget, takeover, looking for premises, 3 years in hospitality. All figures are invented and marked `estimated`.
 
