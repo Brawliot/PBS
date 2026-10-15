@@ -121,7 +121,7 @@ async function reachReport(page) {
   await page.goto(`${BASE}/`);
   await page.fill(".search__input", "Bakery delivery");
   await page.click(".search__submit");
-  for (const [index, value] of ["10,000 €", "2", "Solo", "Full time"].entries()) {
+  for (const [index, value] of ["Madrid", "Over 150,000 €", "From scratch", "I have them"].entries()) {
     await page.waitForFunction(
       (number) => document.getElementById("question").classList.contains("is-open")
         && document.getElementById("question-progress").textContent.startsWith(`Question ${number} of`),
