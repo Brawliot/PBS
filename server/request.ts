@@ -6,6 +6,25 @@ import type { PlannerAnswer } from "./planner/planner-phase2-handler.js";
 import { cleanClaims, type Claims } from "./planner/planner-validation-handler.js";
 import { parseGlance, type Glance } from "./plan/glance.js";
 
+/** The body of the prefill request: only the idea. The same limits as the planner's idea. */
+export function parsePrefillRequest(raw: string): { idea: string } {
+  let body: unknown;
+  try {
+    body = JSON.parse(raw);
+  } catch {
+    throw new HttpError(400, "Invalid JSON");
+  }
+  if (typeof body !== "object" || body === null) throw new HttpError(400, "Invalid JSON");
+  const value = (body as { idea?: unknown }).idea;
+  if (typeof value === "string" && CONTROL_CHARACTERS.test(value)) {
+    throw new HttpError(400, "The idea cannot contain control characters");
+  }
+  const idea = typeof value === "string" ? value.trim() : "";
+  if (!idea) throw new HttpError(400, "Idea is required");
+  if (idea.length > MAX_IDEA) throw new HttpError(400, "Idea is too long");
+  return { idea };
+}
+
 /** Request parsing and limits for the planner API: everything that turns the body into trusted input */
 export const MAX_LOCATION = 200; // characters for the location answer
 /** Budget in euros: the most the budget question can give (PROFILE_QUESTIONS in script.js) */
