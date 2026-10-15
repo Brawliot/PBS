@@ -73,7 +73,8 @@
           "Ovens are available"
         ]
       },
-      "questions": []
+      "questions": [],
+      "execution": []
     },
     "profile": {
       "values": {
@@ -356,9 +357,31 @@
             "No"
           ]
         }
-      ]
+      ],
+      "execution": []
     },
-    "questionTotal": 1
+    "questionTotal": 1,
+    "glance": {
+      "maturity": "developing",
+      "subsectorSource": "stated",
+      "location": {
+        "value": "Madrid",
+        "source": "stated"
+      },
+      "budget": {
+        "min": 5000,
+        "max": null,
+        "currency": "EUR",
+        "fits": "Enough for a first version"
+      },
+      "sources": {
+        "target_customer": "inferred",
+        "value_proposition": "stated",
+        "revenue_model": "unknown",
+        "stage": "stated",
+        "competition": "stated"
+      }
+    }
   },
   "final": {
     "jev": {

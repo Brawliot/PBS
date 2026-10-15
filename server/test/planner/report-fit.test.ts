@@ -47,6 +47,7 @@ function phase2With(options: { text?: string; risks?: number; currency?: string;
       assumptions: ["Ovens are available"],
     },
     questions,
+    execution: [],
   } as Phase2Response;
 }
 
@@ -99,8 +100,9 @@ describe("fitPhase2 cuts each part to the report's limits", () => {
   });
 
   test("a fitted part that was already within the limits is unchanged", () => {
-    const phase2 = phase2With({ risks: 3 });
-    assert.deepEqual(fitPhase2(phase2), { ...phase2, questions: [] });
+    // The parts are not kept in phase 2: the glance keeps them, checked (plan/execution.ts)
+    const { execution: _parts, ...phase2 } = phase2With({ risks: 3 });
+    assert.deepEqual(fitPhase2({ ...phase2, execution: [] }), { ...phase2, questions: [] });
   });
 });
 

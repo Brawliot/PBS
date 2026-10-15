@@ -15,6 +15,7 @@ import type { ReportRepository } from "../plan/report-repository.js";
 import type { Explanations, Report } from "../plan/report.js";
 import { parseGlance, type Glance } from "../plan/glance.js";
 import { computeClarity, type Clarity } from "../plan/clarity.js";
+import { buildExecution } from "../plan/execution.js";
 import type { Profile } from "./planner-profile-handler.js";
 import {
   MAX_CURRENCY,
@@ -122,6 +123,11 @@ export function glanceOf(phase2: Phase2Response): Glance | undefined {
       stage: fitted.stage.source,
       competition: fitted.competition.source,
     },
+    // From the model's own parts, checked against Mando's catalog (fitPhase2 does not keep them)
+    ...(() => {
+      const execution = buildExecution(phase2.execution);
+      return execution ? { execution } : {};
+    })(),
   });
 }
 
@@ -272,9 +278,12 @@ export async function runPlanner(
       ...(await keepReport(options, reportOf(input, answers, jev, built, withPhase2, explanations, glance, clarity))),
     };
   }
+  // The glance goes with the questions too: the browser sends it back with the final request
+  const glance = glanceFor(input, glanceOf(phase2));
   return {
     jev,
     phase2: { ...phase2, questions },
     questionTotal: answers.length + questions.length,
+    ...(glance && { glance }),
   };
 }

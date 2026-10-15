@@ -52,7 +52,8 @@ function runWith(change: (data: any) => void) {
 describe("analyzePhase2: reply validation", () => {
   test("a valid reply is returned as it is", async () => {
     mockFetch(() => replyWith(valid()));
-    assert.deepEqual(await analyzePhase2(input, jev), valid());
+    // A reply without parts reads with an empty list
+    assert.deepEqual(await analyzePhase2(input, jev), { execution: [], ...valid() });
   });
 
   test("content that is not JSON throws the generic error and logs only the reason", async () => {

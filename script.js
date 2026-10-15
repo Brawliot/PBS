@@ -564,6 +564,7 @@
   let current = null; // question on screen
   let total = 0;      // number of questions in this session
   let analysis = null; // phase 2 analysis from the first response
+  let firstGlance = null; // the glance the server built in the first round: sent back as it is with the final request
   let reportId = null; // id of the report the server kept for this analysis (see POST /api/plan)
   const CLAIM_KEYS = ['subsector', 'location', 'target_customer', 'value_proposition', 'revenue_model', 'stage', 'competition'];
   // The facts the top of the report shows, from the first round's analysis. The server checks them and keeps them
@@ -591,6 +592,7 @@
     queue = [];
     current = null;
     analysis = null;
+    firstGlance = null;
     reportId = null;
   };
 
@@ -636,7 +638,7 @@
       // The final request validates the analysis, so it needs the values the first one produced
       analysis: Object.fromEntries(CLAIM_KEYS.map((key) => [key, analysis?.[key]?.value])),
       // The same first round also gives the top of the report (the server keeps it only if it passes)
-      ...(final && { glance: glanceFrom(analysis) }),
+      ...(final && { glance: firstGlance ?? glanceFrom(analysis) }),
     };
     let failed = false;
     let profile = null;
@@ -662,6 +664,7 @@
       validation = result.validation ?? null;
       explanations = result.explanations ?? null;
       glance = result.glance ?? null;
+      if (!profile && glance) firstGlance = glance;
       clarity = result.clarity ?? null;
       if (profile) reportId = result.reportId ?? null;
       if (profile) {
@@ -670,6 +673,7 @@
           profileInput: { ...profileInput },
           answers: [...answers],
           analysis,
+          glance: glance ?? firstGlance,
           rounds: 0,
           asked: [],
         };
@@ -1030,7 +1034,7 @@
         answers: answersNow,
         final: true,
         analysis: Object.fromEntries(CLAIM_KEYS.map((key) => [key, session.analysis?.[key]?.value])),
-        glance: glanceFrom(session.analysis),
+        glance: session.glance ?? glanceFrom(session.analysis),
       });
       if (!result?.profile) throw new Error('No profile');
       const previous = currentClarity;
@@ -1225,6 +1229,8 @@
   // the budget question is in euros), the person's time, the team and the time to first revenue. Capital and regulation
   // are in the full detail.
   // "Full time" is said as it is; the other answers are hours a week
+  // The most hours a week each answer means (Under 10 h, 10-20 h, 30+ h, full time), to compare with what is asked
+  const HOURS_CAP = [10, 20, 40, 50];
   const hoursText = (index) => (HOURS_LABELS[index] === 'Full time' ? 'full time' : `${HOURS_LABELS[index]} a week`);
   const showNeeds = (profile, glance, view) => {
     const grid = document.getElementById('result-needs');
@@ -1254,7 +1260,10 @@
       return cut === -1 ? value : value.slice(0, cut);
     };
 
-    const budget = glance?.budget;
+    // With the parts of the business (glance.execution), the money is what the person pays, Mando's parts left out;
+    // without them (older reports), the range the idea needs
+    const execution = glance?.execution ?? null;
+    const budget = execution?.pay ? { ...execution.pay, currency: 'EUR' } : glance?.budget;
     const hasRange = !!budget && (budget.min !== null || budget.max !== null);
     const mine = typeof view.budget === 'number' ? view.budget : null;
     let fit = mine === null ? { text: 'Your budget: not given' } : { text: `You have ${money(mine, '€')}` };
@@ -1264,16 +1273,73 @@
       else if (mine >= low) fit = { text: `You have ${money(mine, '€')}: the low end`, tone: 'warn' };
       else fit = { text: `You have ${money(mine, '€')}: short by ~${money(low - mine, '€')}`, tone: 'short' };
     }
-    addCell('Money', hasRange ? rangeText(budget) : UNKNOWN, [fit]);
+    const mandoParts = execution?.items.filter(({ who }) => who === 'mando') ?? [];
+    const saving = execution?.saved
+      ? { text: `Mando covers ${mandoParts.map(({ name }) => name).slice(0, 2).join(', ')}${mandoParts.length > 2 ? '\u2026' : ''}: saves ~${rangeText({ ...execution.saved, currency: 'EUR' })}`, tone: 'ok' }
+      : null;
+    addCell('Money', hasRange ? rangeText(budget) : UNKNOWN, [fit, saving]);
 
+    // The person's time: what their own parts ask, against what they can put in
     const hours = view.hours !== undefined ? hoursText(view.hours) : null;
-    addCell('Your time', hours ? hours.charAt(0).toUpperCase() + hours.slice(1) : UNKNOWN, [{ text: 'What you can put in' }]);
+    if (execution?.hours) {
+      const cap = HOURS_CAP[view.hours];
+      const tone = cap === undefined ? null : execution.hours <= cap ? 'ok' : 'short';
+      addCell('Your time', `~${execution.hours} h a week`, [{ text: hours ? `You put in: ${hours}` : 'Your hours: not given', tone }]);
+    } else {
+      addCell('Your time', hours ? hours.charAt(0).toUpperCase() + hours.slice(1) : UNKNOWN, [{ text: 'What you can put in' }]);
+    }
 
     addCell('Team', head('team_requirement') ?? UNKNOWN, [view.team !== undefined ? { text: `You offer: ${TEAM_LABELS[view.team]}` } : { text: 'Your team: not given' }]);
 
     addCell('First revenue', head('time_to_revenue') ?? UNKNOWN, [{ text: 'Estimate' }]);
     grid.querySelectorAll('dd').forEach((dd) => dd.classList.toggle('is-unknown', dd.firstChild?.textContent === UNKNOWN));
     document.getElementById('result-needs-block').hidden = !grid.children.length;
+  };
+
+  // Who does what (full detail): the parts of the business in three groups, each with its money or hours and,
+  // for what is hired out, why. Mando's money is what the part would cost without Mando.
+  const EXECUTION_GROUPS = [
+    ['mando', 'Mando does it', 'Included'],
+    ['you', 'You do it', ''],
+    ['outsource', 'Hire it out', ''],
+  ];
+  const showExecution = (execution) => {
+    const box = document.getElementById('detail-execution');
+    box.replaceChildren();
+    document.getElementById('detail-execution-block').hidden = !execution?.items?.length;
+    if (!execution?.items?.length) return;
+    EXECUTION_GROUPS.forEach(([who, title, note]) => {
+      const items = execution.items.filter((item) => item.who === who);
+      if (!items.length) return;
+      const group = document.createElement('section');
+      group.className = `execution__group execution__group--${who}`;
+      const head = document.createElement('h4');
+      head.textContent = title;
+      const list = document.createElement('ul');
+      items.forEach((item) => {
+        const row = document.createElement('li');
+        const name = document.createElement('span');
+        name.className = 'execution__name';
+        name.textContent = item.name;
+        const range = item.costMin !== null || item.costMax !== null
+          ? rangeText({ min: item.costMin ?? item.costMax, max: item.costMax ?? item.costMin, currency: 'EUR' }).replace(/^(€[\d,]+) – \1$/, '$1')
+          : '';
+        const amount = document.createElement('span');
+        amount.className = 'execution__amount';
+        amount.textContent = who === 'mando'
+          ? (range ? `${note} \u00b7 saves ~${range}` : note)
+          : [range, item.hoursWeek ? `~${item.hoursWeek} h a week` : ''].filter(Boolean).join(' \u00b7 ');
+        row.append(name, amount);
+        if (item.reason) {
+          const reason = document.createElement('small');
+          reason.textContent = item.reason;
+          row.append(reason);
+        }
+        list.append(row);
+      });
+      group.append(head, list);
+      box.append(group);
+    });
   };
 
   // What I understood, in two lines: the business (what, for whom, where, how it earns) and the person (team, money,
@@ -1412,6 +1478,7 @@
     showBudget(glance, view.budget);
     showCosts(explanations);
     showNeeds(profile, glance, view);
+    showExecution(glance?.execution ?? null);
     templatePicks = explanations?.templates ?? [];
     templateGlance = glance;
     templatesOpen.hidden = !templatePicks.length;

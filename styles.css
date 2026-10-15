@@ -1299,3 +1299,12 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
 .needs__grid dd.is-unknown { font-weight: 400; color: var(--gray-text); }
 .detail__templates { align-self: flex-start; margin-top: 8px; }
 @media (max-width: 600px) { .needs__grid { grid-template-columns: 1fr 1fr; } }
+
+/* Who does what (full detail): three groups of parts, each with its money or hours */
+.execution { display: flex; flex-direction: column; gap: 14px; }
+.execution__group h4 { margin-bottom: 4px; font-size: 14px; font-weight: 800; }
+.execution__group ul { list-style: none; }
+.execution__group li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; padding: 8px 0; border-top: 1px solid var(--border); font-size: 15px; }
+.execution__amount { font-weight: 800; white-space: nowrap; }
+.execution__group--mando .execution__amount { color: #2e9d5b; }
+.execution__group li small { flex-basis: 100%; font-size: 13px; color: var(--gray-text); }

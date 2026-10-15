@@ -249,7 +249,56 @@ async function scenarioRed(browser) {
   return "red: the plan waits for the round; after two rounds it can be built anyway";
 }
 
-for (const scenario of [scenarioYellowToGreen, scenarioRed]) {
+/** The parts of the business, as the server checks and adds them up (plan/execution.ts) */
+const part = (name, who, mandoKey, costMin, costMax, hoursWeek, reason = "") => ({ name, who, mandoKey, costMin, costMax, hoursWeek, reason });
+const EXECUTION = {
+  items: [
+    part("Online store", "mando", "online_store", 3000, 6000, null),
+    part("CRM", "mando", "crm", 1000, 2000, null),
+    part("Stock", "you", null, 2000, 3000, 6),
+    part("Sales and suppliers", "you", null, null, null, 30),
+    part("Tax advice", "outsource", null, 600, 900, null, "A legal obligation: a gestor keeps it right."),
+  ],
+  pay: { min: 2600, max: 3900 },
+  saved: { min: 4000, max: 8000 },
+  hours: 36,
+};
+
+async function scenarioExecution(browser) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  const page = await context.newPage();
+  await watch(page, "execution");
+  const glance = {
+    maturity: "developing",
+    subsectorSource: "stated",
+    location: { value: "Madrid", source: "stated" },
+    budget: { min: 2600, max: 3900, currency: "EUR", fits: "" },
+    sources: { target_customer: "inferred", value_proposition: "stated", revenue_model: "unknown", stage: "stated", competition: "stated" },
+    execution: EXECUTION,
+  };
+  // The first round carries the server's glance: the final request sends it back as it is
+  const posts = await mockApi(page, [{ ...firstRound, glance }, finalResult(0, YELLOW)]);
+  await reachReport(page);
+  assert.deepEqual(posts[1].glance, glance, "the final request sends back the server's glance, parts included");
+
+  const cells = await page.$$eval("#result-needs > div", (items) => items.map((cell) => cell.innerText.replace(/\s+/g, " ").trim()));
+  assert.deepEqual(cells.slice(0, 2), [
+    "Money €2,600 – €3,900 You have €10,000: covers it Mando covers Online store, CRM: saves ~€4,000 – €8,000",
+    "Your time ~36 h a week You put in: full time",
+  ]);
+  await page.click("#result-detail-open");
+  const groups = await page.$$eval("#detail-execution .execution__group", (items) => items.map((group) => group.innerText.replace(/\s+/g, " ").trim()));
+  assert.deepEqual(groups, [
+    "Mando does it Online store Included · saves ~€3,000 – €6,000 CRM Included · saves ~€1,000 – €2,000",
+    "You do it Stock €2,000 – €3,000 · ~6 h a week Sales and suppliers ~30 h a week",
+    "Hire it out Tax advice €600 – €900 A legal obligation: a gestor keeps it right.",
+  ]);
+  assertNoProblems();
+  await context.close();
+  return "execution: the money the person pays, what Mando saves, the hours asked, and who does what in the detail";
+}
+
+for (const scenario of [scenarioYellowToGreen, scenarioRed, scenarioExecution]) {
   try {
     console.log(`ok - ${await scenario(browser)}`);
   } catch (error) {

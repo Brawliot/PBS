@@ -102,11 +102,13 @@ describe("runPlanner: the glance of a first round", () => {
     assert.deepEqual(result.glance, serverGlance);
   });
 
-  test("a first round with questions has no glance", async () => {
+  test("a first round with questions carries the server's own glance, never the browser's", async () => {
     mockOutside({ questions: [{ topic: "validation", question: "Have you tested it with customers?", options: ["Yes", "No"] }] });
-    const result = (await runPlanner(input, [], false, {}, { owner: USER }, browserGlance)) as Record<string, unknown>;
+    const result = (await runPlanner(input, [], false, {}, { owner: USER }, browserGlance)) as Record<string, any>;
 
-    assert.equal("glance" in result, false);
+    assert.ok(result.glance, "the browser sends it back with the final request");
+    assert.notDeepEqual(result.glance, browserGlance);
+    assert.equal(result.glance.maturity, "developing");
   });
 
   test("a phase 2 budget that does not pass the glance schema leaves it out, and the report is still kept", async () => {
