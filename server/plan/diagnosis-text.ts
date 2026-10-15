@@ -86,13 +86,13 @@ const noNul = (value: string) => !value.includes("\u0000");
 const text = (max: number) => z.string().trim().min(1).max(max).refine(noNul, "NUL is not allowed");
 
 /** Cut to at most `max` characters (code points, so a pair of surrogates is never split), without NUL */
-export const cut = (value: string, max: number): string => Array.from(value.replaceAll("\u0000", "")).slice(0, max).join("").trim();
+const cut = (value: string, max: number): string => Array.from(value.replaceAll("\u0000", "")).slice(0, max).join("").trim();
 
 /** A reason fits its status when it uses none of the words that contradict it */
 export const fitsStatus = (why: string, status: DiagnosisCheckStatus): boolean => !CONTRADICTS[status].test(why);
 
 /** The default reason of a check, for its status */
-export const defaultWhy = (key: CheckKey, status: DiagnosisCheckStatus): string => DEFAULT_WHY[key][status];
+const defaultWhy = (key: CheckKey, status: DiagnosisCheckStatus): string => DEFAULT_WHY[key][status];
 
 /** The risks when there is no model text: the risks of the checks that are not strong, risk first, at most three */
 export function defaultRisks(checks: Diagnosis["checks"]): string[] {

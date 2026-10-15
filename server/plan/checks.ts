@@ -22,7 +22,7 @@ export const CHECK_RULES = {
  * Experience from the founder profile (the "What can the user do themselves?" dimension). "Not specified" is no
  * answer: Jev judges the idea then. A regulated profession is risk whatever the profile says (see experienceCheck).
  */
-export const EXPERIENCE_BY_FOUNDER_PROFILE: Record<string, DiagnosisCheckStatus | undefined> = {
+const EXPERIENCE_BY_FOUNDER_PROFILE: Record<string, DiagnosisCheckStatus | undefined> = {
   "Sector expert": "strong",
   Technical: "watch",
   Commercial: "watch",
