@@ -230,7 +230,7 @@ Tres comprobaciones con las APIs reales que se dejaron aparcadas para poder avan
 **Si falla.** El log del servidor indica qué campo no cumplía el esquema (rutas y códigos, sin valores).
 
 ### 2. Calibración
-**Qué es.** Ejecutar casos reales y comprobar que los umbrales dan resultados razonables. Los umbrales son estimaciones sin datos: el límite de preguntas por madurez y los ajustes por compromiso (`POLICY` en `question-policy.ts`), el 50 % de respaldo y de coherencia, y los cortes Core/Important/Light (en `planner-validation-handler.ts`).
+**Qué es.** Ejecutar casos reales y comprobar que los umbrales dan resultados razonables. Los umbrales son estimaciones sin datos: el límite de dos preguntas (`POLICY` en `question-policy.ts`), el 50 % de respaldo y de coherencia, y los cortes Core/Important/Light (en `planner-validation-handler.ts`).
 
 | Caso | Qué esperar |
 |---|---|
