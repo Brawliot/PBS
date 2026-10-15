@@ -12,6 +12,8 @@ import { fileURLToPath } from "node:url";
 import { runPlanner } from "../../planner/planner-run.js";
 import { claimsFromPhase2 } from "../../planner/planner-validation-handler.js";
 import { REPORT_TEMPLATES } from "../../planner/report-templates.js";
+import { selectImproveQuestions } from "../../plan/improve-questions.js";
+import { MAX_ANSWERS } from "../../request.js";
 import type { PlannerInput } from "../../planner/planner-handler.js";
 import { InMemoryReportRepository } from "../../plan/report-repository-memory.js";
 import { USER } from "../user-ids.js";
@@ -117,6 +119,35 @@ const CASES: Case[] = [
     detect: { location: "Seville", budget: null, start_mode: "takeover", premises: "have" },
   },
   {
+    // A concept at risk and money at watch: "Improve my report" asks about these two first
+    name: "improve",
+    input: { idea: "A tapas bar in Malasaña, Madrid", budget: 40_000, location: "Malasaña, Madrid", start_mode: "takeover", premises: "looking" },
+    jev: {
+      sector: "Hospitality/Food service",
+      geographic_scope: "Hyper-local",
+      timeline: "Fast (3-6m)",
+      concept: "Risk",
+      location: "Strong",
+      competition: "Watch",
+      experience: "Strong",
+      founder_profile: "Sector expert",
+    },
+    budget: { min: 45_000, max: 60_000 },
+    execution: [],
+    diagnosisText: {
+      idea: "A neighbourhood tapas bar for locals and after-work crowds in Malasaña.",
+      checks: [
+        { key: "concept", why: "The offer is not yet clear enough to tell it apart from the other bars." },
+        { key: "location", why: "The street is busy after work, though rents are high." },
+        { key: "money", why: "€40k is tight against a typical €45–60k takeover, with little cushion." },
+        { key: "experience", why: "The owner has run a kitchen for years." },
+        { key: "competition", why: "Several tapas bars are nearby." },
+      ],
+      risks: ["The offer may not stand out.", "High rent in this area.", "Little cushion for the first months."],
+    },
+    detect: { location: "Malasaña, Madrid", budget: 40_000, start_mode: "takeover", premises: "looking" },
+  },
+  {
     name: "software",
     input: { idea: "Software to manage bar bookings", budget: 20_000, location: "online", start_mode: "scratch", premises: "not_needed" },
     jev: {
@@ -214,6 +245,12 @@ process.env.OPENAI_MODEL = "fixture";
 process.env.TYPESAFE_API_KEY = "fixture";
 process.env.JEV_MODEL = "fixture";
 
+/** The sector the report's Jev analysis gave (the customer question's options follow it) */
+const sectorOf = (report: { jev: { answers: Record<string, { type: string; choice?: string }> } } | undefined) => {
+  const sector = report?.jev.answers.sector;
+  return sector?.type === "choice" ? sector.choice : undefined;
+};
+
 const out: Record<string, unknown> = {};
 for (const caseSpec of CASES) {
   modelFor(caseSpec);
@@ -224,7 +261,8 @@ for (const caseSpec of CASES) {
   const claims = claimsFromPhase2(first.phase2 as never);
   const final = (await runPlanner(input, [], true, claims, options, first.glance as never)) as { reportId: string };
   const stored = await reports.get(final.reportId, USER);
-  out[caseSpec.name] = { input: caseSpec.input, detect: caseSpec.detect, firstRound: first, final, report: stored?.report };
+  const improve = selectImproveQuestions(stored?.report.diagnosis, [], sectorOf(stored?.report), MAX_ANSWERS);
+  out[caseSpec.name] = { input: caseSpec.input, detect: caseSpec.detect, firstRound: first, final, report: stored?.report, improve };
   console.log(`${caseSpec.name}: checks ${(stored?.report.diagnosis?.checks ?? []).map((c) => `${c.key}=${c.status}/${c.decidedBy}`).join(" ")}`);
 }
 

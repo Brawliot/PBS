@@ -483,7 +483,7 @@
           "outsource": []
         }
       },
-      "reportId": "9832d58f-62f6-4bd8-8c26-97a4b63eeda7"
+      "reportId": "2b5a7a5c-51ff-4ae0-ae39-4f912a082dbc"
     },
     "report": {
       "input": {
@@ -807,7 +807,71 @@
         },
         "readiness": "yellow"
       }
-    }
+    },
+    "improve": [
+      {
+        "key": "imp_competition_known",
+        "category": "competition",
+        "status": "risk",
+        "question": "Do you know the similar businesses near you?",
+        "options": [
+          "Yes, and what I'd do differently",
+          "Yes, but not how to stand out",
+          "Not yet",
+          "I don't know yet"
+        ]
+      },
+      {
+        "key": "imp_competition_unserved",
+        "category": "competition",
+        "status": "risk",
+        "question": "Which customers do the others not serve well?",
+        "options": [
+          "Families",
+          "Late hours",
+          "A specific diet or need",
+          "Business clients",
+          "I don't know yet"
+        ]
+      },
+      {
+        "key": "imp_money_cushion",
+        "category": "money",
+        "status": "watch",
+        "question": "Do you have a cushion apart from your budget?",
+        "options": [
+          "Yes, 3+ months of costs",
+          "Some, less than 3 months",
+          "No",
+          "I don't know yet"
+        ]
+      },
+      {
+        "key": "imp_money_financing",
+        "category": "money",
+        "status": "watch",
+        "question": "Could you get financing?",
+        "options": [
+          "Already have it",
+          "Probably",
+          "No",
+          "I don't know yet"
+        ]
+      },
+      {
+        "key": "imp_experience_operator",
+        "category": "experience",
+        "status": "watch",
+        "question": "Who will run it day to day?",
+        "options": [
+          "Me, I know the trade",
+          "Me, learning",
+          "A hired manager with experience",
+          "Not decided yet",
+          "I don't know yet"
+        ]
+      }
+    ]
   },
   "physio": {
     "input": {
@@ -1219,7 +1283,7 @@
           "outsource": []
         }
       },
-      "reportId": "51bdc771-12ca-4e02-b304-605a2491c822"
+      "reportId": "8c0b799c-fb13-4ad0-9ab6-a38613d71451"
     },
     "report": {
       "input": {
@@ -1513,7 +1577,59 @@
         },
         "readiness": "yellow"
       }
-    }
+    },
+    "improve": [
+      {
+        "key": "imp_experience_operator",
+        "category": "experience",
+        "status": "risk",
+        "question": "Who will run it day to day?",
+        "options": [
+          "Me, I know the trade",
+          "Me, learning",
+          "A hired manager with experience",
+          "Not decided yet",
+          "I don't know yet"
+        ]
+      },
+      {
+        "key": "imp_experience_training",
+        "category": "experience",
+        "status": "risk",
+        "question": "Have you trained for this kind of business?",
+        "options": [
+          "Yes, a course or a degree",
+          "Some short courses",
+          "No",
+          "I don't know yet"
+        ]
+      },
+      {
+        "key": "imp_competition_known",
+        "category": "competition",
+        "status": "watch",
+        "question": "Do you know the similar businesses near you?",
+        "options": [
+          "Yes, and what I'd do differently",
+          "Yes, but not how to stand out",
+          "Not yet",
+          "I don't know yet"
+        ]
+      },
+      {
+        "key": "imp_competition_unserved",
+        "category": "competition",
+        "status": "watch",
+        "question": "Which customers do the others not serve well?",
+        "options": [
+          "Families",
+          "Late hours",
+          "A specific diet or need",
+          "Business clients",
+          "I don't know yet"
+        ]
+      }
+    ]
   },
   "salon": {
     "input": {
@@ -1925,7 +2041,7 @@
           "outsource": []
         }
       },
-      "reportId": "bd85969b-8dd0-416e-9403-bd72747f9751"
+      "reportId": "736b91ae-5cb0-456f-a5ef-359ef7d5067a"
     },
     "report": {
       "input": {
@@ -2219,7 +2335,832 @@
         },
         "readiness": "yellow"
       }
-    }
+    },
+    "improve": [
+      {
+        "key": "imp_concept_difference",
+        "category": "concept",
+        "status": "watch",
+        "question": "What will make you different?",
+        "options": [
+          "Product",
+          "Price",
+          "Hours",
+          "Atmosphere",
+          "Service",
+          "I don't know yet"
+        ]
+      },
+      {
+        "key": "imp_concept_customer",
+        "category": "concept",
+        "status": "watch",
+        "question": "Who exactly is it for?",
+        "options": [
+          "A specific group (age, job or need)",
+          "Locals in one area",
+          "Visitors and tourists",
+          "Businesses",
+          "I don't know yet"
+        ]
+      },
+      {
+        "key": "imp_competition_known",
+        "category": "competition",
+        "status": "watch",
+        "question": "Do you know the similar businesses near you?",
+        "options": [
+          "Yes, and what I'd do differently",
+          "Yes, but not how to stand out",
+          "Not yet",
+          "I don't know yet"
+        ]
+      },
+      {
+        "key": "imp_competition_unserved",
+        "category": "competition",
+        "status": "watch",
+        "question": "Which customers do the others not serve well?",
+        "options": [
+          "Families",
+          "Late hours",
+          "A specific diet or need",
+          "Business clients",
+          "I don't know yet"
+        ]
+      }
+    ]
+  },
+  "improve": {
+    "input": {
+      "idea": "A tapas bar in Malasaña, Madrid",
+      "budget": 40000,
+      "location": "Malasaña, Madrid",
+      "start_mode": "takeover",
+      "premises": "looking"
+    },
+    "detect": {
+      "location": "Malasaña, Madrid",
+      "budget": 40000,
+      "start_mode": "takeover",
+      "premises": "looking"
+    },
+    "firstRound": {
+      "jev": {
+        "model": "fixture",
+        "answers": {
+          "sector": {
+            "type": "choice",
+            "choice": "Hospitality/Food service"
+          },
+          "geographic_scope": {
+            "type": "choice",
+            "choice": "Hyper-local"
+          },
+          "timeline": {
+            "type": "choice",
+            "choice": "Fast (3-6m)"
+          },
+          "concept": {
+            "type": "choice",
+            "choice": "Risk"
+          },
+          "location": {
+            "type": "choice",
+            "choice": "Strong"
+          },
+          "competition": {
+            "type": "choice",
+            "choice": "Watch"
+          },
+          "experience": {
+            "type": "choice",
+            "choice": "Strong"
+          }
+        },
+        "usage": {
+          "input_tokens": 1,
+          "output_tokens": 1
+        }
+      },
+      "phase2": {
+        "maturity": "developing",
+        "subsector": {
+          "value": "Tapas bar",
+          "source": "stated",
+          "confidence": 80
+        },
+        "location": {
+          "value": "Malasaña, Madrid",
+          "source": "stated",
+          "confidence": 80
+        },
+        "target_customer": {
+          "value": "Locals and visitors",
+          "source": "inferred",
+          "confidence": 60
+        },
+        "value_proposition": {
+          "value": "A tapas bar in Malasaña, Madrid",
+          "source": "stated",
+          "confidence": 80
+        },
+        "revenue_model": {
+          "value": "Sales per visit",
+          "source": "unknown",
+          "confidence": 0
+        },
+        "stage": {
+          "value": "Idea only",
+          "source": "stated",
+          "confidence": 80
+        },
+        "competition": {
+          "value": "Other businesses in the area",
+          "source": "stated",
+          "confidence": 80
+        },
+        "constraints": {
+          "budget": {
+            "min": 45000,
+            "max": 60000,
+            "currency": "EUR",
+            "fits": "Estimated range for this idea"
+          },
+          "exclusions": [],
+          "risks": [],
+          "assumptions": []
+        },
+        "questions": [],
+        "execution": []
+      },
+      "questionTotal": 0,
+      "glance": {
+        "maturity": "developing",
+        "subsectorSource": "stated",
+        "location": {
+          "value": "Malasaña, Madrid",
+          "source": "stated"
+        },
+        "budget": {
+          "min": 45000,
+          "max": 60000,
+          "currency": "EUR",
+          "fits": "Estimated range for this idea"
+        },
+        "sources": {
+          "target_customer": "inferred",
+          "value_proposition": "stated",
+          "revenue_model": "unknown",
+          "stage": "stated",
+          "competition": "stated"
+        }
+      }
+    },
+    "final": {
+      "jev": {
+        "model": "fixture",
+        "answers": {
+          "sector": {
+            "type": "choice",
+            "choice": "Hospitality/Food service"
+          },
+          "geographic_scope": {
+            "type": "choice",
+            "choice": "Hyper-local"
+          },
+          "timeline": {
+            "type": "choice",
+            "choice": "Fast (3-6m)"
+          },
+          "concept": {
+            "type": "choice",
+            "choice": "Risk"
+          },
+          "location": {
+            "type": "choice",
+            "choice": "Strong"
+          },
+          "competition": {
+            "type": "choice",
+            "choice": "Watch"
+          },
+          "experience": {
+            "type": "choice",
+            "choice": "Strong"
+          }
+        },
+        "usage": {
+          "input_tokens": 1,
+          "output_tokens": 1
+        }
+      },
+      "profile": {
+        "values": {
+          "customer_segment": "Not specified",
+          "revenue_model": "Not specified",
+          "offering_type": "Not specified",
+          "acquisition_channel": "Not specified",
+          "competition": "Not specified",
+          "differentiator": "Not specified",
+          "validation_stage": "Not specified",
+          "founder_profile": "Sector expert",
+          "deadline_rigidity": "Not specified",
+          "capital_intensity": "Not specified",
+          "team_requirement": "Not specified",
+          "time_to_revenue": "Not specified",
+          "regulatory_load": "Not specified",
+          "third_party_dependency": "Not specified",
+          "money_handling": "Not specified"
+        },
+        "unknown": [
+          "customer_segment",
+          "revenue_model",
+          "offering_type",
+          "acquisition_channel",
+          "competition",
+          "differentiator",
+          "validation_stage",
+          "deadline_rigidity",
+          "capital_intensity",
+          "team_requirement",
+          "time_to_revenue",
+          "regulatory_load",
+          "third_party_dependency",
+          "money_handling"
+        ],
+        "known": 1,
+        "total": 15
+      },
+      "validation": {
+        "unsupported": [],
+        "warnings": [],
+        "departments": [
+          {
+            "name": "Legal & Compliance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Finance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Marketing",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "HR",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Sales",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Product",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Technology",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Operations",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Infrastructure",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Health",
+            "confidence": 0,
+            "tier": "light"
+          }
+        ],
+        "groups": [
+          {
+            "name": "Legal & Compliance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Finance & People",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Growth",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Product & Tech",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Operations",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Health",
+            "confidence": 0,
+            "tier": "light"
+          }
+        ],
+        "level": 1
+      },
+      "explanations": {
+        "warningReasons": [],
+        "areaReasons": [],
+        "timeToOpen": {
+          "min": 3,
+          "max": 5,
+          "unit": "months",
+          "confidence": "medium"
+        },
+        "costBreakdown": [
+          {
+            "label": "Licences",
+            "percent": 60
+          },
+          {
+            "label": "Equipment",
+            "percent": 40
+          }
+        ],
+        "templates": [
+          "supplier-quote",
+          "customer-interviews",
+          "licence-enquiry"
+        ]
+      },
+      "glance": {
+        "maturity": "developing",
+        "subsectorSource": "stated",
+        "location": {
+          "value": "Malasaña, Madrid",
+          "source": "stated"
+        },
+        "budget": {
+          "min": 45000,
+          "max": 60000,
+          "currency": "EUR",
+          "fits": "Estimated range for this idea"
+        },
+        "sources": {
+          "target_customer": "inferred",
+          "value_proposition": "stated",
+          "revenue_model": "unknown",
+          "stage": "stated",
+          "competition": "stated"
+        }
+      },
+      "clarity": {
+        "version": 3,
+        "concept": {
+          "level": "medium",
+          "score": 61,
+          "missing": [
+            "How it makes money",
+            "How it reaches customers",
+            "What sets it apart"
+          ],
+          "essentialMissing": true
+        },
+        "person": {
+          "level": "medium",
+          "score": 63,
+          "missing": [
+            "Handling other people's money",
+            "Fixed deadline",
+            "Existing assets"
+          ],
+          "essentialMissing": false
+        },
+        "readiness": "yellow"
+      },
+      "diagnosis": {
+        "idea": "A neighbourhood tapas bar for locals and after-work crowds in Malasaña.",
+        "checks": [
+          {
+            "key": "concept",
+            "status": "risk",
+            "why": "The offer is not yet clear enough to tell it apart from the other bars.",
+            "estimated": true,
+            "decidedBy": "jev"
+          },
+          {
+            "key": "location",
+            "status": "strong",
+            "why": "The street is busy after work, though rents are high.",
+            "estimated": true,
+            "decidedBy": "jev"
+          },
+          {
+            "key": "money",
+            "status": "watch",
+            "why": "€40k is tight against a typical €45–60k takeover, with little cushion.",
+            "estimated": true,
+            "decidedBy": "rule"
+          },
+          {
+            "key": "experience",
+            "status": "strong",
+            "why": "The owner has run a kitchen for years.",
+            "estimated": false,
+            "decidedBy": "rule"
+          },
+          {
+            "key": "competition",
+            "status": "watch",
+            "why": "Several tapas bars are nearby.",
+            "estimated": true,
+            "decidedBy": "jev"
+          }
+        ],
+        "risks": [
+          "The offer may not stand out.",
+          "High rent in this area.",
+          "Little cushion for the first months."
+        ],
+        "split": {
+          "mando": [],
+          "you": [],
+          "outsource": []
+        }
+      },
+      "reportId": "ecafc51e-1911-4fdd-ad47-2914ac5cec90"
+    },
+    "report": {
+      "input": {
+        "idea": "A tapas bar in Malasaña, Madrid",
+        "location": "Malasaña, Madrid",
+        "budget": 40000,
+        "start_mode": "takeover",
+        "premises": "looking"
+      },
+      "answers": [],
+      "jev": {
+        "model": "fixture",
+        "answers": {
+          "sector": {
+            "type": "choice",
+            "choice": "Hospitality/Food service"
+          },
+          "geographic_scope": {
+            "type": "choice",
+            "choice": "Hyper-local"
+          },
+          "timeline": {
+            "type": "choice",
+            "choice": "Fast (3-6m)"
+          },
+          "concept": {
+            "type": "choice",
+            "choice": "Risk"
+          },
+          "location": {
+            "type": "choice",
+            "choice": "Strong"
+          },
+          "competition": {
+            "type": "choice",
+            "choice": "Watch"
+          },
+          "experience": {
+            "type": "choice",
+            "choice": "Strong"
+          }
+        },
+        "usage": {
+          "input_tokens": 1,
+          "output_tokens": 1
+        }
+      },
+      "profile": {
+        "values": {
+          "customer_segment": "Not specified",
+          "revenue_model": "Not specified",
+          "offering_type": "Not specified",
+          "acquisition_channel": "Not specified",
+          "competition": "Not specified",
+          "differentiator": "Not specified",
+          "validation_stage": "Not specified",
+          "founder_profile": "Sector expert",
+          "deadline_rigidity": "Not specified",
+          "capital_intensity": "Not specified",
+          "team_requirement": "Not specified",
+          "time_to_revenue": "Not specified",
+          "regulatory_load": "Not specified",
+          "third_party_dependency": "Not specified",
+          "money_handling": "Not specified"
+        },
+        "unknown": [
+          "customer_segment",
+          "revenue_model",
+          "offering_type",
+          "acquisition_channel",
+          "competition",
+          "differentiator",
+          "validation_stage",
+          "deadline_rigidity",
+          "capital_intensity",
+          "team_requirement",
+          "time_to_revenue",
+          "regulatory_load",
+          "third_party_dependency",
+          "money_handling"
+        ],
+        "known": 1,
+        "total": 15
+      },
+      "validation": {
+        "unsupported": [],
+        "warnings": [],
+        "departments": [
+          {
+            "name": "Legal & Compliance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Finance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Marketing",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "HR",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Sales",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Product",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Technology",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Operations",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Infrastructure",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Health",
+            "confidence": 0,
+            "tier": "light"
+          }
+        ],
+        "groups": [
+          {
+            "name": "Legal & Compliance",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Finance & People",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Growth",
+            "confidence": 40,
+            "tier": "important"
+          },
+          {
+            "name": "Product & Tech",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Operations",
+            "confidence": 0,
+            "tier": "light"
+          },
+          {
+            "name": "Health",
+            "confidence": 0,
+            "tier": "light"
+          }
+        ],
+        "level": 1
+      },
+      "explanations": {
+        "warningReasons": [],
+        "areaReasons": [],
+        "timeToOpen": {
+          "min": 3,
+          "max": 5,
+          "unit": "months",
+          "confidence": "medium"
+        },
+        "costBreakdown": [
+          {
+            "label": "Licences",
+            "percent": 60
+          },
+          {
+            "label": "Equipment",
+            "percent": 40
+          }
+        ],
+        "templates": [
+          "supplier-quote",
+          "customer-interviews",
+          "licence-enquiry"
+        ]
+      },
+      "glance": {
+        "maturity": "developing",
+        "subsectorSource": "stated",
+        "location": {
+          "value": "Malasaña, Madrid",
+          "source": "stated"
+        },
+        "budget": {
+          "min": 45000,
+          "max": 60000,
+          "currency": "EUR",
+          "fits": "Estimated range for this idea"
+        },
+        "sources": {
+          "target_customer": "inferred",
+          "value_proposition": "stated",
+          "revenue_model": "unknown",
+          "stage": "stated",
+          "competition": "stated"
+        }
+      },
+      "diagnosis": {
+        "idea": "A neighbourhood tapas bar for locals and after-work crowds in Malasaña.",
+        "checks": [
+          {
+            "key": "concept",
+            "status": "risk",
+            "why": "The offer is not yet clear enough to tell it apart from the other bars.",
+            "estimated": true,
+            "decidedBy": "jev"
+          },
+          {
+            "key": "location",
+            "status": "strong",
+            "why": "The street is busy after work, though rents are high.",
+            "estimated": true,
+            "decidedBy": "jev"
+          },
+          {
+            "key": "money",
+            "status": "watch",
+            "why": "€40k is tight against a typical €45–60k takeover, with little cushion.",
+            "estimated": true,
+            "decidedBy": "rule"
+          },
+          {
+            "key": "experience",
+            "status": "strong",
+            "why": "The owner has run a kitchen for years.",
+            "estimated": false,
+            "decidedBy": "rule"
+          },
+          {
+            "key": "competition",
+            "status": "watch",
+            "why": "Several tapas bars are nearby.",
+            "estimated": true,
+            "decidedBy": "jev"
+          }
+        ],
+        "risks": [
+          "The offer may not stand out.",
+          "High rent in this area.",
+          "Little cushion for the first months."
+        ],
+        "split": {
+          "mando": [],
+          "you": [],
+          "outsource": []
+        }
+      },
+      "clarity": {
+        "version": 3,
+        "concept": {
+          "level": "medium",
+          "score": 61,
+          "missing": [
+            "How it makes money",
+            "How it reaches customers",
+            "What sets it apart"
+          ],
+          "essentialMissing": true
+        },
+        "person": {
+          "level": "medium",
+          "score": 63,
+          "missing": [
+            "Handling other people's money",
+            "Fixed deadline",
+            "Existing assets"
+          ],
+          "essentialMissing": false
+        },
+        "readiness": "yellow"
+      }
+    },
+    "improve": [
+      {
+        "key": "imp_concept_difference",
+        "category": "concept",
+        "status": "risk",
+        "question": "What will make you different?",
+        "options": [
+          "Product",
+          "Price",
+          "Hours",
+          "Atmosphere",
+          "Service",
+          "I don't know yet"
+        ]
+      },
+      {
+        "key": "imp_concept_customer",
+        "category": "concept",
+        "status": "risk",
+        "question": "Who exactly is it for?",
+        "options": [
+          "Locals in one area",
+          "Visitors and tourists",
+          "Office workers",
+          "Families",
+          "I don't know yet"
+        ]
+      },
+      {
+        "key": "imp_money_cushion",
+        "category": "money",
+        "status": "watch",
+        "question": "Do you have a cushion apart from your budget?",
+        "options": [
+          "Yes, 3+ months of costs",
+          "Some, less than 3 months",
+          "No",
+          "I don't know yet"
+        ]
+      },
+      {
+        "key": "imp_money_financing",
+        "category": "money",
+        "status": "watch",
+        "question": "Could you get financing?",
+        "options": [
+          "Already have it",
+          "Probably",
+          "No",
+          "I don't know yet"
+        ]
+      },
+      {
+        "key": "imp_competition_known",
+        "category": "competition",
+        "status": "watch",
+        "question": "Do you know the similar businesses near you?",
+        "options": [
+          "Yes, and what I'd do differently",
+          "Yes, but not how to stand out",
+          "Not yet",
+          "I don't know yet"
+        ]
+      }
+    ]
   },
   "software": {
     "input": {
@@ -2710,7 +3651,7 @@
           ]
         }
       },
-      "reportId": "4e45a98b-2c3b-4c9d-90b2-b98973c4dad7"
+      "reportId": "4c08ce2c-d96b-48b1-8fb9-7ae4b8df26df"
     },
     "report": {
       "input": {
@@ -3036,6 +3977,71 @@
         },
         "readiness": "yellow"
       }
-    }
+    },
+    "improve": [
+      {
+        "key": "imp_competition_known",
+        "category": "competition",
+        "status": "risk",
+        "question": "Do you know the similar businesses near you?",
+        "options": [
+          "Yes, and what I'd do differently",
+          "Yes, but not how to stand out",
+          "Not yet",
+          "I don't know yet"
+        ]
+      },
+      {
+        "key": "imp_competition_unserved",
+        "category": "competition",
+        "status": "risk",
+        "question": "Which customers do the others not serve well?",
+        "options": [
+          "Families",
+          "Late hours",
+          "A specific diet or need",
+          "Business clients",
+          "I don't know yet"
+        ]
+      },
+      {
+        "key": "imp_reach_channel",
+        "category": "reach",
+        "status": "watch",
+        "question": "How will customers find an online business like this?",
+        "options": [
+          "Search",
+          "Social media",
+          "Partners",
+          "Word of mouth",
+          "I don't know yet"
+        ]
+      },
+      {
+        "key": "imp_reach_audience",
+        "category": "reach",
+        "status": "watch",
+        "question": "Do you know where your customers already spend time online?",
+        "options": [
+          "Yes, in specific groups or communities",
+          "Roughly",
+          "Not yet",
+          "I don't know yet"
+        ]
+      },
+      {
+        "key": "imp_experience_operator",
+        "category": "experience",
+        "status": "watch",
+        "question": "Who will run it day to day?",
+        "options": [
+          "Me, I know the trade",
+          "Me, learning",
+          "A hired manager with experience",
+          "Not decided yet",
+          "I don't know yet"
+        ]
+      }
+    ]
   }
 }
