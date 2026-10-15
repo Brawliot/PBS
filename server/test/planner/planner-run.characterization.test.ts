@@ -114,7 +114,7 @@ describe("runPlanner: characterization of the three paths", () => {
   });
 
   test("first round with questions: the questions come back and no profile", async () => {
-    const question = { topic: "validation", question: "Have you tested it with customers?", options: ["Yes", "No"] };
+    const question = { topic: "existing_customers", question: "Do you already have customers?", options: ["Yes", "No"] };
     mockOutside([question]);
     const result = await runJob({ ...input, answers: [] });
     assert.deepEqual(result, JSON.parse(readFileSync(snapshotPath, "utf8")).withQuestions);
@@ -122,7 +122,7 @@ describe("runPlanner: characterization of the three paths", () => {
 
   test("final request: the answers come in and the report comes back without phase 2", async () => {
     const calls = mockOutside([]);
-    const answers = [{ topic: "validation", question: "Have you tested it with customers?", answer: "Yes, ten people" }];
+    const answers = [{ topic: "existing_customers", question: "Do you already have customers?", answer: "Yes, ten people" }];
     const result = await runJob({ ...input, answers, final: true, analysis: { subsector: "Bakery" } });
     assert.deepEqual(calls.map(hostOf), FINAL_CALLS);
     assert.deepEqual(result, JSON.parse(readFileSync(snapshotPath, "utf8")).final);

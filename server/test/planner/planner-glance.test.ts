@@ -12,7 +12,7 @@ import "./helpers.js";
 // first round builds its own from its phase 2. The browser's glance is never used by a first round.
 
 const input = { idea: "Bakery delivery", budget: 10_000, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const};
-const answers = [{ topic: "validation", question: "Have you tested it?", answer: "Yes, ten people" }];
+const answers = [{ topic: "existing_customers", question: "Do you already have customers?", answer: "Yes, ten people" }];
 
 const jevReply = {
   model: "test",
@@ -103,7 +103,7 @@ describe("runPlanner: the glance of a first round", () => {
   });
 
   test("a first round with questions carries the server's own glance, never the browser's", async () => {
-    mockOutside({ questions: [{ topic: "validation", question: "Have you tested it with customers?", options: ["Yes", "No"] }] });
+    mockOutside({ questions: [{ topic: "existing_customers", question: "Do you already have customers?", options: ["Yes", "No"] }] });
     const result = (await runPlanner(input, [], false, {}, { owner: USER }, browserGlance)) as Record<string, any>;
 
     assert.ok(result.glance, "the browser sends it back with the final request");

@@ -350,8 +350,8 @@
       },
       "questions": [
         {
-          "topic": "validation",
-          "question": "Have you tested it with customers?",
+          "topic": "existing_customers",
+          "question": "Do you already have customers?",
           "options": [
             "Yes",
             "No"

@@ -20,7 +20,7 @@ import "./helpers.js";
 // discards the whole reply. A failed call leaves the report without reasons; a cancelled run stops.
 
 const input = { idea: "Bakery delivery", budget: 10_000, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const};
-const answers = [{ topic: "validation", question: "Have you tested it?", answer: "Yes, ten people" }];
+const answers = [{ topic: "existing_customers", question: "Do you already have customers?", answer: "Yes, ten people" }];
 
 const area = (name: string, tier: "core" | "important" | "light", confidence: number) => ({ name, tier, confidence });
 const warnings: CheckKey[] = ["budget_fit", "timeline_realistic", "team_fit", "consistency"];
@@ -514,7 +514,7 @@ describe("runPlanner: the reasons reach the result and the stored report", () =>
   test("the first round with questions asks no explanations at all", async () => {
     const calls = mockRun({
       explain: () => reply({ warningReasons: [], areaReasons: [] }),
-      questions: [{ topic: "validation", question: "Have you tested it with customers?", options: ["Yes", "No"] }],
+      questions: [{ topic: "existing_customers", question: "Do you already have customers?", options: ["Yes", "No"] }],
     });
     const result = (await runPlanner(input, [], false, {}, { owner: USER })) as Record<string, unknown>;
     assert.equal("explanations" in result, false);

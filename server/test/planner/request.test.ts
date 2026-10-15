@@ -54,13 +54,13 @@ describe("parsePlannerRequest", () => {
         budget: 1000,
         location: "Madrid", start_mode: "scratch" as const, premises: "have" as const,
         final: true,
-        answers: [{ topic: " scope ", question: " Where? ", answer: " Madrid " }],
+        answers: [{ topic: " partners ", question: " Who else is in it? ", answer: " Madrid " }],
         analysis: { subsector: "Bakery" },
       }),
     );
     assert.deepEqual(result, {
       input: { idea: "A bakery", budget: 1000, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const},
-      answers: [{ topic: "scope", question: "Where?", answer: "Madrid" }],
+      answers: [{ topic: "partners", question: "Who else is in it?", answer: "Madrid" }],
       final: true,
       claims: { subsector: "Bakery" },
     });
@@ -152,7 +152,7 @@ describe("parsePlannerRequest", () => {
 });
 
 describe("parseAnswers", () => {
-  const answerOf = (i: number) => ({ topic: "scope", question: `Question ${i}?`, answer: "Madrid" });
+  const answerOf = (i: number) => ({ topic: "partners", question: `Question ${i}?`, answer: "Madrid" });
 
   test("undefined gives an empty list", () => {
     assert.deepEqual(parseAnswers(undefined), []);
@@ -206,8 +206,8 @@ describe("parseAnswers", () => {
   });
 
   test("values are trimmed", () => {
-    assert.deepEqual(parseAnswers([{ topic: " scope ", question: " Where? ", answer: " Madrid " }]), [
-      { topic: "scope", question: "Where?", answer: "Madrid" },
+    assert.deepEqual(parseAnswers([{ topic: " partners ", question: " Who else is in it? ", answer: " Madrid " }]), [
+      { topic: "partners", question: "Who else is in it?", answer: "Madrid" },
     ]);
   });
 });

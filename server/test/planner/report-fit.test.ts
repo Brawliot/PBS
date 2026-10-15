@@ -16,7 +16,7 @@ import { REASONLESS_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, si
 import "./helpers.js";
 
 const input = { idea: "Bakery delivery", budget: 10_000, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const};
-const answers = [{ topic: "validation", question: "Have you tested it?", answer: "Yes" }];
+const answers = [{ topic: "existing_customers", question: "Do you already have customers?", answer: "Yes" }];
 const { profile, validation } = reportWith();
 const built = { profile, validation } as never;
 const jev = reportWith().jev as never;
@@ -27,7 +27,7 @@ const section = (value: string) => ({ value, source: "stated" as const, confiden
 function phase2With(options: { text?: string; risks?: number; currency?: string; questions?: number } = {}): Phase2Response {
   const text = options.text ?? "Bakery";
   const questions = Array.from({ length: options.questions ?? 0 }, (_, index) => ({
-    topic: "validation" as const,
+    topic: "existing_customers" as const,
     question: `${text} question ${index}`,
     options: ["Yes", "No"],
   }));

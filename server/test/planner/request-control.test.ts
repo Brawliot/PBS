@@ -5,7 +5,7 @@ import { HttpError, parseAnswers, parsePlannerRequest } from "../../request.js";
 import "./helpers.js";
 
 const validBody = { idea: "A bakery that delivers", budget: 0, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const};
-const answer = (text: string) => [{ topic: "validation", question: "Tested?", answer: text }];
+const answer = (text: string) => [{ topic: "existing_customers", question: "Do you already have customers?", answer: text }];
 
 /** Refused: NUL, the first and last of the C0 range before tab, the range after newline, DEL */
 const REFUSED = [0x00, 0x01, 0x08, 0x0b, 0x0c, 0x0d, 0x0e, 0x1f, 0x7f];
@@ -42,7 +42,7 @@ describe("the answers refuse control characters in each of their fields", () => 
   for (const field of ["topic", "question", "answer"] as const) {
     for (const code of REFUSED) {
       test(`${field} with ${hex(code)} is refused with 400`, () => {
-        const item = { topic: "validation", question: "Tested?", answer: "Yes" };
+        const item = { topic: "existing_customers", question: "Do you already have customers?", answer: "Yes" };
         item[field] = `Yes${String.fromCharCode(code)}`;
         assert.throws(() => parseAnswers([item]), (error: unknown) => {
           assert.ok(error instanceof HttpError);

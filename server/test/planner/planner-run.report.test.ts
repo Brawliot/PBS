@@ -10,8 +10,8 @@ import "./helpers.js";
 // The reports a run keeps: built from its own values, checked by parseReport, and linked by reportId
 
 const input = { idea: "Bakery delivery", budget: 10_000, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const};
-const question = { topic: "validation", question: "Have you tested it with customers?", options: ["Yes", "No"] };
-const answers = [{ topic: "validation", question: question.question, answer: "Yes, ten people" }];
+const question = { topic: "existing_customers", question: "Do you already have customers?", options: ["Yes", "No"] };
+const answers = [{ topic: "existing_customers", question: question.question, answer: "Yes, ten people" }];
 const claims = { subsector: "Bakery" };
 
 const jevReply = {
