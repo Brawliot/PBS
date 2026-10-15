@@ -18,6 +18,8 @@ const serverDir = join(here, "../..");
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE ?? "playwright");
 const snapshot = JSON.parse(readFileSync(join(serverDir, "test/planner/fixtures/planner-run.snapshot.json"), "utf8"));
+// The result of a report kept before the diagnosis: the previous view. The diagnosis has its own e2e (diagnosis-view).
+const { diagnosis: _diagnosis, ...finalWithoutDiagnosis } = snapshot.final;
 
 const PORT = 3979;
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -228,9 +230,9 @@ async function scenarioFinalRequest(browser) {
     results: [
       firstRound(eur),
       // The final request: the server keeps the glance it was sent (the mock echoes it, as the server does)
-      (body) => ({ ...withProfile(snapshot.final), reportId: REPORT_ID, glance: body.glance, clarity: CLARITY }),
+      (body) => ({ ...withProfile(finalWithoutDiagnosis), reportId: REPORT_ID, glance: body.glance, clarity: CLARITY }),
     ],
-    report: () => ({ ...storedReport(posts, withProfile(snapshot.final), posts.at(-1).glance), clarity: CLARITY }),
+    report: () => ({ ...storedReport(posts, withProfile(finalWithoutDiagnosis), posts.at(-1).glance), clarity: CLARITY }),
   });
   await fillAndSend(page);
   await page.waitForSelector("#question.is-open", { timeout: 20_000 });

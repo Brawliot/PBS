@@ -18,6 +18,8 @@ const serverDir = join(here, "../..");
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE ?? "playwright");
 const snapshot = JSON.parse(readFileSync(join(serverDir, "test/planner/fixtures/planner-run.snapshot.json"), "utf8"));
+// The result of a report kept before the diagnosis: the previous view. The diagnosis has its own e2e (diagnosis-view).
+const { diagnosis: _diagnosis, ...finalWithoutDiagnosis } = snapshot.final;
 
 const PORT = 3981;
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -121,7 +123,7 @@ async function mockApi(page, results) {
   return posts;
 }
 
-const finalResult = (index, clarity) => (body) => ({ ...snapshot.final, reportId: REPORT_IDS[index], glance: body.glance, clarity });
+const finalResult = (index, clarity) => (body) => ({ ...finalWithoutDiagnosis, reportId: REPORT_IDS[index], glance: body.glance, clarity });
 
 async function reachReport(page) {
   await page.goto(`${BASE}/`);

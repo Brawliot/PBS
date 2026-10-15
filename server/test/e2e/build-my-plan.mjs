@@ -26,6 +26,8 @@ const PLAN_ID = "22222222-2222-4222-8222-222222222222";
 const REPORT_ID = "33333333-3333-4333-8333-333333333333";
 // The planner's result without questions, as the characterization snapshot records it
 const snapshot = JSON.parse(readFileSync(join(serverDir, "test/planner/fixtures/planner-run.snapshot.json"), "utf8"));
+// The result of a report kept before the diagnosis: the previous view. The diagnosis has its own e2e (diagnosis-view).
+const { diagnosis: _diagnosis, ...finalWithoutDiagnosis } = snapshot.final;
 
 const json = (status, body) => ({ status, contentType: "application/json", body: JSON.stringify(body) });
 // What the description gives for the fixed questions when it says nothing (the default of the mock)
@@ -274,16 +276,16 @@ async function scenarioQuestionsFlow(browser) {
 }
 
 // The first area of the level in use is core, so it is always on screen: it gets a reason, with the first warning
-const firstArea = (snapshot.final.validation.level === 2 ? snapshot.final.validation.departments : snapshot.final.validation.groups)[0].name;
+const firstArea = (finalWithoutDiagnosis.validation.level === 2 ? finalWithoutDiagnosis.validation.departments : finalWithoutDiagnosis.validation.groups)[0].name;
 const reportResult = {
-  ...snapshot.final,
+  ...finalWithoutDiagnosis,
   reportId: REPORT_ID,
-  profile: { ...snapshot.final.profile, known: 5 },
+  profile: { ...finalWithoutDiagnosis.profile, known: 5 },
   validation: {
-    ...snapshot.final.validation,
+    ...finalWithoutDiagnosis.validation,
     warnings: ["budget_fit", "timeline_realistic", "team_fit", "experience_fit", "model_fit", "regulation_fit", "consistency"],
-    departments: snapshot.final.validation.departments.map((area, index) => (index === 0 ? { ...area, tier: "core" } : area)),
-    groups: snapshot.final.validation.groups.map((area, index) => (index === 0 ? { ...area, tier: "core" } : area)),
+    departments: finalWithoutDiagnosis.validation.departments.map((area, index) => (index === 0 ? { ...area, tier: "core" } : area)),
+    groups: finalWithoutDiagnosis.validation.groups.map((area, index) => (index === 0 ? { ...area, tier: "core" } : area)),
   },
   explanations: {
     warningReasons: [{ key: "budget_fit", reason: "Equipment and licences take most of the lower range." }],

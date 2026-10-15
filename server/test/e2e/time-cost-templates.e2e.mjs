@@ -18,6 +18,8 @@ const serverDir = join(here, "../..");
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT_MODULE ?? "playwright");
 const snapshot = JSON.parse(readFileSync(join(serverDir, "test/planner/fixtures/planner-run.snapshot.json"), "utf8"));
+// The result of a report kept before the diagnosis: the previous view. The diagnosis has its own e2e (diagnosis-view).
+const { diagnosis: _diagnosis, ...finalWithoutDiagnosis } = snapshot.final;
 // The catalog the server serves, read from the same module the route uses (it needs no session or database)
 const CATALOG = JSON.parse(
   execFileSync(process.execPath, ["--import", "tsx", "-e", 'import("./planner/report-templates.ts").then((m) => process.stdout.write(JSON.stringify(m.REPORT_TEMPLATES)))'], {
@@ -223,9 +225,9 @@ async function scenarioAllParts(browser) {
   const posts = await mockApi(page, {
     results: [
       firstRound(usd),
-      (body) => ({ ...withProfile(snapshot.final), reportId: REPORT_ID, glance: body.glance, explanations: ALL_PARTS }),
+      (body) => ({ ...withProfile(finalWithoutDiagnosis), reportId: REPORT_ID, glance: body.glance, explanations: ALL_PARTS }),
     ],
-    report: () => storedReport(posts, { ...withProfile(snapshot.final), explanations: ALL_PARTS }, posts.at(-1).glance),
+    report: () => storedReport(posts, { ...withProfile(finalWithoutDiagnosis), explanations: ALL_PARTS }, posts.at(-1).glance),
   });
   await reachResult(page);
 
@@ -278,9 +280,9 @@ async function scenarioSomeParts(browser) {
   const posts = await mockApi(page, {
     results: [
       firstRound(usd),
-      (body) => ({ ...withProfile(snapshot.final), reportId: REPORT_ID, glance: body.glance, explanations: onlyTime }),
+      (body) => ({ ...withProfile(finalWithoutDiagnosis), reportId: REPORT_ID, glance: body.glance, explanations: onlyTime }),
     ],
-    report: () => storedReport(posts, { ...withProfile(snapshot.final), explanations: onlyTime }, posts.at(-1).glance),
+    report: () => storedReport(posts, { ...withProfile(finalWithoutDiagnosis), explanations: onlyTime }, posts.at(-1).glance),
   });
   await reachResult(page);
   const live = await timeAndCost(page);
@@ -326,9 +328,9 @@ async function scenarioFailures(browser) {
   const posts = await mockApi(page, {
     results: [
       firstRound(usd),
-      (body) => ({ ...withProfile(snapshot.final), reportId: REPORT_ID, glance: body.glance, explanations: ALL_PARTS }),
+      (body) => ({ ...withProfile(finalWithoutDiagnosis), reportId: REPORT_ID, glance: body.glance, explanations: ALL_PARTS }),
     ],
-    report: () => storedReport(posts, { ...withProfile(snapshot.final), explanations: ALL_PARTS }, posts.at(-1).glance),
+    report: () => storedReport(posts, { ...withProfile(finalWithoutDiagnosis), explanations: ALL_PARTS }, posts.at(-1).glance),
     catalog: () => json(500, { error: "Internal server error" }),
   });
   await reachResult(page);
@@ -354,9 +356,9 @@ async function scenarioFailures(browser) {
   const posts2 = await mockApi(second, {
     results: [
       firstRound(usd),
-      (body) => ({ ...withProfile(snapshot.final), reportId: REPORT_ID, glance: body.glance, explanations: ALL_PARTS }),
+      (body) => ({ ...withProfile(finalWithoutDiagnosis), reportId: REPORT_ID, glance: body.glance, explanations: ALL_PARTS }),
     ],
-    report: () => storedReport(posts2, { ...withProfile(snapshot.final), explanations: ALL_PARTS }, posts2.at(-1).glance),
+    report: () => storedReport(posts2, { ...withProfile(finalWithoutDiagnosis), explanations: ALL_PARTS }, posts2.at(-1).glance),
   });
   await reachResult(second);
   await second.click("#result-detail-open");
