@@ -12,10 +12,12 @@
 
 import type { FieldAnalysis, Phase2Response } from "./planner-phase2-handler.js";
 import type { ReportRepository } from "../plan/report-repository.js";
-import type { Explanations, Report } from "../plan/report.js";
+import type { Diagnosis, Explanations, Report } from "../plan/report.js";
 import { parseGlance, type Glance } from "../plan/glance.js";
+import { buildChecks } from "../plan/checks.js";
 import {
   MAX_CURRENCY,
+  MAX_DIAGNOSIS_IDEA,
   MAX_PHASE2_LIST,
   MAX_PHASE2_OPTIONS,
   MAX_PHASE2_QUESTIONS,
@@ -129,6 +131,7 @@ export function reportOf(
   phase2?: Phase2Response,
   explanations?: Explanations,
   glance?: Glance,
+  diagnosis?: Diagnosis,
 ) {
   return {
     input,
@@ -138,6 +141,29 @@ export function reportOf(
     ...built,
     ...(explanations && { explanations }),
     ...(glance && { glance }),
+    ...(diagnosis && { diagnosis }),
+  };
+}
+
+/** Until the risks and the split are worked out, the diagnosis says so in its one risk and keeps its lists empty */
+const PROVISIONAL_RISK = "Risks are not analysed yet.";
+
+/**
+ * The diagnosis of a final run: the five checks from the run's values (plan/checks.ts), and the idea cut to its
+ * limit. The money range is the glance's, the only range a final request has. Its risks and split are provisional.
+ */
+export function diagnosisOf(input: PlannerInput, jev: JevResponse, built: Awaited<ReturnType<typeof buildReport>>, glance?: Glance): Diagnosis {
+  return {
+    idea: fitText(input.idea, MAX_DIAGNOSIS_IDEA),
+    checks: buildChecks({
+      budget: input.budget,
+      years: input.experience,
+      range: glance && { min: glance.budget.min },
+      regulatoryLoad: built.profile.values.regulatory_load,
+      jev: jev.answers,
+    }),
+    risks: [PROVISIONAL_RISK],
+    split: { mando: [], you: [], outsource: [] },
   };
 }
 
@@ -197,12 +223,13 @@ export async function runPlanner(
   if (final) {
     const built = await buildReport(input, jev, answers, claims);
     const explanations = await explainReport({ input, answers, validation: built.validation }, options.signal);
+    const diagnosis = diagnosisOf(input, jev, built, glance);
     return {
       jev,
       ...built,
       ...(explanations && { explanations }),
       ...(glance && { glance }),
-      ...(await keepReport(options, reportOf(input, answers, jev, built, undefined, explanations, glance))),
+      ...(await keepReport(options, reportOf(input, answers, jev, built, undefined, explanations, glance, diagnosis))),
     };
   }
 

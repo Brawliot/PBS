@@ -3,6 +3,7 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { runPlanner } from "../../planner/planner-run.js";
 import { InMemoryReportRepository } from "../../plan/report-repository-memory.js";
+import { DEFAULT_WHY } from "../../plan/checks.js";
 import { ReportStoreError, type ReportRepository } from "../../plan/report-repository.js";
 import { EMPTY_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, silenceConsoleError } from "./helpers.js";
 import "./helpers.js";
@@ -63,6 +64,19 @@ describe("runPlanner keeps the report of the runs that end with one", () => {
       profile: result.profile,
       validation: result.validation,
       explanations: { warningReasons: [], areaReasons: [] },
+      diagnosis: {
+        idea: input.idea,
+        // Jev's reply has no answer for the four checks, so they are watch; money has no range (no glance): watch
+        checks: [
+          { key: "concept", status: "watch", why: DEFAULT_WHY.watch, estimated: true, decidedBy: "jev" },
+          { key: "location", status: "watch", why: DEFAULT_WHY.watch, estimated: true, decidedBy: "jev" },
+          { key: "money", status: "watch", why: DEFAULT_WHY.watch, estimated: true, decidedBy: "rule" },
+          { key: "experience", status: "strong", why: DEFAULT_WHY.strong, estimated: false, decidedBy: "rule" },
+          { key: "competition", status: "watch", why: DEFAULT_WHY.watch, estimated: true, decidedBy: "jev" },
+        ],
+        risks: ["Risks are not analysed yet."],
+        split: { mando: [], you: [], outsource: [] },
+      },
     });
     assert.equal("phase2" in (stored?.report ?? {}), false);
   });
@@ -126,5 +140,37 @@ describe("runPlanner keeps the report of the runs that end with one", () => {
     const result = (await runPlanner(input, [], false, claims, { reports: refusing, owner: USER })) as Record<string, unknown>;
     assert.equal("reportId" in result, false);
     assert.deepEqual(log.mock.calls.map((call) => call.arguments), [["Report not kept:", "invalid_report"]]);
+  });
+
+  test("the final request's checks come from Jev's answers and the range of the glance", async () => {
+    const judging = { ...jevReply, answers: { ...jevReply.answers, concept: { type: "choice", choice: "Strong" }, competition: { type: "choice", choice: "Risk" } } };
+    mockFetch((request) => {
+      if (request.url.includes("typesafe.ai")) return jsonResponse(200, judging);
+      return jsonResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(EMPTY_EXPLANATIONS) } }] });
+    });
+    const reports = new InMemoryReportRepository();
+    const glance = {
+      maturity: "developing" as const,
+      subsectorSource: "stated" as const,
+      location: { value: "Madrid", source: "stated" as const },
+      budget: { min: 10_000, max: null, currency: "EUR", fits: "Enough" },
+    };
+    const result = (await runPlanner(input, answers, true, claims, { reports, owner: USER }, glance)) as Record<string, any>;
+    const checks = (await reports.get(result.reportId, USER))?.report.diagnosis?.checks;
+    const byKey = Object.fromEntries((checks ?? []).map((c: { key: string; status: string }) => [c.key, c.status]));
+    // input.budget 10_000 is the minimum of the glance: strong. Experience 1 year: strong. Jev: concept strong, competition risk.
+    assert.equal(byKey.money, "strong");
+    assert.equal(byKey.experience, "strong");
+    assert.equal(byKey.concept, "strong");
+    assert.equal(byKey.competition, "risk");
+    assert.equal(byKey.location, "watch");
+  });
+
+  test("the first round without questions keeps no diagnosis: the diagnosis is for the final request", async () => {
+    mockOutside([]);
+    const reports = new InMemoryReportRepository();
+    const result = (await runPlanner(input, [], false, claims, { reports, owner: USER })) as Record<string, any>;
+    const stored = await reports.get(result.reportId, USER);
+    assert.equal("diagnosis" in (stored?.report ?? {}), false);
   });
 });
