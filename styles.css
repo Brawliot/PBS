@@ -290,7 +290,7 @@ body.is-finishing .hero__loader { opacity: 0; transition: opacity 0.35s ease; }
   display: grid; grid-template-columns: 1fr 1fr; gap: 3vh 90px;
   margin: calc(var(--bar-h) / -2) 0 0; padding: calc(var(--bar-h) / 2 + 2vh) 22px 3vh;
   background: var(--white); position: relative; z-index: 2;
-  border: 1px solid var(--border-control); border-radius: 14px;
+  border: 1px solid transparent; border-radius: 14px; /* invisible: only the search bar shows a border */
   box-shadow: var(--shadow);
   text-align: left;
 }
