@@ -330,6 +330,10 @@
   ];
   // The answers to the fixed questions, as the numbers the server takes ({ budget, experience, team, hours })
   let profileInput = {};
+  // The fixed questions answered so far, with the text typed, in order (for Back)
+  let profileAsked = [];
+  const MODEL_QUESTIONS = 4; // most the server asks after them (MAX_QUESTIONS in planner-phase2-handler.ts)
+  const profileComplete = () => PROFILE_QUESTIONS.every(({ key }) => typeof profileInput[key] === 'number');
 
   // Example ideas: a click fills the idea field, as if the person had typed it
   document.querySelectorAll('.hints__chip').forEach((chip) => {
@@ -417,7 +421,9 @@
   document.getElementById('submit-error-retry').addEventListener('click', () => {
     if (sending) return;
     hideSubmitError();
-    submitIdea();
+    // The fixed answers are dropped when the idea changes: then the questions start again
+    if (profileComplete()) submitIdea();
+    else startFlow();
   });
 
   // A user-facing error: the UI shows userMessage, and retryable decides on the Retry button
@@ -537,8 +543,9 @@
     syncWaitCancel();
   };
 
-  // Question flow: the first response carries the questions, asked one by one. Once they are
-  // all answered, one final request sends the answers and returns the profile.
+  // Question flow: first the four fixed questions (PROFILE_QUESTIONS), asked here without the server.
+  // Then the first request sends the idea and those answers and carries the server's questions, asked
+  // one by one. Once they are all answered, one final request sends the answers and returns the profile.
   let answers = [];   // { topic, question, answer } given so far
   let asked = [];     // the question objects answered so far, in the same order as answers (for Back)
   let queue = [];     // received questions not asked yet
@@ -564,6 +571,8 @@
   const resetFlow = () => {
     answers = [];
     asked = [];
+    profileInput = {};
+    profileAsked = [];
     queue = [];
     current = null;
     analysis = null;
@@ -573,9 +582,21 @@
   const nextQuestion = () => {
     current = queue.shift() ?? null;
     if (!current) return false;
-    showQuestion(current.question, `Question ${answers.length + 1} of ${total}`, current.options ?? []);
+    const done = profileAsked.length + answers.length;
+    showQuestion(current.question, `Question ${done + 1} of ${total}`, current.options ?? []);
     status.textContent = current.question;
     return true;
+  };
+
+  // Starts a session: the loader, then the fixed questions over it. The last answer sends the idea.
+  const startFlow = () => {
+    resetFlow();
+    hideSubmitError();
+    startLoading();
+    status.textContent = 'A few questions about your situation.';
+    queue = PROFILE_QUESTIONS.map((q) => ({ ...q, fixed: true }));
+    total = PROFILE_QUESTIONS.length + MODEL_QUESTIONS; // corrected when the server says how many it asks
+    nextQuestion();
   };
 
   const submitIdea = async () => {
@@ -601,13 +622,15 @@
     let error = null;
 
     hideSubmitError();
-    if (!loader) startLoading();
+    // The loader may already be up (under the fixed questions); a new one waits for its animation
+    const freshLoader = !loader;
+    if (freshLoader) startLoading();
     status.textContent = 'Sending your idea…';
     try {
       // The first request also waits for the animation and the minimum loader time
       const [result] = await Promise.all([
         sendIdea(payload),
-        answers.length === 0 ? wait(EXIT_MS + MIN_LOADER_MS) : null,
+        freshLoader ? wait(EXIT_MS + MIN_LOADER_MS) : null,
       ]);
       analysis = result.phase2 ?? analysis;
       profile = result.profile ?? null;
@@ -619,7 +642,7 @@
       if (profile && reportId) history.replaceState({ reportId }, '');
       if (!profile) {
         queue = result.phase2?.questions ?? [];
-        total = result.questionTotal ?? queue.length;
+        total = PROFILE_QUESTIONS.length + (result.questionTotal ?? queue.length);
         if (nextQuestion()) return; // the loader stays under the popup
         throw new Error('No questions and no profile');
       }
@@ -1165,13 +1188,12 @@
       syncModalState();
       return;
     }
-    resetFlow();
-    submitIdea();
+    startFlow();
   });
 
   // ---------------------------------------------------------------------------
   // Question popup: a prompt and a text field, centred above the loader.
-  // Opened by submitIdea (via nextQuestion) with the questions the backend returns.
+  // Opened by startFlow with the fixed questions, then by submitIdea (via nextQuestion) with the backend's.
   // ---------------------------------------------------------------------------
   const question = document.getElementById('question');
   const questionText = document.getElementById('question-text');
@@ -1198,7 +1220,8 @@
     const length = answer.value.length;
     questionCount.textContent = `${length} / ${ANSWER_MAX}`;
     questionCount.hidden = length < COUNT_FROM;
-    questionBack.hidden = answers.length === 0;
+    // Back stays within its part: the server's questions were made from the fixed answers, so they cannot be changed then
+    questionBack.hidden = current?.fixed ? profileAsked.length === 0 : answers.length === 0;
     optionsContainer.querySelectorAll('.question__option').forEach((button) => {
       button.setAttribute('aria-pressed', String(button.textContent === answer.value));
     });
@@ -1265,6 +1288,22 @@
       answer.focus();
       return;
     }
+    if (current.fixed) {
+      const value = current.parse(text);
+      if (value === null) {
+        showNote(current.error);
+        answer.focus();
+        return;
+      }
+      profileInput[current.key] = value;
+      profileAsked.push({ question: current, text });
+      current = null;
+      answer.value = '';
+      if (nextQuestion()) return;
+      hideQuestion();
+      submitIdea(); // the four are answered: the first request sends them with the idea
+      return;
+    }
     asked.push(current);
     answers.push({ topic: current.topic, question: current.question, answer: text });
     current = null;
@@ -1277,6 +1316,17 @@
   // Back: the previous question comes again with its answer in the field, so it can be changed.
   // The question on screen (if any) goes back to the queue, so nothing is lost.
   questionBack.addEventListener('click', () => {
+    if (current?.fixed) {
+      if (!profileAsked.length) return;
+      const previous = profileAsked.pop();
+      delete profileInput[previous.question.key];
+      queue.unshift(previous.question, current);
+      current = null;
+      nextQuestion();
+      answer.value = previous.text;
+      refreshQuestionFoot();
+      return;
+    }
     if (!answers.length) return;
     const previous = asked.pop();
     const { answer: previousAnswer } = answers.pop();
