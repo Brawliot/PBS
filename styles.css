@@ -44,13 +44,11 @@
 }
 
 /* ==========================================================================
-   Themes. The light tokens above are the default. A dark system setting
-   switches to the dark set (unless the person chose light); the picker
-   sets data-theme to dark or contrast, or light. Contrast is last, so it
-   wins over the dark set. Every set defines every token.
+   Themes. The light tokens above are the default; a dark system setting
+   switches to the dark set. Every set defines every token.
    ========================================================================== */
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root {
     --black: #f2f3f5; --dark: #f2f3f5; --dark-hover: #d5d6da; --white: #0b0c0f; --gray: #3f4044;
     --gray-text: #acadaf; --gray-light: #24272e; --border: #232426; --border-strong: #656565; --border-control: #747577;
     --danger: #ff8fb1; --tint: rgba(11, 12, 15, 0.5); --shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
@@ -60,25 +58,6 @@
     --accent: #c6f36b; --accent-hover: #d7f88f; --on-accent: #0b0c0f;
     --segment-1: #c6f36b; --segment-2: #8a9cf6; --segment-3: #acadaf; --segment-4: #3f4044; --segment-5: #ff8fb1;
   }
-}
-:root[data-theme="dark"] {
-  --black: #f2f3f5; --dark: #f2f3f5; --dark-hover: #d5d6da; --white: #0b0c0f; --gray: #3f4044;
-  --gray-text: #acadaf; --gray-light: #24272e; --border: #232426; --border-strong: #656565; --border-control: #747577;
-  --danger: #ff8fb1; --tint: rgba(11, 12, 15, 0.5); --shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
-  --shadow-soft: 0 6px 14px rgba(0, 0, 0, 0.45); --ring: 0 0 0 6px rgba(198, 243, 107, 0.18);
-  --surface-hover: #131519; --danger-bg: #2a1620; --glow: 0 0 0 4px rgba(198, 243, 107, 0.30), 0 0 32px 8px rgba(198, 243, 107, 0.22);
-  --danger-strong: #ffc4d6; color-scheme: dark;
-  --accent: #c6f36b; --accent-hover: #d7f88f; --on-accent: #0b0c0f;
-  --segment-1: #c6f36b; --segment-2: #8a9cf6; --segment-3: #acadaf; --segment-4: #3f4044; --segment-5: #ff8fb1;
-}
-:root[data-theme="contrast"] {
-  --black: #fff; --dark: #fff; --dark-hover: #d6d6d6; --white: #000; --gray: #8a8a8a;
-  --gray-text: #d6d6d6; --gray-light: #5a5a5a; --border: #5a5a5a; --border-strong: #fff; --border-control: #fff;
-  --danger: #ffb3c8; --tint: rgba(0, 0, 0, 0.6); --shadow: 0 0 0 1px #fff; --shadow-soft: 0 0 0 1px #fff;
-  --ring: 0 0 0 6px rgba(212, 255, 112, 0.45); --surface-hover: #1a1a1a; --danger-bg: #2a0a14;
-  --glow: 0 0 0 4px #d4ff70, 0 0 32px 8px rgba(212, 255, 112, 0.5); --danger-strong: #ffd6e2; color-scheme: dark;
-  --accent: #d4ff70; --accent-hover: #e6ffaa; --on-accent: #000;
-  --segment-1: #d4ff70; --segment-2: #a8b8ff; --segment-3: #fff; --segment-4: #8a8a8a; --segment-5: #ffb3c8;
 }
 
 /* ==========================================================================
@@ -296,7 +275,6 @@ body.is-finishing .hero__loader { opacity: 0; transition: opacity 0.35s ease; }
 }
 
 /* Example ideas and short notes under the panel */
-.hints { margin-top: 18px; display: flex; flex-direction: column; align-items: center; gap: 10px; }
 .hints__examples { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; font-size: 15px; color: var(--gray-text); }
 /* Inside the panel: both columns, left-aligned */
 .filters .hints__examples { grid-column: 1 / -1; justify-content: flex-start; }
@@ -306,7 +284,6 @@ body.is-finishing .hero__loader { opacity: 0; transition: opacity 0.35s ease; }
   transition: border-color 0.15s ease;
 }
 .hints__chip:hover { border-color: var(--dark); }
-.hints__note { font-size: 13px; color: var(--gray-text); }
 
 /* ==========================================================================
    Search block exit (while sending): "blueprint dissolve"
@@ -796,7 +773,6 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
   .hero__subtitle { font-size: 26px; margin-top: 4px; }
   .search { --bar-h: max(10vh, 60px); margin-top: 2vh; }
   .filters { gap: 2vh 90px; padding-bottom: 2vh; }
-  .hints { margin-top: 12px; }
   .loader { --title-size: clamp(72px, min(11vw, 16vh), 128px); }
 }
 
@@ -1238,7 +1214,7 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
    (a browser drops background colours when printing, so light text would vanish)
    ========================================================================== */
 @media print {
-  :root:root, :root:root[data-theme] {
+  :root:root {
     --black: #0b0c0f; --dark: #0b0c0f; --dark-hover: #2a2c31; --white: #fff; --gray: #a9abb0;
     --gray-text: #55575c; --gray-light: #e3e5e8; --border: #dfe1e4; --border-strong: #8a8c91; --border-control: #7c7e83;
     --danger: #c2185b; --tint: transparent; --shadow: none; --shadow-soft: none; --ring: none;
@@ -1247,19 +1223,6 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
     --segment-1: #0b0c0f; --segment-2: #4f63d8; --segment-3: #8a8c91; --segment-4: #c9ccd1; --segment-5: #e0477d;
   }
 }
-
-/* ==========================================================================
-   Theme picker (built by theme.js into [data-theme-picker])
-   ========================================================================== */
-.theme-picker {
-  display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px;
-  border: 1px solid var(--border-strong); border-radius: 999px; background: var(--white);
-}
-.theme-picker button {
-  font: inherit; font-size: 14px; border: 0; background: transparent; color: var(--dark);
-  padding: 6px 12px; border-radius: 999px; cursor: pointer;
-}
-.theme-picker button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
 
 /* ==========================================================================
    Projects page (projects.html)

@@ -1,5 +1,5 @@
 /**
- * End-to-end checks of three things: the theme picker (kept in the browser, applied before the page shows),
+ * End-to-end checks of three things: the theme (it follows the device; there is no picker),
  * the project list (its rows, the signed-out and empty answers, the way in from the start page), and the
  * report that comes back when the person goes back from the plan. The real server serves the pages; the
  * planner, the plan API and the report and project routes are answered by page.route.
@@ -96,30 +96,17 @@ async function analyse(page) {
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
 }
 
-const picker = (page) => page.locator(".theme-picker button");
-
 async function scenarioThemes(browser) {
-  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const context = await browser.newContext({ colorScheme: "light", viewport: { width: 1280, height: 720 } });
   const page = await context.newPage();
   await watch(page, scenarioLabel());
   await mockSignedIn(page);
   await page.goto(`${BASE}/`);
-  await page.waitForSelector(".theme-picker button");
-  assert.equal(await page.locator(".theme-picker button").count(), 4, "four choices: System, Light, Dark, Contrast");
-  assert.equal(await page.getAttribute("html", "data-theme"), null, "System sets no attribute");
-  await picker(page).nth(2).click();
-  assert.equal(await page.getAttribute("html", "data-theme"), "dark");
-  assert.equal(await page.getAttribute('meta[name="theme-color"]', "content"), "#0b0c0f", "the browser bar follows the theme");
-  assert.equal(await page.evaluate(() => localStorage.getItem("mando.theme")), "dark");
-  await page.reload();
-  assert.equal(await page.getAttribute("html", "data-theme"), "dark", "the choice survives a reload");
-  assert.equal(await page.getAttribute(".theme-picker button[aria-pressed='true']", "data-theme-choice"), "dark");
-  await picker(page).nth(3).click();
-  assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), "rgb(0, 0, 0)", "contrast: black page");
-  await picker(page).nth(0).click();
-  assert.equal(await page.getAttribute("html", "data-theme"), null, "System again removes the attribute");
+  assert.equal(await page.locator(".theme-picker").count(), 0, "there is no theme picker");
+  assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), "rgb(246, 247, 248)", "a light device gets the light page");
+  assert.equal(await page.getAttribute('meta[name="theme-color"]', "content"), "#f6f7f8", "the browser bar follows the theme");
   await context.close();
-  return "themes: choice kept, bar colour follows, contrast and system work";
+  return "themes: no picker, the light device gets the light page";
 }
 
 async function scenarioSystemDark(browser) {
@@ -129,10 +116,9 @@ async function scenarioSystemDark(browser) {
   await mockSignedIn(page);
   await page.goto(`${BASE}/`);
   assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), "rgb(11, 12, 15)", "a dark device gets the dark page");
-  await picker(page).nth(1).click();
-  assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), "rgb(246, 247, 248)", "light beats a dark device");
+  assert.equal(await page.getAttribute('meta[name="theme-color"]', "content"), "#0b0c0f", "the browser bar follows the theme");
   await context.close();
-  return "system dark: dark page, and an explicit light choice wins";
+  return "system dark: the dark device gets the dark page";
 }
 
 async function scenarioProjects(browser) {
