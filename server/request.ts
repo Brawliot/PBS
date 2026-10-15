@@ -5,6 +5,7 @@ import { START_MODES, PREMISES } from "./planner/fixed-answers.js";
 import type { PlannerAnswer } from "./planner/planner-phase2-handler.js";
 import { cleanClaims, type Claims } from "./planner/planner-validation-handler.js";
 import { parseGlance, type Glance } from "./plan/glance.js";
+import { IMPROVE_KEY, isImproveAnswer } from "./plan/improve-questions.js";
 
 /** The body of the detection request: only the idea. The same limits as the planner's idea. */
 export function parseDetectRequest(raw: string): { idea: string } {
@@ -115,6 +116,10 @@ export function parseAnswers(value: unknown): PlannerAnswer[] {
       if (!field || field.length > MAX_TEXT) {
         throw new HttpError(400, "Each answer needs a topic, a question and an answer");
       }
+    }
+    // An answer of "Improve my report" is one of the options of its question, never free text (improve-questions.ts)
+    if (IMPROVE_KEY.test(t) && !isImproveAnswer(t, a)) {
+      throw new HttpError(400, "An improve answer is not one of its options");
     }
     return { topic: t, question: q, answer: a };
   });

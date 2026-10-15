@@ -18,11 +18,13 @@ import { CHECK_KEYS, GROUPS } from "../planner/planner-validation-handler.js";
 import { REPORT_TEMPLATES } from "../planner/report-templates.js";
 import { DIMENSION_KEYS, DIMENSION_OPTIONS } from "../planner/planner-profile-handler.js";
 import { GlanceSchema } from "./glance.js";
+import { IMPROVE_KEY } from "./improve-questions.js";
 import { DIAGNOSIS_CHECK_STATUS, DIAGNOSIS_DECIDED_BY, DIAGNOSIS_REACH_KEY, DIAGNOSIS_SPLIT_LISTS } from "./diagnosis-enums.js";
 import { ClaritySchema } from "./clarity.js";
 import {
   MAX_CURRENCY,
   MAX_DIAGNOSIS_IDEA,
+  MAX_IMPROVE_ANSWER,
   MAX_DIAGNOSIS_RISK,
   MAX_DIAGNOSIS_RISKS,
   MAX_DIAGNOSIS_SPLIT_ITEM,
@@ -278,6 +280,11 @@ export const DiagnosisSchema = z.strictObject({
   ),
 });
 
+/** The answers of "Improve my report", by question key (improve-questions.ts): one option of each question */
+const ImproveAnswersSchema = z
+  .record(z.string().regex(IMPROVE_KEY), text(MAX_IMPROVE_ANSWER))
+  .refine((answers) => Object.keys(answers).length <= MAX_ANSWERS, "too many improve answers");
+
 export const ReportSchema = z.strictObject({
   input: InputSchema,
   answers: z.array(AnswerSchema).max(MAX_ANSWERS),
@@ -292,6 +299,8 @@ export const ReportSchema = z.strictObject({
   diagnosis: DiagnosisSchema.optional(),
   /** The two clarity metrics (clarity.ts). Optional: reports kept before them, or without a glance, have none. */
   clarity: ClaritySchema.optional(),
+  /** The answers of "Improve my report" that the report was made with. Optional: reports kept before it have none. */
+  improveAnswers: ImproveAnswersSchema.optional(),
 });
 
 export type Report = z.infer<typeof ReportSchema>;

@@ -16,6 +16,7 @@ import type { ReportRepository } from "../plan/report-repository.js";
 import type { Diagnosis, Explanations, Report } from "../plan/report.js";
 import { parseGlance, type Glance } from "../plan/glance.js";
 import { buildChecks } from "../plan/checks.js";
+import { improveAnswersOf } from "../plan/improve-questions.js";
 import { applyDiagnosisText, baseDiagnosis } from "../plan/diagnosis-text.js";
 import { computeClarity, type Clarity } from "../plan/clarity.js";
 import { buildExecution } from "../plan/execution.js";
@@ -187,6 +188,12 @@ export function reportOf(
   };
 }
 
+/** The answers of "Improve my report" in the request, kept in the report by their question (improve-questions.ts) */
+function withImprove<T extends object>(report: T, answers: PlannerAnswer[], jev: JevResponse): T & { improveAnswers?: Record<string, string> } {
+  const improveAnswers = improveAnswersOf(answers, jev.answers.sector?.type === "choice" ? jev.answers.sector.choice : undefined);
+  return Object.keys(improveAnswers).length ? { ...report, improveAnswers } : report;
+}
+
 /**
  * The diagnosis of a final run before its text: the five checks from the run's values (plan/checks.ts), and the
  * default words of each (plan/diagnosis-text.ts). The money range is the glance's, the only range a final request
@@ -281,7 +288,7 @@ export async function runPlanner(
       ...(glance && { glance }),
       ...(clarity && { clarity }),
       diagnosis,
-      ...(await keepReport(options, reportOf(input, answers, jev, built, undefined, explanations, glance, diagnosis, clarity))),
+      ...(await keepReport(options, withImprove(reportOf(input, answers, jev, built, undefined, explanations, glance, diagnosis, clarity), answers, jev))),
     };
   }
 

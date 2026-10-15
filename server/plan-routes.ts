@@ -23,6 +23,8 @@ import { runStepAgent, stepInputOf } from "./plan/agents/step-agent.js";
 import { FACT_KEYS, PRODUCT_TYPES } from "./plan/fact-catalog.js";
 import { devRoutesAllowed } from "./security.js";
 import { UUID } from "./ids.js";
+import { selectImproveQuestions } from "./plan/improve-questions.js";
+import { MAX_ANSWERS } from "./request.js";
 import type { PlanLogRecord, PlanRepository, StoredPlan } from "./plan/plan-repository.js";
 import { PlanTooLargeError, StoredPlanError } from "./plan/plan-repository.js";
 import type { AttachResult, ReportRepository } from "./plan/report-repository.js";
@@ -159,6 +161,8 @@ async function route(request: PlanRequest): Promise<PlanResponse> {
   if (method === "GET" && path === "/api/projects") return listProjects(request);
   const report = path.match(/^\/api\/reports\/([^/]+)$/);
   if (method === "GET" && report) return getReport(request, report[1]);
+  const improve = path.match(/^\/api\/reports\/([^/]+)\/improve-questions$/);
+  if (method === "GET" && improve) return getImproveQuestions(request, improve[1]);
 
   const fact = path.match(/^\/api\/plan\/([^/]+)\/facts$/);
   if (method === "POST" && fact) return createFact(request, fact[1]);
@@ -207,6 +211,18 @@ async function getReport(request: PlanRequest, id: string): Promise<PlanResponse
   const stored = await request.reports.get(id, request.userId);
   if (!stored) return fail("not_found");
   return { status: 200, body: { id: stored.id, report: stored.report, planId: stored.planId } };
+}
+
+/** GET /api/reports/:id/improve-questions: the questions "Improve my report" asks now (improve-questions.ts). Another user's report is not found. */
+async function getImproveQuestions(request: PlanRequest, id: string): Promise<PlanResponse> {
+  if (!UUID.test(id)) return fail("not_found");
+  if (!request.reports) return fail("storage_unavailable");
+  const stored = await request.reports.get(id, request.userId);
+  if (!stored) return fail("not_found");
+  const { diagnosis, answers, jev, improveAnswers } = stored.report;
+  const sector = jev.answers.sector?.type === "choice" ? jev.answers.sector.choice : undefined;
+  const questions = selectImproveQuestions(diagnosis, Object.keys(improveAnswers ?? {}), sector, MAX_ANSWERS - answers.length);
+  return { status: 200, body: { questions } };
 }
 
 async function getPlan(request: PlanRequest, id: string): Promise<PlanResponse> {
