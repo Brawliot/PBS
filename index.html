@@ -91,9 +91,7 @@
 
   <section class="result" id="result" aria-labelledby="result-title" tabindex="-1" hidden>
     <header class="result__head">
-      <p class="result__eyebrow">Business analysis</p>
       <h2 class="result__title" id="result-title">Here is what I understood</h2>
-      <ul class="glance__chips" id="result-glance" aria-label="Where your idea stands" hidden></ul>
     </header>
     <section class="understood" id="result-understood" aria-label="What I understood">
       <p class="understood__line" id="result-understood-business"></p>
@@ -105,18 +103,16 @@
         <span class="ready__dot" aria-hidden="true"></span>
         <div><p class="ready__title" id="result-ready-title"></p><p class="ready__sub" id="result-ready-sub"></p></div>
       </div>
-      <h3 class="result__label" id="result-clarity-label">How clearly we understand it</h3>
-      <dl class="clarity__rows">
+      <dl class="clarity__rows" aria-label="How clearly we understand it">
         <div class="clarity__row">
-          <dt>Business concept</dt>
+          <dt>Your business</dt>
           <dd><span class="clarity__level" id="result-clarity-concept"></span><small id="result-clarity-concept-missing" hidden></small></dd>
         </div>
         <div class="clarity__row">
-          <dt>About you</dt>
+          <dt>You</dt>
           <dd><span class="clarity__level" id="result-clarity-person"></span><small id="result-clarity-person-missing" hidden></small></dd>
         </div>
       </dl>
-      <p class="clarity__note">Clarity is not viability: it only measures how well we understand the business and you.</p>
       <div class="improve" id="result-improve" hidden>
         <span id="result-improve-text"></span>
         <button class="btn btn--outline" type="button" id="result-improve-open">Improve my report</button>
@@ -144,12 +140,9 @@
       <h3 class="result__label">Key areas</h3>
       <ul class="result__areas" id="result-departments-top"></ul>
     </section>
-    <p class="glance__next" id="result-next"></p>
     <div class="result__actions">
       <p class="result__hint result__hint--row" id="result-plan-note" hidden>This analysis could not be saved, so a plan cannot be built from it. Start over to try again.</p>
-      <p class="result__hint result__hint--row" id="result-gate" hidden></p>
       <button class="result__restart" type="button" id="result-restart">Start over</button>
-      <button class="link" type="button" id="result-templates-open" hidden>Starter templates (3)</button>
       <button class="btn btn--outline" type="button" id="result-detail-open">See full detail</button>
       <button class="btn btn--outline" type="button" id="result-plan-anyway" hidden>Build anyway</button>
       <button class="btn btn--dark" type="button" id="result-plan">Build my plan</button>
@@ -230,6 +223,7 @@
       <p class="result__eyebrow">Business analysis</p>
       <h2 class="modal__title" id="detail-title">Full detail</h2>
       <p class="result__meta" id="detail-meta"></p>
+      <button class="link detail__templates" type="button" id="result-templates-open" hidden>Starter templates (3)</button>
       <section class="budget detail__block" id="result-budget" aria-labelledby="result-budget-label" hidden>
         <div class="budget__row" id="result-budget-row">
           <span id="result-budget-label">Budget</span>

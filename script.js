@@ -771,13 +771,6 @@
 
   // --- The top of the report: where the idea stands, the budget range, what the business asks -----------
   // Each part is drawn only with its data. The same view comes from the reveal and from a saved report.
-  const MATURITY = { vague: 'Still vague', developing: 'In development', advanced: 'Well developed' };
-  const NEEDS = [
-    ['time_to_revenue', 'Time to first revenue'],
-    ['capital_intensity', 'Capital'],
-    ['team_requirement', 'Team'],
-    ['regulatory_load', 'Regulation'],
-  ];
 
   // The budget question is in euros, so only euro amounts are placed against the person's budget
   // A model sometimes writes "unknown" (or "n/a", "not specified") where it has nothing: that is no value to show
@@ -795,26 +788,6 @@
   const rangeText = ({ min, max, currency }) => {
     if (min !== null && max !== null) return `${money(min, currency)} – ${money(max, currency)}`;
     return min !== null ? `from ${money(min, currency)}` : `up to ${money(max, currency)}`;
-  };
-
-  const showChips = (profile, glance) => {
-    const chips = document.getElementById('result-glance');
-    chips.replaceChildren();
-    const addChip = (label, value, source) => {
-      const item = document.createElement('li');
-      const strong = document.createElement('b');
-      strong.textContent = value;
-      item.append(`${label}: `, strong);
-      const tag = sourceTag(source);
-      if (tag) item.append(' ', tag);
-      chips.append(item);
-    };
-    if (MATURITY[glance?.maturity]) addChip('Idea', MATURITY[glance.maturity]);
-    // The stage comes from the profile, which is built after the answers
-    const stage = profile.values.validation_stage;
-    if (stage && stage !== NOT_DEFINED) addChip('Stage', stage);
-    // The place is said in "What I understood", so it is not repeated as a chip
-    chips.hidden = !chips.children.length;
   };
 
   // Clarity: two levels with what is missing (at most three each, from the server). Nothing without it (old reports).
@@ -838,7 +811,9 @@
       }
       const missing = document.getElementById(`result-clarity-${name}-missing`);
       const lead = readinessOf(clarity) === 'green' ? 'To verify in your plan' : 'Missing';
-      missing.textContent = metric.missing.length ? `${lead}: ${metric.missing.slice(0, 3).join(', ')}` : '';
+      // Two at most on the card, in lower case after the lead: a short line, not a list
+      const shown = metric.missing.slice(0, 2).map((label, index) => (index ? label.toLowerCase() : label));
+      missing.textContent = shown.length ? `${lead}: ${shown.join(', ')}${metric.missing.length > 2 ? '\u2026' : ''}` : '';
       missing.hidden = !metric.missing.length;
     });
   };
@@ -918,7 +893,6 @@
     const box = document.getElementById('result-ready');
     box.hidden = !state;
     const improvable = canImprove(clarity);
-    let gate = '';
     planButton.hidden = false;
     planAnyway.hidden = true;
     planButton.className = 'btn btn--dark';
@@ -929,12 +903,10 @@
       document.getElementById('result-ready-sub').textContent = state === 'yellow' && !improvable ? 'The plan will mark what is still open as something to verify.' : sub;
       if (state === 'red' && improvable) {
         planButton.disabled = true;
-        gate = 'Answer a few questions to build your plan.';
       } else if (state !== 'green' && improvable) {
         planButton.hidden = true;
         planAnyway.hidden = false;
         planAnyway.disabled = !reportId;
-        gate = 'Building now gives a more generic plan.';
       }
     }
     const questions = improvable ? improveQuestions(clarity).length : 0;
@@ -945,9 +917,6 @@
       document.getElementById('result-improve-text').textContent =
         `${state === 'green' ? 'Optional \u00b7 ' : ''}${questions === 1 ? '1 quick question' : `${questions} quick questions`} \u00b7 ${left === 1 ? 'last round' : 'about 1 min'}`;
     }
-    const gateNote = document.getElementById('result-gate');
-    gateNote.textContent = gate;
-    gateNote.hidden = !gate || !reportId;
   };
 
   const closeQuiz = () => {
@@ -1046,7 +1015,9 @@
     send.textContent = 'Updating\u2026';
     quiz.inert = true;
     resultSection.setAttribute('aria-busy', 'true');
+    resultSection.classList.add('is-updating');
     status.textContent = 'Updating your report\u2026';
+    const added = newAnswers.length + Object.keys(newInput).filter((key) => newInput[key] !== improveSession.profileInput[key]).length;
     const session = improveSession;
     const answersNow = [...session.answers, ...newAnswers];
     const unknown = PROFILE_QUESTIONS.map(({ key }) => key).filter((key) => newInput[key] === null);
@@ -1083,7 +1054,13 @@
         team: numbers.team,
         hours: numbers.hours,
       });
-      // The change of level is the answer to the round: it is brought into view
+      // The change is the answer to the round: it is said, and brought into view
+      const now = result.clarity ?? null;
+      const raised = [['concept', 'your business'], ['person', 'you']]
+        .filter(([key]) => previous?.[key]?.level && now?.[key]?.level && previous[key].level !== now[key].level)
+        .map(([key, name]) => `${name} ${CLARITY_LEVELS[now[key].level]?.toLowerCase()}`);
+      const what = added === 0 ? 'nothing new added' : added === 1 ? '1 answer added' : `${added} answers added`;
+      showToast(`Report updated: ${what}${raised.length ? ` \u00b7 ${raised.join(', ')}` : ''}.`);
       document.getElementById('result-clarity').scrollIntoView({ block: 'start', behavior: 'smooth' });
     } catch (err) {
       if (err?.signedOut) {
@@ -1101,6 +1078,7 @@
       send.textContent = 'Update report';
       quiz.inert = false;
       resultSection.removeAttribute('aria-busy');
+      resultSection.classList.remove('is-updating');
     }
   });
 
@@ -1243,8 +1221,9 @@
   };
   templatesOpen.addEventListener('click', openTemplates);
 
-  // What the business asks against what the person has. Money: the estimated range against the person's budget (euros
-  // only, as the budget question is in euros). Team: what the person offers. Time to first revenue: the person's hours.
+  // What the business asks against what the person has: money (the estimated range against the budget, euros only, as
+  // the budget question is in euros), the person's time, the team and the time to first revenue. Capital and regulation
+  // are in the full detail.
   // "Full time" is said as it is; the other answers are hours a week
   const hoursText = (index) => (HOURS_LABELS[index] === 'Full time' ? 'full time' : `${HOURS_LABELS[index]} a week`);
   const showNeeds = (profile, glance, view) => {
@@ -1266,29 +1245,34 @@
       grid.append(cell);
     };
 
-    const budget = glance?.budget;
-    if (budget && (budget.min !== null || budget.max !== null)) {
-      const mine = isEuros(budget.currency) && typeof view.budget === 'number' ? view.budget : null;
-      let fit = null;
-      if (mine !== null) {
-        const low = budget.min ?? budget.max;
-        if (budget.max !== null && mine >= budget.max) fit = { text: `You have ${money(mine, '€')}: it covers it`, tone: 'ok' };
-        else if (mine >= low) fit = { text: `You have ${money(mine, '€')}: the low end`, tone: 'warn' };
-        else fit = { text: `You have ${money(mine, '€')}: short by ~${money(low - mine, '€')}`, tone: 'short' };
-      }
-      addCell('Money', rangeText(budget), [fit ?? { text: 'Estimate' }]);
-    }
-
-    NEEDS.forEach(([key, label]) => {
+    // Always the same four cells, so the row reads as one comparison; a value not known yet says so, quietly
+    const UNKNOWN = 'Not known yet';
+    const head = (key) => {
       const value = profile.values[key];
-      if (isBlank(value) || value === NOT_DEFINED) return;
-      // "Heavy (health, finance, food)": the value first, the part in brackets as small text under it
+      if (isBlank(value) || value === NOT_DEFINED) return null;
       const cut = value.indexOf(' (');
-      const notes = [cut === -1 ? null : { text: value.slice(cut + 2, -1) }];
-      if (key === 'team_requirement' && view.team !== undefined) notes.push({ text: `You offer: ${TEAM_LABELS[view.team]}` });
-      if (key === 'time_to_revenue' && view.hours !== undefined) notes.push({ text: `You put in: ${hoursText(view.hours)}` });
-      addCell(label, cut === -1 ? value : value.slice(0, cut), notes);
-    });
+      return cut === -1 ? value : value.slice(0, cut);
+    };
+
+    const budget = glance?.budget;
+    const hasRange = !!budget && (budget.min !== null || budget.max !== null);
+    const mine = typeof view.budget === 'number' ? view.budget : null;
+    let fit = mine === null ? { text: 'Your budget: not given' } : { text: `You have ${money(mine, '€')}` };
+    if (hasRange && mine !== null && isEuros(budget.currency)) {
+      const low = budget.min ?? budget.max;
+      if (budget.max !== null && mine >= budget.max) fit = { text: `You have ${money(mine, '€')}: covers it`, tone: 'ok' };
+      else if (mine >= low) fit = { text: `You have ${money(mine, '€')}: the low end`, tone: 'warn' };
+      else fit = { text: `You have ${money(mine, '€')}: short by ~${money(low - mine, '€')}`, tone: 'short' };
+    }
+    addCell('Money', hasRange ? rangeText(budget) : UNKNOWN, [fit]);
+
+    const hours = view.hours !== undefined ? hoursText(view.hours) : null;
+    addCell('Your time', hours ? hours.charAt(0).toUpperCase() + hours.slice(1) : UNKNOWN, [{ text: 'What you can put in' }]);
+
+    addCell('Team', head('team_requirement') ?? UNKNOWN, [view.team !== undefined ? { text: `You offer: ${TEAM_LABELS[view.team]}` } : { text: 'Your team: not given' }]);
+
+    addCell('First revenue', head('time_to_revenue') ?? UNKNOWN, [{ text: 'Estimate' }]);
+    grid.querySelectorAll('dd').forEach((dd) => dd.classList.toggle('is-unknown', dd.firstChild?.textContent === UNKNOWN));
     document.getElementById('result-needs-block').hidden = !grid.children.length;
   };
 
@@ -1304,6 +1288,7 @@
       subsector ? { text: subsector.value, source: view.glance?.subsectorSource } : value('offering_type') && { text: value('offering_type') },
       value('customer_segment') ? { prefix: 'for ', text: value('customer_segment') } : field('target_customer') && { prefix: 'for ', text: field('target_customer').value, source: field('target_customer').source },
       location && { text: location.value, source: location.source },
+      value('validation_stage') && { text: value('validation_stage') },
       value('revenue_model') && { prefix: 'earns by ', text: value('revenue_model') },
     ].filter(Boolean);
     const you = [
@@ -1339,10 +1324,6 @@
     draw(document.getElementById('result-understood-you'), you, 'You: ');
   };
 
-  const showNext = (answerCount) => {
-    const basis = answerCount === 0 ? 'From your idea.' : `From your idea and ${answerCount === 1 ? '1 answer' : `${answerCount} answers`}.`;
-    document.getElementById('result-next').textContent = `${basis} Next: phases, departments, tasks, calendar.`;
-  };
 
   const showResult = (phase2, profile, validation, explanations, view = {}) => {
     const detail = document.getElementById('result-detail');
@@ -1406,7 +1387,6 @@
     const areas = validation ? (validation.level === 2 ? validation.departments : validation.groups) : [];
     const mainAreas = areas.filter(({ tier }) => tier !== 'light');
     mainAreas.slice(0, 4).forEach(({ name, tier }) => addArea(topDepartments, name, tier, areaReasons.get(name)));
-    addMore(topDepartments, areas.length - Math.min(mainAreas.length, 4), `and ${areas.length - Math.min(mainAreas.length, 4)} more in the full detail`);
     document.getElementById('result-departments-block').hidden = !topDepartments.children.length;
     // The same tier marks as the card, one row per area
     areas.forEach(({ name, tier }) => addArea(departmentList, name, tier, areaReasons.get(name)));
@@ -1427,7 +1407,6 @@
 
     // The top of the report: the chips, the budget and what the business asks, then the line about the basis
     const glance = view.glance ?? null;
-    showChips(profile, glance);
     currentClarity = view.clarity ?? null;
     showClarity(currentClarity, view.previous ?? null);
     showBudget(glance, view.budget);
@@ -1436,7 +1415,6 @@
     templatePicks = explanations?.templates ?? [];
     templateGlance = glance;
     templatesOpen.hidden = !templatePicks.length;
-    showNext(view.answers ?? 0);
 
     document.getElementById('detail-meta').textContent = `${profile.known} of ${profile.total} topics defined`;
     // A plan is built from the saved report only; without one the button says why it cannot be used
@@ -1804,7 +1782,8 @@
       const session = history.state?.session;
       improveSession = session && typeof session.idea === 'string' && Array.isArray(session.answers) && session.analysis ? session : null;
       // The same view as the reveal: the glance, the answers given, and the budget and team of the form
-      showResult(report.phase2, report.profile, report.validation, report.explanations, {
+      // A final report keeps no phase 2: the first analysis of the history entry stands in, for what was understood
+      showResult(report.phase2 ?? improveSession?.analysis ?? null, report.profile, report.validation, report.explanations, {
         glance: report.glance,
         clarity: report.clarity,
         answers: report.answers.length,

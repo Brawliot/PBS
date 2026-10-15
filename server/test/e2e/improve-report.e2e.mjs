@@ -181,6 +181,7 @@ async function scenarioYellowToGreen(browser) {
   await page.click("#result-quiz-send");
   await page.waitForFunction(() => document.getElementById("result-ready").dataset.state === "green", null, { timeout: 20_000 });
 
+  assert.equal(await page.textContent("#toast-text"), "Report updated: 2 answers added · your business high.", "the update says what changed");
   const sent = posts.at(-1);
   assert.equal(sent.final, true, "the round sends the final request again");
   assert.deepEqual(sent.answers.map(({ topic }) => topic), ["validation", "own_skills", "revenue"], "the new answers are added; an I don't know is not sent");

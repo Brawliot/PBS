@@ -236,6 +236,7 @@ async function scenarioAllParts(browser) {
   const label = await page.textContent("#result-templates-open");
   assert.equal(label, "Starter templates (3)");
 
+  await page.click("#result-detail-open"); // the templates are in the full detail
   await page.click("#result-templates-open");
   await page.waitForSelector("#templates-modal[open]", { timeout: 10_000 });
   const dialog = await templatesDialog(page);
@@ -328,6 +329,7 @@ async function scenarioFailures(browser) {
   });
   await reachResult(page);
 
+  await page.click("#result-detail-open"); // the templates are in the full detail
   await page.click("#result-templates-open");
   await page.waitForSelector("#toast.is-open", { timeout: 10_000 });
   assert.equal(await page.textContent("#toast-text"), "We could not load the templates. Try again.");
@@ -353,6 +355,7 @@ async function scenarioFailures(browser) {
     report: () => storedReport(posts2, { ...withProfile(snapshot.final), explanations: ALL_PARTS }, posts2.at(-1).glance),
   });
   await reachResult(second);
+  await second.click("#result-detail-open");
   await second.click("#result-templates-open");
   await second.waitForSelector("#templates-modal[open]", { timeout: 10_000 });
   await second.click("#templates-list .template__copy");
