@@ -10,11 +10,15 @@
  * kept does not fail the run: only its code is logged.
  */
 
+import type { PlannerStage } from "./stages.js";
 import type { FieldAnalysis, Phase2Response } from "./planner-phase2-handler.js";
 import type { ReportRepository } from "../plan/report-repository.js";
 import type { Diagnosis, Explanations, Report } from "../plan/report.js";
 import { parseGlance, type Glance } from "../plan/glance.js";
 import { buildChecks } from "../plan/checks.js";
+import { computeClarity, type Clarity } from "../plan/clarity.js";
+import { buildExecution } from "../plan/execution.js";
+import type { Profile } from "./planner-profile-handler.js";
 import {
   MAX_CURRENCY,
   MAX_DIAGNOSIS_IDEA,
@@ -26,11 +30,11 @@ import {
   MAX_SCORE,
 } from "../plan/report.js";
 import type { JevResponse, PlannerInput } from "./planner-handler.js";
-import { analyzeWithJev } from "./planner-handler.js";
+import { analyzeWithJev, isUnknown } from "./planner-handler.js";
 import { analyzePhase2, type PlannerAnswer } from "./planner-phase2-handler.js";
 import { explainReport } from "./planner-explain-handler.js";
 import { analyzeProfile } from "./planner-profile-handler.js";
-import { questionLimit, selectQuestions } from "./question-policy.js";
+import { selectQuestions } from "./question-policy.js";
 import {
   analyzeValidation,
   claimsFromPhase2,
@@ -115,6 +119,42 @@ export function glanceOf(phase2: Phase2Response): Glance | undefined {
     subsectorSource: fitted.subsector.source,
     location: { value: fitted.location.value, source: fitted.location.source },
     budget: fitted.constraints.budget,
+    sources: {
+      target_customer: fitted.target_customer.source,
+      value_proposition: fitted.value_proposition.source,
+      revenue_model: fitted.revenue_model.source,
+      stage: fitted.stage.source,
+      competition: fitted.competition.source,
+    },
+    // From the model's own parts, checked against Mando's catalog (fitPhase2 does not keep them)
+    ...(() => {
+      const execution = buildExecution(phase2.execution);
+      return execution ? { execution } : {};
+    })(),
+  });
+}
+
+/**
+ * The glance as the run uses it: with an "I don't know" for the budget there is nothing to fit, so the
+ * sentence on how the budget fits is emptied (the range the idea needs stays).
+ */
+export function glanceFor(input: PlannerInput, glance: Glance | undefined): Glance | undefined {
+  if (!glance || !isUnknown(input, "budget") || glance.budget.fits === "") return glance;
+  return { ...glance, budget: { ...glance.budget, fits: "" } };
+}
+
+/**
+ * The clarity of a run, from its glance (the sources of phase 2), its profile, the fixed questions and the
+ * topics answered. Without a glance that carries the sources there is no clarity: the report goes without it.
+ * The first round and the final request read the same fields, so the same data gives the same clarity.
+ */
+export function clarityOf(input: PlannerInput, answers: PlannerAnswer[], profile: Profile, glance?: Glance): Clarity | undefined {
+  if (!glance?.sources) return undefined;
+  return computeClarity({
+    phase2: { subsector: glance.subsectorSource, location: glance.location.source, ...glance.sources },
+    profile: profile.values,
+    unknownInputs: input.unknown ?? [],
+    topics: answers.map(({ topic }) => topic),
   });
 }
 
@@ -132,6 +172,7 @@ export function reportOf(
   explanations?: Explanations,
   glance?: Glance,
   diagnosis?: Diagnosis,
+  clarity?: Clarity,
 ) {
   return {
     input,
@@ -142,6 +183,7 @@ export function reportOf(
     ...(explanations && { explanations }),
     ...(glance && { glance }),
     ...(diagnosis && { diagnosis }),
+    ...(clarity && { clarity }),
   };
 }
 
@@ -157,7 +199,7 @@ export function diagnosisOf(input: PlannerInput, jev: JevResponse, built: Awaite
     idea: fitText(input.idea, MAX_DIAGNOSIS_IDEA),
     checks: buildChecks({
       budget: input.budget,
-      years: input.experience,
+      founderProfile: built.profile.values.founder_profile,
       range: glance && { min: glance.budget.min },
       regulatoryLoad: built.profile.values.regulatory_load,
       jev: jev.answers,
@@ -179,7 +221,7 @@ export async function buildReport(
     analyzeProfile(input, jev, phase2, answers),
     analyzeValidation(input, jev, claims, answers),
   ]);
-  return { profile, validation: { ...validation, level: departmentLevel(profile, input) } };
+  return { profile, validation: { ...validation, level: departmentLevel(profile) } };
 }
 
 export interface PlannerRunOptions {
@@ -189,6 +231,10 @@ export interface PlannerRunOptions {
   owner: string;
   /** Aborted when the person cancels the analysis: the run stops, and no report is kept for it */
   signal?: AbortSignal;
+  /** A Jev result made from the same idea by the detection: reused instead of asking Jev again */
+  jev?: JevResponse;
+  /** Told each step of the run as it starts, for the browser to show while it waits */
+  report?: (stage: PlannerStage) => void;
 }
 
 /** Keeps a report and returns its id; on failure, logs the code only and returns no id */
@@ -215,47 +261,43 @@ export async function runPlanner(
   final: boolean,
   claims: Claims,
   options: PlannerRunOptions,
-  glance?: Glance,
+  sentGlance?: Glance,
 ) {
-  const jev = await analyzeWithJev(input, options.signal);
+  options.report?.("reading");
+  const jev = options.jev ?? (await analyzeWithJev(input, options.signal));
 
   // Final request: the questions are answered, so only the profile is left (no phase 2 in this report)
   if (final) {
+    const glance = glanceFor(input, sentGlance);
+    options.report?.("costs");
     const built = await buildReport(input, jev, answers, claims);
-    const explanations = await explainReport({ input, answers, validation: built.validation }, options.signal);
     const diagnosis = diagnosisOf(input, jev, built, glance);
+    const clarity = clarityOf(input, answers, built.profile, glance);
+    options.report?.("explaining");
+    const explanations = await explainReport(
+      { input, answers, validation: built.validation, glance, timeToRevenue: built.profile.values.time_to_revenue },
+      options.signal,
+    );
+    options.report?.("saving");
     return {
       jev,
       ...built,
       ...(explanations && { explanations }),
       ...(glance && { glance }),
-      ...(await keepReport(options, reportOf(input, answers, jev, built, undefined, explanations, glance, diagnosis))),
+      ...(clarity && { clarity }),
+      ...(await keepReport(options, reportOf(input, answers, jev, built, undefined, explanations, glance, diagnosis, clarity))),
     };
   }
 
   const phase2 = await analyzePhase2(input, jev, answers, options.signal);
-  const questions = selectQuestions(
-    phase2.questions,
-    answers,
-    questionLimit(phase2.maturity, input),
-  );
-  if (questions.length === 0) {
-    const built = await buildReport(input, jev, answers, claimsFromPhase2(phase2), phase2);
-    const withPhase2 = { ...phase2, questions };
-    const explanations = await explainReport({ input, answers, validation: built.validation, phase2 }, options.signal);
-    const glance = glanceOf(withPhase2);
-    return {
-      jev,
-      phase2: withPhase2,
-      ...built,
-      ...(explanations && { explanations }),
-      ...(glance && { glance }),
-      ...(await keepReport(options, reportOf(input, answers, jev, built, withPhase2, explanations, glance))),
-    };
-  }
+  const questions = selectQuestions(phase2.questions, answers);
+  // No questions is a valid answer: the browser then shows what was understood, and the final request builds the report
+  // The glance goes with the questions (or with none): the browser sends it back with the final request
+  const glance = glanceFor(input, glanceOf(phase2));
   return {
     jev,
     phase2: { ...phase2, questions },
     questionTotal: answers.length + questions.length,
+    ...(glance && { glance }),
   };
 }

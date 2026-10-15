@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="MANDO helps you plan and execute your business: describe your idea and set your budget, experience, team size and weekly hours.">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="description" content="Open and run your business with MANDO: describe what you want to open, answer a few short questions about budget, experience, team and time, and get a plan you can act on.">
+  <meta name="theme-color" content="#f6f7f8">
   <title>MANDO - Plan &amp; Execute your Business</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23272727'/%3E%3Ctext x='16' y='23' font-size='20' font-weight='800' text-anchor='middle' fill='%23fff' font-family='Arial'%3EM%3C/text%3E%3C/svg%3E">
   <link rel="preload" href="fonts/inter-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
@@ -30,7 +30,6 @@
         </div>
         <button type="button" class="btn btn--dark nav__projects">View my projects</button>
       </div>
-      <div data-theme-picker></div>
     </nav>
   </header>
 
@@ -45,7 +44,7 @@
 
     <form class="search" action="#" novalidate>
       <div class="search__bar">
-        <input class="search__input" type="text" name="idea" placeholder="e.g. An app to book hairdressers in Madrid" aria-label="Describe your business" aria-describedby="search-error" maxlength="2000">
+        <input class="search__input" type="text" name="idea" placeholder="e.g. A tapas bar in Malasaña, Madrid" aria-label="Describe your business" aria-describedby="search-error" maxlength="2000">
         <p class="field-error" id="search-error" role="alert" hidden>Describe your business to continue.</p>
         <button class="arrow-btn search__submit" type="submit" aria-label="Submit">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12h16M14 6l6 6-6 6"/></svg>
@@ -55,37 +54,10 @@
       <div class="filters">
         <div class="hints__examples">
           <span>Try:</span>
-          <button type="button" class="hints__chip">Japanese restaurant</button>
-          <button type="button" class="hints__chip">Fitness app</button>
-          <button type="button" class="hints__chip">Online store</button>
+          <button type="button" class="hints__chip" data-idea="A tapas bar in Malasaña, Madrid, for locals and after-work crowds">Tapas bar</button>
+          <button type="button" class="hints__chip" data-idea="A physiotherapy clinic in Valencia for sports injuries">Physio clinic</button>
+          <button type="button" class="hints__chip" data-idea="A hair salon in Seville with a small beauty corner">Hair salon</button>
         </div>
-        <div class="filters__title">
-          <p class="filters__heading">Your situation</p>
-          <p class="filters__help">These four answers shape the plan to your resources.</p>
-        </div>
-        <div class="filter">
-          <div class="filter__head"><label for="budget">Budget</label><output for="budget">e.g. $500,000</output></div>
-          <input id="budget" class="range" type="range" value="500000" min="0" max="1000000" step="10000" data-format="currency" aria-describedby="slider-hint">
-          <div class="filter__ticks" aria-hidden="true"><span>$0</span><span>$1M</span></div>
-        </div>
-        <div class="filter">
-          <div class="filter__head"><label for="experience">Years in this industry</label><output for="experience">e.g. 5 years</output></div>
-          <input id="experience" class="range" type="range" value="5" min="0" max="20" step="1" data-format="years" aria-describedby="slider-hint">
-          <div class="filter__ticks" aria-hidden="true"><span>0</span><span>20+ years</span></div>
-        </div>
-        <div class="filter">
-          <div class="filter__head"><label for="team">Team size</label><output for="team">e.g. Solo</output></div>
-          <input id="team" class="range" type="range" value="0" min="0" max="3" step="1" data-labels="Solo|Small (2-3)|Medium (4-10)|Large (10+)" aria-describedby="slider-hint">
-          <div class="filter__ticks" aria-hidden="true"><span>Solo</span><span>Small</span><span>Medium</span><span>Large</span></div>
-        </div>
-        <div class="filter">
-          <div class="filter__head"><label for="hours">Weekly hours</label><output for="hours">e.g. 10-20 h</output></div>
-          <input id="hours" class="range" type="range" value="1" min="0" max="3" step="1" data-labels="Under 10 h|10-20 h|30+ h|Full time" aria-describedby="slider-hint">
-          <div class="filter__ticks" aria-hidden="true"><span>Under 10 h</span><span>10-20 h</span><span>30+ h</span><span>Full time</span></div>
-        </div>
-      </div>
-      <div class="hints">
-        <p class="hints__note">We will ask a few questions · about 1 minute · Guidance only, not professional advice</p>
       </div>
       <div class="submit-error" id="submit-error" role="alert">
         <p class="submit-error__text" id="submit-error-text"></p>
@@ -113,35 +85,58 @@
     </div>
   </form>
 
+  <section class="review" id="review" aria-labelledby="review-title" hidden>
+    <h2 class="review__title" id="review-title" tabindex="-1">Here is what I understood</h2>
+    <p class="review__idea" id="review-idea"></p>
+    <dl class="review__list" id="review-list"></dl>
+    <div class="review__actions">
+      <button class="review__generate" type="button" id="review-generate">Generate report</button>
+      <button class="question__link" type="button" id="review-restart">Start over</button>
+    </div>
+  </section>
   <section class="result" id="result" aria-labelledby="result-title" tabindex="-1" hidden>
     <header class="result__head">
-      <p class="result__eyebrow">Business analysis</p>
-      <h2 class="result__title" id="result-title">Your business at a glance</h2>
-      <ul class="glance__chips" id="result-glance" aria-label="Where your idea stands" hidden></ul>
+      <h2 class="result__title" id="result-title">Here is what I understood</h2>
     </header>
-    <dl class="result__list" id="result-summary"></dl>
-    <section class="budget" id="result-budget" aria-labelledby="result-budget-label" hidden>
-      <div class="budget__row" id="result-budget-row">
-        <span id="result-budget-label">Budget</span>
-        <span><span class="budget__range" id="result-budget-range"></span> <span class="tier tier--light">estimated</span></span>
+    <section class="understood" id="result-understood" aria-label="What I understood">
+      <p class="understood__line" id="result-understood-business"></p>
+      <p class="understood__line" id="result-understood-you" hidden></p>
+      <button class="link understood__fix" type="button" id="result-understood-fix">Something is off? Start over with more detail</button>
+    </section>
+    <section class="clarity" id="result-clarity" aria-labelledby="result-clarity-label" hidden>
+      <div class="ready" id="result-ready" aria-live="polite" hidden>
+        <span class="ready__dot" aria-hidden="true"></span>
+        <div><p class="ready__title" id="result-ready-title"></p><p class="ready__sub" id="result-ready-sub"></p></div>
       </div>
-      <div class="budget__scale" id="result-budget-scale" aria-hidden="true" hidden>
-        <span class="budget__track"></span>
-        <span class="budget__zone" id="result-budget-zone"></span>
-        <span class="budget__you" id="result-budget-you" hidden></span>
+      <dl class="clarity__rows" aria-label="How clearly we understand it">
+        <div class="clarity__row">
+          <dt>Your business</dt>
+          <dd><span class="clarity__level" id="result-clarity-concept"></span><small id="result-clarity-concept-missing" hidden></small></dd>
+        </div>
+        <div class="clarity__row">
+          <dt>You</dt>
+          <dd><span class="clarity__level" id="result-clarity-person"></span><small id="result-clarity-person-missing" hidden></small></dd>
+        </div>
+      </dl>
+      <div class="improve" id="result-improve" hidden>
+        <span id="result-improve-text"></span>
+        <button class="btn btn--outline" type="button" id="result-improve-open">Improve my report</button>
       </div>
-      <p class="sr-only" id="result-budget-note"></p>
-      <p class="budget__why" id="result-budget-fits" hidden></p>
+      <form class="quiz" id="result-quiz" aria-label="Improve my report" novalidate hidden>
+        <div class="quiz__list" id="result-quiz-list"></div>
+        <div class="quiz__foot">
+          <span>&ldquo;I don&rsquo;t know&rdquo; is fine: it stays as something to verify in your plan.</span>
+          <span class="quiz__buttons">
+            <button class="link" type="button" id="result-quiz-cancel">Cancel</button>
+            <button class="btn btn--dark" type="submit" id="result-quiz-send">Update report</button>
+          </span>
+        </div>
+      </form>
     </section>
     <section class="needs" id="result-needs-block" aria-labelledby="result-needs-label" hidden>
-      <h3 class="result__label" id="result-needs-label">What this business asks of you</h3>
+      <h3 class="result__label" id="result-needs-label">What it asks vs. what you have</h3>
       <dl class="needs__grid" id="result-needs"></dl>
     </section>
-    <div class="result__coverage">
-      <p class="result__meta" id="result-meta"></p>
-      <p class="result__hint" id="result-hint" hidden>Add more detail to your idea to fill these in.</p>
-      <div class="result__bar" aria-hidden="true"><span id="result-bar"></span></div>
-    </div>
     <section class="result__block" id="result-warnings-block" hidden>
       <h3 class="result__label">Worth checking</h3>
       <ul class="result__warnings" id="result-warnings"></ul>
@@ -150,15 +145,11 @@
       <h3 class="result__label">Key areas</h3>
       <ul class="result__areas" id="result-departments-top"></ul>
     </section>
-    <section class="result__pending-block" id="result-pending-block">
-      <h3 class="result__label">Still to define</h3>
-      <ul class="result__pending" id="result-pending"></ul>
-    </section>
-    <p class="glance__next" id="result-next"></p>
     <div class="result__actions">
       <p class="result__hint result__hint--row" id="result-plan-note" hidden>This analysis could not be saved, so a plan cannot be built from it. Start over to try again.</p>
       <button class="result__restart" type="button" id="result-restart">Start over</button>
       <button class="btn btn--outline" type="button" id="result-detail-open">See full detail</button>
+      <button class="btn btn--outline" type="button" id="result-plan-anyway" hidden>Build anyway</button>
       <button class="btn btn--dark" type="button" id="result-plan">Build my plan</button>
     </div>
   </section>
@@ -176,24 +167,14 @@
   </dialog>
 
   <p class="sr-only" id="status" role="status"></p>
-  <p class="sr-only" id="slider-hint">Example value shown. Move the slider to set your own.</p>
+  <p class="progress-note" id="progress-note" hidden>This is taking longer than usual.</p>
 
   <div class="backdrop" aria-hidden="true"></div>
 
   <button class="wait-cancel" type="button" id="wait-cancel" hidden>Cancel</button>
   <div class="toast" id="toast" role="status"><p class="toast__text" id="toast-text"></p><button class="toast__close" type="button" id="toast-close" aria-label="Dismiss">&times;</button></div>
 
-  <div class="giant" aria-hidden="true">
-    <div class="giant__track">
-      <div class="giant__group">
-        <span class="giant__letter giant__letter--gray">M</span>
-        <span class="giant__letter">A</span>
-        <span class="giant__letter giant__letter--gray">N</span>
-        <span class="giant__letter">D</span>
-        <span class="giant__letter">O</span>
-      </div>
-    </div>
-  </div>
+  <div class="giant" aria-hidden="true"></div>
 
   <dialog class="modal" id="auth-modal" aria-labelledby="auth-title">
     <div class="modal__card">
@@ -238,6 +219,40 @@
       <p class="result__eyebrow">Business analysis</p>
       <h2 class="modal__title" id="detail-title">Full detail</h2>
       <p class="result__meta" id="detail-meta"></p>
+      <button class="link detail__templates" type="button" id="result-templates-open" hidden>Starter templates (3)</button>
+      <section class="budget detail__block" id="result-budget" aria-labelledby="result-budget-label" hidden>
+        <div class="budget__row" id="result-budget-row">
+          <span id="result-budget-label">Budget</span>
+          <span><span class="budget__range" id="result-budget-range"></span> <span class="tier tier--light">estimated</span></span>
+        </div>
+        <div class="budget__scale" id="result-budget-scale" aria-hidden="true" hidden>
+          <span class="budget__track"></span>
+          <span class="budget__zone" id="result-budget-zone"></span>
+          <span class="budget__you" id="result-budget-you" hidden></span>
+        </div>
+        <p class="sr-only" id="result-budget-note"></p>
+        <p class="budget__why" id="result-budget-fits" hidden></p>
+      </section>
+      <section class="costs detail__block" id="result-costs-block" aria-labelledby="result-costs-label" hidden>
+        <h3 class="result__label" id="result-costs-label">Time &amp; cost</h3>
+        <dl class="costs__rows">
+          <div class="costs__row" id="result-time-row" hidden>
+            <dt>Time to open</dt>
+            <dd><span id="result-time-value"></span><small id="result-time-note"></small></dd>
+          </div>
+          <div class="costs__row costs__row--stack" id="result-cost-row" hidden>
+            <dt>Upfront cost</dt>
+            <dd>
+              <span class="costs__stack" id="result-cost-stack" aria-hidden="true"></span>
+              <small id="result-cost-note"></small>
+            </dd>
+          </div>
+        </dl>
+      </section>
+      <section class="detail__block" id="detail-execution-block" aria-labelledby="detail-execution-label" hidden>
+        <h3 class="result__label" id="detail-execution-label">Who does what</h3>
+        <div class="execution" id="detail-execution"></div>
+      </section>
       <section class="detail__block" id="detail-defined-block">
         <h3 class="result__label">Defined</h3>
         <dl class="result__list" id="result-detail"></dl>
@@ -253,8 +268,19 @@
     </div>
   </dialog>
 
+  <dialog class="modal" id="templates-modal" aria-labelledby="templates-title">
+    <div class="modal__card">
+      <button class="modal__close" type="button" aria-label="Close" data-close>&times;</button>
+      <p class="result__eyebrow">Business analysis</p>
+      <h2 class="modal__title" id="templates-title">Starter templates</h2>
+      <p class="result__meta">Copy a template, fill in the text in [brackets], and use it as it is.</p>
+      <div class="templates" id="templates-list"></div>
+    </div>
+  </dialog>
+
   <script src="tech-text.js" defer></script>
   <script src="loader.js" defer></script>
+  <script src="giant.js" defer></script>
   <script src="script.js" defer></script>
 </body>
 </html>

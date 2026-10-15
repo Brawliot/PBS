@@ -1,5 +1,5 @@
 /**
- * End-to-end checks of three things: the theme picker (kept in the browser, applied before the page shows),
+ * End-to-end checks of three things: the theme (it follows the device; there is no picker),
  * the project list (its rows, the signed-out and empty answers, the way in from the start page), and the
  * report that comes back when the person goes back from the plan. The real server serves the pages; the
  * planner, the plan API and the report and project routes are answered by page.route.
@@ -28,9 +28,11 @@ const REPORT_ID = "33333333-3333-4333-8333-333333333333";
 const snapshot = JSON.parse(readFileSync(join(serverDir, "test/planner/fixtures/planner-run.snapshot.json"), "utf8"));
 // A stored report: the input and the answers it was made from, and the run's own parts (the server keeps all of them)
 const report = {
-  input: { idea: "Bakery delivery", budget: 10_000, experience: 1, team: 1, hours: 1 },
+  input: { idea: "Bakery delivery", location: "Madrid", budget: 10_000, start_mode: "scratch", premises: "have" },
   answers: [],
   ...snapshot.noQuestions,
+  // Ready for a plan (green): a yellow or red report gates the button (improve-report.e2e.mjs checks that)
+  clarity: { ...snapshot.noQuestions.clarity, readiness: "green" },
 };
 
 const json = (status, body) => ({ status, contentType: "application/json", body: JSON.stringify(body) });
@@ -55,6 +57,12 @@ function startServer() {
 }
 
 /** Signed in, with the planner answering a finished analysis; the report route answers `reportStatus` */
+/** When what was understood is on screen, it is confirmed with Generate report; then the result is on screen */
+async function confirmReview(page) {
+  await page.waitForSelector("#review:not([hidden]), #result:not([hidden])", { timeout: 20_000 });
+  if (await page.isVisible("#review")) await page.click("#review-generate");
+}
+
 async function mockSignedIn(page, { reportStatus = 200 } = {}) {
   await page.route("**/api/auth/session", (route) => route.fulfill(json(200, { user: { name: "Ana" } })));
   let jobs = 0;
@@ -72,43 +80,40 @@ async function mockSignedIn(page, { reportStatus = 200 } = {}) {
   );
 }
 
+/** Answers the four fixed questions (location, budget, how they start, premises) with the largest values */
+async function answerSituation(page) {
+  for (const [index, value] of ["I have them", "From scratch", "Over 150,000 €", "Madrid"].entries()) {
+    await page.waitForFunction(
+      (number) => document.getElementById("question").classList.contains("is-open")
+        && document.getElementById("question-progress").textContent.startsWith(`Question ${number} of`),
+      index + 1,
+      { timeout: 20_000 },
+    );
+    await page.fill(".question__input", value);
+    await page.press(".question__input", "Enter");
+  }
+}
+
 async function analyse(page) {
   await page.goto(`${BASE}/`);
   await page.fill(".search__input", "Bakery delivery");
-  for (const id of ["budget", "experience", "team", "hours"]) {
-    await page.locator(`#${id}`).evaluate((el) => {
-      el.value = el.max;
-      el.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-  }
   await page.click(".search__submit");
+  await answerSituation(page);
+  await confirmReview(page);
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
 }
 
-const picker = (page) => page.locator(".theme-picker button");
-
 async function scenarioThemes(browser) {
-  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const context = await browser.newContext({ colorScheme: "light", viewport: { width: 1280, height: 720 } });
   const page = await context.newPage();
   await watch(page, scenarioLabel());
   await mockSignedIn(page);
   await page.goto(`${BASE}/`);
-  await page.waitForSelector(".theme-picker button");
-  assert.equal(await page.locator(".theme-picker button").count(), 4, "four choices: System, Light, Dark, Contrast");
-  assert.equal(await page.getAttribute("html", "data-theme"), null, "System sets no attribute");
-  await picker(page).nth(2).click();
-  assert.equal(await page.getAttribute("html", "data-theme"), "dark");
-  assert.equal(await page.getAttribute('meta[name="theme-color"]', "content"), "#121214", "the browser bar follows the theme");
-  assert.equal(await page.evaluate(() => localStorage.getItem("mando.theme")), "dark");
-  await page.reload();
-  assert.equal(await page.getAttribute("html", "data-theme"), "dark", "the choice survives a reload");
-  assert.equal(await page.getAttribute(".theme-picker button[aria-pressed='true']", "data-theme-choice"), "dark");
-  await picker(page).nth(3).click();
-  assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), "rgb(0, 0, 0)", "contrast: black page");
-  await picker(page).nth(0).click();
-  assert.equal(await page.getAttribute("html", "data-theme"), null, "System again removes the attribute");
+  assert.equal(await page.locator(".theme-picker").count(), 0, "there is no theme picker");
+  assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), "rgb(246, 247, 248)", "a light device gets the light page");
+  assert.equal(await page.getAttribute('meta[name="theme-color"]', "content"), "#f6f7f8", "the browser bar follows the theme");
   await context.close();
-  return "themes: choice kept, bar colour follows, contrast and system work";
+  return "themes: no picker, the light device gets the light page";
 }
 
 async function scenarioSystemDark(browser) {
@@ -117,11 +122,10 @@ async function scenarioSystemDark(browser) {
   await watch(page, scenarioLabel());
   await mockSignedIn(page);
   await page.goto(`${BASE}/`);
-  assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), "rgb(18, 18, 20)", "a dark device gets the dark page");
-  await picker(page).nth(1).click();
-  assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), "rgb(255, 255, 255)", "light beats a dark device");
+  assert.equal(await page.evaluate(() => getComputedStyle(document.body).backgroundColor), "rgb(11, 12, 15)", "a dark device gets the dark page");
+  assert.equal(await page.getAttribute('meta[name="theme-color"]', "content"), "#0b0c0f", "the browser bar follows the theme");
   await context.close();
-  return "system dark: dark page, and an explicit light choice wins";
+  return "system dark: the dark device gets the dark page";
 }
 
 async function scenarioProjects(browser) {
@@ -166,6 +170,7 @@ async function scenarioBackToReport(browser) {
   await page.click("#result-plan");
   await page.waitForURL(`${BASE}/plan?id=${PLAN_ID}`, { timeout: 15_000 });
   await page.goBack();
+  await confirmReview(page);
   await page.waitForSelector("#result:not([hidden])", { timeout: 15_000 });
   assert.equal(await page.evaluate(() => sessionStorage.getItem("mando.report")), null, "the report content is not kept in the browser");
   assert.equal(await page.evaluate(() => history.state?.reportId), REPORT_ID, "only the id is in the history entry");

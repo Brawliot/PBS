@@ -12,11 +12,11 @@ import { InMemoryReportRepository } from "../../plan/report-repository-memory.js
 import { buildPlanSkeleton } from "../../plan/plan-skeleton.js";
 import { reportWith } from "../plan/report-fixtures.js";
 import { prng } from "../plan/prng.js";
-import { EMPTY_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, silenceConsoleError } from "./helpers.js";
+import { REASONLESS_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, silenceConsoleError, reportWithoutQuestions } from "./helpers.js";
 import "./helpers.js";
 
-const input = { idea: "Bakery delivery", budget: 10_000, experience: 1, team: 1, hours: 1 };
-const answers = [{ topic: "validation", question: "Have you tested it?", answer: "Yes" }];
+const input = { idea: "Bakery delivery", budget: 10_000, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const};
+const answers = [{ topic: "existing_customers", question: "Do you already have customers?", answer: "Yes" }];
 const { profile, validation } = reportWith();
 const built = { profile, validation } as never;
 const jev = reportWith().jev as never;
@@ -27,7 +27,7 @@ const section = (value: string) => ({ value, source: "stated" as const, confiden
 function phase2With(options: { text?: string; risks?: number; currency?: string; questions?: number } = {}): Phase2Response {
   const text = options.text ?? "Bakery";
   const questions = Array.from({ length: options.questions ?? 0 }, (_, index) => ({
-    topic: "validation" as const,
+    topic: "existing_customers" as const,
     question: `${text} question ${index}`,
     options: ["Yes", "No"],
   }));
@@ -47,6 +47,7 @@ function phase2With(options: { text?: string; risks?: number; currency?: string;
       assumptions: ["Ovens are available"],
     },
     questions,
+    execution: [],
   } as Phase2Response;
 }
 
@@ -99,8 +100,9 @@ describe("fitPhase2 cuts each part to the report's limits", () => {
   });
 
   test("a fitted part that was already within the limits is unchanged", () => {
-    const phase2 = phase2With({ risks: 3 });
-    assert.deepEqual(fitPhase2(phase2), { ...phase2, questions: [] });
+    // The parts are not kept in phase 2: the glance keeps them, checked (plan/execution.ts)
+    const { execution: _parts, ...phase2 } = phase2With({ risks: 3 });
+    assert.deepEqual(fitPhase2({ ...phase2, execution: [] }), { ...phase2, questions: [] });
   });
 });
 
@@ -166,12 +168,12 @@ describe("contract: planner outputs of any size are always kept", () => {
       };
       mockFetch((request) => {
         if (request.url.includes("typesafe.ai")) return jsonResponse(200, { model: "test", answers: {}, usage: { input_tokens: 1, output_tokens: 1 } });
-        const content = isExplanationCall(request) ? EMPTY_EXPLANATIONS : output;
+        const content = isExplanationCall(request) ? REASONLESS_EXPLANATIONS : output;
         return jsonResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(content) } }] });
       });
       const reports = new InMemoryReportRepository();
       const log = silenceConsoleError();
-      const result = (await runPlanner(input, [], false, {}, { reports, owner: USER })) as Record<string, unknown>;
+      const result = await reportWithoutQuestions(input, [], { reports, owner: USER });
       assert.equal(typeof result.reportId, "string", `seed ${seed}: report kept (${JSON.stringify(log.mock.calls.map((call) => call.arguments))})`);
       assert.equal(log.mock.calls.length, 0, `seed ${seed}: nothing logged`);
       log.mock.restore();

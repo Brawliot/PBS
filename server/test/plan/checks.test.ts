@@ -57,23 +57,32 @@ describe("money: the budget against the minimum the idea needs", () => {
   });
 });
 
-describe("experience: the years in the form, and a regulated profession", () => {
-  test("one year or more of experience is strong", () => {
-    assert.equal(experienceCheck(1, false)?.status, "strong");
-    assert.equal(experienceCheck(20, false)?.status, "strong");
+describe("experience: the founder profile, and a regulated profession", () => {
+  test("a sector expert is strong", () => {
+    assert.equal(experienceCheck("Sector expert", false)?.status, "strong");
   });
 
-  test("no experience and no regulation is left to Jev (undefined)", () => {
-    assert.equal(experienceCheck(0, false), undefined);
+  test("other skills, not the trade, are watch", () => {
+    for (const profile of ["Technical", "Commercial", "Management", "Several areas"]) {
+      assert.equal(experienceCheck(profile, false)?.status, "watch", profile);
+    }
   });
 
-  test("a regulated profession is risk, whatever the years", () => {
-    assert.equal(experienceCheck(0, true)?.status, "risk");
-    assert.equal(experienceCheck(10, true)?.status, "risk");
+  test("no relevant background is risk", () => {
+    assert.equal(experienceCheck("No relevant background", false)?.status, "risk");
+  });
+
+  test("not specified is no answer, so Jev judges it (undefined)", () => {
+    assert.equal(experienceCheck("Not specified", false), undefined);
+  });
+
+  test("a regulated profession is risk, whatever the profile says", () => {
+    assert.equal(experienceCheck("Sector expert", true)?.status, "risk");
+    assert.equal(experienceCheck("Not specified", true)?.status, "risk");
   });
 
   test("the rule decides experience, not estimated", () => {
-    const experience = experienceCheck(5, false);
+    const experience = experienceCheck("Sector expert", false);
     assert.equal(experience?.decidedBy, "rule");
     assert.equal(experience?.estimated, false);
   });
@@ -121,24 +130,24 @@ describe("the default texts", () => {
 
 describe("the five checks in order", () => {
   test("a physical business has location as its second check", () => {
-    const checks = buildChecks({ budget: 8_000, years: 2, range: { min: 8_000 }, regulatoryLoad: LIGHT, jev: { geographic_scope: choice("Local") } });
+    const checks = buildChecks({ budget: 8_000, founderProfile: "Sector expert", range: { min: 8_000 }, regulatoryLoad: LIGHT, jev: { geographic_scope: choice("Local") } });
     assert.deepEqual(checks.map((c) => c.key), ["concept", "location", "money", "experience", "competition"]);
   });
 
   test("an online business has reach in place of location, as the second check", () => {
     for (const scope of ["Online", "Global"]) {
-      const checks = buildChecks({ budget: 8_000, years: 2, range: undefined, regulatoryLoad: LIGHT, jev: { geographic_scope: choice(scope) } });
+      const checks = buildChecks({ budget: 8_000, founderProfile: "Sector expert", range: undefined, regulatoryLoad: LIGHT, jev: { geographic_scope: choice(scope) } });
       assert.equal(checks[1].key, "reach", scope);
     }
   });
 
   test("no scope answer from Jev means location", () => {
-    const checks = buildChecks({ budget: 8_000, years: 2, range: undefined, regulatoryLoad: LIGHT, jev: {} });
+    const checks = buildChecks({ budget: 8_000, founderProfile: "Sector expert", range: undefined, regulatoryLoad: LIGHT, jev: {} });
     assert.equal(checks[1].key, "location");
   });
 
   test("the checks take the decided status: rules for money and experience, Jev for the rest", () => {
-    const checks = buildChecks({ budget: 6_000, years: 3, range: { min: 8_000 }, regulatoryLoad: LIGHT, jev: judged("Strong") });
+    const checks = buildChecks({ budget: 6_000, founderProfile: "Sector expert", range: { min: 8_000 }, regulatoryLoad: LIGHT, jev: judged("Strong") });
     const byKey = Object.fromEntries(checks.map((c) => [c.key, c]));
     assert.equal(byKey.money.status, "watch");
     assert.equal(byKey.money.decidedBy, "rule");
@@ -149,26 +158,26 @@ describe("the five checks in order", () => {
   });
 
   test("without years and without regulation, experience is Jev's judgement", () => {
-    const checks = buildChecks({ budget: 8_000, years: 0, range: { min: 8_000 }, regulatoryLoad: LIGHT, jev: judged("Risk") });
+    const checks = buildChecks({ budget: 8_000, founderProfile: "Not specified", range: { min: 8_000 }, regulatoryLoad: LIGHT, jev: judged("Risk") });
     const experience = checks.find((c) => c.key === "experience");
     assert.equal(experience?.status, "risk");
     assert.equal(experience?.decidedBy, "jev");
   });
 
   test("a regulated profession is risk on experience, whatever Jev says", () => {
-    const checks = buildChecks({ budget: 8_000, years: 10, range: { min: 8_000 }, regulatoryLoad: HEAVY, jev: judged("Strong") });
+    const checks = buildChecks({ budget: 8_000, founderProfile: "Sector expert", range: { min: 8_000 }, regulatoryLoad: HEAVY, jev: judged("Strong") });
     assert.equal(checks.find((c) => c.key === "experience")?.status, "risk");
   });
 
   test("a check Jev did not answer is watch, with the default text", () => {
-    const checks = buildChecks({ budget: 8_000, years: 2, range: { min: 8_000 }, regulatoryLoad: LIGHT, jev: {} });
+    const checks = buildChecks({ budget: 8_000, founderProfile: "Sector expert", range: { min: 8_000 }, regulatoryLoad: LIGHT, jev: {} });
     const concept = checks.find((c) => c.key === "concept");
     assert.equal(concept?.status, "watch");
     assert.equal(concept?.why, DEFAULT_WHY.watch);
   });
 
   test("the five checks pass the diagnosis schema, with the idea and the risks around them", () => {
-    const checks = buildChecks({ budget: 8_000, years: 2, range: { min: 8_000 }, regulatoryLoad: LIGHT, jev: judged("Watch") });
+    const checks = buildChecks({ budget: 8_000, founderProfile: "Sector expert", range: { min: 8_000 }, regulatoryLoad: LIGHT, jev: judged("Watch") });
     const diagnosis = { idea: "Bakery", checks, risks: ["Rent"], split: { mando: [], you: [], outsource: [] } };
     assert.equal(DiagnosisSchema.safeParse(diagnosis).success, true);
   });

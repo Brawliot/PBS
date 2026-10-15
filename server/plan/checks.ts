@@ -16,11 +16,21 @@ export const CHECK_RULES = {
     /** A budget at or above this share of the minimum the idea needs is watch; below it, risk */
     watchShare: 0.75,
   },
-  experience: {
-    /** Years of experience in the form that count as experience */
-    minYears: 1,
-  },
 } as const;
+
+/**
+ * Experience from the founder profile (the "What can the user do themselves?" dimension). "Not specified" is no
+ * answer: Jev judges the idea then. A regulated profession is risk whatever the profile says (see experienceCheck).
+ */
+export const EXPERIENCE_BY_FOUNDER_PROFILE: Record<string, DiagnosisCheckStatus | undefined> = {
+  "Sector expert": "strong",
+  Technical: "watch",
+  Commercial: "watch",
+  Management: "watch",
+  "Several areas": "watch",
+  "No relevant background": "risk",
+  "Not specified": undefined,
+};
 
 /** The text of a check: a default by status, since the rules and Jev give no text of their own yet */
 export const DEFAULT_WHY: Record<DiagnosisCheckStatus, string> = {
@@ -62,13 +72,13 @@ export function moneyCheck(budget: number, range: BudgetRange | undefined): Chec
 
 /**
  * Experience: a regulated profession is risk, always, since its credentials are not captured and a regulated
- * business is treated as having none. Otherwise the years in the form decide it. Undefined when neither rule
+ * business is treated as having none. Otherwise the founder profile decides it. Undefined when neither rule
  * decides: Jev judges the idea then.
  */
-export function experienceCheck(years: number, regulated: boolean): CheckResult | undefined {
+export function experienceCheck(founderProfile: string, regulated: boolean): CheckResult | undefined {
   if (regulated) return result("risk", "rule", false);
-  if (years >= CHECK_RULES.experience.minYears) return result("strong", "rule", false);
-  return undefined;
+  const status = EXPERIENCE_BY_FOUNDER_PROFILE[founderProfile];
+  return status === undefined ? undefined : result(status, "rule", false);
 }
 
 /** A status from Jev's answer ("Strong", "Watch" or "Risk", in any case). Anything else, or no answer, is watch. */
@@ -85,7 +95,8 @@ export function isOnline(scope: string | undefined): boolean {
 
 export interface CheckInputs {
   budget: number;
-  years: number;
+  /** The founder profile value of the profile (planner-profile-handler.ts): what the person can do themselves */
+  founderProfile: string;
   /** The money range the idea needs, from phase 2 or from the glance */
   range: BudgetRange | undefined;
   /** The regulation of the profile: a heavy one makes a profession regulated */
@@ -98,7 +109,7 @@ export interface CheckInputs {
 export function buildChecks(inputs: CheckInputs): Diagnosis["checks"] {
   const regulated = HEAVY_REGULATION.has(inputs.regulatoryLoad);
   const scope = inputs.jev.geographic_scope?.type === "choice" ? inputs.jev.geographic_scope.choice : undefined;
-  const experience = experienceCheck(inputs.years, regulated) ?? jevCheck(inputs.jev.experience);
+  const experience = experienceCheck(inputs.founderProfile, regulated) ?? jevCheck(inputs.jev.experience);
   return [
     { key: "concept", ...jevCheck(inputs.jev.concept) },
     { key: isOnline(scope) ? "reach" : "location", ...jevCheck(inputs.jev.location) },

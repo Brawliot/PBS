@@ -17,23 +17,27 @@ const questions: Record<string, JevQuestion> = {
 const reply = { model: "test", answers: { check: { type: "noul", noul: 0.9 } }, usage: { input_tokens: 1, output_tokens: 1 } };
 
 describe("buildState", () => {
-  test("turns the form into the JSON state with readable labels", () => {
+  test("turns the form into the JSON state, with the budget in euros and the choices as they are", () => {
     const state = JSON.parse(
-      buildState({ idea: "Bakery", budget: 5_000, experience: 2, team: 2, hours: 3 }),
+      buildState({ idea: "Bakery", budget: 5_000, location: "Madrid", start_mode: "undecided", premises: "unsure" }),
     );
     assert.deepEqual(state, {
       idea: "Bakery",
-      budget_usd: 5_000,
-      experience_years: 2,
-      team_size: "Medium (4-10)",
-      weekly_hours: "Full time",
+      location: "Madrid",
+      budget_eur: 5_000,
+      start_mode: "undecided",
+      premises: "unsure",
     });
   });
 
-  test("an out-of-range slider index is sent as its number", () => {
-    const state = JSON.parse(buildState({ idea: "x", budget: 0, experience: 0, team: 9, hours: 9 }));
-    assert.equal(state.team_size, "9");
-    assert.equal(state.weekly_hours, "9");
+  test('an "I don\'t know" is sent as unknown, whatever its placeholder value', () => {
+    const state = JSON.parse(
+      buildState({ idea: "x", budget: 0, location: "", start_mode: "scratch" as const, premises: "have" as const, unknown: ["location", "budget", "premises"] }),
+    );
+    assert.equal(state.location, "unknown");
+    assert.equal(state.budget_eur, "unknown");
+    assert.equal(state.premises, "unknown");
+    assert.equal(state.start_mode, "scratch");
   });
 });
 
@@ -158,7 +162,7 @@ describe("callJev", () => {
 
   test("analyzeWithJev asks the three context questions, then the four checks of the diagnosis", async () => {
     const calls = mockFetch(() => jsonResponse(200, reply));
-    await analyzeWithJev({ idea: "Bakery", budget: 0, experience: 0, team: 0, hours: 0 });
+    await analyzeWithJev({ idea: "Bakery", budget: 0, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const});
 
     assert.deepEqual(Object.keys(calls[0].body.questions), [
       "sector",

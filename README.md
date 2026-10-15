@@ -107,16 +107,30 @@ HSTS and TLS are not in the server: they belong to the proxy in front of it (see
 ## How it works
 
 1. **Jev, phase 1** (`server/planner/planner-handler.ts`): classifies the sector, geographic scope and timeline from the idea and the form data.
-2. **OpenAI, phase 2** (`server/planner/planner-phase2-handler.ts`): rates the maturity of the idea (`vague`, `developing`, `advanced`), fills the analysis sections (subsector, location, target customer, value proposition, revenue model, stage, competition, constraints) and proposes follow-up questions with a strict JSON schema.
-3. **Question policy** (`server/planner/question-policy.ts`): the model proposes, the server decides. It sets the question limit from maturity (vague 2, developing 3, advanced 4, adjusted by commitment signals and clamped to 1-5), removes topics already answered, and keeps the most valuable questions first.
+2. **OpenAI, phase 2** (`server/planner/planner-phase2-handler.ts`): rates the maturity of the idea (`vague`, `developing`, `advanced`, kept for the report's top and not for the number of questions), fills the analysis sections (subsector, location, target customer, value proposition, revenue model, stage, competition, constraints) and proposes up to two follow-up questions from a closed catalog of topics for physical businesses (`credentials`, `trade_experience`, `who_operates`, `opening_deadline`, `partners`, `existing_customers`, `tech_builder`), with a strict JSON schema.
+3. **Question policy** (`server/planner/question-policy.ts`): the model proposes, the server decides. At most two questions are asked for the whole session, answered ones included, and none is fine. It removes topics already answered and keeps the most valuable first.
 4. **Final request** (`server/planner/planner-profile-handler.ts`, `server/planner/planner-validation-handler.ts`): once all questions are answered, the server asks Jev for a 15-dimension business profile and validates the analysis. Claims are checked against the description, seven coherence checks are run, and 10 departments are scored. Departments are shown as groups or as individual departments depending on team size and the profile's team requirement (`departmentLevel`).
-5. **Explanations** (`server/planner/planner-explain-handler.ts`): when a report is built, one more OpenAI call writes a short reason for each warning and each key area the report shows (the first three warnings, the first four areas that are not light). The reply is checked, never corrected: an item that was not asked for, a repeat, or a reason that is empty, longer than 140 characters or not one plain line discards the whole reply. A failed call leaves the report without reasons and logs only its code. The call is not made while questions are still open.
+5. **Explanations** (`server/planner/planner-explain-handler.ts`): when a report is built, one more OpenAI call writes a short reason for each warning and each key area the report shows (the first three warnings, the first four areas that are not light), and also returns the time to open, the split of the upfront cost and three starter templates (see below). The reply is checked, never corrected, and each part on its own: a part that is not asked for, repeated, out of its limits or not plain text is left out, and the other parts are kept. A failed call leaves the report without explanations and logs only its code. The call is not made while questions are still open.
 
 Each request runs as a background job, kept in memory by `server/jobs.ts`: `POST /api/planner` returns a job id at once and the front end polls `GET /api/planner/:id` until the result is ready. The front end (`script.js`) sends the phase 2 claims back in the final request (`analysis`), so the validation can check them.
 
+### Time to open, upfront cost and starter templates
+
+Three more pieces sit under the budget and in the action row of the report. Each one is shown only when the report has its data; a report without them looks as before. They are stored in the report as optional parts of `explanations` (`server/plan/report.ts`), so the live result and a saved report show the same thing.
+
+- **Time to open** ("3–5 months", with its confidence): the model's estimate of how long until the business is set up and open to customers. It is in whole weeks or months, within the caps of `report-limits.ts` (104 weeks, 60 months). It must not contradict the profile's band for the time to first revenue, but the server does not check that; it is a claim of the model.
+- **Upfront cost**: the model splits the upfront cost into 2 to 5 items, as percentages that add up to exactly 100. The money range is the one from the budget block; the report never shows another amount of money. The bar is decorative, and the text under it is the same split in words.
+- **Starter templates (3)**: the model picks three ids from a fixed catalog of eight (`server/planner/report-templates.ts`, copied from the approved draft). It never writes their text. The page shows the three picks in a dialog, with the one automatic placeholder `{{location}}` filled from the report's location (or `[your city]`). Each one has a Copy button. The catalog is served by `GET /api/report-templates`, to a signed-in person only.
+
+Known limits:
+
+1. The time to open and the cost split are estimates of the model, not checked against any source.
+2. The time to open of the report can differ from the calendar total of the plan, which comes from a fixed table (`TIMELINE_TOTAL` in `server/plan/plan-skeleton.ts`).
+3. The money range is the one of the first round: a final request takes it from the browser, as it takes the rest of the glance.
+
 ### From the report to a plan
 
-When a run ends with a report (the final request, or the first round with no questions left), the server builds the report from its own values (`server/planner/planner-run.ts`: the input and answers it received, the Jev result, the phase 2 analysis when there is one, the profile and the validation) and keeps it in the `reports` table. The job result then carries a `reportId`. The browser never sends the report back: it keeps only that id.
+When a run ends with a report (the final request, which the browser sends after the person has confirmed what was understood), the server builds the report from its own values (`server/planner/planner-run.ts`: the input and answers it received, the Jev result, the phase 2 analysis when there is one, the profile and the validation) and keeps it in the `reports` table. The job result then carries a `reportId`. The browser never sends the report back: it keeps only that id.
 
 "Build my plan" sends the id to `POST /api/plan`, and the server builds the plan from the stored report with the fixed rules (`server/plan/plan-skeleton.ts`). A report has at most one plan: a second request returns the same plan, and two requests at the same time leave one plan in the database. Each report belongs to the user who asked for it. When the report cannot be kept (a report that does not pass `parseReport`), the planner still answers, the result has no `reportId`, and "Build my plan" shows a notice instead.
 
@@ -133,6 +147,23 @@ Where each piece comes from:
 - **The line at the bottom**: the number of answers the report is based on.
 
 Known limit: a final request takes the glance fields from the browser, so they are the ones of the first round, not checked against the answers. The server only checks their shape and limits. Because the final report keeps no phase 2, a report made through questions shows no Business row after a reload (the row is shown on the live result only).
+
+### Clarity of the report
+
+Under the glance chips the report shows two levels, **Business concept** and **About you**, each Low, Medium or High, with up to three things that are missing. Clarity is not viability: it only measures how well the business and the person are understood. The page says so.
+
+The levels are computed by code (`server/plan/clarity.ts`), never by a model, from what the run already has: where each phase 2 field came from (`stated`, `inferred`, `unknown`), the 15 profile dimensions, the four fixed questions and the topics of the answers. No extra AI call.
+
+- **Weights**: Essential 3, Important 2, Secondary 1. **Source value**: stated 1, inferred 0.5, unknown 0. A pair (a phase 2 field and its profile dimension) takes the best source. A profile dimension has no source: when known it counts as inferred. An answer on the matching topic counts as stated.
+- **Business concept**: what it offers (subsector + `offering_type`), value proposition, target customer (+ `customer_segment`), how it makes money (+ `revenue_model`), where it operates (location) are Essential; how it reaches customers (`acquisition_channel`), what sets it apart (`differentiator`, topic `differentiator`), stage (+ `validation_stage`, topics `validation`/`progress`) are Important; competition is Secondary. `capital_intensity`, `time_to_revenue`, `regulatory_load` and `third_party_dependency` are not counted: they are the model's judgement, not something the person can tell.
+- **About you**: budget, weekly hours, team (fixed questions) and what they can do themselves (`founder_profile`, topic `own_skills`) are Essential; experience and handling other people's money (`money_handling`, topic `money_handling`) are Important; fixed deadline (`deadline_rigidity`, topic `deadline`) and existing assets (topic `existing_assets`) are Secondary. A fixed question answered counts as stated; "I don't know" as unknown.
+- **Thresholds** (initial, to calibrate with real reports): concept Low < 40 %, Medium 40–69 %, High ≥ 70 %; person Low < 60 %, Medium 60–84 %, High ≥ 85 % (the four fixed answers alone give about 61 %). An unknown Essential keeps the level below High.
+
+Weights, source values and thresholds are the constants of `CLARITY` in `server/plan/clarity.ts`; change `CLARITY_VERSION` with them. The report keeps the result as the optional `clarity` field (version, and per metric level, score and missing). A final request has no phase 2 on the server, so the browser sends the sources back inside the glance (`glance.sources`); a glance without them (or one that fails its schema) gives a report without clarity, and the page shows no block. Reports kept before this have none.
+
+### "I don't know" in the four fixed questions
+
+Each fixed question offers "I don't know" (clicked or typed); it counts as answered and Back can change it. The request then carries `unknown` (a list of `budget`, `experience`, `team`, `hours`) and needs no number for those keys; a number sent for a flagged key is ignored and the lowest of its range is kept as a placeholder. Every reader checks the flag (`isUnknown` in `server/planner/planner-handler.ts`): the models see `unknown`, the question limit takes no signal from it, the coherence checks that need it are not asked (`budget_fit`, `team_fit` with team or hours, `experience_fit`), so no warning or plan task comes from them, `departmentLevel` falls back to the groups, the "fits" sentence of the budget is emptied, and the page shows no budget mark and no "You offer" line. With nothing flagged everything works as before.
 
 ## Accounts and sessions
 
@@ -171,6 +202,7 @@ Request body (JSON):
 | `hours` | number | 0 to 3 (Under 10 h, 10-20 h, 30+ h, Full time). |
 | `answers` | array | Optional. Up to 12 items. Each item has `topic`, `question` and `answer`, all non-empty strings of at most 1000 characters. |
 | `final` | boolean | Optional. `true` returns the profile and validation. |
+| `unknown` | array | Optional. Distinct keys among `budget`, `experience`, `team`, `hours` answered "I don't know". Those numbers are then not required, and ignored if sent. |
 | `analysis` | object | Optional. Phase 2 claims (`subsector`, `location`, `target_customer`, `value_proposition`, `revenue_model`, `stage`, `competition`). Text is trimmed and cut to 300 characters; `unknown` and empty values are dropped. |
 
 The request body is limited to about 100,000 characters.
@@ -180,6 +212,18 @@ Response `202` (the job has started; the analysis is not ready yet):
 ```json
 { "jobId": "3f9c1e2a-5b7d-4c8e-9a1f-0d2b6e7c8a90" }
 ```
+
+### `GET /api/report-templates`
+
+Returns the catalog of starter templates the report offers: `{ "templates": [{ "id", "title", "purpose", "body" }] }`. It needs a signed-in session (`401` without one) and reads no table. The response is never cached (`Cache-Control: no-store`). The catalog is the same for everyone; the planner picks from its ids and never writes their text.
+
+### `POST /api/planner/detect`
+
+Detects the fixed answers from the business description: `{ "idea": "..." }` in, `{ "detected": { "location", "budget", "start_mode", "premises" }, "jevToken" }` out. One call to Jev (`server/planner/detect.ts`) answers the planner's three questions and the fixed ones it can read from the text. Each value is checked: `budget` must fall in a band the text has an amount for, `start_mode` and `premises` must be one of their closed values, and `location` comes from the list of places (`server/planner/places.ts`, `server/data/es-places.ts`), or is `"online"` for an online or global scope. The Jev result is kept in memory for 15 minutes, bound to the user and to the idea (`server/planner/detect-cache.ts`), and `jevToken` names it. The first `POST /api/planner` sends that token in `jevToken` and reuses the result instead of asking Jev again. A failure, or more than 10 s, gives all nulls and no token. It needs a signed-in session (`401` without one), and it is checked like `POST /api/planner` for the origin and the body size.
+
+**The place list is empty for now.** The INE list of municipalities could not be downloaded where this was built (`www.ine.es` is not an allowed domain), and the neighbourhoods are not written from memory. Until `server/data/es-places.ts` is filled, `location` is found only for online or global businesses.
+
+**Timing.** The detection's time with the real Jev and the previous prefill's time have not been measured here: the environment has no Jev key.
 
 ### `GET /api/planner/:id`
 
@@ -197,12 +241,12 @@ The `result` of a done job has one of these shapes:
   ```json
   {
     "jev": { "model": "...", "answers": { }, "usage": { } },
-    "phase2": { "maturity": "developing", "subsector": { }, "questions": [ { "topic": "validation", "question": "...", "options": [] } ] },
+    "phase2": { "maturity": "developing", "subsector": { }, "questions": [ { "topic": "partners", "question": "...", "options": [] } ] },
     "questionTotal": 3
   }
   ```
 
-- **Final** (`final: true`), or not final with no questions left: the Jev result and the report. The non-final variant also includes `phase2` with `questions: []`. When the model gave usable reasons, the result also has `explanations` (`{ "warningReasons": [{ "key", "reason" }], "areaReasons": [{ "name", "reason" }] }`); without them the key is absent.
+- **Final** (`final: true`): the Jev result and the report. **Not final** (the first request): the Jev result, `phase2` with the questions (possibly `questions: []`), `questionTotal` and the glance, and no report: the browser then shows what was understood, and the final request builds the report. When the model gave usable parts, the result also has `explanations`, with only the parts that passed: `warningReasons` (`[{ "key", "reason" }]`), `areaReasons` (`[{ "name", "reason" }]`), `timeToOpen` (`{ "min", "max", "unit": "weeks" | "months", "confidence": "low" | "medium" | "high" }`), `costBreakdown` (`[{ "label", "percent" }]`) and `templates` (three catalog ids). Without any of them the key is absent.
 
   ```json
   {
@@ -430,13 +474,14 @@ server/
 ## Known limitations
 
 - **Sign-in is partial.** Sign-up, sign-in, sign-out and the session work (see Accounts and sessions). Still missing: password recovery, email verification, sign-in with Google (the buttons and the "Forgot password?" link are shown but do nothing), and a failed-sign-in limit shared between servers (today it is in memory). See `PRODUCTION.md`.
-- **No rate limiting and no cost protection.** Every planner request calls paid APIs: a request that asks for questions makes one Jev and one OpenAI call; a final request (or one with no questions left) makes three Jev calls. Add rate limits and spending controls before deploying.
+- **No rate limiting and no cost protection.** Every planner request calls paid APIs: a first request makes one Jev call (none when the detection's result is reused) and one OpenAI call; the final request makes three Jev calls. Add rate limits and spending controls before deploying.
 - **Placeholders in the UI.** "View my projects" only shows a notice.
 - **The levels of the agents are connected one by one, by hand.** The plan level (`agents/structure`), the department level (`agents/departments`), the steps of one task (`agents/tasks/:taskId/steps`) and the run of an AI step (`agents/steps/:stepId/run`) call a model, each only when the person presses its button. The views "Today", a side panel and a dependency diagram are not built: their design is not decided. The document of a step is kept only in its latest output (see above); the document goes to its own table later (see `FUTURE.md`).
 - **Each suggestion costs money and waits.** A structure suggestion calls OpenAI and Jev up to three times each, and it is only made when the person presses "Suggest plan structure" (never when the page opens). Its worst wait is about three times (60 s for OpenAI plus 30 s for Jev), that is about 270 s, close to the 300 s request timeout Node uses by default. It is synchronous for now; a background job would be the fix if the waits grow. Only one structure can wait at a time.
 - **A structure is not re-checked against the facts it was made from.** If a fact changes after the suggestion, the structure stays pending and is still accepted if it fits the plan, unlike the tasks of a gap (they are marked obsolete).
 - **Suggestions only from templates.** A gap is expanded only for the `mobile_game` and `web_app` product types. Other values answer `needs_ai` until the AI is built. A rejected suggestion can be asked again: the new one takes the next free id (`-2`, `-3`...), up to 20 tries, and then `id_taken`. A pending suggestion whose decision has changed is marked obsolete (`derived.proposals[id].obsolete`). It stays listed, with the label Obsolete, until it is retired: the screen's Retire button calls `reject` (logged as `proposal_rejected`). Accepting it gives `409 not_confirmed`, and nothing removes a suggestion by itself.
-- **Uncalibrated thresholds.** The question-policy numbers (`POLICY` in `question-policy.ts`) and the validation thresholds (`SUPPORT_MIN`, `CHECK_MIN`, `CORE_MIN`, `IMPORTANT_MIN` in `planner-validation-handler.ts`) are estimates and have not been tuned on real data.
+- **The time to open and the cost split are estimates.** The model gives them without a source; the server checks their shape and limits only, not whether they are true. The cost split is in percentages, so the report never shows a money figure for it.
+- **Uncalibrated thresholds.** The question limit (`POLICY` in `question-policy.ts`: 0 to 2 questions for the whole session) and the validation thresholds (`SUPPORT_MIN`, `CHECK_MIN`, `CORE_MIN`, `IMPORTANT_MIN` in `planner-validation-handler.ts`) are estimates and have not been tuned on real data.
 - **Elapsed time ignores waits on other tasks.** A task's status counts the steps of other tasks (a task whose steps all wait on other tasks is blocked), but its elapsed time only counts the relations between its own steps.
 - **Little stored state.** Reports and plans are saved only when `DATABASE_URL` is set. Jobs are kept only in memory: a server restart interrupts the analyses in progress, and the front end shows an interrupted message with Retry. The front end must send back the answers and the analysis claims for the final request.
 - **The analysis claims come from the browser.** The final request takes the analysis claims (`analysis`) from the browser, as sent back, and the "Verify X" tasks of the saved report come from them. A person can change their own plan that way; no other user is affected. The claims are checked for shape, not for truth. See `PRODUCTION.md`.

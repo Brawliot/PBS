@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MANDO - Report mockup B (story)</title>
+  <link rel="stylesheet" href="../styles.css">
+  <script src="../theme.js"></script>
+  <style>
+    /* Mockup B - Story. Static, no JavaScript. One reading column, read top to bottom like a letter.
+       Few figures, each one explained in the sentence around it. Body text in Open Sans (the app's secondary face). */
+    body { height: auto; min-height: 100vh; overflow: visible; display: block; background: var(--white); }
+    .ribbon { width: min(680px, calc(100vw - 32px)); margin: 16px auto 0; font-size: 13px; color: var(--gray-text); border: 1px dashed var(--border-strong); border-radius: 8px; padding: 6px 10px; }
+    body .result { position: relative; left: auto; top: auto; transform: none; animation: none; max-height: none; overflow: visible; width: min(680px, calc(100vw - 32px)); margin: 16px auto 40px; padding: 36px 36px 32px; gap: 0; border-radius: 14px; }
+
+    .letter { display: flex; flex-direction: column; gap: 14px; }
+    .letter h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; }
+    .letter h2 { font-size: 19px; font-weight: 800; letter-spacing: -0.01em; margin-top: 14px; }
+    .letter p, .letter li { font-family: "Open Sans", sans-serif; font-size: 16px; line-height: 1.6; color: var(--dark); }
+    .letter p b, .letter li b { font-family: "Inter", sans-serif; font-weight: 800; }
+    .lede { font-size: 18px !important; color: var(--dark); padding-bottom: 14px; border-bottom: 1px solid var(--border); }
+    .est { font-family: "Inter", sans-serif; font-size: 12px; color: var(--gray-text); border: 1px dashed var(--border-strong); border-radius: 62px; padding: 0 8px; white-space: nowrap; vertical-align: 2px; }
+
+    .letter ul { padding-left: 20px; display: flex; flex-direction: column; gap: 8px; }
+    .letter li::marker { color: var(--gray-text); }
+    .letter li strong { font-family: "Inter", sans-serif; font-weight: 800; }
+
+    .sign { font-family: "Open Sans", sans-serif; font-size: 15px; color: var(--gray-text); margin-top: 10px; }
+
+    .assume { margin-top: 18px; padding: 16px 18px; border: 1px dashed var(--border-strong); border-radius: 10px; }
+    .assume h2 { margin-top: 0; font-size: 13px; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray-text); }
+    .assume ul { padding-left: 18px; gap: 4px; }
+    .assume li { font-size: 15px !important; color: var(--gray-text) !important; }
+
+    body .result__actions { position: static; margin: 12px 0 0; padding: 0; background: none; }
+    .foot { font-size: 12px; color: var(--gray-text); text-align: center; }
+
+    @media (max-width: 600px) {
+      body .result { padding: 24px 20px; width: calc(100vw - 32px); }
+      .letter h1 { font-size: 26px; }
+      .letter h2 { font-size: 18px; }
+      body .result__actions { flex-direction: column-reverse; align-items: stretch; }
+      .result__actions .btn, .result__restart { width: 100%; justify-content: center; }
+      .result__restart { text-align: center; }
+    }
+  </style>
+</head>
+<body>
+  <p class="ribbon">Mockup B, Story: static design, example data. Figures are estimates, marked as such.</p>
+
+  <main class="result" id="result" aria-labelledby="result-title">
+    <article class="letter">
+      <p class="result__eyebrow">A note from your advisor</p>
+      <h1 id="result-title">Yes, you can open it. It will be tight.</h1>
+
+      <p class="lede">You want to take over a tapas bar in Malasaña with €40,000, and you have three years of hospitality behind you. That is a real start. The honest answer is that it works, but you are about <b>€8,000</b> short of the cash you would want before opening. <span class="est">estimated</span></p>
+
+      <h2>What you have planned</h2>
+      <p>A bar of about 80 m² in Malasaña, bought as a takeover, so you inherit the licence and some of the existing trade. I assumed an average ticket of €12, six days a week, and ten hours a day. If any of that is wrong, the rest of this letter moves with it.</p>
+
+      <h2>What it costs to open</h2>
+      <p>Opening costs between <b>€45,000 and €60,000</b>. The biggest piece is the takeover itself, €20,000 to €25,000. The rest is a light refurbishment, the equipment, the licences, the rent deposit, and a cash cushion of <b>€7,000 to €11,000</b> to carry you through the first three months. That cushion is the line your €40,000 does not cover. <span class="est">estimated</span></p>
+      <p>Once open, the bar costs about <b>€7,500 a month</b> to keep running: €2,500 of rent, €4,000 for two people, and about €1,000 for your own contributions, utilities and the accountant. <span class="est">estimated</span></p>
+
+      <h2>How much you have to sell</h2>
+      <p>To cover those costs you need about <b>110 consumiciones a day</b>, which is roughly 48 tickets of €12. In practice, that is about €60 of sales for every hour the bar is open. It is achievable for a busy tapas bar in Malasaña, but it is not guaranteed in the first months, and that is exactly what the cushion is for. <span class="est">estimated</span></p>
+
+      <h2>The papers, and how long they take</h2>
+      <p>Expect three to five months, in roughly this order: the change of ownership with the seller and the notary, the terrace licence from the council, the health permit, and the opening declaration. Start the terrace application first. It is often the slowest.</p>
+
+      <h2>What could hurt you</h2>
+      <ul>
+        <li><strong>The rent is high for this area.</strong> €2,500 a month for 80 m² takes a large share of what you sell. Compare it with premises nearby before you sign.</li>
+        <li><strong>The terrace carries a lot of the trade.</strong> It is seasonal, and it depends on a licence you do not have yet.</li>
+        <li><strong>The competition is dense.</strong> Many tapas bars share the same few streets, so you will need a reason for people to choose yours.</li>
+      </ul>
+
+      <h2>Who does what</h2>
+      <p>You run the bar: buying, the staff rota and the service. Mando keeps the bookings, the documents and your plan in one place. An accountant, a reform contractor and a licence adviser take the rest.</p>
+
+      <h2>Your next step</h2>
+      <p>Before anything else, ask the seller for the last two years of accounts and the licence file. Those two papers tell you more than any estimate. Then build your plan.</p>
+
+      <aside class="assume" aria-labelledby="assume-title">
+        <h2 id="assume-title">What this letter assumes</h2>
+        <ul>
+          <li>80 m² premises with a terrace. <span class="est">estimated</span></li>
+          <li>Average ticket of €12. <span class="est">estimated</span></li>
+          <li>Open 6 days a week, 10 hours a day. <span class="est">estimated</span></li>
+          <li>Gross margin on sales of about 50%. <span class="est">estimated</span></li>
+          <li>Two staff at about €2,000 a month each. <span class="est">estimated</span></li>
+        </ul>
+      </aside>
+
+      <p class="sign">Your advisor</p>
+    </article>
+
+    <div class="result__actions">
+      <button class="result__restart" type="button">Start over</button>
+      <button class="btn btn--dark" type="button">Build my plan</button>
+    </div>
+  </main>
+  <p class="foot">Guidance, not professional advice.</p>
+</body>
+</html>

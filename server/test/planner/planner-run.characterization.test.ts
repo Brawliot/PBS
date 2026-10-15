@@ -4,7 +4,7 @@ import { request } from "node:http";
 import type { AddressInfo } from "node:net";
 import { readFileSync } from "node:fs";
 import { server } from "../../server.js";
-import { EMPTY_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, type CapturedRequest } from "./helpers.js";
+import { REASONLESS_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, type CapturedRequest } from "./helpers.js";
 import { signUp } from "../auth/signed-in.js";
 import "./helpers.js";
 
@@ -61,10 +61,10 @@ async function runJob(payload: unknown): Promise<unknown> {
 
 /** The outside calls in order: Jev, then phase 2 (first round only), then Jev again for the profile and the validation */
 const hostOf = (call: CapturedRequest) => (call.url.includes("typesafe.ai") ? "jev" : isExplanationCall(call) ? "explain" : "phase2");
-const FIRST_ROUND_CALLS = ["jev", "phase2", "jev", "jev", "explain"];
+const FIRST_ROUND_CALLS = ["jev", "phase2"];
 const FINAL_CALLS = ["jev", "jev", "jev", "explain"];
 
-const input = { idea: "Bakery delivery", budget: 10_000, experience: 1, team: 1, hours: 1 };
+const input = { idea: "Bakery delivery", budget: 10_000, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const};
 
 const jevReply = {
   model: "test",
@@ -100,21 +100,24 @@ const phase2Reply = (questions: unknown[]) => ({
 function mockOutside(questions: unknown[]): CapturedRequest[] {
   return mockFetch((request) => {
     if (request.url.includes("typesafe.ai")) return jsonResponse(200, jevReply);
-    const content = isExplanationCall(request) ? EMPTY_EXPLANATIONS : phase2Reply(questions);
+    const content = isExplanationCall(request) ? REASONLESS_EXPLANATIONS : phase2Reply(questions);
     return jsonResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(content) } }] });
   });
 }
 
 describe("runPlanner: characterization of the three paths", () => {
-  test("first round without questions: the report comes back with phase 2 and no question", async () => {
+  test("first round without questions: no report, the questions come back empty, with the glance for the browser", async () => {
     const calls = mockOutside([]);
-    const result = await runJob({ ...input, answers: [] });
+    const result = (await runJob({ ...input, answers: [] })) as Record<string, any>;
     assert.deepEqual(calls.map(hostOf), FIRST_ROUND_CALLS);
-    assert.deepEqual(result, JSON.parse(readFileSync(snapshotPath, "utf8")).noQuestions);
+    assert.equal("reportId" in result, false);
+    assert.deepEqual(result.phase2.questions, []);
+    assert.equal(result.questionTotal, 0);
+    assert.ok(result.glance, "the glance goes with the first round, the final request sends it back");
   });
 
   test("first round with questions: the questions come back and no profile", async () => {
-    const question = { topic: "validation", question: "Have you tested it with customers?", options: ["Yes", "No"] };
+    const question = { topic: "existing_customers", question: "Do you already have customers?", options: ["Yes", "No"] };
     mockOutside([question]);
     const result = await runJob({ ...input, answers: [] });
     assert.deepEqual(result, JSON.parse(readFileSync(snapshotPath, "utf8")).withQuestions);
@@ -122,7 +125,7 @@ describe("runPlanner: characterization of the three paths", () => {
 
   test("final request: the answers come in and the report comes back without phase 2", async () => {
     const calls = mockOutside([]);
-    const answers = [{ topic: "validation", question: "Have you tested it with customers?", answer: "Yes, ten people" }];
+    const answers = [{ topic: "existing_customers", question: "Do you already have customers?", answer: "Yes, ten people" }];
     const result = await runJob({ ...input, answers, final: true, analysis: { subsector: "Bakery" } });
     assert.deepEqual(calls.map(hostOf), FINAL_CALLS);
     assert.deepEqual(result, JSON.parse(readFileSync(snapshotPath, "utf8")).final);

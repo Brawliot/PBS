@@ -5,14 +5,14 @@ import { glanceOf, runPlanner } from "../../planner/planner-run.js";
 import type { Phase2Response } from "../../planner/planner-phase2-handler.js";
 import type { Glance } from "../../plan/glance.js";
 import { InMemoryReportRepository } from "../../plan/report-repository-memory.js";
-import { EMPTY_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse } from "./helpers.js";
+import { REASONLESS_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, reportWithoutQuestions } from "./helpers.js";
 import "./helpers.js";
 
 // The glance of a run: a final request keeps the glance the browser sends (checked by the request parser), and a
 // first round builds its own from its phase 2. The browser's glance is never used by a first round.
 
-const input = { idea: "Bakery delivery", budget: 10_000, experience: 1, team: 1, hours: 1 };
-const answers = [{ topic: "validation", question: "Have you tested it?", answer: "Yes, ten people" }];
+const input = { idea: "Bakery delivery", budget: 10_000, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const};
+const answers = [{ topic: "existing_customers", question: "Do you already have customers?", answer: "Yes, ten people" }];
 
 const jevReply = {
   model: "test",
@@ -44,6 +44,7 @@ const serverGlance: Glance = {
   subsectorSource: "stated",
   location: { value: "Madrid", source: "inferred" },
   budget,
+  sources: { target_customer: "inferred", value_proposition: "stated", revenue_model: "unknown", stage: "stated", competition: "stated" },
 };
 
 /** Mocks every outside call: Jev, the explanations, and phase 2 with the given budget */
@@ -51,7 +52,7 @@ function mockOutside(options: { budget?: Phase2Response["constraints"]["budget"]
   return mockFetch((request) => {
     if (request.url.includes("typesafe.ai")) return jsonResponse(200, jevReply);
     const content = isExplanationCall(request)
-      ? EMPTY_EXPLANATIONS
+      ? REASONLESS_EXPLANATIONS
       : { ...phase2Reply(options.budget ?? budget), questions: options.questions ?? [] };
     return jsonResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(content) } }] });
   });
@@ -84,12 +85,21 @@ describe("runPlanner: the glance of a final request", () => {
 });
 
 describe("runPlanner: the glance of a first round", () => {
-  test("a first round without questions builds its glance from its own phase 2", async () => {
+  test("a first round without questions builds its glance from its own phase 2, and keeps no report", async () => {
     mockOutside();
     const reports = new InMemoryReportRepository();
     const result = (await runPlanner(input, [], false, {}, { reports, owner: USER })) as Record<string, any>;
 
     assert.deepEqual(result.glance, serverGlance);
+    assert.equal("reportId" in result, false);
+    assert.equal(reports.rows.size, 0);
+  });
+
+  test("the report built after it carries the same glance", async () => {
+    mockOutside();
+    const reports = new InMemoryReportRepository();
+    const result = await reportWithoutQuestions(input, [], { reports, owner: USER });
+
     const stored = await reports.get(result.reportId, USER);
     assert.deepEqual(stored?.report.glance, serverGlance);
   });
@@ -101,17 +111,19 @@ describe("runPlanner: the glance of a first round", () => {
     assert.deepEqual(result.glance, serverGlance);
   });
 
-  test("a first round with questions has no glance", async () => {
-    mockOutside({ questions: [{ topic: "validation", question: "Have you tested it with customers?", options: ["Yes", "No"] }] });
-    const result = (await runPlanner(input, [], false, {}, { owner: USER }, browserGlance)) as Record<string, unknown>;
+  test("a first round with questions carries the server's own glance, never the browser's", async () => {
+    mockOutside({ questions: [{ topic: "existing_customers", question: "Do you already have customers?", options: ["Yes", "No"] }] });
+    const result = (await runPlanner(input, [], false, {}, { owner: USER }, browserGlance)) as Record<string, any>;
 
-    assert.equal("glance" in result, false);
+    assert.ok(result.glance, "the browser sends it back with the final request");
+    assert.notDeepEqual(result.glance, browserGlance);
+    assert.equal(result.glance.maturity, "developing");
   });
 
   test("a phase 2 budget that does not pass the glance schema leaves it out, and the report is still kept", async () => {
     mockOutside({ budget: { min: 9_000, max: 5_000, currency: "EUR", fits: "Not enough" } });
     const reports = new InMemoryReportRepository();
-    const result = (await runPlanner(input, [], false, {}, { reports, owner: USER })) as Record<string, unknown>;
+    const result = await reportWithoutQuestions(input, [], { reports, owner: USER });
 
     assert.equal("glance" in result, false);
     assert.equal(typeof result.reportId, "string");

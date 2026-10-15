@@ -3,11 +3,14 @@
  * that the plan is coherent and realistic, and how likely each department is needed.
  * Every question is a "noul" statement: Jev answers with a confidence from 0 to 1.
  */
+import { mandoNote } from "./mando-capabilities.js";
 
 import {
   buildState,
   callJev,
+  isUnknown,
   type JevQuestion,
+  type InputKey,
   type JevResponse,
   type PlannerInput,
 } from "./planner-handler.js";
@@ -40,8 +43,8 @@ const CLAIM_LABELS: Record<ClaimKey, string> = {
 export const CHECKS = {
   budget_fit: "The budget in the form is enough to launch this business.",
   timeline_realistic: "The expected timeline is realistic for the current stage of this business.",
-  team_fit: "The team size and weekly hours are enough for what this business requires.",
-  experience_fit: "The founder's years in the industry match what this business requires.",
+  team_fit: "The team and the working time the business needs are realistic for it.",
+  experience_fit: "The founder's background matches what this business requires.",
   model_fit: "The revenue model fits the type of customer.",
   regulation_fit: "The regulatory requirements can be met with the stated resources.",
   consistency: "The description and the answers are consistent, with no contradictions.",
@@ -49,6 +52,16 @@ export const CHECKS = {
 export type CheckKey = keyof typeof CHECKS;
 /** The coherence checks, as a list (for the plan, see plan/plan-skeleton.ts) */
 export const CHECK_KEYS = Object.keys(CHECKS) as CheckKey[];
+
+/** The checks that need a fixed answer: an "I don't know" to any of these skips the check (no warning, no task) */
+const CHECK_NEEDS: Partial<Record<CheckKey, InputKey[]>> = {
+  budget_fit: ["budget"],
+};
+
+/** The checks asked for this input */
+export function checksFor(input: PlannerInput): CheckKey[] {
+  return CHECK_KEYS.filter((key) => !(CHECK_NEEDS[key] ?? []).some((need) => isUnknown(input, need)));
+}
 
 /** Two levels: small businesses see the groups, larger ones the departments */
 export const GROUPS: { group: string; departments: [name: string, definition: string][] }[] = [
@@ -144,12 +157,11 @@ export function claimsFromPhase2(phase2: Phase2Response): Claims {
   return cleanClaims(Object.fromEntries(CLAIM_KEYS.map((key) => [key, phase2[key].value])));
 }
 
-/** Group size to show: 1 = groups, 2 = departments (what the business needs, else the form) */
-export function departmentLevel(profile: Profile, input: PlannerInput): 1 | 2 {
+/** Group size to show: 1 = groups, 2 = departments, from the team the business needs (the model's reading of the idea) */
+export function departmentLevel(profile: Profile): 1 | 2 {
   const needed = profile.values.team_requirement;
   if (/large|specialized/i.test(needed)) return 2;
-  if (/solo|small/i.test(needed)) return 1;
-  return input.team >= 2 ? 2 : 1;
+  return 1;
 }
 
 const percent = (value: number | undefined) =>
@@ -165,7 +177,9 @@ export async function analyzeValidation(
   const given = answers.length
     ? answers.map((a) => `- [${a.topic}] ${a.question} -> ${a.answer}`).join("\n")
     : "(none)";
-  const state = `Business idea and form data: ${buildState(input)}
+  const state = `${mandoNote()}
+
+Business idea and form data: ${buildState(input)}
 
 Key context:
 - Sector: ${choice("sector")}
@@ -183,8 +197,8 @@ ${given}
       instructions: `The user's description and answers back up that ${CLAIM_LABELS[key as ClaimKey]} is: "${value}".`,
     };
   }
-  for (const [key, statement] of Object.entries(CHECKS)) {
-    questions[`check_${key}`] = { type: "noul", instructions: statement };
+  for (const key of checksFor(input)) {
+    questions[`check_${key}`] = { type: "noul", instructions: CHECKS[key] };
   }
   for (const { departments } of GROUPS) {
     for (const [name, definition] of departments) {
@@ -202,7 +216,7 @@ ${given}
     const value = score(`claim_${key}`);
     return value !== undefined && value < SUPPORT_MIN;
   });
-  const warnings = (Object.keys(CHECKS) as CheckKey[]).filter((key) => {
+  const warnings = checksFor(input).filter((key) => {
     const value = score(`check_${key}`);
     return value !== undefined && value < CHECK_MIN;
   });

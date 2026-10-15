@@ -9,6 +9,8 @@ import {
   analyzeValidation,
   cleanClaims,
   departmentLevel,
+  checksFor,
+  CHECK_KEYS,
   type Claims,
 } from "../../planner/planner-validation-handler.js";
 import type { JevResponse, PlannerInput } from "../../planner/planner-handler.js";
@@ -16,7 +18,7 @@ import type { Profile } from "../../planner/planner-profile-handler.js";
 import { mockFetch, jsonResponse } from "./helpers.js";
 import "./helpers.js";
 
-const input: PlannerInput = { idea: "Bakery delivery", budget: 10_000, experience: 1, team: 1, hours: 1 };
+const input: PlannerInput = { idea: "Bakery delivery", budget: 10_000, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const};
 const emptyJev: JevResponse = { model: "test", answers: {}, usage: { input_tokens: 0, output_tokens: 0 } };
 
 /** Mock Jev: answers the questions it was asked, using the noul scores given by key */
@@ -82,22 +84,22 @@ describe("cleanClaims", () => {
 });
 
 describe("departmentLevel", () => {
+  test("the team the business needs decides the level, not a form answer", () => {
+    assert.equal(departmentLevel(profileNeeding("Large team")), 2);
+  });
+
   test("large or specialized teams need level 2", () => {
-    assert.equal(departmentLevel(profileNeeding("Large team"), input), 2);
-    assert.equal(departmentLevel(profileNeeding("Specialized profiles required"), input), 2);
+    assert.equal(departmentLevel(profileNeeding("Large team")), 2);
+    assert.equal(departmentLevel(profileNeeding("Specialized profiles required")), 2);
   });
 
   test("solo or small teams need level 1", () => {
-    assert.equal(departmentLevel(profileNeeding("Feasible solo"), input), 1);
-    assert.equal(departmentLevel(profileNeeding("Small team (2-3)"), input), 1);
+    assert.equal(departmentLevel(profileNeeding("Feasible solo")), 1);
+    assert.equal(departmentLevel(profileNeeding("Small team (2-3)")), 1);
   });
 
-  test("'Not specified' falls back to the team in the form", () => {
-    const fallback = profileNeeding("Not specified");
-    assert.equal(departmentLevel(fallback, { ...input, team: 0 }), 1);
-    assert.equal(departmentLevel(fallback, { ...input, team: 1 }), 1);
-    assert.equal(departmentLevel(fallback, { ...input, team: 2 }), 2);
-    assert.equal(departmentLevel(fallback, { ...input, team: 3 }), 2);
+  test("'Not specified' gives the groups", () => {
+    assert.equal(departmentLevel(profileNeeding("Not specified")), 1);
   });
 });
 

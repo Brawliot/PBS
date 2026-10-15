@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MANDO - Report mockup A (panel)</title>
+  <link rel="stylesheet" href="../styles.css">
+  <script src="../theme.js"></script>
+  <style>
+    /* Mockup A - Panel. Static, no JavaScript. Reuses the app tokens, .result, .btn, .tier and .link from styles.css.
+       The page scrolls and the report is a plain card (the app's result is a fixed overlay). */
+    body { height: auto; min-height: 100vh; overflow: visible; display: block; background: var(--white); }
+    .ribbon { width: min(860px, calc(100vw - 32px)); margin: 16px auto 0; font-size: 13px; color: var(--gray-text); border: 1px dashed var(--border-strong); border-radius: 8px; padding: 6px 10px; }
+    body .result { position: relative; left: auto; top: auto; transform: none; animation: none; max-height: none; overflow: visible; width: min(860px, calc(100vw - 32px)); margin: 16px auto 40px; padding: 28px; gap: 20px; }
+
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin-top: 12px; }
+    .chips li { padding: 4px 12px; font-size: 13px; border: 1px solid var(--border-strong); border-radius: 62px; color: var(--gray-text); }
+    .chips b { font-weight: 800; color: var(--dark); }
+
+    .verdict { display: flex; flex-direction: column; gap: 6px; padding: 16px 18px; border: 1px solid var(--border-strong); border-radius: 10px; }
+    .verdict__title { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
+    .verdict__sub { font-size: 16px; line-height: 1.4; }
+    .verdict__sub b { font-weight: 800; }
+
+    .figures { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; list-style: none; }
+    .figures li { display: flex; flex-direction: column; gap: 4px; padding: 14px; border: 1px solid var(--border); border-radius: 10px; }
+    .figures__label { font-size: 13px; color: var(--gray-text); }
+    .figures__value { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+    .figures__note { font-size: 12px; color: var(--gray-text); }
+    .figures .tier { align-self: flex-start; margin-top: 4px; font-size: 12px; }
+
+    .blocks { display: flex; flex-direction: column; }
+    .block { border-top: 1px solid var(--border); }
+    .block:last-child { border-bottom: 1px solid var(--border); }
+    .block summary { display: flex; align-items: center; gap: 12px; padding: 14px 0; cursor: pointer; font-weight: 800; font-size: 16px; list-style: none; }
+    .block summary::-webkit-details-marker { display: none; }
+    .block summary::after { content: "+"; margin-left: auto; font-size: 22px; font-weight: 400; line-height: 1; color: var(--gray-text); }
+    .block[open] summary::after { content: "\2212"; }
+    .block__hint { font-weight: 400; font-size: 14px; color: var(--gray-text); }
+    .block__body { padding: 0 0 18px; display: flex; flex-direction: column; gap: 12px; }
+
+    .rows { display: flex; flex-direction: column; }
+    .rows div { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border-top: 1px solid var(--border); font-size: 15px; }
+    .rows dt { color: var(--gray-text); }
+    .rows dd { font-weight: 800; text-align: right; }
+    .rows .total { font-weight: 800; }
+    .rows .total dt { color: var(--dark); font-weight: 800; }
+
+    .steps { list-style: none; counter-reset: s; display: flex; flex-direction: column; gap: 8px; font-size: 15px; }
+    .steps li { counter-increment: s; padding-left: 28px; position: relative; }
+    .steps li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: var(--on-accent); font-size: 12px; font-weight: 800; text-align: center; line-height: 20px; }
+    .steps small { display: block; font-size: 13px; color: var(--gray-text); }
+
+    .risks { display: flex; flex-direction: column; gap: 10px; list-style: none; font-size: 15px; }
+    .risks li { padding-left: 12px; border-left: 3px solid var(--dark); }
+    .risks span { display: block; margin-top: 2px; font-size: 14px; color: var(--gray-text); }
+
+    .who { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .who > div { padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; }
+    .who h3 { font-size: 15px; font-weight: 800; margin-bottom: 4px; }
+    .who p { font-size: 14px; color: var(--gray-text); }
+
+    .assume { padding: 14px 16px; border: 1px dashed var(--border-strong); border-radius: 10px; font-size: 14px; }
+    .assume h2 { font-size: 13px; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray-text); margin-bottom: 8px; }
+    .assume ul { padding-left: 18px; display: flex; flex-direction: column; gap: 4px; color: var(--gray-text); }
+    .assume li b { color: var(--dark); font-weight: 800; }
+
+    body .result__actions { position: static; margin: 4px 0 0; padding: 0; background: none; }
+    .foot { font-size: 12px; color: var(--gray-text); text-align: center; }
+
+    @media (max-width: 600px) {
+      body .result { padding: 20px; width: calc(100vw - 32px); }
+      .result__title { font-size: 24px; }
+      .verdict__title { font-size: 20px; }
+      .figures { grid-template-columns: 1fr 1fr; }
+      .figures__value { font-size: 22px; }
+      .who { grid-template-columns: 1fr; }
+      body .result__actions { flex-direction: column-reverse; align-items: stretch; }
+      .result__actions .btn, .result__restart { width: 100%; justify-content: center; }
+      .result__restart { text-align: center; }
+    }
+  </style>
+</head>
+<body>
+  <p class="ribbon">Mockup A, Panel: static design, example data. Every figure is an estimate.</p>
+
+  <main class="result" id="result" aria-labelledby="result-title">
+    <header class="result__head">
+      <p class="result__eyebrow">Business analysis</p>
+      <h1 class="result__title" id="result-title">Your tapas bar in Malasaña</h1>
+      <ul class="chips" aria-label="Your plan at a glance">
+        <li>Madrid, Spain</li>
+        <li>Tapas bar</li>
+        <li>Takeover (traspaso)</li>
+        <li>Budget <b>€40,000</b></li>
+        <li>3 years in hospitality</li>
+      </ul>
+    </header>
+
+    <section class="verdict" aria-labelledby="verdict-label">
+      <h2 class="result__label" id="verdict-label">Verdict</h2>
+      <p class="verdict__title">Viable, but tight</p>
+      <p class="verdict__sub">You are about <b>€8,000</b> short of a safe start. The plan works if you open lean and sell from the first month. <span class="tier tier--light">estimated</span></p>
+    </section>
+
+    <section aria-label="Key figures">
+      <ul class="figures">
+        <li>
+          <span class="figures__label">Investment to open</span>
+          <b class="figures__value">€45–60k</b>
+          <span class="figures__note">You have €40,000</span>
+          <span class="tier tier--light">estimated</span>
+        </li>
+        <li>
+          <span class="figures__label">Fixed costs</span>
+          <b class="figures__value">€7,500<small style="font-size:14px">/mo</small></b>
+          <span class="figures__note">Rent, staff, taxes, bills</span>
+          <span class="tier tier--light">estimated</span>
+        </li>
+        <li>
+          <span class="figures__label">Break-even</span>
+          <b class="figures__value">~110</b>
+          <span class="figures__note">consumiciones a day</span>
+          <span class="tier tier--light">estimated</span>
+        </li>
+        <li>
+          <span class="figures__label">Time to open</span>
+          <b class="figures__value">3–5 mo</b>
+          <span class="figures__note">Takeover, licence, health permit</span>
+          <span class="tier tier--light">estimated</span>
+        </li>
+      </ul>
+    </section>
+
+    <section class="blocks" aria-label="Details">
+      <h2 class="result__label">Details</h2>
+
+      <details class="block" open>
+        <summary>Investment <span class="block__hint">€45,000–60,000 against €40,000</span></summary>
+        <div class="block__body">
+          <dl class="rows">
+            <div><dt>Takeover (traspaso)</dt><dd>€20,000–25,000</dd></div>
+            <div><dt>Light refurbishment</dt><dd>€5,000–7,000</dd></div>
+            <div><dt>Equipment</dt><dd>€5,000–6,000</dd></div>
+            <div><dt>Licences and permits</dt><dd>€2,000–3,000</dd></div>
+            <div><dt>Rent deposit (fianza)</dt><dd>€6,000–8,000</dd></div>
+            <div><dt>Cash cushion, first 3 months</dt><dd>€7,000–11,000</dd></div>
+            <div class="total"><dt>Total</dt><dd>€45,000–60,000</dd></div>
+          </dl>
+        </div>
+      </details>
+
+      <details class="block">
+        <summary>Monthly costs <span class="block__hint">€7,500 a month once open</span></summary>
+        <div class="block__body">
+          <dl class="rows">
+            <div><dt>Rent</dt><dd>€2,500</dd></div>
+            <div><dt>Two staff</dt><dd>€4,000</dd></div>
+            <div><dt>Self-employed contributions</dt><dd>€300</dd></div>
+            <div><dt>Utilities</dt><dd>€500</dd></div>
+            <div><dt>Accountant (gestoría)</dt><dd>€150</dd></div>
+            <div><dt>Other</dt><dd>€50</dd></div>
+          </dl>
+          <p class="foot" style="text-align:left">Break-even: about 110 consumiciones a day, roughly 48 tickets of €12, or about €60 of sales for each hour open. <span class="tier tier--light">estimated</span></p>
+        </div>
+      </details>
+
+      <details class="block">
+        <summary>Steps and paperwork <span class="block__hint">3–5 months</span></summary>
+        <div class="block__body">
+          <ol class="steps">
+            <li>Change of ownership with the seller and the notary<small>Check the lease, licence and debts before you sign.</small></li>
+            <li>Terrace licence from the council<small>Often the slowest step. Start it first.</small></li>
+            <li>Health permit for food handling<small>Hygiene plan and staff training.</small></li>
+            <li>Opening declaration with the council<small>Once the works and equipment are in place.</small></li>
+          </ol>
+        </div>
+      </details>
+
+      <details class="block">
+        <summary>Risks <span class="block__hint">Three to watch</span></summary>
+        <div class="block__body">
+          <ul class="risks">
+            <li>High rent for the area<span>€2,500 a month for 80 m² is a large share of sales. Compare it with nearby premises.</span></li>
+            <li>Dependence on the terrace<span>A large part of sales may come from outside, which is seasonal and needs a licence.</span></li>
+            <li>Dense competition<span>Many tapas bars on the same few streets.</span></li>
+          </ul>
+        </div>
+      </details>
+
+      <details class="block">
+        <summary>Who does what</summary>
+        <div class="block__body">
+          <div class="who">
+            <div><h3>You</h3><p>Running the bar: buying, the staff rota, service.</p></div>
+            <div><h3>Mando</h3><p>Web and online bookings, document templates, your plan and reminders.</p></div>
+            <div><h3>External</h3><p>Accountant, reform contractor, licence adviser.</p></div>
+          </div>
+        </div>
+      </details>
+    </section>
+
+    <aside class="assume" aria-labelledby="assume-title">
+      <h2 id="assume-title">What this estimate assumes</h2>
+      <ul>
+        <li>Premises of about <b>80 m²</b>, with a terrace. <span class="tier tier--light">estimated</span></li>
+        <li>Average ticket of <b>€12</b>. <span class="tier tier--light">estimated</span></li>
+        <li>Open <b>6 days</b> a week, <b>10 hours</b> a day. <span class="tier tier--light">estimated</span></li>
+        <li>Gross margin on sales of about <b>50%</b>. <span class="tier tier--light">estimated</span></li>
+        <li>Two staff at about <b>€2,000</b> a month each. <span class="tier tier--light">estimated</span></li>
+      </ul>
+    </aside>
+
+    <div class="result__actions">
+      <button class="result__restart" type="button">Start over</button>
+      <button class="btn btn--outline" type="button">See full detail</button>
+      <button class="btn btn--dark" type="button">Build my plan</button>
+    </div>
+  </main>
+  <p class="foot">Guidance, not professional advice.</p>
+</body>
+</html>

@@ -11,12 +11,15 @@
  */
 
 import { z } from "zod";
-import { RANGES, MAX_ANSWERS, MAX_IDEA, MAX_TEXT } from "../request.js";
+import { INPUT_KEYS, MAX_ANSWERS, MAX_BUDGET, MAX_IDEA, MAX_LOCATION, MAX_TEXT } from "../request.js";
+import { START_MODES, PREMISES } from "../planner/fixed-answers.js";
 import { CLAIM_KEYS } from "../planner/planner-validation-handler.js";
 import { CHECK_KEYS, GROUPS } from "../planner/planner-validation-handler.js";
+import { REPORT_TEMPLATES } from "../planner/report-templates.js";
 import { DIMENSION_KEYS, DIMENSION_OPTIONS } from "../planner/planner-profile-handler.js";
 import { GlanceSchema } from "./glance.js";
 import { DIAGNOSIS_CHECK_STATUS, DIAGNOSIS_DECIDED_BY, DIAGNOSIS_REACH_KEY, DIAGNOSIS_SPLIT_LISTS } from "./diagnosis-enums.js";
+import { ClaritySchema } from "./clarity.js";
 import {
   MAX_CURRENCY,
   MAX_DIAGNOSIS_IDEA,
@@ -26,6 +29,8 @@ import {
   MAX_DIAGNOSIS_SPLIT_ITEMS,
   MAX_DIAGNOSIS_WHY,
   MAX_EXPLAINED_AREAS,
+  MAX_COST_ITEMS,
+  MAX_COST_LABEL,
   MAX_EXPLAINED_WARNINGS,
   MAX_EXPLANATION_REASON,
   MAX_JEV_ANSWERS,
@@ -41,6 +46,10 @@ import {
   MAX_REPORT_NAME,
   MAX_REPORT_OBJECTS,
   MAX_SCORE,
+  MAX_TIME_TO_OPEN_MONTHS,
+  MAX_TIME_TO_OPEN_WEEKS,
+  MIN_COST_ITEMS,
+  TEMPLATE_PICKS,
 } from "./report-limits.js";
 
 // The sizes of the report live in report-limits.ts; they are re-exported here for the code that reads the report
@@ -58,11 +67,37 @@ const SCORE = z.number().int().min(0).max(MAX_SCORE);
 
 const InputSchema = z.strictObject({
   idea: text(MAX_IDEA),
-  budget: num(RANGES.budget[0], RANGES.budget[1]),
-  experience: num(RANGES.experience[0], RANGES.experience[1]),
-  team: num(RANGES.team[0], RANGES.team[1]),
-  hours: num(RANGES.hours[0], RANGES.hours[1]),
+  location: plainText(MAX_LOCATION),
+  budget: num(0, MAX_BUDGET),
+  start_mode: z.enum(START_MODES),
+  premises: z.enum(PREMISES),
+  /** The fixed questions answered "I don't know" (their value is a placeholder). Optional: none when all are answered. */
+  unknown: z
+    .array(z.enum(INPUT_KEYS as [string, ...string[]]))
+    .max(INPUT_KEYS.length)
+    .refine((keys) => new Set(keys).size === keys.length, "keys repeat")
+    .optional(),
 });
+
+/**
+ * A report kept before the fixed questions changed (location, start_mode and premises replaced experience, team and
+ * hours): those three are not in it, so they count as "I don't know" and the old ones are dropped. The budget stays.
+ * The report still opens and builds its plan. Any other report is read as it is.
+ */
+function fromLegacyInput(value: unknown): unknown {
+  if (typeof value !== "object" || value === null || "location" in value) return value;
+  const { experience: _experience, team: _team, hours: _hours, unknown, ...rest } = value as Record<string, unknown>;
+  const kept = Array.isArray(unknown) ? unknown.filter((key) => INPUT_KEYS.includes(key as never)) : [];
+  // The budget was asked before too: only the three new questions are missing from an old report
+  const missing = ["location", "start_mode", "premises"].filter((key) => !kept.includes(key));
+  return {
+    ...rest,
+    location: "",
+    start_mode: START_MODES[0],
+    premises: PREMISES[0],
+    unknown: [...new Set([...kept, ...missing])],
+  };
+}
 
 // Same limits as the request (request.ts parseAnswers): a valid answer is always a valid report answer
 const AnswerSchema = z.strictObject({ topic: text(MAX_TEXT), question: text(MAX_TEXT), answer: text(MAX_TEXT) });
@@ -159,14 +194,54 @@ export const ReasonSchema = z
   .max(MAX_EXPLANATION_REASON)
   .refine((value) => !/[\u0000-\u001F\u007F]/.test(value), "control characters are not allowed");
 
-/** Why each shown warning and key area matters here. Optional: reports kept before it have none. */
+/** Each part of the explanations is checked on its own (planner-explain-handler.ts); the report keeps the ones that pass */
+export const WarningReasonsSchema = z
+  .array(z.strictObject({ key: z.enum(CHECK_KEYS as [string, ...string[]]), reason: ReasonSchema }))
+  .max(MAX_EXPLAINED_WARNINGS);
+
+export const AreaReasonsSchema = z
+  .array(z.strictObject({ name: z.enum(AREA_NAMES as [string, ...string[]]), reason: ReasonSchema }))
+  .max(MAX_EXPLAINED_AREAS);
+
+/** The time to open is an estimate of the model: whole weeks or months, within the caps, and a confidence */
+export const TimeToOpenSchema = z
+  .strictObject({
+    min: z.number().int().min(1),
+    max: z.number().int().min(1),
+    unit: z.enum(["weeks", "months"]),
+    confidence: z.enum(["low", "medium", "high"]),
+  })
+  .refine(({ min, max }) => min <= max, "max is below min")
+  .refine(({ max, unit }) => max <= (unit === "weeks" ? MAX_TIME_TO_OPEN_WEEKS : MAX_TIME_TO_OPEN_MONTHS), "above the cap");
+
+/** Labels are plain text: no spaces at the edges, no control characters, distinct from each other */
+const CostLabelSchema = z
+  .string()
+  .min(1)
+  .max(MAX_COST_LABEL)
+  .refine((value) => value === value.trim() && !/[\u0000-\u001F\u007F]/.test(value), "not plain text");
+
+/** The split of the upfront cost in percentages: two to five items, and the percentages add up to exactly 100 */
+export const CostBreakdownSchema = z
+  .array(z.strictObject({ label: CostLabelSchema, percent: z.number().int().min(1).max(100) }))
+  .min(MIN_COST_ITEMS)
+  .max(MAX_COST_ITEMS)
+  .refine((items) => new Set(items.map(({ label }) => label)).size === items.length, "labels repeat")
+  .refine((items) => items.reduce((sum, { percent }) => sum + percent, 0) === 100, "percentages do not add up to 100");
+
+/** The starter templates the model picks: exactly TEMPLATE_PICKS distinct ids of the catalog */
+export const TemplatePicksSchema = z
+  .array(z.enum(REPORT_TEMPLATES.map(({ id }) => id) as [string, ...string[]]))
+  .length(TEMPLATE_PICKS)
+  .refine((ids) => new Set(ids).size === ids.length, "ids repeat");
+
+/** The explanations of the report. Every part is optional: a report kept before a part existed still reads. */
 export const ExplanationsSchema = z.strictObject({
-  warningReasons: z
-    .array(z.strictObject({ key: z.enum(CHECK_KEYS as [string, ...string[]]), reason: ReasonSchema }))
-    .max(MAX_EXPLAINED_WARNINGS),
-  areaReasons: z
-    .array(z.strictObject({ name: z.enum(AREA_NAMES as [string, ...string[]]), reason: ReasonSchema }))
-    .max(MAX_EXPLAINED_AREAS),
+  warningReasons: WarningReasonsSchema.optional(),
+  areaReasons: AreaReasonsSchema.optional(),
+  timeToOpen: TimeToOpenSchema.optional(),
+  costBreakdown: CostBreakdownSchema.optional(),
+  templates: TemplatePicksSchema.optional(),
 });
 
 /** One check of the diagnosis: its status, why, whether the figures behind it are estimated, and who decided it */
@@ -215,6 +290,8 @@ export const ReportSchema = z.strictObject({
   glance: GlanceSchema.optional(),
   /** The diagnosis of the report (above). Optional: reports kept before it have none, and the screen shows them the old view. */
   diagnosis: DiagnosisSchema.optional(),
+  /** The two clarity metrics (clarity.ts). Optional: reports kept before them, or without a glance, have none. */
+  clarity: ClaritySchema.optional(),
 });
 
 export type Report = z.infer<typeof ReportSchema>;
@@ -232,6 +309,9 @@ export function parseReport(raw: unknown): ParseReportResult {
     value = JSON.parse(raw);
   } catch {
     return { ok: false, code: "invalid_json" };
+  }
+  if (typeof value === "object" && value !== null && "input" in value) {
+    (value as { input: unknown }).input = fromLegacyInput((value as { input: unknown }).input);
   }
   const result = ReportSchema.safeParse(value);
   return result.success ? { ok: true, report: result.data } : { ok: false, code: "invalid_report" };

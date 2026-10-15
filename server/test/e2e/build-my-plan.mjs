@@ -28,6 +28,8 @@ const REPORT_ID = "33333333-3333-4333-8333-333333333333";
 const snapshot = JSON.parse(readFileSync(join(serverDir, "test/planner/fixtures/planner-run.snapshot.json"), "utf8"));
 
 const json = (status, body) => ({ status, contentType: "application/json", body: JSON.stringify(body) });
+// What the description gives for the fixed questions when it says nothing (the default of the mock)
+const NO_PREFILL = { location: null, budget: null, start_mode: null, premises: null };
 
 /** Starts server.ts without a database and waits until it listens */
 function startServer() {
@@ -53,7 +55,10 @@ function startServer() {
  * Answers the planner and the plan API. `options.result` is the planner's job result; `options.plan` answers
  * POST /api/plan. Returns the list of the requests made to the plan API.
  */
-async function mockApi(page, { result, results = [result], plan }) {
+// The first request of a run with no questions: what was understood, and no report (the final request builds it)
+const FIRST_ROUND = { phase2: { ...snapshot.noQuestions.phase2, questions: [] }, questionTotal: 0, glance: snapshot.noQuestions.glance, jev: snapshot.noQuestions.jev };
+
+async function mockApi(page, { result, results = [FIRST_ROUND, result], plan, prefill = { body: NO_PREFILL } }) {
   const planRequests = [];
   // The bodies of the POSTs to /api/planner, in order: planRequests.posts
   const posts = [];
@@ -75,29 +80,55 @@ async function mockApi(page, { result, results = [result], plan }) {
     return route.fulfill(plan);
   });
   await page.route("**/api/plan/**", (route) => route.fulfill(json(404, { error: "Plan not found", code: "not_found" })));
+  // Registered last, so it is matched before the job route above. A delay makes the description arrive late.
+  await page.route("**/api/planner/detect", async (route) => {
+    if (prefill.delayMs) await new Promise((resolve) => setTimeout(resolve, prefill.delayMs));
+    return route.fulfill(json(200, { detected: prefill.body, jevToken: null }));
+  });
   return planRequests;
 }
 
 /** Fills the form like a user and submits it */
+/** Answers the four fixed questions (location, budget, how they start, premises) with the largest values */
+async function answerSituation(page) {
+  for (const [index, value] of ["I have them", "From scratch", "Over 150,000 €", "Madrid"].entries()) {
+    await page.waitForFunction(
+      (number) => document.getElementById("question").classList.contains("is-open")
+        && document.getElementById("question-progress").textContent.startsWith(`Question ${number} of`),
+      index + 1,
+      { timeout: 20_000 },
+    );
+    await page.fill(".question__input", value);
+    await page.press(".question__input", "Enter");
+  }
+}
+
 async function fillAndSend(page) {
   await page.goto(`${BASE}/`);
   await page.fill(".search__input", "Bakery delivery");
-  for (const id of ["budget", "experience", "team", "hours"]) {
-    await page.locator(`#${id}`).evaluate((el) => {
-      el.value = el.max;
-      el.dispatchEvent(new Event("input", { bubbles: true }));
-    });
-  }
   await page.click(".search__submit");
+  await answerSituation(page);
+}
+
+/** When what was understood is on screen, it is confirmed with Generate report; then the result is on screen */
+async function confirmReview(page) {
+  await page.waitForSelector("#review:not([hidden]), #result:not([hidden])", { timeout: 20_000 });
+  if (await page.isVisible("#review")) await page.click("#review-generate");
 }
 
 /** Fills the form, submits it and waits until the result is on screen */
 async function analyse(page) {
   await fillAndSend(page);
+  await confirmReview(page);
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
 }
 
-const withReport = { ...snapshot.noQuestions, reportId: REPORT_ID };
+// Ready for a plan (green): a yellow or red report gates the button (improve-report.e2e.mjs checks that)
+const withReport = {
+  ...snapshot.noQuestions,
+  reportId: REPORT_ID,
+  clarity: { ...snapshot.noQuestions.clarity, readiness: "green" },
+};
 
 async function scenarioFullFlow(browser) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
@@ -143,7 +174,7 @@ async function scenarioNoReport(browser) {
   assert.equal(await page.isDisabled("#result-plan"), true, "without a saved report the button is off");
   assert.equal(await page.isVisible("#result-plan-note"), true, "and a note says why");
   assert.match(await page.textContent("#result-plan-note"), /could not be saved/);
-  assert.equal(await page.isVisible("#result-hint"), true, "with 0 topics defined, a hint says what to add");
+  assert.equal(await page.isVisible("#result-understood-business"), true, "what was understood is always said, even with little");
   assert.equal(await page.evaluate(() => document.body.classList.contains("is-loading")), false, "no loader without a report");
   assert.equal(planRequests.length, 0, "no request is sent without a report");
   assert.equal(new URL(page.url()).pathname, "/");
@@ -156,12 +187,11 @@ const questionsResult = {
   phase2: {
     ...snapshot.withQuestions.phase2,
     questions: [
-      { topic: "validation", question: "Have you tested it with customers?", options: ["Yes", "No"] },
-      { topic: "funding", question: "How will you fund the first year?", options: [] },
-      { topic: "team", question: "Who will do the work?", options: [] },
+      { topic: "existing_customers", question: "Do you already have customers?", options: ["Yes", "No"] },
+      { topic: "partners", question: "Will you run it with partners?", options: [] },
     ],
   },
-  questionTotal: 3,
+  questionTotal: 2,
 };
 
 const progress = (page, text) =>
@@ -174,7 +204,7 @@ async function scenarioQuestions(browser) {
   const { posts } = await mockApi(page, { results: [questionsResult, withReport], plan: json(201, { id: PLAN_ID }) });
   await fillAndSend(page);
   await page.waitForSelector("#question.is-open", { timeout: 20_000 });
-  assert.equal(await page.textContent("#question-progress"), "Question 1 of 3");
+  assert.equal(await page.textContent("#question-progress"), "Question 5 of 6");
 
   // An empty answer says what to do and sends nothing
   await page.press(".question__input", "Enter");
@@ -202,12 +232,12 @@ async function scenarioQuestions(browser) {
   await page.fill(".question__input", "Yes");
 
   // Enter sends it, the next question comes, and Back returns to the first one with its answer
-  assert.equal(await page.isVisible("#question-back"), false, "no Back on the first question");
+  assert.equal(await page.isVisible("#question-back"), false, "no Back from the first server question to the fixed ones");
   await page.press(".question__input", "Enter");
-  await progress(page, "Question 2 of 3");
+  await progress(page, "Question 6 of 6");
   assert.equal(await page.isVisible("#question-back"), true);
   await page.click("#question-back");
-  await progress(page, "Question 1 of 3");
+  await progress(page, "Question 5 of 6");
   assert.equal(await page.inputValue(".question__input"), "Yes", "the answer is back in the field");
 
   // Escape cancels: the loader goes, the idea is still there and has the focus, nothing more is sent
@@ -230,19 +260,17 @@ async function scenarioQuestionsFlow(browser) {
   await page.waitForSelector("#question.is-open", { timeout: 20_000 });
   await page.click(".question__option >> text=No");
   await page.press(".question__input", "Enter");
-  await progress(page, "Question 2 of 3");
+  await progress(page, "Question 6 of 6");
   await page.fill(".question__input", "Savings");
   await page.press(".question__input", "Enter");
-  await progress(page, "Question 3 of 3");
-  await page.fill(".question__input", "Me and a friend");
-  await page.press(".question__input", "Enter");
+  await confirmReview(page);
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
   assert.equal(posts.length, 2, "one first request and one final request");
   assert.equal(posts[1].final, true);
-  assert.deepEqual(posts[1].answers.map((entry) => entry.answer), ["No", "Savings", "Me and a friend"]);
+  assert.deepEqual(posts[1].answers.map((entry) => entry.answer), ["No", "Savings"]);
   assert.equal(await page.isDisabled("#result-plan"), false, "with a saved report the button is on");
   await context.close();
-  return "questions flow: three answers, the final request carries them, the report opens";
+  return "questions flow: two answers, the final request carries them, the report opens";
 }
 
 // The first area of the level in use is core, so it is always on screen: it gets a reason, with the first warning
@@ -290,8 +318,7 @@ async function scenarioReport(browser) {
   // The full detail shows the reason of the area that has one, and nothing else is added to its rows
   const detailReasons = await page.$$eval("#result-departments .result__reason", (notes) => notes.map((note) => note.textContent));
   assert.deepEqual(detailReasons, ["Street trading, food hygiene."]);
-  assert.equal(await page.textContent("#result-meta"), "5 of 15 topics defined");
-  assert.equal(await page.isVisible("#result-hint"), false, "the hint is only for 0 topics");
+  assert.equal(await page.textContent("#detail-meta"), "5 of 15 topics defined", "the coverage is in the full detail");
 
   // While the report is open, the header stays usable: the profile menu, the projects and the theme still answer
   assert.equal(await page.evaluate(() => document.querySelector(".header").inert), false);
@@ -357,14 +384,281 @@ async function scenarioStartLayout(browser) {
   await mockApi(page, {});
   await page.goto(`${BASE}/`);
   await page.waitForSelector(".search__input");
-  // The four sliders sit in two rows of two (a rule of the plan pages once turned them into one wrapping line)
-  const tops = await page.evaluate(() => [...document.querySelectorAll(".filters .filter")].map((box) => Math.round(box.getBoundingClientRect().top)));
-  assert.equal(tops.length, 4, "four sliders");
-  assert.equal(new Set(tops).size, 2, `two rows of sliders, got tops ${tops}`);
-  const title = await page.evaluate(() => document.querySelector(".filters__title").getBoundingClientRect().top - document.querySelector(".hints__examples").getBoundingClientRect().top);
-  assert.ok(title > 4, "the heading sits below the examples, not beside them");
+  // No sliders: the situation is asked after the idea, and the panel keeps only the examples
+  assert.equal(await page.locator(".range").count(), 0, "no sliders");
+  assert.equal(await page.isVisible(".filters .hints__examples"), true, "the examples are still there");
   await context.close();
-  return "start page: the situation panel keeps its two rows of sliders";
+  return "start page: no sliders, only the idea and its examples";
+}
+
+/** What the description states is not asked: all four found, nothing is asked and the first request goes at once */
+async function scenarioPrefill(browser) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const page = await context.newPage();
+  await watch(page, scenarioLabel());
+  const detected = { location: "Malasaña, Madrid", budget: 50_000, start_mode: "scratch", premises: "have" };
+  const { posts } = await mockApi(page, { results: [questionsResult, withReport], plan: json(201, { id: PLAN_ID }), prefill: { body: detected } });
+  await page.goto(`${BASE}/`);
+  await page.fill(".search__input", "A tapas bar in Malasaña, Madrid");
+  await page.click(".search__submit");
+  // The first question the person sees is the server's, numbered from one
+  await progress(page, "Question 1 of 2");
+  assert.equal(await page.textContent("#question-text") === "Where will the business be?", false, "the place is not asked");
+  assert.equal(posts.length, 1, "the first request goes at once");
+  assert.deepEqual(
+    { location: posts[0].location, budget: posts[0].budget, start_mode: posts[0].start_mode, premises: posts[0].premises },
+    { location: "Malasaña, Madrid", budget: 50_000, start_mode: "scratch", premises: "have" },
+  );
+  await context.close();
+  return "prefill: all four stated in the description, none asked, the first request goes at once";
+}
+
+/** Some stated: the ones not stated are asked in order, the others are skipped and the numbers follow */
+async function scenarioPrefillPartial(browser) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const page = await context.newPage();
+  await watch(page, scenarioLabel());
+  const detected = { location: "Malasaña, Madrid", budget: 50_000, start_mode: null, premises: null };
+  const { posts } = await mockApi(page, { results: [questionsResult, withReport], plan: json(201, { id: PLAN_ID }), prefill: { body: detected } });
+  await page.goto(`${BASE}/`);
+  await page.fill(".search__input", "A tapas bar in Malasaña, Madrid");
+  await page.click(".search__submit");
+  // Premises and start are asked; budget and place are skipped, so the server's questions come as 3 and 4 of 4
+  await page.waitForSelector("#question.is-open", { timeout: 20_000 });
+  assert.equal(await page.textContent("#question-text"), "Do you have premises?");
+  assert.equal(await page.inputValue(".question__input"), "", "a question not stated starts empty");
+  await page.fill(".question__input", "I have them");
+  await page.press(".question__input", "Enter");
+  // Start is the second one asked; the total still counts the two that are skipped
+  await progress(page, "Question 2 of 8");
+  assert.equal(await page.textContent("#question-text"), "How are you starting?");
+  await page.fill(".question__input", "From scratch");
+  await page.press(".question__input", "Enter");
+  await progress(page, "Question 3 of 4");
+  assert.equal(posts.length, 1, "one first request");
+  assert.deepEqual(
+    { budget: posts[0].budget, location: posts[0].location, start_mode: posts[0].start_mode, premises: posts[0].premises },
+    { budget: 50_000, location: "Malasaña, Madrid", start_mode: "scratch", premises: "have" },
+  );
+  await context.close();
+  return "prefill partial: stated answers are skipped, the rest asked, the counter follows";
+}
+
+/** The detection is slow: nothing waits for it, the first question is asked at once, a late value changes nothing */
+async function scenarioPrefillSlow(browser) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const page = await context.newPage();
+  await watch(page, scenarioLabel());
+  const prefill = { body: { location: "Malasaña, Madrid", budget: null, start_mode: null, premises: null }, delayMs: 11_000 };
+  const { posts } = await mockApi(page, { results: [questionsResult, withReport], plan: json(201, { id: PLAN_ID }), prefill });
+  await page.goto(`${BASE}/`);
+  await page.fill(".search__input", "Bakery delivery");
+  await page.click(".search__submit");
+  const asked = Date.now();
+  await page.waitForSelector("#question.is-open", { timeout: 5_000 });
+  assert.ok(Date.now() - asked < 5_000, "the first question does not wait for the detection");
+  assert.equal(await page.textContent("#question-text"), "Do you have premises?");
+  await page.fill(".question__input", "I have them");
+  await page.press(".question__input", "Enter");
+  await progress(page, "Question 2 of 8");
+  await page.fill(".question__input", "From scratch");
+  await page.press(".question__input", "Enter");
+  await progress(page, "Question 3 of 8");
+  await page.fill(".question__input", "Over 150,000 €");
+  await page.press(".question__input", "Enter");
+  await progress(page, "Question 4 of 8");
+  await page.fill(".question__input", "Madrid");
+  await page.press(".question__input", "Enter");
+  await progress(page, "Question 5 of 6");
+  assert.equal(posts[0].location, "Madrid", "the typed place is sent; a late detection changes nothing");
+  await context.close();
+  return "prefill slow: nothing waits for the detection, a late value changes no answer";
+}
+
+/** What was understood: the values are marked as from the description, the focus goes to the title, Start over asks first */
+async function scenarioReviewCard(browser) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const page = await context.newPage();
+  await watch(page, scenarioLabel());
+  const detected = { location: "Malasaña, Madrid", budget: 50_000, start_mode: "scratch", premises: "have" };
+  const { posts } = await mockApi(page, { results: [FIRST_ROUND, withReport], plan: json(201, { id: PLAN_ID }), prefill: { body: detected } });
+  await page.goto(`${BASE}/`);
+  await page.fill(".search__input", "A tapas bar in Malasaña, Madrid");
+  await page.click(".search__submit");
+  await page.waitForSelector("#review:not([hidden])", { timeout: 20_000 });
+  assert.equal(await page.evaluate(() => document.activeElement?.id), "review-title", "the title takes the focus");
+  assert.deepEqual(await page.$$eval("#review-list dt", (items) => items.map((item) => item.textContent)), ["Premises", "Starting", "Budget", "Location"]);
+  assert.equal(await page.locator(".review__from").count(), 4, "each value is marked as from the description");
+  assert.equal(await page.textContent("#review-idea"), "A tapas bar in Malasaña, Madrid");
+  assert.equal(posts.length, 1, "nothing is sent until Generate");
+
+  await page.click("#review-restart");
+  assert.equal(await page.evaluate(() => document.getElementById("restart-modal").open), true, "Start over asks first");
+  await page.click("#restart-cancel");
+  assert.equal(await page.isVisible("#review"), true, "cancelling it keeps what was understood");
+
+  await page.click("#review-generate");
+  await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
+  assert.equal(posts.length, 2, "one first request and one final request");
+  assert.equal(posts[1].final, true);
+  assert.equal(posts[1].location, "Malasaña, Madrid");
+  await context.close();
+  return "review: the card with its marks and focus, Start over asks first, Generate sends the final request";
+}
+
+/** Editing a fixed value repeats the first request before the report; the new value is what is sent */
+async function scenarioReviewEditFixed(browser) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const page = await context.newPage();
+  await watch(page, scenarioLabel());
+  const detected = { location: "Malasaña, Madrid", budget: 50_000, start_mode: "scratch", premises: "have" };
+  const { posts } = await mockApi(page, { results: [FIRST_ROUND, FIRST_ROUND, withReport], plan: json(201, { id: PLAN_ID }), prefill: { body: detected } });
+  await page.goto(`${BASE}/`);
+  await page.fill(".search__input", "A tapas bar in Malasaña, Madrid");
+  await page.click(".search__submit");
+  await page.waitForSelector("#review:not([hidden])", { timeout: 20_000 });
+
+  await page.click('button[aria-label="Edit: Budget"]');
+  await page.waitForSelector("#question.is-open", { timeout: 10_000 });
+  assert.equal(await page.textContent("#question-text"), "How much can you invest?");
+  assert.equal(await page.inputValue(".question__input"), "30,000-75,000 \u20ac", "the value comes back in the field");
+  await page.fill(".question__input", "Over 150,000 €");
+  await page.press(".question__input", "Enter");
+  await page.waitForSelector("#review:not([hidden])", { timeout: 10_000 });
+  assert.equal(posts.length, 1, "editing sends nothing by itself");
+  assert.match(await page.textContent("#review-list"), /Over 150,000/);
+
+  await page.click("#review-generate");
+  await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
+  assert.equal(posts.length, 3, "the first request is repeated, then the final one");
+  assert.equal(posts[1].final, false, "the repeated request asks no final report");
+  assert.equal(posts[2].final, true);
+  assert.equal(posts[2].budget, 200_000, "the new value is sent");
+  await context.close();
+  return "review, edit a fixed value: the first request is repeated with the new value, then the final one";
+}
+
+/** Editing a server answer does not repeat the first request: the answers are sent as they are */
+async function scenarioReviewEditAnswer(browser) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const page = await context.newPage();
+  await watch(page, scenarioLabel());
+  const { posts } = await mockApi(page, { results: [questionsResult, withReport], plan: json(201, { id: PLAN_ID }) });
+  await page.goto(`${BASE}/`);
+  await page.fill(".search__input", "Bakery delivery");
+  await page.click(".search__submit");
+  await answerSituation(page);
+  await progress(page, "Question 5 of 6");
+  await page.click(".question__option >> text=No");
+  await page.press(".question__input", "Enter");
+  await progress(page, "Question 6 of 6");
+  await page.fill(".question__input", "Me and a friend");
+  await page.press(".question__input", "Enter");
+
+  await page.waitForSelector("#review:not([hidden])", { timeout: 20_000 });
+  assert.equal(posts.length, 1, "the first request went once; the card follows the server's questions");
+  await page.click('button[aria-label="Edit: Do you already have customers?"]');
+  await progress(page, "Question 5 of 6");
+  assert.equal(await page.inputValue(".question__input"), "No", "the answer comes back in the field");
+  await page.fill(".question__input", "Yes, ten people");
+  await page.press(".question__input", "Enter");
+  await page.waitForSelector("#review:not([hidden])", { timeout: 10_000 });
+
+  await page.click("#review-generate");
+  await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
+  assert.equal(posts.length, 2, "no repeat of the first request: the final one only");
+  assert.equal(posts[1].final, true);
+  assert.deepEqual(posts[1].answers.map((entry) => entry.answer), ["Yes, ten people", "Me and a friend"], "the answers keep their order");
+  await context.close();
+  return "review, edit a server answer: no repeat, the answers are sent in the same order";
+}
+
+const PROGRESS_TEXT = {
+  reading: "Reading your business…",
+  costs: "Estimating costs and what it needs…",
+  explaining: "Checking risks and next steps…",
+  saving: "Putting your report together…",
+  generic: "Preparing your report…",
+};
+
+/** Sets up the card path to the final request, whose polls the scenario scripts; the first request is answered at once */
+async function finalRequestPolls(page, polls) {
+  const detected = { location: "Malasaña, Madrid", budget: 50_000, start_mode: "scratch", premises: "have" };
+  const { posts } = await mockApi(page, { results: [FIRST_ROUND, withReport], plan: json(201, { id: PLAN_ID }), prefill: { body: detected } });
+  let index = 0;
+  await page.route("**/api/planner/*", (route) => {
+    // The detection is answered by mockApi's route, not as a job
+    if (route.request().url().endsWith("/detect")) return route.fulfill(json(200, { detected, jevToken: null }));
+    const number = Number(route.request().url().slice(-1));
+    if (number === 1) return route.fulfill(json(200, { status: "done", result: FIRST_ROUND }));
+    const step = polls[Math.min(index++, polls.length - 1)];
+    return route.fulfill(json(200, step));
+  });
+  return posts;
+}
+
+/** The loader's text follows the steps the server reports, in order; a step back, or an unknown one, changes nothing */
+async function scenarioProgressSteps(browser) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const page = await context.newPage();
+  await watch(page, scenarioLabel());
+  const posts = await finalRequestPolls(page, [
+    { status: "pending" },
+    { status: "pending", stage: "reading" },
+    { status: "pending", stage: "costs" },
+    { status: "pending", stage: "costs" },
+    { status: "pending", stage: "reading" },
+    { status: "pending", stage: "explaining" },
+    { status: "pending", stage: "saving" },
+    { status: "pending", stage: "a made-up step" },
+    { status: "done", result: withReport },
+  ]);
+  await page.goto(`${BASE}/`);
+  await page.evaluate(() => {
+    window.seen = [];
+    new MutationObserver(() => {
+      const text = document.getElementById("status").textContent;
+      if (text && window.seen.at(-1) !== text) window.seen.push(text);
+    }).observe(document.getElementById("status"), { childList: true, characterData: true, subtree: true });
+  });
+  await page.fill(".search__input", "A tapas bar in Malasaña, Madrid");
+  await page.click(".search__submit");
+  await page.waitForSelector("#review:not([hidden])", { timeout: 20_000 });
+  await page.click("#review-generate");
+  await page.waitForSelector("#result:not([hidden])", { timeout: 40_000 });
+  const seen = await page.evaluate(() => window.seen.filter((text) => Object.values({
+    reading: "Reading your business…", costs: "Estimating costs and what it needs…", explaining: "Checking risks and next steps…",
+    saving: "Putting your report together…", generic: "Preparing your report…",
+  }).includes(text)));
+  assert.deepEqual(seen, [PROGRESS_TEXT.generic, PROGRESS_TEXT.reading, PROGRESS_TEXT.costs, PROGRESS_TEXT.explaining, PROGRESS_TEXT.saving]);
+  assert.equal(await page.isHidden("#progress-note"), true, "no slow note when the steps move on");
+  assert.equal(posts.length, 2, "one first request and one final request");
+  await context.close();
+  return "progress: the steps appear in order, a step back and an unknown one change nothing";
+}
+
+/** A step that lasts too long shows the note under the loader; Cancel stays available */
+async function scenarioProgressSlow(browser) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const page = await context.newPage();
+  await watch(page, scenarioLabel());
+  await finalRequestPolls(page, [{ status: "pending", stage: "costs" }]);
+  await page.goto(`${BASE}/`);
+  await page.fill(".search__input", "A tapas bar in Malasaña, Madrid");
+  await page.click(".search__submit");
+  await page.waitForSelector("#review:not([hidden])", { timeout: 20_000 });
+  await page.click("#review-generate");
+  await page.waitForFunction(() => document.getElementById("status").textContent === "Estimating costs and what it needs…", null, { timeout: 20_000 });
+  assert.equal(await page.isHidden("#progress-note"), true, "not yet: the step has just begun");
+  await page.waitForSelector("#progress-note:not([hidden])", { timeout: 30_000 });
+  assert.equal(await page.textContent("#progress-note"), "This is taking longer than usual.");
+  assert.equal(await page.isVisible("#wait-cancel"), true, "Cancel is still there");
+  await page.click("#wait-cancel");
+  await page.waitForFunction(() => document.getElementById("status").textContent === "Analysis cancelled. Your idea is still there.", null, { timeout: 10_000 });
+  // The poll loop notices the cancel within one poll interval, and clears the note then
+  await page.waitForSelector("#progress-note", { state: "hidden", timeout: 5_000 });
+  await context.close();
+  return "progress: a long step shows the taking-longer note, and Cancel still stops the wait";
 }
 
 let currentScenario = "";
@@ -377,7 +671,7 @@ const browser = await chromium.launch({
 });
 let failed = 0;
 try {
-  for (const scenario of [scenarioFullFlow, scenarioError, scenarioNoReport, scenarioQuestions, scenarioQuestionsFlow, scenarioReport, scenarioCancelWait, scenarioStartLayout]) {
+  for (const scenario of [scenarioFullFlow, scenarioError, scenarioNoReport, scenarioQuestions, scenarioQuestionsFlow, scenarioReport, scenarioCancelWait, scenarioStartLayout, scenarioPrefill, scenarioPrefillPartial, scenarioPrefillSlow, scenarioReviewCard, scenarioReviewEditFixed, scenarioReviewEditAnswer, scenarioProgressSteps, scenarioProgressSlow]) {
     currentScenario = scenario.name;
     try {
       console.log("ok -", await scenario(browser));

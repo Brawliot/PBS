@@ -5,8 +5,9 @@
 import { z } from "zod";
 import { issueCodes } from "../schema-summary.js";
 import { logProviderFailure } from "../log.js";
+import { START_MODES, PREMISES, type StartMode, type Premises } from "./fixed-answers.js";
 
-interface JevQuestion {
+export interface JevQuestion {
   type: "choice" | "score" | "noul";
   instructions: string;
   criteria?: Record<string, string>;
@@ -51,20 +52,31 @@ const JevResponseSchema = z.object({
 
 const JEV_UNEXPECTED_MESSAGE = "The analysis service returned an unexpected response";
 
+/** The four fixed questions (PROFILE_QUESTIONS in script.js) */
+export type InputKey = "location" | "budget" | "start_mode" | "premises";
+
+export { START_MODES, PREMISES, type StartMode, type Premises } from "./fixed-answers.js";
+
 /** Payload sent by the index page (see submitIdea in script.js) */
 export interface PlannerInput {
   idea: string;
+  /** Where the business will be: a city, and a neighbourhood if known; "online" for no fixed place. "" when unknown */
+  location: string;
+  /** How much the person can invest, in euros (the amount of the chosen range, or the amount typed) */
   budget: number;
-  experience: number;
-  team: number;
-  hours: number;
+  start_mode: StartMode;
+  premises: Premises;
+  /**
+   * The fixed questions answered "I don't know". Each one is no signal: its value is only a placeholder and every
+   * reader must check this list first (see isUnknown). Absent when none is.
+   */
+  unknown?: InputKey[];
 }
 
-const JEV_TIMEOUT_MS = 30_000;
+/** True when the person answered "I don't know" to this fixed question */
+export const isUnknown = (input: PlannerInput, key: InputKey): boolean => input.unknown?.includes(key) ?? false;
 
-// Same labels as the sliders in index.html
-const TEAM_LABELS = ["Solo", "Small (2-3)", "Medium (4-10)", "Large (10+)"];
-const HOURS_LABELS = ["Under 10 h", "10-20 h", "30+ h", "Full time"];
+const JEV_TIMEOUT_MS = 30_000;
 
 export const JEV_QUESTIONS: Record<string, JevQuestion> = {
   sector: {
@@ -127,7 +139,14 @@ export const JEV_QUESTIONS: Record<string, JevQuestion> = {
       "Not specified": "The description does not mention any timeline",
     },
   },
-  // The four checks Jev judges (plan/checks.ts). Written for a physical business; an online one reads them as reach.
+
+};
+
+/**
+ * The four checks Jev judges (plan/checks.ts). They are asked by the planner's own call only: the detection of an
+ * idea asks JEV_QUESTIONS alone. Written for a physical business; an online one reads them as reach.
+ */
+export const CHECK_QUESTIONS: Record<string, JevQuestion> = {
   concept: {
     type: "choice",
     instructions: "Is the concept clear, and does it fit a real need of the customers it targets?",
@@ -171,10 +190,10 @@ export const JEV_QUESTIONS: Record<string, JevQuestion> = {
 export function buildState(input: PlannerInput): string {
   return JSON.stringify({
     idea: input.idea,
-    budget_usd: input.budget,
-    experience_years: input.experience,
-    team_size: TEAM_LABELS[input.team] ?? String(input.team),
-    weekly_hours: HOURS_LABELS[input.hours] ?? String(input.hours),
+    location: isUnknown(input, "location") ? "unknown" : input.location,
+    budget_eur: isUnknown(input, "budget") ? "unknown" : input.budget,
+    start_mode: isUnknown(input, "start_mode") ? "unknown" : input.start_mode,
+    premises: isUnknown(input, "premises") ? "unknown" : input.premises,
   });
 }
 
@@ -227,7 +246,7 @@ export async function callJev(
 }
 
 export function analyzeWithJev(input: PlannerInput, signal?: AbortSignal): Promise<JevResponse> {
-  return callJev(buildState(input), JEV_QUESTIONS, signal);
+  return callJev(buildState(input), { ...JEV_QUESTIONS, ...CHECK_QUESTIONS }, signal);
 }
 
-export type { JevQuestion, JevResponse, JevAnswer };
+export type { JevResponse, JevAnswer };

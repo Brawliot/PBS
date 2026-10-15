@@ -8,7 +8,7 @@ import "./helpers.js";
 // The glance of a final request: kept when it passes its schema, dropped whole when it does not. The request
 // itself never fails because of it, and a request that is not final never uses it.
 
-const validBody = { idea: "A bakery that delivers", budget: 0, experience: 0, team: 0, hours: 0, final: true, answers: [] };
+const validBody = { idea: "A bakery that delivers", budget: 0, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const, final: true, answers: [] };
 const glance: Glance = {
   maturity: "developing",
   subsectorSource: "inferred",
@@ -70,8 +70,28 @@ describe("parsePlannerRequest: the glance", () => {
     test(`ignores the glance with ${name}, and the request still works`, () => {
       const result = withGlance(value);
       assert.equal("glance" in result, false);
-      assert.deepEqual(result.input, { idea: "A bakery that delivers", budget: 0, experience: 0, team: 0, hours: 0 });
+      assert.deepEqual(result.input, { idea: "A bakery that delivers", budget: 0, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const});
       assert.equal(result.final, true);
+    });
+  }
+});
+
+describe("parsePlannerRequest: the sources of the glance", () => {
+  const sources = { target_customer: "inferred", value_proposition: "stated", revenue_model: "unknown", stage: "stated", competition: "unknown" };
+
+  test("a glance with valid sources keeps them", () => {
+    assert.deepEqual(withGlance({ ...glance, sources }).glance, { ...glance, sources });
+  });
+
+  const invalid: [string, unknown][] = [
+    ["an unknown source", { ...sources, stage: "guessed" }],
+    ["a missing field", { ...sources, competition: undefined }],
+    ["an extra field", { ...sources, location: "stated" }],
+    ["a list", ["stated"]],
+  ];
+  for (const [name, value] of invalid) {
+    test(`sources with ${name} drop the whole glance`, () => {
+      assert.equal("glance" in withGlance({ ...glance, sources: value }), false);
     });
   }
 });

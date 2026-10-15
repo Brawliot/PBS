@@ -96,7 +96,7 @@ describe("sign-in over HTTP", () => {
     const user = await memory.users.create("expired@example.test", "Expired", null);
     const token = newToken();
     await memory.sessions.create({ tokenHash: hashToken(token), userId: user.id, expiresAt: new Date(Date.now() - 1000) }, new Date());
-    const reply = await call("POST", "/api/planner", { body: { idea: "x", budget: 1, experience: 1, team: 1, hours: 1 }, cookie: `pbs_session=${token}` });
+    const reply = await call("POST", "/api/planner", { body: { idea: "x", budget: 1, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const }, cookie: `pbs_session=${token}` });
     assert.equal(reply.status, 401);
     assert.equal(reply.body.code, "unauthenticated");
   });
@@ -112,7 +112,7 @@ describe("sign-in over HTTP", () => {
 
 describe("the protected routes", () => {
   test("without a session: 401 on the planner, the job and the plan routes; the pages stay public", async () => {
-    const planner = await call("POST", "/api/planner", { body: { idea: "x", budget: 1, experience: 1, team: 1, hours: 1 } });
+    const planner = await call("POST", "/api/planner", { body: { idea: "x", budget: 1, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const } });
     assert.equal(planner.status, 401);
     assert.equal(planner.body.code, "unauthenticated");
     assert.equal((await call("GET", "/api/planner/00000000-0000-4000-8000-000000000001")).status, 401);
@@ -148,7 +148,7 @@ describe("the protected routes", () => {
     assert.equal((await call("GET", `/api/plan/${planId}`, { cookie: cookieB })).status, 404);
     assert.equal((await call("GET", `/api/plan/${planId}`, { cookie: cookieA })).status, 200);
 
-    const job = await call("POST", "/api/planner", { body: { idea: "Bakery", budget: 1, experience: 1, team: 1, hours: 1 }, cookie: cookieA });
+    const job = await call("POST", "/api/planner", { body: { idea: "Bakery", budget: 1, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const }, cookie: cookieA });
     assert.equal(job.status, 202);
     assert.equal((await call("GET", `/api/planner/${job.body.jobId}`, { cookie: cookieB })).status, 404);
     assert.equal((await call("GET", `/api/planner/${job.body.jobId}`, { cookie: cookieA })).status, 200);

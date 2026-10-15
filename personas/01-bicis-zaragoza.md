@@ -42,7 +42,7 @@ Comprobable en la web: al enviar, los deslizadores muestran `$10,000` y `Under 1
 
 ## 6. Recorrido esperado
 
-1. **Portada.** Escribe la idea en la barra. Ve los chips `Japanese restaurant`, `Fitness app`, `Online store` y no los usa (index.html).
+1. **Portada.** Escribe la idea en la barra. Ve los chips `Tapas bar`, `Physio clinic`, `Hair salon` y no los usa (index.html).
 2. **Deslizadores.** Mueve Budget, Years y Weekly hours. Se salta Team size y recibe el error `Select a value for Team size.` (script.js). Lo corrige con una pulsación sobre el deslizador.
 3. **Envío 1.** Pulsa la flecha. Sale el diálogo de login obligatorio. ▶ **Primera decisión:** si esto vale la pena. Cierra el diálogo.
 4. **Envío 2.** Vuelve a pulsar. Elige `Register`, rellena nombre, email, contraseña y repetir contraseña (index.html). No hay verificación de email, así que queda dentro al instante (README.md, "Accounts and sessions"; script.js, `authDialog.close()`).

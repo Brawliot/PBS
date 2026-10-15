@@ -1,6 +1,7 @@
 /**
  * Business profile classification using 15 key dimensions
  */
+import { mandoNote } from "./mando-capabilities.js";
 
 import {
   buildState,
@@ -262,6 +263,8 @@ Key context:
 
 User answers:
 ${given}
+
+${mandoNote()}
 `;
 }
 

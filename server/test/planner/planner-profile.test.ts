@@ -5,7 +5,7 @@ import type { JevResponse, PlannerInput } from "../../planner/planner-handler.js
 import { mockFetch, jsonResponse } from "./helpers.js";
 import "./helpers.js";
 
-const input: PlannerInput = { idea: "Bakery delivery", budget: 10_000, experience: 1, team: 1, hours: 1 };
+const input: PlannerInput = { idea: "Bakery delivery", budget: 10_000, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const};
 const emptyJev: JevResponse = { model: "test", answers: {}, usage: { input_tokens: 0, output_tokens: 0 } };
 
 const DIMENSIONS = [
