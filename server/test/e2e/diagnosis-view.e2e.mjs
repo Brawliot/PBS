@@ -25,6 +25,7 @@ const BASE = `http://127.0.0.1:${PORT}`;
 const JOB_ID = "44444444-4444-4444-8444-444444444444";
 const REPORT_ID = "55555555-5555-4555-8555-555555555555";
 const json = (status, body) => ({ status, contentType: "application/json", body: JSON.stringify(body) });
+const improveQuestions = JSON.parse(readFileSync(join(here, "fixtures/diagnosis-cases.json"), "utf8")).improve.improve;
 
 function startServer() {
   const child = spawn(process.execPath, ["--import", "tsx", "server.ts"], {
@@ -107,6 +108,8 @@ async function mockApi(page, { finalResult, report }) {
   await page.route("**/api/reports/**", (route) => route.fulfill(json(404, { error: "Report not found", code: "not_found" })));
   await page.route(`**/api/reports/${REPORT_ID}`, (route) => route.fulfill(json(200, { id: REPORT_ID, report: report(posts), planId: null })));
   await page.route("**/api/plan/**", (route) => route.fulfill(json(404, { error: "Plan not found", code: "not_found" })));
+  // The planning questions of this report (the server's own, from the fixture's improve case). Before the catch-all.
+  await page.route(`**/api/reports/${REPORT_ID}/improve-questions`, (route) => route.fulfill(json(200, { questions: improveQuestions })));
   // Registered last, so it is matched before the job route: the description has nothing to fill in
   await page.route("**/api/planner/detect", (route) =>
     route.fulfill(json(200, { detected: { location: null, budget: null, start_mode: null, premises: null }, jevToken: null })));
