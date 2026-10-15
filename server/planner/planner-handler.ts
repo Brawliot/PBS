@@ -127,6 +127,44 @@ export const JEV_QUESTIONS: Record<string, JevQuestion> = {
       "Not specified": "The description does not mention any timeline",
     },
   },
+  // The four checks Jev judges (plan/checks.ts). Written for a physical business; an online one reads them as reach.
+  concept: {
+    type: "choice",
+    instructions: "Is the concept clear, and does it fit a real need of the customers it targets?",
+    criteria: {
+      Strong: "The product or service is clear and fits a real need of the customers it targets",
+      Watch: "The concept is clear, but its fit with the customers is not yet shown",
+      Risk: "The concept is vague, or it does not fit what the customers want",
+    },
+  },
+  location: {
+    type: "choice",
+    instructions:
+      "How good is the location for this business? A physical business judges its place. An online business judges its reach instead.",
+    criteria: {
+      Strong: "The place has plenty of the target customers nearby or passing by, and it is easy to reach",
+      Watch: "The place is workable, but it will take real effort to attract customers",
+      Risk: "The place has few target customers, or it is hard to reach",
+    },
+  },
+  competition: {
+    type: "choice",
+    instructions: "How hard is the competition for this business, and is there a clear difference from it?",
+    criteria: {
+      Strong: "Few similar businesses in the area, or a clear difference from the ones there are",
+      Watch: "Some similar businesses, and the difference is visible but not yet strong",
+      Risk: "A zone with a lot of the same offer and no clear difference",
+    },
+  },
+  experience: {
+    type: "choice",
+    instructions: "How much hands-on experience does the owner have in this kind of business?",
+    criteria: {
+      Strong: "The owner has worked in this kind of business",
+      Watch: "The owner has little experience, but could hire someone who has it",
+      Risk: "The owner has no experience and no plan to hire it",
+    },
+  },
 };
 
 /** Turns the form payload into the text state Jev analyzes */

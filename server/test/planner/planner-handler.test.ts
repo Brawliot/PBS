@@ -156,11 +156,19 @@ describe("callJev", () => {
     });
   });
 
-  test("analyzeWithJev asks the three context questions about the form data", async () => {
+  test("analyzeWithJev asks the three context questions, then the four checks of the diagnosis", async () => {
     const calls = mockFetch(() => jsonResponse(200, reply));
     await analyzeWithJev({ idea: "Bakery", budget: 0, experience: 0, team: 0, hours: 0 });
 
-    assert.deepEqual(Object.keys(calls[0].body.questions), ["sector", "geographic_scope", "timeline"]);
+    assert.deepEqual(Object.keys(calls[0].body.questions), [
+      "sector",
+      "geographic_scope",
+      "timeline",
+      "concept",
+      "location",
+      "competition",
+      "experience",
+    ]);
     assert.equal(JSON.parse(calls[0].body.state).idea, "Bakery");
   });
 });
