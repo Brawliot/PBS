@@ -7,7 +7,7 @@ import { issueCodes } from "../schema-summary.js";
 import { logProviderFailure } from "../log.js";
 import { START_MODES, PREMISES, type StartMode, type Premises } from "./fixed-answers.js";
 
-interface JevQuestion {
+export interface JevQuestion {
   type: "choice" | "score" | "noul";
   instructions: string;
   criteria?: Record<string, string>;
@@ -204,4 +204,4 @@ export function analyzeWithJev(input: PlannerInput, signal?: AbortSignal): Promi
   return callJev(buildState(input), JEV_QUESTIONS, signal);
 }
 
-export type { JevQuestion, JevResponse, JevAnswer };
+export type { JevResponse, JevAnswer };

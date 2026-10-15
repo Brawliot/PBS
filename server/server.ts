@@ -11,8 +11,9 @@ import { JobStore } from "./jobs.js";
 import { environmentProblem, originAllowed, securityHeaders } from "./security.js";
 import { logFailure } from "./log.js";
 import { UUID } from "./ids.js";
-import { HttpError, parsePlannerRequest, parsePrefillRequest, readBody } from "./request.js";
-import { prefillIdea } from "./planner/prefill.js";
+import { HttpError, parseDetectRequest, parsePlannerRequest, readBody } from "./request.js";
+import { detectFromIdea } from "./planner/detect.js";
+import { detectCache } from "./planner/detect-cache.js";
 import type { PlanRepository } from "./plan/plan-repository.js";
 import type { ReportRepository } from "./plan/report-repository.js";
 import { PgPlanRepository } from "./db/pg-plan-repository.js";
@@ -265,13 +266,14 @@ export const server = createServer(async (req, res) => {
       // The body is read first, so a too-large body is 413 whoever sends it
       const raw = await readBody(req);
       // The body is checked first, as on the plan routes: a bad request is 400 whoever sends it
-      const { input, answers, final, claims, glance } = parsePlannerRequest(raw);
+      const { input, answers, final, claims, glance, jevToken } = parsePlannerRequest(raw);
       if (!authStores || !reportRepository) return sendJson(res, 503, NO_DATABASE, NO_STORE);
       const owner = await userOf(req);
       if (!owner) return sendJson(res, 401, UNAUTHENTICATED, NO_STORE);
+      const jev = jevToken ? detectCache.take(owner, jevToken, input.idea) : undefined;
       // Planner errors can carry internal details: only HttpError messages reach the client
       const jobId = jobs.start(owner, (signal) =>
-        runPlanner(input, answers, final, claims, { reports: reportRepository, owner, signal }, glance).catch((e) => {
+        runPlanner(input, answers, final, claims, { reports: reportRepository, owner, signal, jev }, glance).catch((e) => {
           if (e instanceof HttpError) throw e;
           throw new Error("Internal server error", { cause: e });
         }),
@@ -285,15 +287,17 @@ export const server = createServer(async (req, res) => {
     }
   }
 
-  if (path === "/api/planner/prefill" && req.method === "POST") {
+  if (path === "/api/planner/detect" && req.method === "POST") {
     try {
       // Same order as the planner: the body first (a bad body is 400 whoever sends it), then the session
       const raw = await readBody(req);
-      const { idea } = parsePrefillRequest(raw);
+      const { idea } = parseDetectRequest(raw);
       if (!authStores) return sendJson(res, 503, NO_DATABASE, NO_STORE);
       const owner = await userOf(req);
       if (!owner) return sendJson(res, 401, UNAUTHENTICATED, NO_STORE);
-      return sendJson(res, 200, await prefillIdea(idea), NO_STORE);
+      const { detected, jev } = await detectFromIdea(idea);
+      const jevToken = jev ? detectCache.put(owner, idea, jev) : null;
+      return sendJson(res, 200, { detected, jevToken }, NO_STORE);
     } catch (e) {
       if (e instanceof HttpError && e.status === 413) return sendTooLarge(req, res, e.message);
       if (e instanceof HttpError) return sendJson(res, e.status, { error: e.message });

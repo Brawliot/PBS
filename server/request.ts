@@ -6,8 +6,8 @@ import type { PlannerAnswer } from "./planner/planner-phase2-handler.js";
 import { cleanClaims, type Claims } from "./planner/planner-validation-handler.js";
 import { parseGlance, type Glance } from "./plan/glance.js";
 
-/** The body of the prefill request: only the idea. The same limits as the planner's idea. */
-export function parsePrefillRequest(raw: string): { idea: string } {
+/** The body of the detection request: only the idea. The same limits as the planner's idea. */
+export function parseDetectRequest(raw: string): { idea: string } {
   let body: unknown;
   try {
     body = JSON.parse(raw);
@@ -54,6 +54,7 @@ const FIELD_SCHEMA = {
 export const MAX_ANSWERS = 12;
 export const MAX_TEXT = 1000; // characters per answer field
 export const MAX_IDEA = 2000; // characters for the idea field
+const JEV_TOKEN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export const MAX_BODY = 100_000; // bytes for request body
 /**
  * Control characters: U+0000 to U+001F and U+007F, except tab and newline. PostgreSQL refuses U+0000 in jsonb,
@@ -154,6 +155,7 @@ export function parsePlannerRequest(raw: string): {
   final: boolean;
   claims: Claims;
   glance?: Glance;
+  jevToken?: string;
 } {
   let body: Record<string, unknown>;
   try {
@@ -182,5 +184,14 @@ export function parsePlannerRequest(raw: string): {
   if (unknown.length) input.unknown = unknown;
   // The glance is only used by the final request: the first round builds its own from its phase 2
   const glance = final ? parseGlance(body.glance) : undefined;
-  return { input, answers: parseAnswers(body.answers), final, claims: cleanClaims(body.analysis), ...(glance && { glance }) };
+  // A token that is not in the shape of one is ignored: the planner then asks Jev itself
+  const jevToken = typeof body.jevToken === "string" && JEV_TOKEN.test(body.jevToken) ? body.jevToken : undefined;
+  return {
+    input,
+    answers: parseAnswers(body.answers),
+    final,
+    claims: cleanClaims(body.analysis),
+    ...(glance && { glance }),
+    ...(jevToken && { jevToken }),
+  };
 }

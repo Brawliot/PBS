@@ -204,6 +204,8 @@ export interface PlannerRunOptions {
   owner: string;
   /** Aborted when the person cancels the analysis: the run stops, and no report is kept for it */
   signal?: AbortSignal;
+  /** A Jev result made from the same idea by the detection: reused instead of asking Jev again */
+  jev?: JevResponse;
 }
 
 /** Keeps a report and returns its id; on failure, logs the code only and returns no id */
@@ -232,7 +234,7 @@ export async function runPlanner(
   options: PlannerRunOptions,
   sentGlance?: Glance,
 ) {
-  const jev = await analyzeWithJev(input, options.signal);
+  const jev = options.jev ?? (await analyzeWithJev(input, options.signal));
 
   // Final request: the questions are answered, so only the profile is left (no phase 2 in this report)
   if (final) {
