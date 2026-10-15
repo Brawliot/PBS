@@ -241,7 +241,7 @@ async function scenarioFinalRequest(browser) {
   assert.equal(live.budget.row, "Budget €5,000 – €9,000 estimated");
   assert.equal(live.budget.note, "Estimated budget: €5,000 – €9,000. Your budget: €200,000.");
   assert.equal(live.budget.fits, "Enough for a first version", "the fit text is shown under the range");
-  assert.match(live.budget.bar.zoneLeft, /^0\.5/);
+  assert.match(live.budget.bar.zoneLeft, /^2\.5/);
   assert.equal(live.budget.bar.you, "100%", "the person's budget is the top of the scale");
   // The fixed questions were answered with their largest values: the budget range's top, and the rest as they are
   assert.deepEqual(live.needs, NEEDS_FOR_BUDGET_TOP, "the money against the person's budget, and the time and team");
