@@ -1,6 +1,6 @@
 (() => {
   // ---------------------------------------------------------------------------
-  // Field errors: one helper pair for every form (search, sliders, auth dialogs)
+  // Field errors: one helper pair for every form (search, auth dialogs)
   // ---------------------------------------------------------------------------
   const errors = new WeakMap(); // input -> its <p class="field-error">
   let errorCount = 0;
@@ -236,22 +236,10 @@
   });
 
   // ---------------------------------------------------------------------------
-  // Search form: idea text + four sliders, all required
+  // Search form: the idea text. The person's situation is asked after it, as four fixed questions.
   // ---------------------------------------------------------------------------
-  const formatters = {
-    currency: (v) => '$' + v.toLocaleString('en-US'),
-    years: (v, max) => (v >= max ? `${max}+ years` : `${v} ${v === 1 ? 'year' : 'years'}`),
-  };
-
-  const formatValue = (range) => {
-    const v = Number(range.value);
-    if (range.dataset.labels) return range.dataset.labels.split('|')[v] ?? String(v);
-    return formatters[range.dataset.format](v, Number(range.max));
-  };
-
   const search = document.querySelector('.search');
   const idea = search.querySelector('.search__input');
-  const ranges = [...search.querySelectorAll('.range')];
 
   // The idea field uses the error element that already exists in the markup
   errors.set(idea, document.getElementById('search-error'));
@@ -260,29 +248,88 @@
     resetFlow();
   });
 
-  // Sliders always hold a value, so "untouched" is tracked separately (is-set).
-  // The first user input marks a slider as set; the initial value is only an example.
-  // Choosing a slider: the value it shows counts as chosen, even when it does not change (Solo is the
-  // start value of Team size, and a click or Home on it fires no input event). Tab does not choose it.
-  const MOVE_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'];
-  const markSet = (range) => {
-    range.classList.add('is-set');
-    range.style.setProperty('--fill', `${((range.value - range.min) / (range.max - range.min)) * 100}%`); // dark part of the track, up to the thumb
-    const output = range.closest('.filter').querySelector('output');
-    output.classList.remove('is-example');
-    output.value = formatValue(range);
-    toggleToken(range, 'aria-describedby', 'slider-hint', false);
-    clearFieldError(range);
-    resetFlow();
+  // --- The four fixed questions: free text, with buttons as suggested answers ----------------
+  // The server takes numbers (see RANGES in server/request.ts), so each answer is read into one.
+  // parse returns null when the text cannot be read, and the question is asked again.
+  const clamp = (n, min, max) => Math.min(max, Math.max(min, n));
+  // "10.000 €", "10,000", "10k", "1.5M", "50 mil": the first amount in the text, with its multiplier
+  const readAmount = (text) => {
+    const match = text.toLowerCase().match(/(\d[\d.,\s]*)\s*(k|mil|m|million|millón|millones)?\b/);
+    if (!match) return null;
+    let digits = match[1].replace(/\s/g, '');
+    // A comma or dot followed by exactly three digits groups thousands; any other one is a decimal mark
+    digits = digits.replace(/[.,](?=\d{3}(\D|$))/g, '').replace(',', '.');
+    const n = Number.parseFloat(digits);
+    if (!Number.isFinite(n)) return null;
+    const mult = { k: 1e3, mil: 1e3, m: 1e6, million: 1e6, 'millón': 1e6, millones: 1e6 }[match[2]] ?? 1;
+    return n * mult;
   };
+  const NONE = /\b(none|nothing|zero|cero|nada|ninguno|ninguna)\b/i;
 
-  ranges.forEach((range) => {
-    range.closest('.filter').querySelector('output').classList.add('is-example');
+  const TEAM_LABELS = ['Solo', 'Small (2-3)', 'Medium (4-10)', 'Large (10+)'];
+  const HOURS_LABELS = ['Under 10 h', '10-20 h', '30+ h', 'Full time'];
 
-    range.addEventListener('input', () => markSet(range));
-    range.addEventListener('pointerup', () => markSet(range)); // a click on the track or the thumb
-    range.addEventListener('keydown', (e) => { if (MOVE_KEYS.includes(e.key)) markSet(range); });
-  });
+  const PROFILE_QUESTIONS = [
+    {
+      key: 'budget',
+      question: 'How much money can you invest in this business?',
+      options: ['0 €', '10,000 €', '50,000 €', '200,000 €'],
+      parse: (text) => {
+        const n = readAmount(text);
+        if (n !== null) return clamp(Math.round(n), 0, 1_000_000);
+        return NONE.test(text) ? 0 : null;
+      },
+      error: 'Write an amount, for example 25,000 €.',
+    },
+    {
+      key: 'experience',
+      question: 'How many years of experience do you have in this industry?',
+      options: ['None', '1-2 years', '3-5 years', 'More than 5 years'],
+      parse: (text) => {
+        const n = readAmount(text);
+        if (n !== null) return clamp(Math.round(n), 0, 20);
+        return NONE.test(text) ? 0 : null;
+      },
+      error: 'Write a number of years, for example 3.',
+    },
+    {
+      key: 'team',
+      question: 'How many people will work on it, counting you?',
+      options: TEAM_LABELS,
+      parse: (text) => {
+        const known = TEAM_LABELS.findIndex((label) => label.toLowerCase() === text.trim().toLowerCase());
+        if (known !== -1) return known;
+        if (/\b(solo|alone|just me|only me|yo solo|sol[oa])\b/i.test(text)) return 0;
+        if (/\b(large|big|grande)\b/i.test(text)) return 3;
+        if (/\b(medium|mediano)\b/i.test(text)) return 2;
+        if (/\b(small|pequeño)\b/i.test(text)) return 1;
+        const n = readAmount(text);
+        if (n === null) return null;
+        if (n <= 1) return 0;
+        if (n <= 3) return 1;
+        return n <= 10 ? 2 : 3;
+      },
+      error: 'Write how many people, for example 2.',
+    },
+    {
+      key: 'hours',
+      question: 'How many hours a week can you put into it?',
+      options: HOURS_LABELS,
+      parse: (text) => {
+        const known = HOURS_LABELS.findIndex((label) => label.toLowerCase() === text.trim().toLowerCase());
+        if (known !== -1) return known;
+        if (/\b(full[- ]?time|tiempo completo|jornada completa)\b/i.test(text)) return 3;
+        const n = readAmount(text);
+        if (n === null) return null;
+        if (n < 10) return 0;
+        if (n < 30) return 1;
+        return n < 40 ? 2 : 3;
+      },
+      error: 'Write a number of hours, for example 15.',
+    },
+  ];
+  // The answers to the fixed questions, as the numbers the server takes ({ budget, experience, team, hours })
+  let profileInput = {};
 
   // Example ideas: a click fills the idea field, as if the person had typed it
   document.querySelectorAll('.hints__chip').forEach((chip) => {
@@ -534,7 +581,7 @@
   const submitIdea = async () => {
     const input = {
       idea: idea.value.trim(),
-      ...Object.fromEntries(ranges.map((range) => [range.id, Number(range.value)])),
+      ...profileInput,
     };
     const final = answers.length > 0;
     const payload = {
@@ -867,7 +914,7 @@
       }
       if (key === 'team_requirement' && team !== undefined) {
         const offer = document.createElement('small');
-        offer.textContent = `You offer: ${document.getElementById('team').dataset.labels.split('|')[team]}`;
+        offer.textContent = `You offer: ${TEAM_LABELS[team]}`;
         detail.append(offer);
       }
       cell.append(term, detail);
@@ -1107,10 +1154,6 @@
       showFieldError(idea);
       invalid.push(idea);
     }
-    ranges.filter((range) => !range.classList.contains('is-set')).forEach((range) => {
-      showFieldError(range, `Select a value for ${labelOf(range)}.`);
-      invalid.push(range);
-    });
 
     if (invalid.length) {
       invalid[0].focus();

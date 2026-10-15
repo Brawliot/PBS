@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="MANDO helps you plan and execute your business: describe your idea and set your budget, experience, team size and weekly hours.">
+  <meta name="description" content="MANDO helps you plan and execute your business: describe your idea and answer a few short questions about your budget, experience, team and time.">
   <meta name="theme-color" content="#f6f7f8">
   <title>MANDO - Plan &amp; Execute your Business</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23272727'/%3E%3Ctext x='16' y='23' font-size='20' font-weight='800' text-anchor='middle' fill='%23fff' font-family='Arial'%3EM%3C/text%3E%3C/svg%3E">
@@ -59,33 +59,9 @@
           <button type="button" class="hints__chip">Fitness app</button>
           <button type="button" class="hints__chip">Online store</button>
         </div>
-        <div class="filters__title">
-          <p class="filters__heading">Your situation</p>
-          <p class="filters__help">These four answers shape the plan to your resources.</p>
-        </div>
-        <div class="filter">
-          <div class="filter__head"><label for="budget">Budget</label><output for="budget">e.g. $500,000</output></div>
-          <input id="budget" class="range" type="range" value="500000" min="0" max="1000000" step="10000" data-format="currency" aria-describedby="slider-hint">
-          <div class="filter__ticks" aria-hidden="true"><span>$0</span><span>$1M</span></div>
-        </div>
-        <div class="filter">
-          <div class="filter__head"><label for="experience">Years in this industry</label><output for="experience">e.g. 5 years</output></div>
-          <input id="experience" class="range" type="range" value="5" min="0" max="20" step="1" data-format="years" aria-describedby="slider-hint">
-          <div class="filter__ticks" aria-hidden="true"><span>0</span><span>20+ years</span></div>
-        </div>
-        <div class="filter">
-          <div class="filter__head"><label for="team">Team size</label><output for="team">e.g. Solo</output></div>
-          <input id="team" class="range" type="range" value="0" min="0" max="3" step="1" data-labels="Solo|Small (2-3)|Medium (4-10)|Large (10+)" aria-describedby="slider-hint">
-          <div class="filter__ticks" aria-hidden="true"><span>Solo</span><span>Small</span><span>Medium</span><span>Large</span></div>
-        </div>
-        <div class="filter">
-          <div class="filter__head"><label for="hours">Weekly hours</label><output for="hours">e.g. 10-20 h</output></div>
-          <input id="hours" class="range" type="range" value="1" min="0" max="3" step="1" data-labels="Under 10 h|10-20 h|30+ h|Full time" aria-describedby="slider-hint">
-          <div class="filter__ticks" aria-hidden="true"><span>Under 10 h</span><span>10-20 h</span><span>30+ h</span><span>Full time</span></div>
-        </div>
       </div>
       <div class="hints">
-        <p class="hints__note">We will ask a few questions · about 1 minute · Guidance only, not professional advice</p>
+        <p class="hints__note">We will ask up to 8 short questions · about 2 minutes · Guidance only, not professional advice</p>
       </div>
       <div class="submit-error" id="submit-error" role="alert">
         <p class="submit-error__text" id="submit-error-text"></p>
@@ -193,7 +169,6 @@
   </dialog>
 
   <p class="sr-only" id="status" role="status"></p>
-  <p class="sr-only" id="slider-hint">Example value shown. Move the slider to set your own.</p>
 
   <div class="backdrop" aria-hidden="true"></div>
 
