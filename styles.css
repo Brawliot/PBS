@@ -690,13 +690,18 @@ body:has(> .hero) { overflow-y: auto; }
 }
 
 /* ==========================================================================
-   Giant wordmark (endless loop to the right)
+   Giant wordmark: two rows (built by giant.js). The first scrolls right; the
+   second is flipped upside down, with the colours swapped, and scrolls left.
    ========================================================================== */
 .giant {
   flex: 1; min-height: 0; margin-top: 2vh;
-  font-size: 40vw; font-weight: 800; line-height: .75;
+  display: flex; flex-direction: column;
+  font-size: 20vw; font-weight: 800;
   letter-spacing: -0.07em; white-space: nowrap; overflow: hidden;
 }
+.giant__row { line-height: .74; }
+.giant__row--flipped { transform: scaleY(-1); }
+.giant__row--flipped .giant__track { animation-direction: reverse; }
 .giant__track { display: flex; width: max-content; }
 .giant__track.is-looping {
   animation: giant-scroll 70s linear infinite;
@@ -869,7 +874,7 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
 
   /* Giant wordmark: reduce size for small screens */
   .giant {
-    font-size: 30vw;
+    font-size: 15vw;
     margin-top: 1.5vh;
   }
 }
@@ -1016,7 +1021,7 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
 
   /* Giant wordmark: smaller, less intrusive */
   .giant {
-    font-size: 25vw;
+    font-size: 12.5vw;
     margin-top: 1vh;
   }
 
