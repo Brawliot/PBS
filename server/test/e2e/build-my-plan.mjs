@@ -436,12 +436,12 @@ async function scenarioPrefill(browser) {
   return "prefill: the place and amount are marked and confirmed, a change is sent, premises start empty";
 }
 
-/** The description arrives after the first question: it is asked empty and the flow goes on */
+/** The description arrives after its own limit: the first question is asked empty and the flow goes on */
 async function scenarioPrefillSlow(browser) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
   const page = await context.newPage();
   await watch(page, scenarioLabel());
-  const prefill = { body: { location: "Malasaña, Madrid", budget: null, start_mode: null, premises: null }, delayMs: 6_000 };
+  const prefill = { body: { location: "Malasaña, Madrid", budget: null, start_mode: null, premises: null }, delayMs: 11_000 };
   const { posts } = await mockApi(page, { results: [questionsResult, withReport], plan: json(201, { id: PLAN_ID }), prefill });
   await page.goto(`${BASE}/`);
   await page.fill(".search__input", "Bakery delivery");

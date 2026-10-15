@@ -421,7 +421,7 @@
 
   // --- Sending: title leaves, loader runs while the request is pending -------
   const PREFILL_TIMEOUT_MS = 10_000; // the server's own limit for the description call
-  const PREFILL_WAIT_MS = 1_500;     // most the first fixed question waits for the description
+  const PREFILL_WAIT_MS = 10_000;    // most the first fixed question waits for the description (behind the loader)
   const EXIT_MS = 850;        // subtitle exit + title-to-loader travel to the centre (keep in sync with CSS)
   const FIRST_QUESTION_MS = 600; // entrance of the first question (keep in sync with .question.is-entering in CSS)
   const MIN_LOADER_MS = 1500; // visible time of the loader, so it never flashes
@@ -677,7 +677,8 @@
     startLoading();
     status.textContent = 'A few questions about your situation.';
     const run = ++flowRun;
-    // The description is read from the idea as it is sent; the first question waits for it at most PREFILL_WAIT_MS
+    // The description is read from the idea as it is sent; the first question waits for it at most PREFILL_WAIT_MS,
+    // so a model call that takes a few seconds still fills it in
     const started = Date.now();
     prefillResult = null;
     const prefilled = requestPrefill(idea.value.trim()).then((result) => { prefillResult = result; });
