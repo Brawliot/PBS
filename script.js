@@ -1042,6 +1042,9 @@
   // What a new round needs from this session: the idea, the fixed answers, the answers, the first analysis.
   // Kept in the history entry with the report's id, so a reload can still improve the report.
   let improveSession = null; // { idea, profileInput, answers, analysis, rounds, asked }
+  // A report with a diagnosis asks the planning questions of its weak checks (GET /api/reports/:id/improve-questions)
+  let currentDiagnosis = null;
+  let diagnosisQuestions = [];
   let currentClarity = null;
   let improving = false;
   const saveHistory = () => history.replaceState({ reportId, ...(improveSession && { session: improveSession }) }, '');
@@ -1095,14 +1098,80 @@
         planAnyway.disabled = !reportId;
       }
     }
+    const diagnosisMode = !!currentDiagnosis;
     const questions = improvable ? improveQuestions(clarity).length : 0;
-    improveBox.hidden = !improvable || !quiz.hidden;
+    improveBox.hidden = diagnosisMode ? !improveSession || !diagnosisQuestions.length || !quiz.hidden : !improvable || !quiz.hidden;
     document.getElementById('result-improve-open').className = state === 'green' ? 'btn btn--outline' : 'btn btn--dark';
-    if (improvable) {
+    if (diagnosisMode && diagnosisQuestions.length) {
+      const count = diagnosisQuestions.length;
+      document.getElementById('result-improve-text').textContent = `${count === 1 ? '1 quick question' : `${count} quick questions`} \u00b7 about 1 min`;
+    } else if (improvable) {
       const left = IMPROVE.rounds - improveSession.rounds;
       document.getElementById('result-improve-text').textContent =
         `${state === 'green' ? 'Optional \u00b7 ' : ''}${questions === 1 ? '1 quick question' : `${questions} quick questions`} \u00b7 ${left === 1 ? 'last round' : 'about 1 min'}`;
     }
+  };
+
+  // The questions of the weak checks, from the server, for the report on screen. Only the report that is shown counts.
+  const CATEGORY_NAMES = { concept: 'Concept', location: 'Location', reach: 'Reach', money: 'Money', experience: 'Experience', competition: 'Competition' };
+  const loadDiagnosisQuestions = async () => {
+    const id = reportId;
+    diagnosisQuestions = [];
+    showReadiness(currentClarity);
+    if (!currentDiagnosis || !id) return;
+    try {
+      const response = await fetch(`/api/reports/${encodeURIComponent(id)}/improve-questions`, { cache: 'no-store', headers: { Accept: 'application/json' } });
+      if (!response.ok) return;
+      const body = await response.json();
+      if (id !== reportId) return; // another report is on screen by now
+      diagnosisQuestions = (Array.isArray(body?.questions) ? body.questions : []).filter(
+        (item) => typeof item?.key === 'string' && typeof item.question === 'string' && Array.isArray(item.options),
+      );
+      showReadiness(currentClarity);
+    } catch {
+      // Without the questions the link stays hidden and the report is as it is
+    }
+  };
+
+  // The closed questions: each option is a button, one answer per question, the groups in the order the server gives
+  const openDiagnosisQuiz = () => {
+    quizList.replaceChildren();
+    let group = null;
+    diagnosisQuestions.forEach((item) => {
+      if (item.category !== group) {
+        group = item.category;
+        const caption = document.createElement('p');
+        caption.className = 'quiz__group';
+        const [word, symbol] = CHECK_STATES[item.status] ?? CHECK_STATES.watch;
+        caption.textContent = `${CATEGORY_NAMES[item.category] ?? item.category} \u00b7 ${symbol} ${word}`;
+        quizList.append(caption);
+      }
+      const set = document.createElement('fieldset');
+      set.className = 'quiz__item';
+      set.dataset.label = item.key;
+      set.dataset.value = '';
+      const legend = document.createElement('legend');
+      legend.textContent = item.question;
+      const options = document.createElement('div');
+      options.className = 'quiz__opts';
+      item.options.forEach((label) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = label;
+        button.setAttribute('aria-pressed', 'false');
+        if (label.startsWith("I don't know")) button.className = 'is-unsure';
+        button.addEventListener('click', () => {
+          set.dataset.value = label;
+          options.querySelectorAll('button').forEach((other) => other.setAttribute('aria-pressed', String(other === button)));
+        });
+        options.append(button);
+      });
+      set.append(legend, options);
+      quizList.append(set);
+    });
+    improveBox.hidden = true;
+    quiz.hidden = false;
+    quizList.querySelector('button')?.focus();
   };
 
   const closeQuiz = () => {
@@ -1112,6 +1181,10 @@
   };
 
   const openQuiz = () => {
+    if (currentDiagnosis) {
+      openDiagnosisQuiz();
+      return;
+    }
     const questions = improveQuestions(currentClarity);
     if (!questions.length) return;
     quizList.replaceChildren();
@@ -1171,7 +1244,14 @@
     const newAnswers = [];
     const newInput = { ...improveSession.profileInput };
     let invalid = null;
+    if (currentDiagnosis) {
+      items.forEach((set) => {
+        const item = diagnosisQuestions.find(({ key }) => key === set.dataset.label);
+        if (item && set.dataset.value) newAnswers.push({ topic: item.key, question: item.question, answer: set.dataset.value });
+      });
+    }
     items.forEach((set) => {
+      if (currentDiagnosis) return;
       const item = questions.find(({ label }) => label === set.dataset.label);
       const field = set.querySelector('input');
       const error = set.querySelector('.quiz__error');
@@ -1724,8 +1804,11 @@
     // A plan is built from the saved report only; without one the button says why it cannot be used
     document.getElementById('result-plan').disabled = !reportId;
     document.getElementById('result-plan-note').hidden = !!reportId;
+    currentDiagnosis = view.diagnosis ?? null;
+    diagnosisQuestions = [];
     showReadiness(currentClarity);
     showDiagnosis(view.diagnosis ?? null, glance);
+    loadDiagnosisQuestions();
     // The header stays usable (profile menu, projects, theme); the report takes the focus when it opens: its
     // title when it is the diagnosis, the section otherwise
     document.body.classList.add('has-result');

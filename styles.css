@@ -1405,3 +1405,6 @@ body.has-review .hero { display: none; }
 .result.is-diagnosis #result-detail-open,
 .result.is-diagnosis #result-templates-open { display: none !important; }
 .improve-zone { display: flex; flex-direction: column; gap: 12px; }
+
+/* The groups of "Improve my report": each check's name and its state, above its questions */
+.quiz__group { margin: 8px 0 0; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray-text); }
