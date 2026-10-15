@@ -1408,3 +1408,14 @@ body.has-review .hero { display: none; }
 
 /* The groups of "Improve my report": each check's name and its state, above its questions */
 .quiz__group { margin: 8px 0 0; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray-text); }
+
+/* An identified check says so in words; a row whose state changed is marked for a moment (not with reduced motion) */
+.lights .identified { margin: 4px 0 0; font-size: 14px; color: var(--gray-text); }
+@media (prefers-reduced-motion: no-preference) {
+  .lights li.is-changed { animation: check-changed 1.6s ease-out; }
+}
+@keyframes check-changed {
+  from { background: var(--tint); }
+  to { background: transparent; }
+}
+

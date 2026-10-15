@@ -184,6 +184,14 @@ The words are written by one more model call, the diagnosis text (`server/planne
 - A reason over its limit is replaced, not cut. The risks are cut to the first three. An idea over its limit is replaced by the person's own idea, cut to its limit.
 - A failed call, or a reply that is not usable, keeps the defaults: the report is never kept without its words.
 
+"Improve my report" answers move the states (`applyImprove` in `server/plan/checks.ts`), after the rules and Jev have given theirs. The effect of each option comes from the closed bank (`server/plan/improve-questions.ts`):
+
+- **good**: one level up. A cushion or financing on money is decided again by the money rule, with the cushion counted as `CHECK_RULES.money.cushionShare` of the minimum.
+- **partial**: a risk becomes a watch; a watch stays.
+- **gap** ("I don't know yet", "Not decided yet", "No", "Not yet"): a risk becomes a watch and the check is **identified** (its reason says the plan will work on it, and the page notes it). A gap never makes a check strong.
+
+Several answers in one category count as the best one, once. A check is never lowered. Each identified check keeps its plan task (`planTask`, from `PLAN_TASK`), which the plan does not read yet.
+
 The "who does what" lines come from the execution the phase 2 analysis proposes, checked by the server (`server/plan/execution.ts`), never from the model. A part called Mando's is one of `MANDO_BUILDS` (`server/planner/mando-capabilities.ts`) or it is the person's, or hired out when it costs money. The lines are "Mando builds" (the catalog labels only), "You handle" and "Hire out", at most four each. An empty line is not shown.
 
 Known limits:

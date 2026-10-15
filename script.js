@@ -1311,6 +1311,7 @@
       if (reportId) saveHistory();
       quiz.hidden = true;
       quizList.replaceChildren();
+      const previousChecks = currentDiagnosis?.checks ?? null;
       showResult(session.analysis, result.profile, result.validation ?? null, result.explanations ?? null, {
         glance: result.glance ?? null,
         clarity: result.clarity ?? null,
@@ -1321,6 +1322,7 @@
         startMode: values.start_mode,
         premises: values.premises,
       });
+      announceChanges(previousChecks);
       // The change is the answer to the round: it is said, and brought into view
       const now = result.clarity ?? null;
       const raised = [['concept', 'your business'], ['person', 'you']]
@@ -1660,9 +1662,10 @@
 
     const checks = document.getElementById('diagnosis-checks');
     checks.replaceChildren();
-    diagnosis.checks.forEach(({ key, status, why, estimated }) => {
+    diagnosis.checks.forEach(({ key, status, why, estimated, identified }) => {
       const [word, symbol] = CHECK_STATES[status];
       const item = document.createElement('li');
+      item.dataset.key = key;
       const mark = document.createElement('span');
       mark.className = `mark mark--${status}`;
       mark.setAttribute('aria-hidden', 'true');
@@ -1686,6 +1689,12 @@
         text.append(' ', chip);
       }
       item.append(mark, head, text);
+      if (identified) {
+        const note = document.createElement('p');
+        note.className = 'identified';
+        note.textContent = 'Identified: your plan will work on it';
+        item.append(note);
+      }
       checks.append(item);
     });
 
@@ -1706,6 +1715,24 @@
       return [item];
     }));
     document.getElementById('diagnosis-plan-block').hidden = !split.children.length;
+  };
+
+  // A new report after "Improve my report": each check whose state changed is said in words (the status line is a
+  // live region) and its row is marked for a moment; the mark is not animated when the system asks for less motion
+  const announceChanges = (previous) => {
+    if (!previous || !currentDiagnosis) return;
+    const changed = currentDiagnosis.checks.flatMap((check) => {
+      const before = previous.find(({ key }) => key === check.key);
+      if (!before || before.status === check.status) return [];
+      return [{ key: check.key, text: `${CHECK_NAMES[check.key]}: ${CHECK_STATES[before.status][0]} to ${CHECK_STATES[check.status][0]}` }];
+    });
+    changed.forEach(({ key }) => {
+      const row = document.querySelector(`#diagnosis-checks > li[data-key="${key}"]`);
+      if (!row) return;
+      row.classList.add('is-changed');
+      setTimeout(() => row.classList.remove('is-changed'), 1600);
+    });
+    if (changed.length) status.textContent = changed.map(({ text }) => text).join('. ');
   };
 
   const showResult = (phase2, profile, validation, explanations, view = {}) => {
