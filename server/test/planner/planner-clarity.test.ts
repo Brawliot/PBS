@@ -5,7 +5,7 @@ import { runPlanner } from "../../planner/planner-run.js";
 import type { PlannerInput } from "../../planner/planner-handler.js";
 import type { Glance } from "../../plan/glance.js";
 import { InMemoryReportRepository } from "../../plan/report-repository-memory.js";
-import { REASONLESS_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, type CapturedRequest } from "./helpers.js";
+import { REASONLESS_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, type CapturedRequest, reportWithoutQuestions } from "./helpers.js";
 import "./helpers.js";
 
 // The clarity of a run: computed from the glance (the sources of phase 2), the profile, the fixed questions and
@@ -55,7 +55,7 @@ describe("runPlanner: the clarity", () => {
   test("a first round with no questions left returns the clarity and keeps it in the report", async () => {
     mockOutside();
     const reports = new InMemoryReportRepository();
-    const result = (await runPlanner(input, answers, false, {}, { reports, owner: USER })) as Record<string, any>;
+    const result = await reportWithoutQuestions(input, answers, { reports, owner: USER });
 
     assert.equal(result.clarity.version, 3);
     // Offer, value, stage and competition said; customer and place inferred; money unknown
@@ -75,9 +75,11 @@ describe("runPlanner: the clarity", () => {
     const first = (await runPlanner(input, answers, false, {}, { owner: USER })) as Record<string, any>;
     mockOutside();
     const final = (await runPlanner(input, answers, true, {}, { owner: USER }, first.glance as Glance)) as Record<string, any>;
+    // The same data, the browser's two requests: the same clarity as the report the first round's glance gives
+    const reference = await reportWithoutQuestions(input, answers, { owner: USER });
 
-    assert.ok(first.clarity);
-    assert.deepEqual(final.clarity, first.clarity);
+    assert.ok(final.clarity);
+    assert.deepEqual(final.clarity, reference.clarity);
   });
 
   test("a final glance without the sources gives no clarity, and the report is still kept", async () => {
@@ -99,7 +101,7 @@ describe('runPlanner: an "I don\'t know" in the fixed questions', () => {
 
   test("is printed as unknown to the models, and the checks that need it are not asked", async () => {
     const calls = mockOutside();
-    const result = (await runPlanner(unsure, answers, false, {}, { owner: USER })) as Record<string, any>;
+    const result = await reportWithoutQuestions(unsure, answers, { owner: USER });
 
     for (const call of calls) {
       assert.match(bodyText(call), /budget_eur\\":\\"unknown/);
@@ -122,7 +124,7 @@ describe('runPlanner: an "I don\'t know" in the fixed questions', () => {
 
   test("with nothing flagged, the models see the numbers as before", async () => {
     const calls = mockOutside();
-    await runPlanner(input, answers, false, {}, { owner: USER });
+    await reportWithoutQuestions(input, answers, { owner: USER });
     for (const call of calls) assert.match(bodyText(call), /location\\":\\"Madrid\\",\\"budget_eur\\":10000,\\"start_mode\\":\\"scratch\\",\\"premises\\":\\"have\\"/);
     assert.ok(calls.some((call) => bodyText(call).includes("check_budget_fit")));
     assert.ok(calls.every((call) => !bodyText(call).includes("does not know their budget")));
@@ -142,7 +144,7 @@ describe('runPlanner: the whole path with "I don\'t know" in every fixed questio
   test("the first round and the final request both keep the four as unknown in the report", async () => {
     mockOutside();
     const reports = new InMemoryReportRepository();
-    const first = (await runPlanner(everyUnknown, answers, false, {}, { reports, owner: USER })) as Record<string, any>;
+    const first = await reportWithoutQuestions(everyUnknown, answers, { reports, owner: USER });
     const storedFirst = await reports.get(first.reportId, USER);
     assert.deepEqual(storedFirst?.report.input.unknown, ["location", "budget", "start_mode", "premises"]);
     assert.equal(storedFirst?.report.input.location, "");
@@ -161,7 +163,7 @@ describe('runPlanner: "undecided" and "unsure" are answers, not missing data', (
     mockOutside();
     const reports = new InMemoryReportRepository();
     const input: PlannerInput = { ...everyDecided(), start_mode: "undecided", premises: "unsure" };
-    const result = (await runPlanner(input, answers, false, {}, { reports, owner: USER })) as Record<string, any>;
+    const result = await reportWithoutQuestions(input, answers, { reports, owner: USER });
     const stored = await reports.get(result.reportId, USER);
     assert.equal(stored?.report.input.start_mode, "undecided");
     assert.equal(stored?.report.input.premises, "unsure");

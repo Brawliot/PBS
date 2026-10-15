@@ -257,26 +257,8 @@ export async function runPlanner(
 
   const phase2 = await analyzePhase2(input, jev, answers, options.signal);
   const questions = selectQuestions(phase2.questions, answers);
-  if (questions.length === 0) {
-    const built = await buildReport(input, jev, answers, claimsFromPhase2(phase2), phase2);
-    const withPhase2 = { ...phase2, questions };
-    const glance = glanceFor(input, glanceOf(withPhase2));
-    const clarity = clarityOf(input, answers, built.profile, glance);
-    const explanations = await explainReport(
-      { input, answers, validation: built.validation, phase2, glance, timeToRevenue: built.profile.values.time_to_revenue },
-      options.signal,
-    );
-    return {
-      jev,
-      phase2: withPhase2,
-      ...built,
-      ...(explanations && { explanations }),
-      ...(glance && { glance }),
-      ...(clarity && { clarity }),
-      ...(await keepReport(options, reportOf(input, answers, jev, built, withPhase2, explanations, glance, clarity))),
-    };
-  }
-  // The glance goes with the questions too: the browser sends it back with the final request
+  // No questions is a valid answer: the browser then shows what was understood, and the final request builds the report
+  // The glance goes with the questions (or with none): the browser sends it back with the final request
   const glance = glanceFor(input, glanceOf(phase2));
   return {
     jev,

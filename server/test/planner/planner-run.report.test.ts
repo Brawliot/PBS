@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { runPlanner } from "../../planner/planner-run.js";
 import { InMemoryReportRepository } from "../../plan/report-repository-memory.js";
 import { ReportStoreError, type ReportRepository } from "../../plan/report-repository.js";
-import { REASONLESS_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, silenceConsoleError } from "./helpers.js";
+import { REASONLESS_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, reportWithoutQuestions, silenceConsoleError } from "./helpers.js";
 import "./helpers.js";
 
 // The reports a run keeps: built from its own values, checked by parseReport, and linked by reportId
@@ -67,15 +67,15 @@ describe("runPlanner keeps the report of the runs that end with one", () => {
     assert.equal("phase2" in (stored?.report ?? {}), false);
   });
 
-  test("the first round without questions keeps a report that includes phase 2 with no questions", async () => {
+  test("the first round without questions keeps no report: it returns no questions and the glance, for the browser to show", async () => {
     mockOutside([]);
     const reports = new InMemoryReportRepository();
     const result = (await runPlanner(input, [], false, claims, { reports, owner: USER })) as Record<string, any>;
-    const stored = await reports.get(result.reportId, USER);
-    assert.deepEqual(stored?.report.phase2, { ...phase2Reply([]), questions: [] });
-    assert.deepEqual(stored?.report.input, input);
-    assert.deepEqual(stored?.report.answers, []);
-    assert.deepEqual(stored?.report.profile, result.profile);
+    assert.equal("reportId" in result, false);
+    assert.equal("profile" in result, false);
+    assert.deepEqual(result.phase2.questions, []);
+    assert.equal(result.questionTotal, 0);
+    assert.equal(reports.rows.size, 0);
   });
 
   test("the first round with questions keeps no report and returns no reportId", async () => {
@@ -88,7 +88,7 @@ describe("runPlanner keeps the report of the runs that end with one", () => {
 
   test("without a repository the run works as before, with no reportId", async () => {
     mockOutside([]);
-    const result = (await runPlanner(input, [], false, claims, { owner: USER })) as Record<string, unknown>;
+    const result = (await reportWithoutQuestions(input, [], { owner: USER })) as Record<string, unknown>;
     assert.equal("reportId" in result, false);
     assert.ok(result.profile);
   });
@@ -105,7 +105,7 @@ describe("runPlanner keeps the report of the runs that end with one", () => {
       attachPlan: async () => ({ ok: false, code: "not_found" }),
     };
     const log = silenceConsoleError();
-    const result = (await runPlanner(input, [], false, claims, { reports: failing, owner: USER })) as Record<string, unknown>;
+    const result = (await reportWithoutQuestions(input, [], { reports: failing, owner: USER })) as Record<string, unknown>;
     assert.equal("reportId" in result, false);
     assert.ok(result.profile, "the run still returns its report");
     assert.deepEqual(log.mock.calls.map((call) => call.arguments), [["Report not kept:", "23505"]]);
@@ -123,7 +123,7 @@ describe("runPlanner keeps the report of the runs that end with one", () => {
       attachPlan: async () => ({ ok: false, code: "not_found" }),
     };
     const log = silenceConsoleError();
-    const result = (await runPlanner(input, [], false, claims, { reports: refusing, owner: USER })) as Record<string, unknown>;
+    const result = (await reportWithoutQuestions(input, [], { reports: refusing, owner: USER })) as Record<string, unknown>;
     assert.equal("reportId" in result, false);
     assert.deepEqual(log.mock.calls.map((call) => call.arguments), [["Report not kept:", "invalid_report"]]);
   });

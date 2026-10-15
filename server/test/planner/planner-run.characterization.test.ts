@@ -61,7 +61,7 @@ async function runJob(payload: unknown): Promise<unknown> {
 
 /** The outside calls in order: Jev, then phase 2 (first round only), then Jev again for the profile and the validation */
 const hostOf = (call: CapturedRequest) => (call.url.includes("typesafe.ai") ? "jev" : isExplanationCall(call) ? "explain" : "phase2");
-const FIRST_ROUND_CALLS = ["jev", "phase2", "jev", "jev", "explain"];
+const FIRST_ROUND_CALLS = ["jev", "phase2"];
 const FINAL_CALLS = ["jev", "jev", "jev", "explain"];
 
 const input = { idea: "Bakery delivery", budget: 10_000, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const};
@@ -106,11 +106,14 @@ function mockOutside(questions: unknown[]): CapturedRequest[] {
 }
 
 describe("runPlanner: characterization of the three paths", () => {
-  test("first round without questions: the report comes back with phase 2 and no question", async () => {
+  test("first round without questions: no report, the questions come back empty, with the glance for the browser", async () => {
     const calls = mockOutside([]);
     const result = await runJob({ ...input, answers: [] });
     assert.deepEqual(calls.map(hostOf), FIRST_ROUND_CALLS);
-    assert.deepEqual(result, JSON.parse(readFileSync(snapshotPath, "utf8")).noQuestions);
+    assert.equal("reportId" in result, false);
+    assert.deepEqual(result.phase2.questions, []);
+    assert.equal(result.questionTotal, 0);
+    assert.ok(result.glance, "the glance goes with the first round, the final request sends it back");
   });
 
   test("first round with questions: the questions come back and no profile", async () => {

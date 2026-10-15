@@ -3,7 +3,7 @@ import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { runPlanner } from "../../planner/planner-run.js";
 import type { PlannerInput } from "../../planner/planner-handler.js";
-import { REASONLESS_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse } from "./helpers.js";
+import { REASONLESS_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, reportWithoutQuestions } from "./helpers.js";
 import "./helpers.js";
 
 // Every model that estimates, classifies or checks knows what Mando covers: phase 2 gets the full context, the
@@ -34,7 +34,7 @@ describe("the models know what Mando covers", () => {
       const content = isExplanationCall(request) ? REASONLESS_EXPLANATIONS : phase2Reply;
       return jsonResponse(200, { choices: [{ finish_reason: "stop", message: { content: JSON.stringify(content) } }] });
     });
-    await runPlanner(input, [], false, {}, { owner: USER });
+    await reportWithoutQuestions(input, [], { owner: USER });
     const bodies = calls.map((call) => JSON.stringify(call.body ?? ""));
     const phase2 = bodies.filter((body) => body.includes('"name":"phase2"'));
     assert.equal(phase2.length, 1);

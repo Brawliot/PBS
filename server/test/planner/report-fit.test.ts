@@ -12,7 +12,7 @@ import { InMemoryReportRepository } from "../../plan/report-repository-memory.js
 import { buildPlanSkeleton } from "../../plan/plan-skeleton.js";
 import { reportWith } from "../plan/report-fixtures.js";
 import { prng } from "../plan/prng.js";
-import { REASONLESS_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, silenceConsoleError } from "./helpers.js";
+import { REASONLESS_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, silenceConsoleError, reportWithoutQuestions } from "./helpers.js";
 import "./helpers.js";
 
 const input = { idea: "Bakery delivery", budget: 10_000, location: "Madrid", start_mode: "scratch" as const, premises: "have" as const};
@@ -173,7 +173,7 @@ describe("contract: planner outputs of any size are always kept", () => {
       });
       const reports = new InMemoryReportRepository();
       const log = silenceConsoleError();
-      const result = (await runPlanner(input, [], false, {}, { reports, owner: USER })) as Record<string, unknown>;
+      const result = await reportWithoutQuestions(input, [], { reports, owner: USER });
       assert.equal(typeof result.reportId, "string", `seed ${seed}: report kept (${JSON.stringify(log.mock.calls.map((call) => call.arguments))})`);
       assert.equal(log.mock.calls.length, 0, `seed ${seed}: nothing logged`);
       log.mock.restore();

@@ -1,4 +1,8 @@
 import { afterEach, mock } from "node:test";
+import { runPlanner, type PlannerRunOptions } from "../../planner/planner-run.js";
+import { claimsFromPhase2 } from "../../planner/planner-validation-handler.js";
+import type { PlannerInput } from "../../planner/planner-handler.js";
+import type { PlannerAnswer } from "../../planner/planner-phase2-handler.js";
 
 export interface CapturedRequest {
   url: string;
@@ -84,3 +88,18 @@ afterEach(() => {
   applyEnv(TEST_ENV);
   mock.restoreAll();
 });
+
+/**
+ * What the browser does when the first round has no questions: the first request gives the glance, the final
+ * request builds the report with it and the claims of that round. The Jev result is reused, as the browser sends
+ * the token. Returns the final request's result.
+ */
+export async function reportWithoutQuestions(
+  input: PlannerInput,
+  answers: PlannerAnswer[],
+  options: PlannerRunOptions,
+): Promise<Record<string, any>> {
+  const first = (await runPlanner(input, answers, false, {}, options)) as Record<string, any>;
+  const claims = claimsFromPhase2(first.phase2);
+  return (await runPlanner(input, answers, true, claims, { ...options, jev: first.jev }, first.glance)) as Record<string, any>;
+}

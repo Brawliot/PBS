@@ -12,7 +12,7 @@ import type { Phase2Response } from "../../planner/planner-phase2-handler.js";
 import type { CheckKey } from "../../planner/planner-validation-handler.js";
 import { MAX_EXPLANATION_REASON } from "../../plan/report-limits.js";
 import { InMemoryReportRepository } from "../../plan/report-repository-memory.js";
-import { isExplanationCall, mockFetch, jsonResponse, silenceConsoleError } from "./helpers.js";
+import { isExplanationCall, mockFetch, jsonResponse, reportWithoutQuestions, silenceConsoleError } from "./helpers.js";
 import "./helpers.js";
 
 // The explanations of a run: one call to the model, for the warnings and areas the report shows. Every reply is
@@ -500,15 +500,18 @@ describe("runPlanner: the reasons reach the result and the stored report", () =>
     assert.deepEqual(stored?.report.explanations, result.explanations);
   });
 
-  test("the first round without questions returns the reasons and keeps them with phase 2", async () => {
-    mockRun({ explain: (text) => reply(echoReasons(text)) });
+  test("a first round without questions asks no reasons: the report comes from the final request, with them", async () => {
+    const calls = mockRun({ explain: (text) => reply(echoReasons(text)) });
     const reports = new InMemoryReportRepository();
-    const result = (await runPlanner(input, [], false, {}, { reports, owner: USER })) as Record<string, any>;
+    const first = (await runPlanner(input, [], false, {}, { reports, owner: USER })) as Record<string, unknown>;
+    assert.equal("explanations" in first, false);
+    assert.equal(calls.filter(isExplanationCall).length, 0);
 
+    const result = await reportWithoutQuestions(input, [], { reports, owner: USER });
     assert.deepEqual(result.explanations.warningReasons.map(({ key }: { key: string }) => key), ["budget_fit"]);
     const stored = await reports.get(result.reportId, USER);
     assert.deepEqual(stored?.report.explanations, result.explanations);
-    assert.ok(stored?.report.phase2, "the report keeps its phase 2 part as before");
+    assert.equal("phase2" in (stored?.report ?? {}), false, "the final report has no phase 2 part");
   });
 
   test("the first round with questions asks no explanations at all", async () => {

@@ -5,7 +5,7 @@ import { glanceOf, runPlanner } from "../../planner/planner-run.js";
 import type { Phase2Response } from "../../planner/planner-phase2-handler.js";
 import type { Glance } from "../../plan/glance.js";
 import { InMemoryReportRepository } from "../../plan/report-repository-memory.js";
-import { REASONLESS_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse } from "./helpers.js";
+import { REASONLESS_EXPLANATIONS, isExplanationCall, mockFetch, jsonResponse, reportWithoutQuestions } from "./helpers.js";
 import "./helpers.js";
 
 // The glance of a run: a final request keeps the glance the browser sends (checked by the request parser), and a
@@ -85,12 +85,21 @@ describe("runPlanner: the glance of a final request", () => {
 });
 
 describe("runPlanner: the glance of a first round", () => {
-  test("a first round without questions builds its glance from its own phase 2", async () => {
+  test("a first round without questions builds its glance from its own phase 2, and keeps no report", async () => {
     mockOutside();
     const reports = new InMemoryReportRepository();
     const result = (await runPlanner(input, [], false, {}, { reports, owner: USER })) as Record<string, any>;
 
     assert.deepEqual(result.glance, serverGlance);
+    assert.equal("reportId" in result, false);
+    assert.equal(reports.rows.size, 0);
+  });
+
+  test("the report built after it carries the same glance", async () => {
+    mockOutside();
+    const reports = new InMemoryReportRepository();
+    const result = await reportWithoutQuestions(input, [], { reports, owner: USER });
+
     const stored = await reports.get(result.reportId, USER);
     assert.deepEqual(stored?.report.glance, serverGlance);
   });
@@ -114,7 +123,7 @@ describe("runPlanner: the glance of a first round", () => {
   test("a phase 2 budget that does not pass the glance schema leaves it out, and the report is still kept", async () => {
     mockOutside({ budget: { min: 9_000, max: 5_000, currency: "EUR", fits: "Not enough" } });
     const reports = new InMemoryReportRepository();
-    const result = (await runPlanner(input, [], false, {}, { reports, owner: USER })) as Record<string, unknown>;
+    const result = await reportWithoutQuestions(input, [], { reports, owner: USER });
 
     assert.equal("glance" in result, false);
     assert.equal(typeof result.reportId, "string");
