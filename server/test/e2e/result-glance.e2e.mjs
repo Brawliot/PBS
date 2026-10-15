@@ -237,7 +237,9 @@ async function scenarioFinalRequest(browser) {
   assert.deepEqual(posts.at(-1).glance, expected, "the final request sends the first round's glance, built from its analysis");
   const live = await topOfReport(page);
   await shoot(page, "glance-complete");
-  assert.deepEqual(live.chips, ["Idea: In development", "Stage: Idea only", "Location: Madrid you said"]);
+  assert.deepEqual(live.chips, ["Idea: In development", "Stage: Idea only"], "the place is said in What I understood, not as a chip");
+  assert.match(await page.textContent("#result-understood-business"), /Madrid you said/);
+  assert.equal(await page.textContent("#result-understood-you"), "You: Large (10+) · €1,000,000 to invest · full time");
   assert.equal(live.budget.row, "Budget €5,000 – €9,000 estimated");
   assert.equal(live.budget.note, "Estimated budget: €5,000 – €9,000. Your budget: €1,000,000.");
   assert.equal(live.budget.fits, "Enough for a first version", "the fit text is shown under the range");
@@ -245,7 +247,7 @@ async function scenarioFinalRequest(browser) {
   assert.equal(live.budget.bar.you, "100%", "the person's budget is the top of the scale");
   assert.equal(live.next, "From your idea and 1 answer. Next: phases, departments, tasks, calendar.");
   // The fixed questions were answered with their largest values: team 3 is "Large (10+)"
-  assert.deepEqual(live.needs, NEEDS_FOR_TEAM_LARGE, "the four needs, and what the person offers under Team");
+  assert.deepEqual(live.needs, NEEDS_FOR_TEAM_LARGE, "the money against the person's budget, the four needs, and what the person offers");
   assert.deepEqual(live.clarity, [
     "Business concept Medium Missing: How it makes money, How it reaches customers, What sets it apart",
     "About you Medium Missing: What you can do yourself, Handling other people's money, Fixed deadline",
@@ -279,7 +281,8 @@ async function scenarioNoQuestions(browser) {
 
   const live = await topOfReport(page);
   await shoot(page, "glance-no-questions");
-  assert.deepEqual(live.chips, ["Idea: In development", "Stage: Idea only", "Location: Manchester, UK inferred"]);
+  assert.deepEqual(live.chips, ["Idea: In development", "Stage: Idea only"]);
+  assert.match(await page.textContent("#result-understood-business"), /Manchester, UK inferred/);
   // Not euros: no mark of the person's budget, and the range keeps its currency code
   assert.equal(live.budget.row, "Budget GBP 5,000 – GBP 9,000 estimated");
   assert.equal(live.budget.bar.you, null, "no mark of the person's budget for a currency other than euros");
@@ -310,7 +313,7 @@ async function scenarioNoRange(browser) {
   assert.equal(live.budget.row, null, "no range, no row");
   assert.equal(live.budget.bar, null, "no range, no bar");
   assert.equal(live.budget.fits, "Not enough information to compare");
-  assert.deepEqual(live.chips, ["Idea: In development", "Stage: Idea only"], "the location has no value, so it has no chip");
+  assert.deepEqual(live.chips, ["Idea: In development", "Stage: Idea only"], "the location is never a chip");
   assert.equal(live.clarity, null, "a report without clarity shows no clarity block");
   assertNoProblems();
   await context.close();
@@ -319,7 +322,8 @@ async function scenarioNoRange(browser) {
 
 // The four needs, as the profile above and the form's team (3) read them
 const NEEDS_FOR_TEAM_LARGE = [
-  { term: "Time to first revenue", value: "0-3 months", small: [] },
+  { term: "Money", value: "€5,000 – €9,000", small: ["You have €1,000,000: it covers it"] },
+  { term: "Time to first revenue", value: "0-3 months", small: ["You put in: full time"] },
   { term: "Capital", value: "Low", small: ["digital, near-zero marginal cost"] },
   { term: "Team", value: "Feasible solo", small: ["You offer: Large (10+)"] },
   { term: "Regulation", value: "Heavy", small: ["health, finance, food"] },

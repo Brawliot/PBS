@@ -550,7 +550,7 @@ body.has-result .hero { display: none; }
 .costs__segment--4 { background: var(--segment-4); }
 .costs__segment--5 { background: var(--segment-5); }
 .needs { display: flex; flex-direction: column; gap: 8px; }
-.needs__grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 0; }
+.needs__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; margin: 0; }
 .needs__grid > div { padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
 .needs__grid dt { font-size: 12px; color: var(--gray-text); }
 .needs__grid dd { margin: 2px 0 0; font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
@@ -565,6 +565,18 @@ body.has-result .hero { display: none; }
 .clarity__level { font-weight: 800; letter-spacing: -0.01em; }
 .clarity__row small { display: block; margin-top: 2px; font-size: 12px; color: var(--gray-text); overflow-wrap: anywhere; }
 .clarity__note { font-size: 14px; color: var(--gray-text); }
+/* What I understood: the business and the person in two lines (script.js showUnderstood) */
+.understood { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border: 1px solid var(--border-strong); border-radius: 10px; }
+.understood__line { font-size: 17px; line-height: 1.45; overflow-wrap: anywhere; }
+.understood__line b { font-weight: 800; }
+.understood__line + .understood__line { font-size: 15px; color: var(--gray-text); }
+.understood__line + .understood__line b { color: var(--dark); }
+.understood__lead { color: var(--gray-text); }
+.understood__fix { align-self: flex-start; padding: 0; margin-top: 4px; font-size: 13px; color: var(--gray-text); }
+/* The person's side under each need: covered, tight or short */
+.needs__ok { color: #2e9d5b; }
+.needs__warn { color: #b07d00; }
+.needs__short { color: var(--danger); }
 /* Readiness to build a plan (clarity.readiness) and the "Improve my report" round, inside the clarity box */
 .ready { display: flex; align-items: flex-start; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
 .ready__dot { flex: none; width: 12px; height: 12px; margin-top: 5px; border-radius: 50%; background: var(--gray-text); }

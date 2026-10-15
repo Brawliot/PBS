@@ -92,9 +92,14 @@
   <section class="result" id="result" aria-labelledby="result-title" tabindex="-1" hidden>
     <header class="result__head">
       <p class="result__eyebrow">Business analysis</p>
-      <h2 class="result__title" id="result-title">Your business at a glance</h2>
+      <h2 class="result__title" id="result-title">Here is what I understood</h2>
       <ul class="glance__chips" id="result-glance" aria-label="Where your idea stands" hidden></ul>
     </header>
+    <section class="understood" id="result-understood" aria-label="What I understood">
+      <p class="understood__line" id="result-understood-business"></p>
+      <p class="understood__line" id="result-understood-you" hidden></p>
+      <button class="link understood__fix" type="button" id="result-understood-fix">Something is off? Start over with more detail</button>
+    </section>
     <section class="clarity" id="result-clarity" aria-labelledby="result-clarity-label" hidden>
       <div class="ready" id="result-ready" aria-live="polite" hidden>
         <span class="ready__dot" aria-hidden="true"></span>
@@ -127,45 +132,10 @@
         </div>
       </form>
     </section>
-    <dl class="result__list" id="result-summary"></dl>
-    <section class="budget" id="result-budget" aria-labelledby="result-budget-label" hidden>
-      <div class="budget__row" id="result-budget-row">
-        <span id="result-budget-label">Budget</span>
-        <span><span class="budget__range" id="result-budget-range"></span> <span class="tier tier--light">estimated</span></span>
-      </div>
-      <div class="budget__scale" id="result-budget-scale" aria-hidden="true" hidden>
-        <span class="budget__track"></span>
-        <span class="budget__zone" id="result-budget-zone"></span>
-        <span class="budget__you" id="result-budget-you" hidden></span>
-      </div>
-      <p class="sr-only" id="result-budget-note"></p>
-      <p class="budget__why" id="result-budget-fits" hidden></p>
-    </section>
-    <section class="costs" id="result-costs-block" aria-labelledby="result-costs-label" hidden>
-      <h3 class="result__label" id="result-costs-label">Time &amp; cost</h3>
-      <dl class="costs__rows">
-        <div class="costs__row" id="result-time-row" hidden>
-          <dt>Time to open</dt>
-          <dd><span id="result-time-value"></span><small id="result-time-note"></small></dd>
-        </div>
-        <div class="costs__row costs__row--stack" id="result-cost-row" hidden>
-          <dt>Upfront cost</dt>
-          <dd>
-            <span class="costs__stack" id="result-cost-stack" aria-hidden="true"></span>
-            <small id="result-cost-note"></small>
-          </dd>
-        </div>
-      </dl>
-    </section>
     <section class="needs" id="result-needs-block" aria-labelledby="result-needs-label" hidden>
-      <h3 class="result__label" id="result-needs-label">What this business asks of you</h3>
+      <h3 class="result__label" id="result-needs-label">What it asks vs. what you have</h3>
       <dl class="needs__grid" id="result-needs"></dl>
     </section>
-    <div class="result__coverage">
-      <p class="result__meta" id="result-meta"></p>
-      <p class="result__hint" id="result-hint" hidden>Add more detail to your idea to fill these in.</p>
-      <div class="result__bar" aria-hidden="true"><span id="result-bar"></span></div>
-    </div>
     <section class="result__block" id="result-warnings-block" hidden>
       <h3 class="result__label">Worth checking</h3>
       <ul class="result__warnings" id="result-warnings"></ul>
@@ -173,10 +143,6 @@
     <section class="result__block" id="result-departments-block" hidden>
       <h3 class="result__label">Key areas</h3>
       <ul class="result__areas" id="result-departments-top"></ul>
-    </section>
-    <section class="result__pending-block" id="result-pending-block">
-      <h3 class="result__label">Still to define</h3>
-      <ul class="result__pending" id="result-pending"></ul>
     </section>
     <p class="glance__next" id="result-next"></p>
     <div class="result__actions">
@@ -264,6 +230,35 @@
       <p class="result__eyebrow">Business analysis</p>
       <h2 class="modal__title" id="detail-title">Full detail</h2>
       <p class="result__meta" id="detail-meta"></p>
+      <section class="budget detail__block" id="result-budget" aria-labelledby="result-budget-label" hidden>
+        <div class="budget__row" id="result-budget-row">
+          <span id="result-budget-label">Budget</span>
+          <span><span class="budget__range" id="result-budget-range"></span> <span class="tier tier--light">estimated</span></span>
+        </div>
+        <div class="budget__scale" id="result-budget-scale" aria-hidden="true" hidden>
+          <span class="budget__track"></span>
+          <span class="budget__zone" id="result-budget-zone"></span>
+          <span class="budget__you" id="result-budget-you" hidden></span>
+        </div>
+        <p class="sr-only" id="result-budget-note"></p>
+        <p class="budget__why" id="result-budget-fits" hidden></p>
+      </section>
+      <section class="costs detail__block" id="result-costs-block" aria-labelledby="result-costs-label" hidden>
+        <h3 class="result__label" id="result-costs-label">Time &amp; cost</h3>
+        <dl class="costs__rows">
+          <div class="costs__row" id="result-time-row" hidden>
+            <dt>Time to open</dt>
+            <dd><span id="result-time-value"></span><small id="result-time-note"></small></dd>
+          </div>
+          <div class="costs__row costs__row--stack" id="result-cost-row" hidden>
+            <dt>Upfront cost</dt>
+            <dd>
+              <span class="costs__stack" id="result-cost-stack" aria-hidden="true"></span>
+              <small id="result-cost-note"></small>
+            </dd>
+          </div>
+        </dl>
+      </section>
       <section class="detail__block" id="detail-defined-block">
         <h3 class="result__label">Defined</h3>
         <dl class="result__list" id="result-detail"></dl>

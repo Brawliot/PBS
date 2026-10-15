@@ -191,7 +191,7 @@ async function scenarioYellowToGreen(browser) {
   assert.deepEqual(await readiness(page), {
     state: "green",
     title: "Ready for a plan made for you",
-    improve: false,
+    improve: true, // optional in green while there is something left to ask
     plan: "enabled",
     anyway: false,
     levels: ["Medium → High", "Medium"],
@@ -203,6 +203,8 @@ async function scenarioYellowToGreen(browser) {
   const after = await readiness(page);
   assert.equal(after.state, "green");
   assert.deepEqual(after.levels, ["High", "Medium"], "after a reload the levels show without the change");
+  assert.match(await page.textContent("#result-clarity-concept-missing"), /^To verify in your plan: /, "in green what is missing goes to the plan");
+  assert.match(await page.textContent("#result-improve-text"), /^Optional/);
   assertNoProblems();
   await context.close();
   return "yellow: Build anyway, a round of three questions, the final request again, then green with the change shown";
@@ -212,8 +214,14 @@ async function scenarioRed(browser) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const page = await context.newPage();
   await watch(page, "red");
-  await mockApi(page, [firstRound, finalResult(0, RED), finalResult(1, RED), finalResult(2, RED)]);
+  // The model had no budget range and wrote "unknown" as its fit and its place: neither is shown as text
+  const blank = structuredClone(firstRound);
+  blank.phase2.constraints.budget = { min: null, max: null, currency: "EUR", fits: "unknown" };
+  blank.phase2.location = section("unknown", "unknown");
+  await mockApi(page, [blank, finalResult(0, RED), finalResult(1, RED), finalResult(2, RED)]);
   await reachReport(page);
+  assert.equal(await page.evaluate(() => document.getElementById("result-budget").hidden), true, "no budget box that only says unknown");
+  assert.doesNotMatch(await page.textContent("#result"), /unknown/i, "the word unknown is never shown");
 
   const red = await readiness(page);
   assert.equal(red.state, "red");

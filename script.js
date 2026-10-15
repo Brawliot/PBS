@@ -709,6 +709,7 @@
         answers: answers.length,
         budget: input.budget,
         team: input.team,
+        hours: input.hours,
       });
     }
   };
@@ -732,8 +733,6 @@
     third_party_dependency: 'Dependence on others',
     money_handling: 'Handling other people\u2019s money',
   };
-  const SUMMARY_KEYS = ['customer_segment', 'revenue_model', 'offering_type', 'competition', 'differentiator'];
-  const PENDING_KEYS = ['validation_stage', 'customer_segment', 'revenue_model', 'acquisition_channel', 'regulatory_load', 'money_handling'];
   const NOT_DEFINED = 'Not specified';
 
   // Where a value came from: what the person said, or what the model inferred. Nothing for an unknown source.
@@ -781,6 +780,8 @@
   ];
 
   // The budget question is in euros, so only euro amounts are placed against the person's budget
+  // A model sometimes writes "unknown" (or "n/a", "not specified") where it has nothing: that is no value to show
+  const isBlank = (text) => typeof text !== 'string' || /^\s*(unknown|n\/?a|none|not specified|not known|not defined|-)?\s*\.?\s*$/i.test(text);
   const isEuros = (currency) => ['EUR', '€'].includes(String(currency).trim().toUpperCase());
   const isDollars = (currency) => ['USD', '$'].includes(String(currency).trim().toUpperCase());
   // Euros and dollars with their symbol (€5,000, $5,000); another code gets a space (GBP 5,000), a symbol none (£5,000)
@@ -812,7 +813,7 @@
     // The stage comes from the profile, which is built after the answers
     const stage = profile.values.validation_stage;
     if (stage && stage !== NOT_DEFINED) addChip('Stage', stage);
-    if (glance?.location.value) addChip('Location', glance.location.value, glance.location.source);
+    // The place is said in "What I understood", so it is not repeated as a chip
     chips.hidden = !chips.children.length;
   };
 
@@ -836,7 +837,8 @@
         level.textContent = CLARITY_LEVELS[metric.level] ?? '';
       }
       const missing = document.getElementById(`result-clarity-${name}-missing`);
-      missing.textContent = metric.missing.length ? `Missing: ${metric.missing.slice(0, 3).join(', ')}` : '';
+      const lead = readinessOf(clarity) === 'green' ? 'To verify in your plan' : 'Missing';
+      missing.textContent = metric.missing.length ? `${lead}: ${metric.missing.slice(0, 3).join(', ')}` : '';
       missing.hidden = !metric.missing.length;
     });
   };
@@ -936,12 +938,12 @@
       }
     }
     const questions = improvable ? improveQuestions(clarity).length : 0;
-    improveBox.hidden = !improvable || state === 'green' || !quiz.hidden;
+    improveBox.hidden = !improvable || !quiz.hidden;
     document.getElementById('result-improve-open').className = state === 'green' ? 'btn btn--outline' : 'btn btn--dark';
     if (improvable) {
       const left = IMPROVE.rounds - improveSession.rounds;
       document.getElementById('result-improve-text').textContent =
-        `${questions === 1 ? '1 quick question' : `${questions} quick questions`} \u00b7 ${left === 1 ? 'last round' : 'about 1 min'}`;
+        `${state === 'green' ? 'Optional \u00b7 ' : ''}${questions === 1 ? '1 quick question' : `${questions} quick questions`} \u00b7 ${left === 1 ? 'last round' : 'about 1 min'}`;
     }
     const gateNote = document.getElementById('result-gate');
     gateNote.textContent = gate;
@@ -1079,6 +1081,7 @@
         answers: answersNow.length,
         budget: numbers.budget,
         team: numbers.team,
+        hours: numbers.hours,
       });
       // The change of level is the answer to the round: it is brought into view
       document.getElementById('result-clarity').scrollIntoView({ block: 'start', behavior: 'smooth' });
@@ -1106,7 +1109,7 @@
     const box = document.getElementById('result-budget');
     const budget = glance?.budget;
     const hasRange = !!budget && (budget.min !== null || budget.max !== null);
-    const hasFits = !!budget?.fits;
+    const hasFits = !isBlank(budget?.fits);
     box.hidden = !hasRange && !hasFits;
     if (box.hidden) return;
 
@@ -1240,34 +1243,100 @@
   };
   templatesOpen.addEventListener('click', openTemplates);
 
-  // What the business asks, from the profile. The team line adds what the person offers, with the form's labels.
-  const showNeeds = (profile, team) => {
+  // What the business asks against what the person has. Money: the estimated range against the person's budget (euros
+  // only, as the budget question is in euros). Team: what the person offers. Time to first revenue: the person's hours.
+  // "Full time" is said as it is; the other answers are hours a week
+  const hoursText = (index) => (HOURS_LABELS[index] === 'Full time' ? 'full time' : `${HOURS_LABELS[index]} a week`);
+  const showNeeds = (profile, glance, view) => {
     const grid = document.getElementById('result-needs');
     grid.replaceChildren();
-    NEEDS.forEach(([key, label]) => {
-      const value = profile.values[key];
-      if (!value || value === NOT_DEFINED) return;
-      // "Heavy (health, finance, food)": the value first, the part in brackets as small text under it
-      const cut = value.indexOf(' (');
+    const addCell = (label, value, notes) => {
       const cell = document.createElement('div');
       const term = document.createElement('dt');
       const detail = document.createElement('dd');
       term.textContent = label;
-      detail.textContent = cut === -1 ? value : value.slice(0, cut);
-      if (cut !== -1) {
-        const rest = document.createElement('small');
-        rest.textContent = value.slice(cut + 2, -1);
-        detail.append(rest);
-      }
-      if (key === 'team_requirement' && team !== undefined) {
-        const offer = document.createElement('small');
-        offer.textContent = `You offer: ${TEAM_LABELS[team]}`;
-        detail.append(offer);
-      }
+      detail.textContent = value;
+      notes.filter(Boolean).forEach(({ text, tone }) => {
+        const note = document.createElement('small');
+        note.textContent = text;
+        if (tone) note.className = `needs__${tone}`;
+        detail.append(note);
+      });
       cell.append(term, detail);
       grid.append(cell);
+    };
+
+    const budget = glance?.budget;
+    if (budget && (budget.min !== null || budget.max !== null)) {
+      const mine = isEuros(budget.currency) && typeof view.budget === 'number' ? view.budget : null;
+      let fit = null;
+      if (mine !== null) {
+        const low = budget.min ?? budget.max;
+        if (budget.max !== null && mine >= budget.max) fit = { text: `You have ${money(mine, '€')}: it covers it`, tone: 'ok' };
+        else if (mine >= low) fit = { text: `You have ${money(mine, '€')}: the low end`, tone: 'warn' };
+        else fit = { text: `You have ${money(mine, '€')}: short by ~${money(low - mine, '€')}`, tone: 'short' };
+      }
+      addCell('Money', rangeText(budget), [fit ?? { text: 'Estimate' }]);
+    }
+
+    NEEDS.forEach(([key, label]) => {
+      const value = profile.values[key];
+      if (isBlank(value) || value === NOT_DEFINED) return;
+      // "Heavy (health, finance, food)": the value first, the part in brackets as small text under it
+      const cut = value.indexOf(' (');
+      const notes = [cut === -1 ? null : { text: value.slice(cut + 2, -1) }];
+      if (key === 'team_requirement' && view.team !== undefined) notes.push({ text: `You offer: ${TEAM_LABELS[view.team]}` });
+      if (key === 'time_to_revenue' && view.hours !== undefined) notes.push({ text: `You put in: ${hoursText(view.hours)}` });
+      addCell(label, cut === -1 ? value : value.slice(0, cut), notes);
     });
     document.getElementById('result-needs-block').hidden = !grid.children.length;
+  };
+
+  // What I understood, in two lines: the business (what, for whom, where, how it earns) and the person (team, money,
+  // hours). Only values that are known are said; a value the description does not back up is left out.
+  const showUnderstood = (phase2, profile, validation, view) => {
+    const unsupported = validation?.unsupported ?? [];
+    const value = (key) => (profile.values[key] && profile.values[key] !== NOT_DEFINED && !isBlank(profile.values[key]) ? profile.values[key] : null);
+    const field = (key) => (!isBlank(phase2?.[key]?.value) && !unsupported.includes(key) ? phase2[key] : null);
+    const subsector = field('subsector');
+    const location = !isBlank(view.glance?.location?.value) ? view.glance.location : null;
+    const business = [
+      subsector ? { text: subsector.value, source: view.glance?.subsectorSource } : value('offering_type') && { text: value('offering_type') },
+      value('customer_segment') ? { prefix: 'for ', text: value('customer_segment') } : field('target_customer') && { prefix: 'for ', text: field('target_customer').value, source: field('target_customer').source },
+      location && { text: location.value, source: location.source },
+      value('revenue_model') && { prefix: 'earns by ', text: value('revenue_model') },
+    ].filter(Boolean);
+    const you = [
+      view.team !== undefined && { text: TEAM_LABELS[view.team] },
+      typeof view.budget === 'number' && { text: `${money(view.budget, '€')} to invest` },
+      view.hours !== undefined && { text: hoursText(view.hours) },
+    ].filter(Boolean);
+    const draw = (line, parts, lead) => {
+      line.replaceChildren();
+      if (lead) {
+        const label = document.createElement('span');
+        label.className = 'understood__lead';
+        label.textContent = lead;
+        line.append(label);
+      }
+      parts.forEach(({ prefix, text, source }, index) => {
+        if (index) line.append(' \u00b7 ');
+        if (prefix) line.append(prefix);
+        const strong = document.createElement('b');
+        strong.textContent = text;
+        line.append(strong);
+        const tag = sourceTag(source);
+        if (tag) line.append(' ', tag);
+      });
+      line.hidden = !parts.length;
+    };
+    const businessLine = document.getElementById('result-understood-business');
+    draw(businessLine, business);
+    if (!business.length) {
+      businessLine.textContent = 'Not enough information yet. Start over and add more detail to your idea.';
+      businessLine.hidden = false;
+    }
+    draw(document.getElementById('result-understood-you'), you, 'You: ');
   };
 
   const showNext = (answerCount) => {
@@ -1276,23 +1345,15 @@
   };
 
   const showResult = (phase2, profile, validation, explanations, view = {}) => {
-    const summary = document.getElementById('result-summary');
-    const pending = document.getElementById('result-pending');
     const detail = document.getElementById('result-detail');
     const warnings = document.getElementById('result-warnings');
     const topDepartments = document.getElementById('result-departments-top');
     const departmentList = document.getElementById('result-departments');
     const detailPending = document.getElementById('detail-pending');
-    [summary, pending, detail, detailPending, warnings, topDepartments, departmentList].forEach((el) => el.replaceChildren());
+    [detail, detailPending, warnings, topDepartments, departmentList].forEach((el) => el.replaceChildren());
 
-    // A value the description does not back up is never shown as fact: it goes to "still to define"
-    const unsupported = validation?.unsupported ?? [];
-    const subsector = phase2?.subsector?.value;
-    const subsectorShown = subsector && subsector.toLowerCase() !== 'unknown' && !unsupported.includes('subsector');
-    if (subsectorShown) addRow(summary, 'Business', subsector, false, view.glance?.subsectorSource);
-    SUMMARY_KEYS.filter((key) => profile.values[key] !== NOT_DEFINED)
-      .forEach((key) => addRow(summary, LABELS[key], profile.values[key]));
-    if (!summary.children.length) addRow(summary, 'Business', 'Not enough information yet', true);
+    // What I understood: the business and the person in two lines, from the same values as before
+    showUnderstood(phase2, profile, validation, view);
 
     // Reasons from the model for the warnings and the areas on screen: a quiet line under the item, as text
     const warningReasons = new Map((explanations?.warningReasons ?? []).map(({ key, reason }) => [key, reason]));
@@ -1310,10 +1371,6 @@
       if (reason) item.append(reasonNote(reason));
       list.append(item);
     };
-    const pendingLabels = [
-      ...(unsupported.includes('subsector') ? ['Business details'] : []),
-      ...PENDING_KEYS.filter((key) => profile.unknown.includes(key)).map((key) => LABELS[key]),
-    ];
     // Lists show a few items; the rest are said in words, so nothing is cut without notice
     const addMore = (list, count, text) => {
       if (count <= 0) return;
@@ -1322,10 +1379,6 @@
       item.textContent = text ?? `and ${count} more`;
       list.append(item);
     };
-    const pendingShown = pendingLabels.slice(0, 5);
-    pendingShown.forEach((label) => addItem(pending, label));
-    addMore(pending, pendingLabels.length - pendingShown.length);
-    document.getElementById('result-pending-block').hidden = !pending.children.length;
 
     const warningKeys = validation?.warnings ?? [];
     warningKeys.slice(0, 3).forEach((key) => addItem(warnings, WARNINGS[key], warningReasons.get(key)));
@@ -1379,28 +1432,22 @@
     showClarity(currentClarity, view.previous ?? null);
     showBudget(glance, view.budget);
     showCosts(explanations);
-    showNeeds(profile, view.team);
+    showNeeds(profile, glance, view);
     templatePicks = explanations?.templates ?? [];
     templateGlance = glance;
     templatesOpen.hidden = !templatePicks.length;
     showNext(view.answers ?? 0);
 
-    document.getElementById('result-meta').textContent = `${profile.known} of ${profile.total} topics defined`;
     document.getElementById('detail-meta').textContent = `${profile.known} of ${profile.total} topics defined`;
-    document.getElementById('result-hint').hidden = profile.known > 0;
     // A plan is built from the saved report only; without one the button says why it cannot be used
     document.getElementById('result-plan').disabled = !reportId;
     document.getElementById('result-plan-note').hidden = !!reportId;
     showReadiness(currentClarity);
     // The header stays usable (profile menu, projects, theme); the report takes the focus when it opens
-    document.getElementById('result-bar').style.width = '0';
     document.body.classList.add('has-result');
     resultSection.hidden = false;
     status.textContent = 'Your analysis is ready.';
     resultSection.focus({ preventScroll: true });
-    requestAnimationFrame(() => {
-      document.getElementById('result-bar').style.width = `${Math.round((profile.known / profile.total) * 100)}%`;
-    });
   };
 
   // Loader -> result without going back to the initial page: the loader fades out where it is,
@@ -1433,6 +1480,10 @@
 
   // Start over asks first: it reloads the page, and the report is gone after that
   document.getElementById('result-restart').addEventListener('click', () => {
+    restartDialog.showModal();
+    syncModalState();
+  });
+  document.getElementById('result-understood-fix').addEventListener('click', () => {
     restartDialog.showModal();
     syncModalState();
   });
@@ -1760,6 +1811,7 @@
         // An "I don't know" has only a placeholder number: it is not shown as the person's budget or team
         budget: report.input.unknown?.includes('budget') ? undefined : report.input.budget,
         team: report.input.unknown?.includes('team') ? undefined : report.input.team,
+        hours: report.input.unknown?.includes('hours') ? undefined : report.input.hours,
       });
     } catch {
       history.replaceState(null, '');

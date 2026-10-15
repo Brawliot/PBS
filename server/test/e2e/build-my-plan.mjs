@@ -157,7 +157,7 @@ async function scenarioNoReport(browser) {
   assert.equal(await page.isDisabled("#result-plan"), true, "without a saved report the button is off");
   assert.equal(await page.isVisible("#result-plan-note"), true, "and a note says why");
   assert.match(await page.textContent("#result-plan-note"), /could not be saved/);
-  assert.equal(await page.isVisible("#result-hint"), true, "with 0 topics defined, a hint says what to add");
+  assert.equal(await page.isVisible("#result-understood-business"), true, "what was understood is always said, even with little");
   assert.equal(await page.evaluate(() => document.body.classList.contains("is-loading")), false, "no loader without a report");
   assert.equal(planRequests.length, 0, "no request is sent without a report");
   assert.equal(new URL(page.url()).pathname, "/");
@@ -304,8 +304,7 @@ async function scenarioReport(browser) {
   // The full detail shows the reason of the area that has one, and nothing else is added to its rows
   const detailReasons = await page.$$eval("#result-departments .result__reason", (notes) => notes.map((note) => note.textContent));
   assert.deepEqual(detailReasons, ["Street trading, food hygiene."]);
-  assert.equal(await page.textContent("#result-meta"), "5 of 15 topics defined");
-  assert.equal(await page.isVisible("#result-hint"), false, "the hint is only for 0 topics");
+  assert.equal(await page.textContent("#detail-meta"), "5 of 15 topics defined", "the coverage is in the full detail");
 
   // While the report is open, the header stays usable: the profile menu, the projects and the theme still answer
   assert.equal(await page.evaluate(() => document.querySelector(".header").inert), false);

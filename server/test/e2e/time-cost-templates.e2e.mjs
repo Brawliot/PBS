@@ -333,7 +333,8 @@ async function scenarioFailures(browser) {
   assert.equal(await page.textContent("#toast-text"), "We could not load the templates. Try again.");
   assert.equal(await page.evaluate(() => document.getElementById("templates-modal").open), false, "no dialog without the catalog");
   assert.equal(await page.isVisible("#result"), true, "the report stays usable");
-  assert.equal(await page.isVisible("#result-costs-block"), true);
+  // Time & cost lives in the full detail now: drawn there, not on the card
+  assert.equal(await page.evaluate(() => document.getElementById("result-costs-block").hidden), false);
   await context.close();
 
   // Copy without the clipboard permission: the page says how to copy by hand
