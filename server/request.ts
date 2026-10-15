@@ -1,19 +1,36 @@
 import type { IncomingMessage } from "node:http";
+import { z } from "zod";
 import type { InputKey, PlannerInput } from "./planner/planner-handler.js";
+import { START_MODES, PREMISES } from "./planner/fixed-answers.js";
 import type { PlannerAnswer } from "./planner/planner-phase2-handler.js";
 import { cleanClaims, type Claims } from "./planner/planner-validation-handler.js";
 import { parseGlance, type Glance } from "./plan/glance.js";
 
 /** Request parsing and limits for the planner API: everything that turns the body into trusted input */
-// Ranges of the four fixed questions (PROFILE_QUESTIONS in script.js)
-export const RANGES = {
-  budget: [0, 1_000_000],
-  experience: [0, 20],
-  team: [0, 3],
-  hours: [0, 3],
-} as const;
+export const MAX_LOCATION = 200; // characters for the location answer
+/** Budget in euros: the most the budget question can give (PROFILE_QUESTIONS in script.js) */
+export const MAX_BUDGET = 1_000_000;
 
-export const INPUT_KEYS = Object.keys(RANGES) as InputKey[];
+/** The fixed questions, in the order they are asked (PROFILE_QUESTIONS in script.js) */
+export const INPUT_KEYS: InputKey[] = ["location", "budget", "start_mode", "premises"];
+
+/**
+ * The value each fixed question takes when it is answered "I don't know". It is only a placeholder: the key is in
+ * `unknown` and every reader checks that first (see isUnknown).
+ */
+const UNKNOWN_PLACEHOLDER = { location: "", budget: 0, start_mode: START_MODES[0], premises: PREMISES[0] } as const;
+
+/** The value of each fixed question when it is answered. Closed lists for the choices, a limit for the free text. */
+const FIELD_SCHEMA = {
+  location: z
+    .string()
+    .trim()
+    .max(MAX_LOCATION)
+    .refine((value) => value.length > 0 && !CONTROL_CHARACTERS.test(value), "location must be a place"),
+  budget: z.number().finite().min(0).max(MAX_BUDGET),
+  start_mode: z.enum(START_MODES),
+  premises: z.enum(PREMISES),
+} as const;
 
 export const MAX_ANSWERS = 12;
 export const MAX_TEXT = 1000; // characters per answer field
@@ -84,7 +101,7 @@ export function parseAnswers(value: unknown): PlannerAnswer[] {
 }
 
 /**
- * The fixed questions answered "I don't know": a list of distinct keys of RANGES, or nothing. Anything else is
+ * The fixed questions answered "I don't know": a list of distinct fixed keys, or nothing. Anything else is
  * refused, so a typo never silently turns a known answer into an unknown one.
  */
 export function parseUnknownInputs(value: unknown): InputKey[] {
@@ -96,8 +113,20 @@ export function parseUnknownInputs(value: unknown): InputKey[] {
   ) {
     throw new HttpError(400, `unknown must be a list of distinct keys among ${INPUT_KEYS.join(", ")}`);
   }
-  // In the order of RANGES, so the same answers always give the same input
+  // In the order of the fixed questions, so the same answers always give the same input
   return INPUT_KEYS.filter((key) => value.includes(key));
+}
+
+/** The fixed answers of the body, checked against FIELD_SCHEMA. A key answered "I don't know" has no value. */
+export function parseFixedInputs(body: Record<string, unknown>, unknown: InputKey[]): Omit<PlannerInput, "idea" | "unknown"> {
+  const known = INPUT_KEYS.filter((key) => !unknown.includes(key));
+  const schema = z.object(Object.fromEntries(known.map((key) => [key, FIELD_SCHEMA[key]])));
+  const parsed = schema.safeParse(Object.fromEntries(known.map((key) => [key, body[key]])));
+  if (!parsed.success) {
+    const key = String(parsed.error.issues[0]?.path[0] ?? "answer");
+    throw new HttpError(400, `${key} is not a valid answer`);
+  }
+  return { ...UNKNOWN_PLACEHOLDER, ...parsed.data } as Omit<PlannerInput, "idea" | "unknown">;
 }
 
 export function parsePlannerRequest(raw: string): {
@@ -130,22 +159,7 @@ export function parsePlannerRequest(raw: string): {
   const final = body.final === true;
 
   const unknown = parseUnknownInputs(body.unknown);
-  const input = { idea } as PlannerInput;
-  for (const [key, [min, max]] of Object.entries(RANGES) as [
-    keyof typeof RANGES,
-    readonly [number, number],
-  ][]) {
-    // An "I don't know" has no number: whatever was sent is ignored, and the lowest of the range stands in
-    if (unknown.includes(key)) {
-      input[key] = min;
-      continue;
-    }
-    const value = body[key];
-    if (typeof value !== "number" || !Number.isFinite(value) || value < min || value > max) {
-      throw new HttpError(400, `${key} must be a number between ${min} and ${max}`);
-    }
-    input[key] = value;
-  }
+  const input: PlannerInput = { idea, ...parseFixedInputs(body, unknown) };
   if (unknown.length) input.unknown = unknown;
   // The glance is only used by the final request: the first round builds its own from its phase 2
   const glance = final ? parseGlance(body.glance) : undefined;

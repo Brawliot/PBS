@@ -10,12 +10,9 @@ export const POLICY = {
   baseByMaturity: { vague: 2, developing: 3, advanced: 4 },
   min: 1,
   max: 5,
-  // Commitment signals: each one that applies counts once
+  // Commitment signal from the budget only (the fixed questions no longer ask hours or experience)
   highBudget: 100_000,
-  highExperience: 5, // years
-  fullTimeHours: 3, // answer index of "Full time"
-  // Low commitment: under 10 h a week and a small budget, with no signal above
-  lowHours: 0,
+  // Low commitment: a small budget, with no signal above
   lowBudget: 20_000,
 };
 
@@ -32,16 +29,10 @@ const TOPIC_PRIORITY = [
   "existing_assets",
 ];
 
-/** Maximum number of questions for the whole session. An "I don't know" is no signal, high or low. */
+/** Maximum number of questions for the whole session. An "I don't know" for the budget is no signal, high or low. */
 export function questionLimit(maturity: Phase2Response["maturity"], input: PlannerInput): number {
-  const known = (key: "budget" | "experience" | "hours") => !isUnknown(input, key);
-  const signals =
-    Number(known("hours") && input.hours >= POLICY.fullTimeHours) +
-    Number(known("budget") && input.budget >= POLICY.highBudget) +
-    Number(known("experience") && input.experience >= POLICY.highExperience);
-  const lowCommitment =
-    signals === 0 && known("hours") && input.hours <= POLICY.lowHours && known("budget") && input.budget < POLICY.lowBudget;
-  const adjustment = signals >= 2 ? 1 : lowCommitment ? -1 : 0;
+  const budgetKnown = !isUnknown(input, "budget");
+  const adjustment = budgetKnown && input.budget >= POLICY.highBudget ? 1 : budgetKnown && input.budget < POLICY.lowBudget ? -1 : 0;
 
   // An unknown maturity falls back to "developing" instead of producing NaN
   const base = Object.hasOwn(POLICY.baseByMaturity, maturity)

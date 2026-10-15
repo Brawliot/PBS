@@ -63,6 +63,10 @@ const best = (...sources: Source[]): Source => (sources.includes("stated") ? "st
 const dimension = (input: ClarityInput, key: DimensionKey): Source => (input.profile[key] && input.profile[key] !== NOT_SPECIFIED ? "inferred" : "unknown");
 /** A follow-up answer on the topic is the person's own words */
 const topic = (input: ClarityInput, ...names: string[]): Source => (names.some((name) => input.topics.includes(name)) ? "stated" : "unknown");
+/**
+ * A fixed question is stated when it has an answer, "undecided" and "unsure" included: those are answers, not a value
+ * that is missing. Only "I don't know" (in unknownInputs) counts as unknown.
+ */
 const fixed = (input: ClarityInput, key: InputKey): Source => (input.unknownInputs.includes(key) ? "unknown" : "stated");
 
 /**
@@ -74,7 +78,7 @@ const CONCEPT: Variable[] = [
   { label: "Value proposition", weight: "essential", source: (i) => best(i.phase2.value_proposition, topic(i, "value_proposition")) },
   { label: "Target customer", weight: "essential", source: (i) => best(i.phase2.target_customer, dimension(i, "customer_segment"), topic(i, "customer")) },
   { label: "How it makes money", weight: "essential", source: (i) => best(i.phase2.revenue_model, dimension(i, "revenue_model"), topic(i, "revenue")) },
-  { label: "Where it operates", weight: "essential", source: (i) => best(i.phase2.location, topic(i, "location", "scope")) },
+  { label: "Where it operates", weight: "essential", source: (i) => best(i.phase2.location, fixed(i, "location"), topic(i, "location", "scope")) },
   { label: "How it reaches customers", weight: "important", source: (i) => best(dimension(i, "acquisition_channel"), topic(i, "acquisition")) },
   { label: "What sets it apart", weight: "important", source: (i) => best(dimension(i, "differentiator"), topic(i, "differentiator")) },
   { label: "Stage and validation", weight: "important", source: (i) => best(i.phase2.stage, dimension(i, "validation_stage"), topic(i, "validation", "progress")) },
@@ -83,10 +87,9 @@ const CONCEPT: Variable[] = [
 
 const PERSON: Variable[] = [
   { label: "Budget", weight: "essential", source: (i) => fixed(i, "budget") },
-  { label: "Weekly hours", weight: "essential", source: (i) => fixed(i, "hours") },
-  { label: "Team", weight: "essential", source: (i) => fixed(i, "team") },
+  { label: "How you start", weight: "essential", source: (i) => fixed(i, "start_mode") },
   { label: "What you can do yourself", weight: "essential", source: (i) => best(dimension(i, "founder_profile"), topic(i, "own_skills")) },
-  { label: "Experience", weight: "important", source: (i) => fixed(i, "experience") },
+  { label: "Premises", weight: "important", source: (i) => fixed(i, "premises") },
   { label: "Handling other people's money", weight: "important", source: (i) => best(dimension(i, "money_handling"), topic(i, "money_handling")) },
   { label: "Fixed deadline", weight: "secondary", source: (i) => best(dimension(i, "deadline_rigidity"), topic(i, "deadline")) },
   { label: "Existing assets", weight: "secondary", source: (i) => topic(i, "existing_assets") },

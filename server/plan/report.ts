@@ -11,7 +11,8 @@
  */
 
 import { z } from "zod";
-import { RANGES, INPUT_KEYS, MAX_ANSWERS, MAX_IDEA, MAX_TEXT } from "../request.js";
+import { INPUT_KEYS, MAX_ANSWERS, MAX_BUDGET, MAX_IDEA, MAX_LOCATION, MAX_TEXT } from "../request.js";
+import { START_MODES, PREMISES } from "../planner/fixed-answers.js";
 import { CLAIM_KEYS } from "../planner/planner-validation-handler.js";
 import { CHECK_KEYS, GROUPS } from "../planner/planner-validation-handler.js";
 import { REPORT_TEMPLATES } from "../planner/report-templates.js";
@@ -59,17 +60,37 @@ const SCORE = z.number().int().min(0).max(MAX_SCORE);
 
 const InputSchema = z.strictObject({
   idea: text(MAX_IDEA),
-  budget: num(RANGES.budget[0], RANGES.budget[1]),
-  experience: num(RANGES.experience[0], RANGES.experience[1]),
-  team: num(RANGES.team[0], RANGES.team[1]),
-  hours: num(RANGES.hours[0], RANGES.hours[1]),
-  /** The fixed questions answered "I don't know" (their number is a placeholder). Optional: older reports have none. */
+  location: plainText(MAX_LOCATION),
+  budget: num(0, MAX_BUDGET),
+  start_mode: z.enum(START_MODES),
+  premises: z.enum(PREMISES),
+  /** The fixed questions answered "I don't know" (their value is a placeholder). Optional: none when all are answered. */
   unknown: z
     .array(z.enum(INPUT_KEYS as [string, ...string[]]))
     .max(INPUT_KEYS.length)
     .refine((keys) => new Set(keys).size === keys.length, "keys repeat")
     .optional(),
 });
+
+/**
+ * A report kept before the fixed questions changed (location, start_mode and premises replaced experience, team and
+ * hours): those three are not in it, so they count as "I don't know" and the old ones are dropped. The budget stays.
+ * The report still opens and builds its plan. Any other report is read as it is.
+ */
+function fromLegacyInput(value: unknown): unknown {
+  if (typeof value !== "object" || value === null || "location" in value) return value;
+  const { experience: _experience, team: _team, hours: _hours, unknown, ...rest } = value as Record<string, unknown>;
+  const kept = Array.isArray(unknown) ? unknown.filter((key) => INPUT_KEYS.includes(key as never)) : [];
+  // The budget was asked before too: only the three new questions are missing from an old report
+  const missing = ["location", "start_mode", "premises"].filter((key) => !kept.includes(key));
+  return {
+    ...rest,
+    location: "",
+    start_mode: START_MODES[0],
+    premises: PREMISES[0],
+    unknown: [...new Set([...kept, ...missing])],
+  };
+}
 
 // Same limits as the request (request.ts parseAnswers): a valid answer is always a valid report answer
 const AnswerSchema = z.strictObject({ topic: text(MAX_TEXT), question: text(MAX_TEXT), answer: text(MAX_TEXT) });
@@ -244,6 +265,9 @@ export function parseReport(raw: unknown): ParseReportResult {
     value = JSON.parse(raw);
   } catch {
     return { ok: false, code: "invalid_json" };
+  }
+  if (typeof value === "object" && value !== null && "input" in value) {
+    (value as { input: unknown }).input = fromLegacyInput((value as { input: unknown }).input);
   }
   const result = ReportSchema.safeParse(value);
   return result.success ? { ok: true, report: result.data } : { ok: false, code: "invalid_report" };

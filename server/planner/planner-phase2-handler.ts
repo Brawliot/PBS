@@ -97,8 +97,9 @@ THE USER STANDS, not to research the market (later phases do that).
    - The number depends on maturity, as a maximum: vague 2 (the next phases research the
      rest), developing 3, advanced 4, to understand where they are. Questions already
      answered count toward that total. Return an empty list if the answers are enough.
-   - Adapt to the person: use the form data (experience, team, hours, budget) to decide what
-     is worth asking. A beginner may need a question about skills; an experienced person may
+   - Adapt to the person: use the form data (location, budget, how they start, premises) to decide what
+     is worth asking. "undecided" (how they start) and "unsure" (premises) are answers: the person has not
+     decided yet, which is a fact to plan for, not a gap to fill. A beginner may need a question about skills; an experienced person may
      need to be asked whether they do the trade themselves or only manage.
    - Never ask what the description or the form already answers, and never repeat a topic
      already answered.
@@ -308,7 +309,8 @@ function buildPrompt(input: PlannerInput, jev: JevResponse, answers: PlannerAnsw
         .join("\n")
     : "(none yet)";
 
-  return `BUSINESS DESCRIPTION AND FORM DATA:
+  return `BUSINESS DESCRIPTION AND FORM DATA (budget in euros; "unknown" when the person does not know the answer;
+"undecided" for how they start and "unsure" for premises are answers, not missing data):
 <idea>
 ${escapeTags(buildState(input))}
 </idea>

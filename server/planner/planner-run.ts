@@ -194,7 +194,7 @@ export async function buildReport(
     analyzeProfile(input, jev, phase2, answers),
     analyzeValidation(input, jev, claims, answers),
   ]);
-  return { profile, validation: { ...validation, level: departmentLevel(profile, input) } };
+  return { profile, validation: { ...validation, level: departmentLevel(profile) } };
 }
 
 export interface PlannerRunOptions {
