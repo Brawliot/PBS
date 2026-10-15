@@ -1279,3 +1279,43 @@ body.modal-open .header, body.modal-open .hero, body.modal-open .result { filter
 .execution__amount { font-weight: 800; white-space: nowrap; }
 .execution__group--mando .execution__amount { color: #2e9d5b; }
 .execution__group li small { flex-basis: 100%; font-size: 13px; color: var(--gray-text); }
+
+/* ==========================================================================
+   What was understood: a card like the result, shown before the report is generated (body.has-review)
+   ========================================================================== */
+body.has-review .hero { display: none; }
+.review {
+  position: fixed; left: 50%; top: calc(50% - 3vh); z-index: 7; transform: translate(-50%, -50%);
+  width: min(640px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); overflow-y: auto;
+  padding: 28px 24px 24px; display: flex; flex-direction: column; gap: 16px; text-align: left;
+  background: var(--white); color: var(--dark); border-radius: 16px; box-shadow: var(--shadow);
+}
+.review[hidden] { display: none; }
+.review__title { margin: 0; font-size: 28px; line-height: 1.15; }
+.review__title:focus { outline: none; }
+.review__title:focus-visible { outline: 2px solid var(--dark); outline-offset: 4px; }
+.review__idea { margin: 0; color: var(--gray-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.review__list { margin: 0; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); column-gap: 16px; }
+.review__list dt, .review__list dd { margin: 0; padding: 12px 0; border-top: 1px solid var(--border); }
+.review__list dt { font-weight: 600; }
+.review__list dd { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.review__value { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.review__from { font-size: 13px; color: var(--gray-text); border: 1px solid var(--border-strong); border-radius: 999px; padding: 0 8px; }
+.review__edit {
+  border: 0; background: transparent; color: var(--dark); font: inherit; font-size: 14px;
+  text-decoration: underline; cursor: pointer; padding: 4px 0;
+}
+.review__edit:hover { opacity: 0.65; }
+.review__edit:focus-visible { outline: 2px solid var(--dark); outline-offset: 2px; }
+.review__actions { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+.review__generate {
+  border: 0; border-radius: 999px; background: var(--accent); color: var(--on-accent);
+  font: inherit; font-weight: 600; padding: 12px 22px; cursor: pointer;
+}
+.review__generate:hover { background: var(--accent-hover); }
+.review__generate:focus-visible { outline: 2px solid var(--dark); outline-offset: 3px; }
+@media (max-width: 560px) {
+  .review__list { grid-template-columns: minmax(0, 1fr); }
+  .review__list dt { padding-bottom: 0; border-top: 0; }
+  .review__list dd { padding-top: 4px; border-top: 0; border-bottom: 1px solid var(--border); }
+}

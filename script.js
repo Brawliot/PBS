@@ -465,7 +465,7 @@
     if (sending) return;
     hideSubmitError();
     // The fixed answers are dropped when the idea changes: then the questions start again
-    if (profileComplete()) submitIdea();
+    if (profileComplete()) submitIdea({ final: lastFinal });
     else startFlow();
   });
 
@@ -599,6 +599,11 @@
   let reportId = null; // id of the report the server kept for this analysis (see POST /api/plan)
   let prefillResult = null; // what the description already says for the fixed questions (null until it arrives)
   let detectToken = null;   // names the Jev result of that detection, sent with the first request
+  let reviewReady = false;     // the server has answered the first request: from now on the card comes, not the report
+  let editing = null;          // an answer reopened from the card while it is asked: { kind, index }
+  let profileDirty = false;    // a fixed answer changed since the first request: generating repeats that request first
+  let pendingGenerate = false; // generate was pressed and the first request is repeated before the report
+  let lastFinal = false;       // whether the last request was the final one (a retry sends the same kind)
   const CLAIM_KEYS = ['subsector', 'location', 'target_customer', 'value_proposition', 'revenue_model', 'stage', 'competition'];
   // The facts the top of the report shows, from the first round's analysis. The server checks them and keeps them
   // only if they pass, so this is sent as it is: the same fields, in the same shape.
@@ -627,6 +632,11 @@
     analysis = null;
     firstGlance = null;
     reportId = null;
+    reviewReady = false;
+    editing = null;
+    profileDirty = false;
+    pendingGenerate = false;
+    lastFinal = false;
   };
 
   // The value the description gives for a fixed question, with the text the question takes for it; undefined
@@ -666,7 +676,7 @@
     const skipped = profileAsked.length - shownFixed();
     const progress = current.fixed
       ? `Question ${shownFixed() + 1} of ${PROFILE_QUESTIONS.length - skipped + MODEL_QUESTIONS}`
-      : `Question ${shownFixed() + answers.length + 1} of ${total}`;
+      : `Question ${shownFixed() + (editing?.kind === 'ai' ? editing.index : answers.length) + 1} of ${total}`;
     showQuestion(current.question, progress, current.options ?? []);
     answer.value = '';
     refreshQuestionFoot();
@@ -722,12 +732,13 @@
     setTimeout(() => question.classList.remove('is-entering'), FIRST_QUESTION_MS);
   };
 
-  const submitIdea = async () => {
+  // final: the request that builds the report. The first request (not final) asks the questions and returns what was understood.
+  const submitIdea = async ({ final = answers.length > 0 } = {}) => {
+    lastFinal = final;
     const input = {
       idea: idea.value.trim(),
       ...profilePayload(),
     };
-    const final = answers.length > 0;
     const payload = {
       ...input,
       answers,
@@ -780,10 +791,18 @@
       // The browser keeps the report's id (and what a new round needs) in this history entry: going back shows it again
       if (profile && reportId) saveHistory();
       if (!profile) {
+        reviewReady = true;
         queue = result.phase2?.questions ?? [];
         total = shownFixed() + (result.questionTotal ?? queue.length);
         if (nextQuestion()) return; // the loader stays under the popup
-        throw new Error('No questions and no profile');
+        // No questions left: after an edit that changed nothing new, the report is asked straight away
+        if (pendingGenerate) {
+          pendingGenerate = false;
+          submitIdea({ final: true });
+          return;
+        }
+        await showReview(); // what was understood, to check before the report is generated
+        return;
       }
     } catch (err) {
       // Cancelled: cancelWait has already put the page back, so there is nothing more to show
@@ -1737,7 +1756,7 @@
     questionCount.textContent = `${length} / ${ANSWER_MAX}`;
     questionCount.hidden = length < COUNT_FROM;
     // Back stays within its part: the server's questions were made from the fixed answers, so they cannot be changed then
-    questionBack.hidden = current?.fixed ? profileAsked.length === 0 : answers.length === 0;
+    questionBack.hidden = !!editing || (current?.fixed ? profileAsked.length === 0 : answers.length === 0);
     optionsContainer.querySelectorAll('.question__option').forEach((button) => {
       button.setAttribute('aria-pressed', String(button.textContent === answer.value));
     });
@@ -1816,22 +1835,148 @@
         return;
       }
       profileInput[current.key] = value; // null for "I don't know"
-      profileAsked.push({ question: current, text: unsure ? DONT_KNOW : text });
+      const entry = { question: current, text: unsure ? DONT_KNOW : text };
+      // An edited answer goes back to its place; a new one is added at the end
+      if (editing?.kind === 'fixed') {
+        profileAsked.splice(editing.index, 0, entry);
+        editing = null;
+      } else {
+        profileAsked.push(entry);
+      }
       current = null;
       answer.value = '';
       if (nextQuestion()) return;
-      hideQuestion();
-      submitIdea(); // all are answered: the first request sends them with the idea
+      finishQuestions();
       return;
     }
-    asked.push(current);
-    answers.push({ topic: current.topic, question: current.question, answer: text });
+    const entry = { topic: current.topic, question: current.question, answer: text };
+    if (editing?.kind === 'ai') {
+      asked.splice(editing.index, 0, current);
+      answers.splice(editing.index, 0, entry);
+      editing = null;
+    } else {
+      asked.push(current);
+      answers.push(entry);
+    }
     current = null;
     answer.value = '';
     if (nextQuestion()) return; // the next one is ready: the popup stays open
-    hideQuestion();
-    submitIdea(); // all answered: the final request returns the profile
+    finishQuestions();
   });
+
+  // All the questions of this round are answered. Before the server has answered, the first request goes; after that,
+  // what was understood comes, and the report is generated only from there.
+  const finishQuestions = () => {
+    if (reviewReady) {
+      showReview();
+      return;
+    }
+    hideQuestion();
+    submitIdea();
+  };
+
+  // --- What was understood: the answers, to check before the report is generated -----------------
+  const reviewSection = document.getElementById('review');
+  const reviewTitle = document.getElementById('review-title');
+  const reviewIdea = document.getElementById('review-idea');
+  const reviewList = document.getElementById('review-list');
+  const FIXED_ROW = { location: 'Location', budget: 'Budget', start_mode: 'Starting', premises: 'Premises' };
+
+  // The fixed answers in the order they are asked, then the server's answers; each row has its Edit
+  const reviewRows = () => {
+    const rows = [];
+    for (const { key } of PROFILE_QUESTIONS) {
+      const index = profileAsked.findIndex((item) => item.question.key === key);
+      if (index === -1) continue;
+      const item = profileAsked[index];
+      rows.push({ label: FIXED_ROW[key], value: item.text === DONT_KNOW ? 'Not sure yet' : item.text, from: !!item.detected, edit: { kind: 'fixed', index } });
+    }
+    answers.forEach((entry, index) => rows.push({ label: entry.question, value: entry.answer, from: false, edit: { kind: 'ai', index } }));
+    return rows;
+  };
+
+  const renderReview = () => {
+    reviewIdea.textContent = idea.value.trim();
+    reviewList.replaceChildren();
+    for (const row of reviewRows()) {
+      const term = document.createElement('dt');
+      term.textContent = row.label;
+      const detail = document.createElement('dd');
+      const value = document.createElement('span');
+      value.className = 'review__value';
+      value.textContent = row.value;
+      detail.append(value);
+      if (row.from) {
+        const from = document.createElement('span');
+        from.className = 'review__from';
+        from.textContent = 'From your description';
+        detail.append(from);
+      }
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'review__edit';
+      edit.textContent = 'Edit';
+      edit.setAttribute('aria-label', `Edit: ${row.label}`);
+      edit.addEventListener('click', () => editRow(row.edit));
+      detail.append(edit);
+      reviewList.append(term, detail);
+    }
+  };
+
+  const hideReview = () => {
+    reviewSection.hidden = true;
+    document.body.classList.remove('has-review');
+  };
+
+  const showReview = async () => {
+    hideQuestion();
+    editing = null;
+    pendingGenerate = false;
+    if (loader) await stopLoading();
+    renderReview();
+    document.body.classList.add('has-review');
+    reviewSection.hidden = false;
+    status.textContent = 'Check what I understood. Edit anything that is wrong, then generate the report.';
+    reviewTitle.focus({ preventScroll: true });
+  };
+
+  // Edit reopens that one answer with its value in the field; the card comes back when it is sent
+  const editRow = (edit) => {
+    let text;
+    if (edit.kind === 'fixed') {
+      const [item] = profileAsked.splice(edit.index, 1);
+      delete profileInput[item.question.key];
+      profileDirty = true; // the first request is repeated with the new value before the report
+      editing = { kind: 'fixed', index: edit.index };
+      queue = [{ ...item.question, reopened: true }];
+      text = item.text;
+    } else {
+      const [question] = asked.splice(edit.index, 1);
+      const [entry] = answers.splice(edit.index, 1);
+      editing = { kind: 'ai', index: edit.index };
+      queue = [question];
+      text = entry.answer;
+    }
+    hideReview();
+    current = null;
+    nextQuestion();
+    answer.value = text;
+    refreshQuestionFoot();
+  };
+
+  document.getElementById('review-generate').addEventListener('click', () => {
+    if (sending) return;
+    hideReview();
+    if (profileDirty) {
+      // A fixed answer changed: the first request is repeated, and the report follows if nothing new is asked
+      profileDirty = false;
+      pendingGenerate = true;
+      submitIdea({ final: false });
+    } else {
+      submitIdea({ final: true });
+    }
+  });
+  document.getElementById('review-restart').addEventListener('click', () => restartDialog.showModal());
 
   // Back: the previous question comes again with its answer in the field, so it can be changed.
   // The question on screen (if any) goes back to the queue, so nothing is lost.
