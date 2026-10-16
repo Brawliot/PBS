@@ -103,7 +103,7 @@ async function reachResult(page) {
   await page.waitForSelector("#review:not([hidden]), #result:not([hidden])", { timeout: 20_000 });
   if (await page.isVisible("#review")) await page.click("#review-generate");
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
-  await page.waitForFunction(() => document.getElementById("diagnosis-title").textContent === "Five checks on your idea");
+  await page.waitForFunction(() => document.querySelectorAll("#diagnosis-checks > li").length > 0);
 }
 
 async function scenario() {

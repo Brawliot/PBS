@@ -104,7 +104,7 @@ async function reachResult(page, caseData) {
   await page.waitForSelector("#review:not([hidden]), #result:not([hidden])", { timeout: 20_000 });
   if (await page.isVisible("#review")) await page.click("#review-generate");
   await page.waitForSelector("#result:not([hidden])", { timeout: 20_000 });
-  await page.waitForFunction(() => document.getElementById("diagnosis-title").textContent === "Five checks on your idea");
+  await page.waitForFunction(() => document.querySelectorAll("#diagnosis-checks > li").length > 0);
 }
 
 /** What the page shows of the diagnosis */
@@ -112,7 +112,6 @@ const readDiagnosis = (page) =>
   page.evaluate(() => {
     const text = (el) => (el ? el.textContent.replace(/\s+/g, " ").trim() : null);
     return {
-      eyebrow: text(document.getElementById("diagnosis-eyebrow")),
       idea: text(document.getElementById("diagnosis-idea")),
       checks: [...document.querySelectorAll("#diagnosis-checks > li")].map((item) => ({
         name: text(item.querySelector(".name")),
@@ -158,7 +157,6 @@ const stateOf = (view, name) => view.checks.find((c) => c.name === name);
 
 const scenarios = [
   () => scenario("tapas", async ({ view, posts, caseData }) => {
-    assert.equal(view.eyebrow, "Business analysis · Malasaña, Madrid");
     assert.deepEqual(view.checks.map(({ name, state }) => [name, state]), [
       ["Concept", "Strong"], ["Location", "Strong"], ["Money", "Watch"], ["Experience", "Watch"], ["Competition", "Risk"],
     ], "money watch, experience by Jev's answer, competition risk");
@@ -172,11 +170,9 @@ const scenarios = [
     assert.equal(stateOf(view, "Experience").state, "Risk", "a regulated profession without credentials is risk");
     assert.match(stateOf(view, "Experience").why, /No degree or registration/);
     assert.equal(stateOf(view, "Location").state, "Strong");
-    assert.equal(view.eyebrow, "Business analysis · Valencia");
     assert.equal(caseData.report.diagnosis.checks.find((c) => c.key === "experience").decidedBy, "rule");
   }),
   () => scenario("salon", async ({ view, page, caseData }) => {
-    assert.equal(view.eyebrow, "Business analysis · Seville", "the location of the idea is in the eyebrow");
     assert.equal(stateOf(view, "Location").state, "Strong");
     assert.equal(caseData.firstRound.phase2.questions.length, 0, "the model asked no question");
     assert.equal(view.checks.length, 5);

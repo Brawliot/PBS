@@ -1361,7 +1361,6 @@ body.has-review .hero { display: none; }
    colour only repeats them. No inline styles: the content security policy blocks them.
    ========================================================================== */
 .diagnosis { display: flex; flex-direction: column; gap: 16px; }
-.diagnosis__head { display: flex; flex-direction: column; gap: 6px; }
 .diagnosis__idea { font-size: 17px; line-height: 1.35; padding: 12px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
 .diagnosis__idea .result__label { display: block; margin-bottom: 4px; }
 

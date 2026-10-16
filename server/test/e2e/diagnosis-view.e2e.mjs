@@ -168,8 +168,6 @@ const readDiagnosis = (page) =>
     const text = (el) => el.textContent.replace(/\s+/g, " ").trim();
     return {
       visible: shown("diagnosis"),
-      eyebrow: text(document.getElementById("diagnosis-eyebrow")),
-      title: text(document.getElementById("diagnosis-title")),
       idea: text(document.getElementById("diagnosis-idea")),
       checks: [...document.querySelectorAll("#diagnosis-checks > li")].map((item) => ({
         symbol: item.querySelector(".mark").textContent,
@@ -198,15 +196,13 @@ async function scenarioDiagnosis(browser, { width, scheme }) {
     report: (posts) => storedReport(posts, posts.at(-1).glance, DIAGNOSIS),
   });
   await reachResult(page);
-  await page.waitForFunction(() => document.getElementById("diagnosis-title").textContent === "Five checks on your idea");
+  await page.waitForFunction(() => document.querySelectorAll("#diagnosis-checks > li").length > 0);
 
   const view = await readDiagnosis(page);
   assert.equal(view.visible, true, "the diagnosis is shown");
   assert.equal(view.isDiagnosisView, true, "the result takes the diagnosis view");
-  assert.equal(view.eyebrow, "Business analysis · Malasaña, Madrid", "the eyebrow names the location");
-  assert.equal(view.title, "Five checks on your idea");
   assert.equal(view.idea, DIAGNOSIS.idea);
-  assert.equal(view.focused, "diagnosis-title", "the title takes the focus when the diagnosis appears");
+  assert.equal(view.focused, "result", "the report takes the focus when the diagnosis appears");
   assert.deepEqual(view.checks.map(({ name, state, symbol }) => [name, state, symbol]), [
     ["Concept", "Watch", "!"],
     ["Location", "Watch", "!"],

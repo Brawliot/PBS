@@ -21,7 +21,14 @@ export async function watch(page, label) {
     if (message.location().url.includes("/api/")) return;
     problems.push(`${label}: console error: ${message.text()}`);
   });
-  page.on("pageerror", (error) => problems.push(`${label}: page error: ${error.name}`));
+  // The message and the first frame name what broke (a getElementById that found nothing, and where)
+  page.on("pageerror", (error) => {
+    const frame = (error.stack ?? "").split("\n").find((line) => line.trim().startsWith("at ")) ?? "";
+    const problem = `${label}: page error: ${error.name}: ${error.message} ${frame.trim()}`.trim();
+    problems.push(problem);
+    // Printed at once too: an error that stops the flow ends the check in a timeout before the final assertion
+    console.error(problem);
+  });
 }
 
 /** Fails the run if any watched page reported a problem */

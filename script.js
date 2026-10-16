@@ -1643,12 +1643,12 @@
   };
 
 
-  // The diagnosis: the eyebrow, the idea, the five checks (symbol, name, status word, reason), then the risks and
+  // The diagnosis: the idea, the five checks (symbol, name, status word, reason), then the risks and
   // who does what. Old reports (no diagnosis) keep the previous view: the blocks below are shown only for them.
   const CHECK_NAMES = { concept: 'Concept', location: 'Location', reach: 'Reach', money: 'Money', experience: 'Experience', competition: 'Competition' };
   const CHECK_STATES = { strong: ['Strong', '\u2713'], watch: ['Watch', '!'], risk: ['Risk', '\u2715'] };
   const SPLIT_LABELS = { mando: 'Mando builds: ', you: 'You handle: ', outsource: 'Hire out: ' };
-  const showDiagnosis = (diagnosis, glance) => {
+  const showDiagnosis = (diagnosis) => {
     // The older blocks are hidden by the class in the stylesheet, so their own logic stays as it was
     const legacy = !diagnosis;
     resultSection.classList.toggle('is-diagnosis', !legacy);
@@ -1656,8 +1656,6 @@
     document.getElementById('diagnosis-rest').hidden = legacy;
     if (legacy) return;
 
-    const location = glance && glance.location.source !== 'unknown' && glance.location.value.trim() !== '' ? glance.location.value : null;
-    document.getElementById('diagnosis-eyebrow').textContent = location ? `Business analysis \u00b7 ${location}` : 'Business analysis';
     document.getElementById('diagnosis-idea').textContent = diagnosis.idea;
 
     const checks = document.getElementById('diagnosis-checks');
@@ -1834,14 +1832,14 @@
     currentDiagnosis = view.diagnosis ?? null;
     diagnosisQuestions = [];
     showReadiness(currentClarity);
-    showDiagnosis(view.diagnosis ?? null, glance);
+    showDiagnosis(view.diagnosis ?? null);
     loadDiagnosisQuestions();
-    // The header stays usable (profile menu, projects, theme); the report takes the focus when it opens: its
-    // title when it is the diagnosis, the section otherwise
+    // The header stays usable (profile menu, projects, theme); the report takes the focus when it opens. The
+    // diagnosis has no title of its own, so the section takes it in both views
     document.body.classList.add('has-result');
     resultSection.hidden = false;
     status.textContent = 'Your analysis is ready.';
-    (view.diagnosis ? document.getElementById('diagnosis-title') : resultSection).focus({ preventScroll: true });
+    resultSection.focus({ preventScroll: true });
   };
 
   // Loader -> result without going back to the initial page: the loader fades out where it is,
