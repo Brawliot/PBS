@@ -441,7 +441,10 @@ body.has-result .hero { display: none; }
   from { opacity: 0; transform: translate(-50%, calc(-50% + 8px)); }
 }
 .result:focus-visible { outline-offset: -4px; }
+.result__head { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; }
+.result__head .glance__chips { flex-basis: 100%; }
 .result__eyebrow { font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray-text); }
+.result__head .result__eyebrow::after { content: "\00b7"; margin-left: 10px; }
 .result__title { margin-top: 4px; font-size: 28px; font-weight: 800; letter-spacing: -0.02em; }
 .result__label { font-size: 13px; font-weight: 400; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gray-text); }
 
