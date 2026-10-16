@@ -3,12 +3,14 @@
  * Jev answers the sector, scope and timeline (as the planner does) and the fixed questions it can read from the
  * text. The server checks each value against the text and the closed options; a value the text does not support
  * is null. The place is detected only as "online" (an online or global scope); a city is always asked. Nothing
- * here ever blocks: any failure is "nothing detected", and then no token is returned either.
+ * here ever blocks: when Jev fails, only what the text gives without it is kept (a single amount in euros), and
+ * no token is returned.
  */
 
 import { callJev, JEV_QUESTIONS, type JevQuestion, type JevResponse } from "./planner-handler.js";
 import type { Premises, StartMode } from "./fixed-answers.js";
-import { readAmounts } from "./amounts.js";
+import { readAmounts, readEuroAmounts } from "./amounts.js";
+import { MAX_BUDGET } from "../request.js";
 
 export const DETECT_TIMEOUT_MS = 10_000;
 
@@ -101,6 +103,12 @@ export function detectedFrom(idea: string, jev: JevResponse): Detected {
   };
 }
 
+/** The budget when Jev did not answer: the amount only when the text writes exactly one, in euros, as typed */
+export function statedBudget(idea: string): number | null {
+  const amounts = [...new Set(readEuroAmounts(idea))];
+  return amounts.length === 1 ? Math.min(Math.round(amounts[0]), MAX_BUDGET) : null;
+}
+
 /** Keeps only the three answers the planner reads, so a stored result is what the planner would have asked */
 const plannerPart = (jev: JevResponse): JevResponse => ({
   ...jev,
@@ -113,14 +121,17 @@ export interface Detection {
   jev: JevResponse | null;
 }
 
-/** Detects what the description says. Never throws: a failure or a timeout is nothing detected, no result kept. */
+/**
+ * Detects what the description says. Never throws: after a failure or a timeout only the stated budget is kept
+ * (statedBudget), and no Jev result.
+ */
 export async function detectFromIdea(idea: string, signal?: AbortSignal, timeoutMs = DETECT_TIMEOUT_MS): Promise<Detection> {
   try {
     const timeout = AbortSignal.timeout(timeoutMs);
     const jev = await callJev(JSON.stringify({ idea }), DETECT_QUESTIONS, signal ? AbortSignal.any([timeout, signal]) : timeout);
     return { detected: detectedFrom(idea, jev), jev: plannerPart(jev) };
   } catch (error) {
-    console.error(`Detection skipped: ${error instanceof Error ? error.message : "unknown error"}`);
-    return { detected: EMPTY_DETECTED, jev: null };
+    console.error(`Detection without Jev: ${error instanceof Error ? error.message : "unknown error"}`);
+    return { detected: { ...EMPTY_DETECTED, budget: statedBudget(idea) }, jev: null };
   }
 }

@@ -446,6 +446,39 @@ async function scenarioPrefillPartial(browser) {
   return "prefill partial: stated answers are skipped, the rest asked, the counter follows";
 }
 
+/** Jev failed: the detection keeps only the amount the text writes, as typed (not a band). Budget is skipped. */
+async function scenarioPrefillBudgetOnly(browser) {
+  const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
+  const page = await context.newPage();
+  await watch(page, scenarioLabel());
+  const detected = { location: null, budget: 30_000, start_mode: null, premises: null };
+  const { posts } = await mockApi(page, { results: [questionsResult, withReport], plan: json(201, { id: PLAN_ID }), prefill: { body: detected } });
+  await page.goto(`${BASE}/`);
+  await page.fill(".search__input", "Panadería en Albacete con 30.000 €");
+  await page.click(".search__submit");
+  await page.waitForSelector("#question.is-open", { timeout: 20_000 });
+  for (const [text, reply] of [["Do you have premises?", "I have them"], ["How are you starting?", "From scratch"]]) {
+    assert.equal(await page.textContent("#question-text"), text);
+    await page.fill(".question__input", reply);
+    await page.press(".question__input", "Enter");
+    await page.waitForFunction((previous) => document.getElementById("question-text").textContent !== previous, text);
+  }
+  // The budget is not asked: the place comes third, and the total leaves the budget out
+  assert.equal(await page.textContent("#question-text"), "Where will the business be?");
+  assert.equal(await page.textContent("#question-progress"), "Question 3 of 7");
+  await page.fill(".question__input", "Albacete");
+  await page.press(".question__input", "Enter");
+  // Three fixed questions asked, then the server's two
+  await page.waitForFunction(() => document.getElementById("question-progress").textContent === "Question 4 of 5");
+  assert.equal(posts.length, 1, "one first request");
+  assert.deepEqual(
+    { budget: posts[0].budget, location: posts[0].location, start_mode: posts[0].start_mode, premises: posts[0].premises },
+    { budget: 30_000, location: "Albacete", start_mode: "scratch", premises: "have" },
+  );
+  await context.close();
+  return "prefill budget only: an amount that is not a band is skipped and sent as it is";
+}
+
 /** The detection is slow: nothing waits for it, the first question is asked at once, a late value changes nothing */
 async function scenarioPrefillSlow(browser) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 720 } });
@@ -673,7 +706,7 @@ const browser = await chromium.launch({
 });
 let failed = 0;
 try {
-  for (const scenario of [scenarioFullFlow, scenarioError, scenarioNoReport, scenarioQuestions, scenarioQuestionsFlow, scenarioReport, scenarioCancelWait, scenarioStartLayout, scenarioPrefill, scenarioPrefillPartial, scenarioPrefillSlow, scenarioReviewCard, scenarioReviewEditFixed, scenarioReviewEditAnswer, scenarioProgressSteps, scenarioProgressSlow]) {
+  for (const scenario of [scenarioFullFlow, scenarioError, scenarioNoReport, scenarioQuestions, scenarioQuestionsFlow, scenarioReport, scenarioCancelWait, scenarioStartLayout, scenarioPrefill, scenarioPrefillPartial, scenarioPrefillBudgetOnly, scenarioPrefillSlow, scenarioReviewCard, scenarioReviewEditFixed, scenarioReviewEditAnswer, scenarioProgressSteps, scenarioProgressSlow]) {
     currentScenario = scenario.name;
     try {
       console.log("ok -", await scenario(browser));

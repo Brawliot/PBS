@@ -1,6 +1,6 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
-import { DETECT_QUESTIONS, detectedFrom, detectFromIdea, EMPTY_DETECTED } from "../../planner/detect.js";
+import { DETECT_QUESTIONS, detectedFrom, detectFromIdea, EMPTY_DETECTED, statedBudget } from "../../planner/detect.js";
 import type { JevResponse } from "../../planner/planner-handler.js";
 import { mockFetch, jsonResponse, silenceConsoleError, type CapturedRequest } from "./helpers.js";
 import "./helpers.js";
@@ -93,21 +93,21 @@ describe("detectFromIdea: the Jev call", () => {
     assert.deepEqual(Object.keys(result.jev?.answers ?? {}).sort(), ["geographic_scope", "sector", "timeline"]);
   });
 
-  test("a failed Jev call gives nothing detected and no result to keep", async () => {
+  test("a failed Jev call keeps the budget the text states, and no result to keep", async () => {
     const errorLog = silenceConsoleError();
     mockFetch(() => new Response("SENTINEL-jev-41c2", { status: 500 }));
     const result = await detectFromIdea(SALON);
-    assert.deepEqual(result, { detected: EMPTY_DETECTED, jev: null });
+    assert.deepEqual(result, { detected: { ...EMPTY_DETECTED, budget: 40_000 }, jev: null });
     assert.ok(!errorLog.mock.calls.map((call) => call.arguments.join(" ")).join(" ").includes("SENTINEL-jev-41c2"));
   });
 
-  test("a Jev reply of the wrong shape gives nothing detected", async () => {
+  test("a Jev reply of the wrong shape keeps only the stated budget", async () => {
     silenceConsoleError();
     mockFetch(() => jsonResponse(200, { nothing: true }));
-    assert.deepEqual((await detectFromIdea(SALON)).detected, EMPTY_DETECTED);
+    assert.deepEqual((await detectFromIdea(SALON)).detected, { ...EMPTY_DETECTED, budget: 40_000 });
   });
 
-  test("a Jev call that is too slow gives nothing detected", async () => {
+  test("a Jev call that is too slow keeps only the stated budget", async () => {
     silenceConsoleError();
     // A referenced timer keeps the process alive until the abort arrives; the abort then rejects like a real fetch
     globalThis.fetch = ((_input: unknown, init: RequestInit) =>
@@ -118,19 +118,41 @@ describe("detectFromIdea: the Jev call", () => {
           reject(init.signal?.reason);
         });
       })) as typeof fetch;
-    assert.deepEqual(await detectFromIdea(SALON, undefined, 20), { detected: EMPTY_DETECTED, jev: null });
+    assert.deepEqual(await detectFromIdea(SALON, undefined, 20), { detected: { ...EMPTY_DETECTED, budget: 40_000 }, jev: null });
   });
 
-  test("without a Jev key it gives nothing detected and makes no call", async () => {
+  test("without a Jev key it keeps only the stated budget and makes no call", async () => {
     silenceConsoleError();
     const calls = mockFetch(() => jsonResponse(200, {}));
     const saved = process.env.TYPESAFE_API_KEY;
     delete process.env.TYPESAFE_API_KEY;
     try {
-      assert.deepEqual((await detectFromIdea(SALON)).detected, EMPTY_DETECTED);
+      assert.deepEqual((await detectFromIdea(SALON)).detected, { ...EMPTY_DETECTED, budget: 40_000 });
+      assert.deepEqual((await detectFromIdea("A hair salon in Seville")).detected, EMPTY_DETECTED);
     } finally {
       process.env.TYPESAFE_API_KEY = saved;
     }
     assert.equal(calls.length, 0);
+  });
+});
+
+describe("statedBudget: the budget without Jev", () => {
+  test("a single amount written in euros, as typed", () => {
+    assert.equal(statedBudget("Panadería en Albacete con 30.000 €"), 30_000);
+    assert.equal(statedBudget("€30,000 para un bar"), 30_000);
+    assert.equal(statedBudget("Tengo 40k euros"), 40_000);
+    assert.equal(statedBudget("Con 30.000 € ahorrados, 30.000 € en total"), 30_000);
+  });
+
+  test("a number without euros, or two different amounts, is not a budget", () => {
+    assert.equal(statedBudget("Bar abierto 24 horas"), null);
+    assert.equal(statedBudget("Tienda en un pueblo de 3 mil habitantes"), null);
+    assert.equal(statedBudget("Tengo 30k"), null);
+    assert.equal(statedBudget("Local de 100.000 € y tengo 30.000 €"), null);
+    assert.equal(statedBudget("Software para bares"), null);
+  });
+
+  test("it never goes over the most the budget question takes", () => {
+    assert.equal(statedBudget("Hotel con 5.000.000 €"), 1_000_000);
   });
 });

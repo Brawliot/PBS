@@ -68,11 +68,11 @@ describe("POST /api/planner/detect", () => {
     assert.match(result.body.jevToken, /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
   });
 
-  test("a Jev failure answers 200 with nothing detected and no token", async () => {
+  test("a Jev failure answers 200 with only the stated budget and no token", async () => {
     silenceConsoleError();
     mockFetch(() => new Response("boom", { status: 500 }));
     const result = await post(JSON.stringify({ idea: SALON }), true);
     assert.equal(result.status, 200);
-    assert.deepEqual(result.body, { detected: { location: null, budget: null, start_mode: null, premises: null }, jevToken: null });
+    assert.deepEqual(result.body, { detected: { location: null, budget: 40_000, start_mode: null, premises: null }, jevToken: null });
   });
 });
