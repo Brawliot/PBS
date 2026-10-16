@@ -2,15 +2,13 @@
  * Detection of the fixed answers from the business description: one call to Jev with the description only.
  * Jev answers the sector, scope and timeline (as the planner does) and the fixed questions it can read from the
  * text. The server checks each value against the text and the closed options; a value the text does not support
- * is null. The place is found by the places list, not by the model. Nothing here ever blocks: any failure is
- * "nothing detected", and then no token is returned either.
+ * is null. The place is detected only as "online" (an online or global scope); a city is always asked. Nothing
+ * here ever blocks: any failure is "nothing detected", and then no token is returned either.
  */
 
 import { callJev, JEV_QUESTIONS, type JevQuestion, type JevResponse } from "./planner-handler.js";
 import type { Premises, StartMode } from "./fixed-answers.js";
 import { readAmounts } from "./amounts.js";
-import { findPlace } from "./places.js";
-import { PLACES, type Place } from "../data/es-places.js";
 
 export const DETECT_TIMEOUT_MS = 10_000;
 
@@ -89,14 +87,14 @@ const choiceOf = (jev: JevResponse, key: string): string | undefined => {
 };
 
 /** Turns Jev's choices into the closed values; each one is checked against the description */
-export function detectedFrom(idea: string, jev: JevResponse, places: readonly Place[] = PLACES): Detected {
+export function detectedFrom(idea: string, jev: JevResponse): Detected {
   const scope = choiceOf(jev, "geographic_scope");
   const band = BUDGET_BANDS.find(({ label }) => label === choiceOf(jev, "budget"));
   const amounts = readAmounts(idea);
   const premises = choiceOf(jev, "premises");
   const start = choiceOf(jev, "start_mode");
   return {
-    location: scope === "Online" || scope === "Global" ? "online" : findPlace(idea, places),
+    location: scope === "Online" || scope === "Global" ? "online" : null,
     budget: band && amounts.some(band.covers) ? band.value : null,
     start_mode: start !== undefined ? (START_LABELS[start] ?? null) : null,
     premises: premises !== undefined ? (PREMISES_LABELS[premises] ?? null) : null,

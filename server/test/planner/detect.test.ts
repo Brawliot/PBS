@@ -16,7 +16,6 @@ const jevWith = (answers: Record<string, string>): JevResponse => ({
     ...Object.fromEntries(Object.entries(answers).map(([key, value]) => [key, choice(value)])),
   },
 });
-const PLACES = [{ name: "Malasaña", city: "Madrid" }];
 
 describe("detectedFrom: the closed values, each checked against the description", () => {
   test("each start choice gives its value; Not stated gives null", () => {
@@ -62,13 +61,13 @@ describe("detectedFrom: the closed values, each checked against the description"
   });
 
   test("an online or global business is located online", () => {
-    assert.equal(detectedFrom("A course", jevWith({ geographic_scope: "Online" }), []).location, "online");
-    assert.equal(detectedFrom("A course", jevWith({ geographic_scope: "Global" }), []).location, "online");
+    assert.equal(detectedFrom("A course", jevWith({ geographic_scope: "Online" })).location, "online");
+    assert.equal(detectedFrom("A course", jevWith({ geographic_scope: "Global" })).location, "online");
   });
 
-  test("otherwise the place is the one the list finds in the text", () => {
-    assert.equal(detectedFrom("Tapas bar in Malasaña, Madrid", jevWith({ geographic_scope: "Hyper-local" }), PLACES).location, "Malasaña, Madrid");
-    assert.equal(detectedFrom("A tapas bar", jevWith({ geographic_scope: "Local" }), PLACES).location, null);
+  test("otherwise no place is detected, even when the text names one: the location question is asked", () => {
+    assert.equal(detectedFrom("Tapas bar in Malasaña, Madrid", jevWith({ geographic_scope: "Hyper-local" })).location, null);
+    assert.equal(detectedFrom("A tapas bar", jevWith({ geographic_scope: "Local" })).location, null);
   });
 
   test("the Jev questions for the detection are the planner's three and the three fixed ones", () => {
